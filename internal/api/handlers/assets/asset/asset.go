@@ -1,6 +1,7 @@
 package asset
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -132,6 +133,34 @@ func UpdateAsset(c *gin.Context) {
 	}
 
 	response.Success(c, asset, "api.asset.update.success")
+}
+
+// SetRemark 更新资产备注（issue #335）
+// @Summary 更新资产备注
+// @Description 只更新 remark 一个字段；空字符串表示清空备注，最长 500 字符
+// @Tags 资产
+// @Accept json
+// @Produce json
+// @Param request body models.AssetRemarkRequest true "备注请求参数"
+// @Success 200 {object} response.SuccessResponse
+// @Router /api/assets/asset/remark [post]
+func SetRemark(c *gin.Context) {
+	var req models.AssetRemarkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+
+	if err := assetService.SetRemark(c, req.ID, req.Remark); err != nil {
+		if errors.Is(err, asset.ErrRemarkTooLong) || errors.Is(err, asset.ErrInvalidAssetID) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
+		response.InternalServerError(c, "api.asset.update.failed", err)
+		return
+	}
+
+	response.Success(c, gin.H{"id": req.ID}, "api.asset.update.success")
 }
 
 // DeleteAsset godoc

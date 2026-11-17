@@ -38,6 +38,15 @@ type Asset struct {
 	IconContent      string             `bson:"iconcontent,omitempty" json:"icon"`
 	Webcheck         bool               `bson:"webcheck,omitempty" json:"webcheck,omitempty"`
 	WebServer        string             `bson:"webServer,omitempty" json:"webServer,omitempty"`
+	// Remark 人工备注（issue #335）：扫描不会写，只由用户在列表里编辑
+	Remark string `bson:"remark,omitempty" json:"remark,omitempty"`
+}
+
+// AssetRemarkRequest 资产备注的定向更新请求（issue #335）。
+// 只改 remark 一个字段，避免整文档覆盖把扫描结果冲掉。
+type AssetRemarkRequest struct {
+	ID     string `json:"id" binding:"required"`
+	Remark string `json:"remark"`
 }
 
 type HttpBody struct {

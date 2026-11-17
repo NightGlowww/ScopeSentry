@@ -7,12 +7,14 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/assets/asset"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -23,6 +25,7 @@ type Service interface {
 	GetAssetByID(ctx *gin.Context, id string) (*models.Asset, error)
 	CreateAsset(ctx *gin.Context, asset *models.Asset) error
 	UpdateAsset(ctx *gin.Context, id string, asset *models.Asset) error
+	SetRemark(ctx *gin.Context, id string, remark string) error
 	DeleteAsset(ctx *gin.Context, id string) error
 	GetScreenshot(ctx *gin.Context, id string) (string, error)
 	GetChangeLog(ctx *gin.Context, id string) ([]models.AssetChangeLog, error)
@@ -297,6 +300,28 @@ func (s *service) UpdateAsset(ctx *gin.Context, id string, asset *models.Asset) 
 }
 
 // DeleteAsset 删除资产
+// MaxRemarkLength 备注最大长度（按字符数，不是字节）。
+// 备注是给人看的短文本，限制住可以避免有人把它当存储用。
+const MaxRemarkLength = 500
+
+// ErrRemarkTooLong 备注超长
+var ErrRemarkTooLong = fmt.Errorf("remark exceeds %d characters", MaxRemarkLength)
+
+// ErrInvalidAssetID 资产 ID 不是合法的 ObjectID
+var ErrInvalidAssetID = fmt.Errorf("invalid asset id")
+
+// SetRemark 更新资产备注（issue #335）：去首尾空白后落库，空串表示清空备注。
+func (s *service) SetRemark(ctx *gin.Context, id string, remark string) error {
+	if _, err := primitive.ObjectIDFromHex(id); err != nil {
+		return ErrInvalidAssetID
+	}
+	remark = strings.TrimSpace(remark)
+	if utf8.RuneCountInString(remark) > MaxRemarkLength {
+		return ErrRemarkTooLong
+	}
+	return s.assetRepo.SetRemark(ctx.Request.Context(), id, remark)
+}
+
 func (s *service) DeleteAsset(ctx *gin.Context, id string) error {
 	return s.assetRepo.DeleteAsset(ctx.Request.Context(), id)
 }
