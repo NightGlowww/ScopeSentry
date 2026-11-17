@@ -105,6 +105,36 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'material-symbols:corporate-fare',
           noCache: true
         }
+      },
+      {
+        path: 'stat-finger',
+        component: () => import('@/views/AssetInsight/StatFinger.vue'),
+        name: 'Asset-StatFinger',
+        meta: {
+          title: t('router.statFinger'),
+          icon: 'mdi:fingerprint',
+          noCache: true
+        }
+      },
+      {
+        path: 'nuclei-result',
+        component: () => import('@/views/AssetInsight/NucleiResult.vue'),
+        name: 'Asset-NucleiResult',
+        meta: {
+          title: t('router.nucleiResult'),
+          icon: 'mdi:shield-search',
+          noCache: true
+        }
+      },
+      {
+        path: 'wih',
+        component: () => import('@/views/AssetInsight/Wih.vue'),
+        name: 'Asset-WIH',
+        meta: {
+          title: t('router.wih'),
+          icon: 'mdi:key-alert',
+          noCache: true
+        }
       }
     ]
   },
