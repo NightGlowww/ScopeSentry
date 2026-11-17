@@ -774,12 +774,6 @@ func createIndexes(db *mongo.Database) error {
 	return nil
 }
 
-// EnsureIndexes 导出索引初始化：集成测试需要在不跑完整 initdb 的情况下
-// 建好新集合的索引（唯一索引缺失会静默丢失去重语义）。
-func EnsureIndexes(db *mongo.Database) error {
-	return createIndexes(db)
-}
-
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {
