@@ -118,7 +118,9 @@ export default ({ command, mode }: ConfigEnv): UserConfig => {
           // 按"体积大、变动少"的依赖合并成少数 vendor chunk，减少请求数并利于缓存。
           manualChunks(id: string) {
             if (!id.includes('node_modules')) return
-            if (id.includes('monaco-editor')) return 'vendor-monaco'
+            // monaco 只在编辑器页面按需加载：不分组（返回 undefined），让 Rollup 单独切一个异步 chunk。
+            // 之前把它和所有其它 node_modules 一起塞进 vendor，会让入口静态依赖到它并被 modulepreload 拉进首屏。
+            if (id.includes('monaco-editor')) return
             if (id.includes('element-plus')) return 'vendor-element'
             if (id.includes('echarts') || id.includes('zrender')) return 'vendor-echarts'
             if (id.includes('codemirror')) return 'vendor-codemirror'

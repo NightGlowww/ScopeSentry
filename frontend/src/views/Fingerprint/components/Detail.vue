@@ -4,7 +4,9 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { toRefs } from '@vueuse/core'
 import { updateFingerprintDataApi, addFingerprintDataApi } from '@/api/Fingerprint'
-import * as monaco from 'monaco-editor'
+// 只引用类型；运行时动态 import。
+// 指纹编辑不是首屏/常驻页面，静态引入会让 monaco（约 1MB gzip）被入口 chunk 预加载。
+import type * as MonacoNamespace from 'monaco-editor'
 import { useAppStore } from '@/store/modules/app'
 
 const { t } = useI18n()
@@ -22,7 +24,15 @@ const { fingerprintForm } = toRefs(props)
 const localFingerprintForm = ref({ ...fingerprintForm.value })
 
 const editorContainer = ref<HTMLDivElement | null>(null)
-let editor: monaco.editor.IStandaloneCodeEditor | null = null
+let monaco: typeof MonacoNamespace | null = null
+let editor: MonacoNamespace.editor.IStandaloneCodeEditor | null = null
+
+const loadMonaco = async () => {
+  if (!monaco) {
+    monaco = await import('monaco-editor')
+  }
+  return monaco
+}
 
 // 默认 YAML 模板
 const defaultYamlTemplate = `fingerprint:
@@ -40,7 +50,7 @@ const defaultYamlTemplate = `fingerprint:
       pattern: "demo"
 `
 
-onMounted(() => {
+onMounted(async () => {
   if (editorContainer.value) {
     // 如果是新建且内容为空，使用默认模板
     let initialValue = localFingerprintForm.value.content || ''
@@ -49,7 +59,10 @@ onMounted(() => {
       localFingerprintForm.value.content = initialValue
     }
 
-    editor = monaco.editor.create(editorContainer.value, {
+    const m = await loadMonaco()
+    // await 期间弹窗可能已经关掉
+    if (!editorContainer.value) return
+    editor = m.editor.create(editorContainer.value, {
       value: initialValue,
       language: 'yaml',
       theme: appStore.getIsDark ? 'vs-dark' : 'vs',
@@ -73,7 +86,7 @@ onMounted(() => {
 // 主题切换后同步 monaco 全局主题（实例不需要重建）
 watch(
   () => appStore.getIsDark,
-  (dark) => monaco.editor.setTheme(dark ? 'vs-dark' : 'vs')
+  (dark) => monaco?.editor.setTheme(dark ? 'vs-dark' : 'vs')
 )
 
 watch(
