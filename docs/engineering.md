@@ -73,6 +73,14 @@ npx esno ./scripts/check-theme.ts
 - 合并逻辑在 `services/export/exportfilter.ApplyTimeRange`：base 里已有 `time` 条件时用 `$and` 合并而不是覆盖；
   格式非法或 start > end 直接 400。
 
+## 任务完成后自动同步到绑定项目
+
+- `Task.BindProject`（MCP 建任务时可填）之前没有任何代码消费，等于“填了也没用”。
+- 现在任务到 100% 时：`tasksync.AutoBindRequest(task)` 生成 `{ids, option=existing, project}`（项目为空/非法 ObjectID 直接跳过），
+  后台 goroutine 取出任务目标 → `project.SyncTaskTargets(ctx, projectID, targets)` 并入项目、按出现顺序去重、重算资产关联。
+- 自动同步失败只记日志，不影响任务完成状态；同步是幂等的，重复跑只会新增缺失的目标。
+- `SyncTaskTargets` 是 `SyncTargets` 的 context 版本：后台没有 gin 上下文，这条路径只用 `context.Context`。
+
 ## 手工录入资产（issue #203）
 
 - `POST /api/assets/asset/add`，body `{host, ip, port, url, service, title, project, tags}`：

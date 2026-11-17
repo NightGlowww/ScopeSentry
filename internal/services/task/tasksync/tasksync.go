@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strings"
 
+	"go.mongodb.org/mongo-driver/bson/primitive"
+
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 )
 
@@ -101,4 +103,31 @@ func CountNew(existing string, additions []string) int {
 		return 0
 	}
 	return after - before
+}
+
+// AutoBindRequest 任务完成时按 BindProject 生成自动同步请求。
+//
+// BindProject 是任务创建时可选的项目 ID（MCP 建任务时就在传），之前没有任何代码消费它。
+// 这里把它变成「任务完成后自动把目标并入该项目」：项目为空或不是合法 ObjectID 时不自动同步，
+// 避免把错误配置变成后台静默失败。
+func AutoBindRequest(task models.Task) (Request, bool) {
+	projectID := strings.TrimSpace(task.BindProject)
+	if projectID == "" {
+		return Request{}, false
+	}
+	if _, err := primitive.ObjectIDFromHex(projectID); err != nil {
+		return Request{}, false
+	}
+	taskID := task.TaskID
+	if !task.ID.IsZero() {
+		taskID = task.ID.Hex()
+	}
+	if strings.TrimSpace(taskID) == "" {
+		return Request{}, false
+	}
+	return Request{
+		IDS:     []string{taskID},
+		Option:  OptionExisting,
+		Project: projectID,
+	}, true
 }

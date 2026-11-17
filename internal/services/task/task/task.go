@@ -10,6 +10,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
+	"github.com/Autumn-27/ScopeSentry/internal/services/project"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/tasksync"
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -54,6 +56,7 @@ type service struct {
 	schedulerService schedulerSvc.Service
 	nodeService      node.Service
 	pluginService    plugin.Service
+	projectService   project.Service
 }
 
 // NewService 创建任务服务实例
@@ -64,6 +67,7 @@ func NewService() Service {
 		schedulerService: schedulerSvc.NewService(),
 		nodeService:      node.NewService(),
 		pluginService:    plugin.NewService(),
+		projectService:   project.NewService(),
 	}
 }
 
@@ -382,6 +386,37 @@ func (s *service) processTargetsWithPagination(ctx *gin.Context, targetStr, igno
 	return allTargets[startIndex:endIndex], nil
 }
 
+// autoSyncToProject 把已完成任务的目标并入绑定项目（tasksync.AutoBindRequest 产出）。
+// 失败只记日志：自动同步是附带动作，不能让任务完成状态回滚。
+func (s *service) autoSyncToProject(req tasksync.Request) {
+	ctx := context.Background()
+	ids := make([]primitive.ObjectID, 0, len(req.IDS))
+	for _, id := range req.IDS {
+		if oid, err := primitive.ObjectIDFromHex(id); err == nil {
+			ids = append(ids, oid)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	tasks, err := s.taskRepo.Find(ctx, bson.M{"_id": bson.M{"$in": ids}}, nil)
+	if err != nil {
+		logger.Error(fmt.Sprintf("auto sync: failed to load tasks: %v", err))
+		return
+	}
+	targets, err := tasksync.ExtractTargets(tasks)
+	if err != nil {
+		logger.Error(fmt.Sprintf("auto sync: %v", err))
+		return
+	}
+	added, err := s.projectService.SyncTaskTargets(ctx, req.Project, targets)
+	if err != nil {
+		logger.Error(fmt.Sprintf("auto sync to project %s failed: %v", req.Project, err))
+		return
+	}
+	logger.Info(fmt.Sprintf("auto sync to project %s: %d new target(s)", req.Project, added))
+}
+
 // snapshotTaskProgress 把完成任务的逐目标进度明细落库（issue #278）。
 // 失败只记日志：快照是补充数据，不能让任务状态更新跟着失败。
 func (s *service) snapshotTaskProgress(ctx context.Context, taskID string) {
@@ -618,6 +653,12 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			// 删除Redis统计信息
 			if err := s.taskRepo.Del(ctx, tmpKey, timeKey); err != nil {
 				logger.Error(fmt.Sprintf("failed to delete redis keys for completed task %s: %v", taskID, err))
+			}
+
+			// 任务创建时如果绑定了项目（BindProject），完成后自动把目标并入该项目。
+			// 之前这个字段只有 MCP 在建任务时写，没有任何代码消费，等于“填了也没用”。
+			if req, ok := tasksync.AutoBindRequest(task); ok {
+				go s.autoSyncToProject(req)
 			}
 
 			// 调用服务端插件
