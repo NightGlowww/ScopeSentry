@@ -185,6 +185,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'mdi:file-cog-outline',
           noCache: true
         }
+      },
+      {
+        path: 'http-status',
+        component: () => import('@/views/AssetInsight/HttpStatus.vue'),
+        name: 'Asset-HttpStatus',
+        meta: {
+          title: t('router.httpStatus'),
+          icon: 'mdi:web-check',
+          noCache: true
+        }
       }
     ]
   },
@@ -453,6 +463,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         meta: {
           title: t('router.apiKeyManagement'),
           icon: 'mdi:key-variant',
+          noCache: true
+        }
+      },
+      {
+        path: 'syslog',
+        component: () => import('@/views/Configuration/Syslog.vue'),
+        name: 'syslog configuration',
+        meta: {
+          title: t('router.syslog'),
+          icon: 'mdi:math-log',
           noCache: true
         }
       }
