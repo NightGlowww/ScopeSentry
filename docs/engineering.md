@@ -1,5 +1,12 @@
 # 工程化约定
 
+## 前端基线（Vue 3.5）
+
+- Vue **3.5.13** + vue-router 4.6 + pinia 2.3 + element-plus 2.14 + vue-i18n 9.14；
+  构建链升级到 `@vitejs/plugin-vue` 5.2、`vue-tsc` 2.2、TypeScript 5.6（Vite 仍为 5.0.6）。
+- 升级由 `owl234/ARL-Next` 对齐任务驱动（其前端为 Vue 3.5），功能对齐路线见 `docs/ARL_NEXT_PARITY.md`。
+- `vue-tsc` 在 CI 中仍是非阻塞（历史告警未清零）；升级后用 `pnpm ts:check` 查看当前基线。
+
 ## 本地命令（Makefile）
 
 ```bash
