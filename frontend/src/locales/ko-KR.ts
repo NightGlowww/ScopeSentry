@@ -486,6 +486,36 @@ export default {
     empty:
       '서비스는 자산 포트 식별과 핑거프린트 탐지에서 나옵니다. 포트 스캔이 포함된 스캔 작업을 실행하면 탐지된 서비스가 서비스 이름별로 이곳에 집계됩니다.'
   },
+  fileLeak: {
+    url: 'URL',
+    site: '사이트',
+    title: '제목',
+    statusCode: '상태 코드',
+    contentLength: '콘텐츠 길이',
+    insertTime: '최초 발견',
+    updateTime: '최근 업데이트',
+    keywordPlaceholder: 'URL / 사이트 / 제목(부분 일치)',
+    statusPlaceholder: '상태 코드, 예: 404',
+    selectedCount: '선택 {count}건',
+    selectFirst: '삭제할 기록을 먼저 선택하세요',
+    deleteConfirm: '선택한 파일 유출 기록 {count}건을 삭제할까요? 삭제 후에는 되돌릴 수 없습니다',
+    empty:
+      '데이터는 스캐너 측 파일 유출 탐지에서 나옵니다. 노드가 파일 유출 모듈을 실행한 뒤에야 해당 기록이 이곳에 나타납니다. 목록이 비어 있다면 해당 노드가 업그레이드되었는지, 모듈을 실행했는지 확인하세요.'
+  },
+  npocService: {
+    scheme: '스킴',
+    host: '호스트',
+    port: '포트',
+    target: '대상',
+    insertTime: '발견 시간',
+    keywordPlaceholder: '호스트 / 대상(부분 일치)',
+    schemePlaceholder: '스킴, 예: http',
+    selectedCount: '선택 {count}건',
+    selectFirst: '삭제할 기록을 먼저 선택하세요',
+    deleteConfirm: '선택한 NPoC 서비스 기록 {count}건을 삭제할까요? 삭제 후에는 되돌릴 수 없습니다',
+    empty:
+      '데이터는 스캐너 측 NPoC 서비스 식별에서 나옵니다. 노드가 NPoC 모듈을 실행한 뒤에야 식별된 서비스가 이곳에 나타납니다. 목록이 비어 있다면 해당 노드가 업그레이드되었는지, 모듈을 실행했는지 확인하세요.'
+  },
   cip: {
     company: '기관명',
     companyUnknown: '알 수 없는 기관',
@@ -830,6 +860,8 @@ export default {
     document: '문서',
     httpStatus: 'HTTP 상태',
     assetService: '서비스',
+    fileLeak: '파일 유출',
+    npocService: 'NPoC 서비스',
     syslog: '시스템 로그'
   },
   permission: {

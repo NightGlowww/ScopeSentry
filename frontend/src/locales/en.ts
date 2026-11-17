@@ -489,6 +489,36 @@ export default {
     empty:
       'Services come from port identification and fingerprint probing. Run a scan task with port scanning enabled and detected services are aggregated here by service name.'
   },
+  fileLeak: {
+    url: 'URL',
+    site: 'Site',
+    title: 'Title',
+    statusCode: 'Status',
+    contentLength: 'Content length',
+    insertTime: 'First seen',
+    updateTime: 'Last updated',
+    keywordPlaceholder: 'URL / site / title (substring)',
+    statusPlaceholder: 'Status code, e.g. 404',
+    selectedCount: '{count} selected',
+    selectFirst: 'Select the records to delete first',
+    deleteConfirm: 'Delete the {count} selected file leak records? This cannot be undone',
+    empty:
+      'Data comes from file leak detection on the scanner side: records appear only after a node has run the file leak module. If the list is empty, check that the node is upgraded and has run that module.'
+  },
+  npocService: {
+    scheme: 'Scheme',
+    host: 'Host',
+    port: 'Port',
+    target: 'Target',
+    insertTime: 'First seen',
+    keywordPlaceholder: 'Host / target (substring)',
+    schemePlaceholder: 'Scheme, e.g. http',
+    selectedCount: '{count} selected',
+    selectFirst: 'Select the records to delete first',
+    deleteConfirm: 'Delete the {count} selected NPoC service records? This cannot be undone',
+    empty:
+      'Data comes from NPoC service identification on the scanner side: services appear only after a node has run the NPoC module. If the list is empty, check that the node is upgraded and has run that module.'
+  },
   cip: {
     company: 'Entity',
     companyUnknown: 'Unknown entity',
@@ -838,6 +868,8 @@ export default {
     document: 'Document',
     httpStatus: 'HTTP status',
     assetService: 'Services',
+    fileLeak: 'File leaks',
+    npocService: 'NPoC services',
     syslog: 'System logs'
   },
   permission: {
