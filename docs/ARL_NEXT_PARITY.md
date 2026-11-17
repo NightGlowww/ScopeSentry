@@ -159,7 +159,7 @@
 | assetNucleiResult.py | `POST /api/assets/nuclei_result/{list,detail}` | ✅ |
 | assetOverview.py | `POST /api/assets/asset_overview/count` | ✅ |
 | assetScope.py | `POST /api/assets/asset_scope/{list,add,update,delete,batch_move_group,bind_enterprise,clear_update_error}` | ✅ |
-| assetService.py | `/api/assets/service` + `asset.service` 统计 | 🟡 |
+| assetService.py | `POST /api/assets/service/list` + `/asset-information/service` 页面（聚合资产/主机/端口/样本） | ✅ |
 | assetSite.py | `POST /api/assets/site/{list,chain}` | ✅ |
 | assetStatFinger.py | `POST /api/assets/stat_finger/{list,assets}` | ✅ |
 | assetUrl.py | `/api/assets/url` | ✅ |
@@ -187,7 +187,7 @@
 | system_config.py | `/api/system/config`、`/api/configuration/*` | ✅ |
 | task.py / task_schedule.py | `/api/task/*`（含模板、暂停/恢复、进度快照、自动同步项目） | ✅ |
 | taskFofa.py | `/api/fofa/{status,search,task,task/list}` | ✅ |
-| user.py | `/api/user/{login,changePassword}`；用户管理路由在上游被注释，沿用 | 🟡 |
+| user.py | `/api/user` 全套 CRUD + RBAC（`user:list/read/create/update/delete`）、安全约束、种子用户权限迁移 | ✅ |
 
 ### 仍缺的两项（依赖节点侧数据）
 
@@ -196,4 +196,4 @@
 
 这两项在扫描端补齐数据后，可直接复用现有读模型写法（`repositories/assets/*` + `models` + `routes`），不需要改架构。
 
-另有 2 个部分项保留 🟡：`assetService`（服务维度目前是字段/统计，没有独立页）、`user`（上游 user 管理路由本身被注释，未启用）。
+`assetService` 与 `user` 已补齐（服务维度页 + 用户管理 RBAC），清单中不再有 🟡。
