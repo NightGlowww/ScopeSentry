@@ -440,6 +440,11 @@ export default {
   },
   asset: {
     assetName: '资产',
+    deleteFiltered: '删除全部（当前筛选）',
+    deleteFilteredConfirm: '将按当前筛选删除 {count} 条数据，删除后不可恢复。',
+    deleteFilteredAllConfirm:
+      '当前没有任何筛选条件，将清空该集合的全部数据，且不可恢复。确定继续？',
+    deleteFilteredDone: '已删除 {count} 条数据',
     banner: 'Banner',
     products: '应用/组件',
     IP: 'IP',

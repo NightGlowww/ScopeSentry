@@ -444,6 +444,12 @@ export default {
   },
   asset: {
     assetName: 'Asset',
+    deleteFiltered: 'Delete all (filtered)',
+    deleteFilteredConfirm:
+      'This deletes {count} items matching the current filter and cannot be undone.',
+    deleteFilteredAllConfirm:
+      'No filter is active: this empties the entire collection and cannot be undone. Continue?',
+    deleteFilteredDone: 'Deleted {count} items',
     banner: 'Banner',
     products: 'Products',
     IP: 'IP',

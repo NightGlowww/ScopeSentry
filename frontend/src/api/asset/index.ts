@@ -290,6 +290,20 @@ export const delDataApi = (ids: string[], index: string): Promise<IResponse<comm
   return request.post({ url: '/api/assets/common/delete', data: { ids, index } })
 }
 
+// 按当前筛选条件批量删除（issue #258 / #191）：search/filter 与列表页同源，
+// 空筛选时必须由调用方显式传 confirmAll，后端才肯清空整个集合。
+export const delBySearchApi = (
+  index: string,
+  search: string,
+  filter: Record<string, any>,
+  confirmAll: boolean
+): Promise<IResponse<{ deleted: number }>> => {
+  return request.post({
+    url: '/api/assets/common/delete_by_search',
+    data: { index, search, filter, confirmAll }
+  })
+}
+
 export const addTagApi = (
   id: string,
   tp: string,
