@@ -15,6 +15,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export"
+	"github.com/Autumn-27/ScopeSentry/internal/services/export/exportfilter"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -75,6 +76,14 @@ func Export(c *gin.Context) {
 	}
 	if req.Index == "PageMonitoring" {
 		searchQuery["hash"] = map[string]interface{}{"$size": 2}
+	}
+
+	// issue #261：按导出时间范围收窄。放在 PageMonitoring 的 hash 条件之后，
+	// 避免 $and 包装之后再往外层塞条件。
+	searchQuery, err = exportfilter.ApplyTimeRange(searchQuery, req.StartTime, req.EndTime)
+	if err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
 	}
 	filter := bson.M(searchQuery)
 

@@ -118,6 +118,9 @@ export default {
     success: '成功'
   },
   export: {
+    timeRange: '时间范围',
+    timeRangeStart: '开始时间',
+    timeRangeEnd: '结束时间',
     exportType: '导出类型',
     exportTypeAll: '所有数据',
     exportTypeSearch: '当前搜索条件',

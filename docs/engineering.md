@@ -56,6 +56,13 @@ npx esno ./scripts/check-theme.ts
   触发时历史日志全丢。
 - **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
 
+## 导出时间范围（issue #261）
+
+- 导出请求可带 `startTime` / `endTime`，格式 `YYYY-MM-DD HH:mm:ss`，可以只给一边。
+- `time` 字段就是这个格式的字符串，同格式下字典序即时间序，所以范围过滤直接比较字符串，不需要 `$dateFromString`。
+- 合并逻辑在 `services/export/exportfilter.ApplyTimeRange`：base 里已有 `time` 条件时用 `$and` 合并而不是覆盖；
+  格式非法或 start > end 直接 400。
+
 ## 资产备注（issue #335）
 
 - `Asset` 新增 `remark` 字段（扫描不会写，只有用户改）。
