@@ -1,6 +1,8 @@
 package assetoverview
 
 import (
+	"io"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	overviewservice "github.com/Autumn-27/ScopeSentry/internal/services/assets/assetoverview"
 	"github.com/gin-gonic/gin"
@@ -25,7 +27,15 @@ func init() {
 // @Failure      500      {object}  response.InternalServerErrorResponse
 // @Router       /api/assets/asset_overview/count [post]
 func Count(c *gin.Context) {
-	result, err := overviewService.Count(c.Request.Context())
+	var req struct {
+		Project string `json:"project"`
+	}
+	// 空 body 是允许的（全库概览）；有 body 时按 project 精确计数
+	if err := c.ShouldBindJSON(&req); err != nil && err != io.EOF {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	result, err := overviewService.Count(c.Request.Context(), req.Project)
 	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return

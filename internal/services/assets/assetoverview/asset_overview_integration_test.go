@@ -26,17 +26,7 @@ func TestAssetOverviewCount(t *testing.T) {
 	project := "proj-overview-" + suffix
 	hostPrefix := "overview-" + suffix + "-"
 
-	physical := []string{"asset", "subdomain", "UrlScan", "app", "mp", "vulnerability", "SensitiveResult"}
-	before := make(map[string]int64, len(physical))
-	for _, name := range physical {
-		count, err := mongodb.DB.Collection(name).EstimatedDocumentCount(context.Background())
-		if err != nil {
-			t.Fatalf("estimated count %s: %v", name, err)
-		}
-		before[name] = count
-	}
-
-	// 每个集合种 2 条，字段尽量贴近真实读模型
+	// 每个集合种 2 条，字段尽量贴近真实读模型（按 project 精确计数，避免并行包的干扰）
 	seed := func(collection string, docs []interface{}) {
 		coll := mongodb.DB.Collection(collection)
 		t.Cleanup(func() {
@@ -116,7 +106,7 @@ func TestAssetOverviewCount(t *testing.T) {
 		t.Fatalf("seed RootDomain: %v", err)
 	}
 
-	result, err := NewService().Count(context.Background())
+	result, err := NewService().Count(context.Background(), project)
 	if err != nil {
 		t.Fatalf("count overview: %v", err)
 	}
@@ -138,20 +128,25 @@ func TestAssetOverviewCount(t *testing.T) {
 		"app": result.App, "mp": result.MP, "vulnerability": result.Vulnerability,
 		"sensitive": result.Sensitive,
 	}
-	collectionOf := map[string]string{
-		"asset": "asset", "subdomain": "subdomain", "url": "UrlScan", "app": "app",
-		"mp": "mp", "vulnerability": "vulnerability", "sensitive": "SensitiveResult",
-	}
-	for family, delta := range want {
-		collection := collectionOf[family]
-		if got[family] < before[collection]+delta {
-			t.Fatalf("%s = %d, want >= before(%d)+%d", family, got[family], before[collection], delta)
+	for family, expected := range want {
+		if got[family] != expected {
+			t.Fatalf("%s = %d, want %d (project-scoped exact count)", family, got[family], expected)
 		}
 	}
+	// cert/cip 是全局读模型（没有 project 维度），只保证覆盖本次种子
 	if result.Cert < 2 {
 		t.Fatalf("cert = %d, want >= 2", result.Cert)
 	}
 	if result.CIP < 2 {
 		t.Fatalf("cip = %d, want >= 2", result.CIP)
+	}
+
+	// 空 project 走估算口径：不报错且不小于本次种子
+	global, err := NewService().Count(context.Background(), "")
+	if err != nil {
+		t.Fatalf("global count: %v", err)
+	}
+	if global.Asset < 4 || global.Subdomain < 2 {
+		t.Fatalf("global counts too small: %+v", global)
 	}
 }

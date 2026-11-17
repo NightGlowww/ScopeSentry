@@ -18,6 +18,8 @@ type Repository interface {
 	UpdateOne(ctx context.Context, collection string, filter bson.M, update bson.M) error
 	CountDocuments(ctx context.Context, collection string, filter bson.M) (int64, error)
 	EstimatedDocumentCount(ctx context.Context, collection string) (int64, error)
+	// Count 精确计数（带 filter）
+	Count(ctx context.Context, collection string, filter bson.M) (int64, error)
 	DeleteManyByFilter(ctx context.Context, collection string, filter bson.M) (int64, error)
 }
 
@@ -86,6 +88,11 @@ func (r *repository) CountDocuments(ctx context.Context, collection string, filt
 // EstimatedDocumentCount 获取集合的估计文档数量
 func (r *repository) EstimatedDocumentCount(ctx context.Context, collection string) (int64, error) {
 	return r.db.Collection(collection).EstimatedDocumentCount(ctx)
+}
+
+// Count 精确计数（带 filter 时走 CountDocuments；空 filter 也应使用 EstimatedDocumentCount）
+func (r *repository) Count(ctx context.Context, collection string, filter bson.M) (int64, error) {
+	return r.db.Collection(collection).CountDocuments(ctx, filter)
 }
 
 // DeleteManyByFilter 根据过滤条件批量删除

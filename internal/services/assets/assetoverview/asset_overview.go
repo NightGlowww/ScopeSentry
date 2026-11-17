@@ -9,12 +9,13 @@ import (
 	commonrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/assets/common"
 	certservice "github.com/Autumn-27/ScopeSentry/internal/services/assets/cert"
 	cipservice "github.com/Autumn-27/ScopeSentry/internal/services/assets/cip"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Service 资产族数量总览服务。
 type Service interface {
-	// Count 一次返回全部资产族数量
-	Count(ctx context.Context) (*models.AssetOverviewCount, error)
+	// Count 一次返回全部资产族数量；project 非空时按项目精确计数
+	Count(ctx context.Context, project string) (*models.AssetOverviewCount, error)
 }
 
 type service struct {
@@ -37,7 +38,7 @@ func NewService() Service {
 // asset/subdomain/url/app/mp/vulnerability/sensitive 是物理集合，用
 // EstimatedDocumentCount（只读集合元数据，不扫文档）；cert/cip 是读模型，
 // 没有独立集合，必须走聚合 count。
-func (s *service) Count(ctx context.Context) (*models.AssetOverviewCount, error) {
+func (s *service) Count(ctx context.Context, project string) (*models.AssetOverviewCount, error) {
 	out := &models.AssetOverviewCount{}
 	errs := make([]error, 9)
 	var wg sync.WaitGroup
@@ -60,6 +61,12 @@ func (s *service) Count(ctx context.Context) (*models.AssetOverviewCount, error)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			if project != "" {
+				// 指定项目时用精确计数：EstimatedDocumentCount 只读集合元数据，
+				// 在高并发写入（含并行测试）下会滞后，不能用来做「新增了多少」的断言。
+				*item.assign, errs[item.slot] = s.common.Count(ctx, item.collection, bson.M{"project": project})
+				return
+			}
 			*item.assign, errs[item.slot] = s.common.EstimatedDocumentCount(ctx, item.collection)
 		}()
 	}
