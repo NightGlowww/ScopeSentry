@@ -114,8 +114,14 @@ npx esno ./scripts/check-theme.ts
 ## 本地 Git hook（可选）
 
 ```bash
-git config core.hooksPath .githooks   # 启用 pre-commit：暂存的 .go 文件必须已 gofmt
+git config core.hooksPath .githooks   # 启用 pre-commit
 ```
+
+pre-commit 会做两件事：
+
+1. 暂存的 `.go` 文件必须已 `gofmt`（`make fmt` 修）。
+2. 暂存的 `frontend/src/**` 文件必须通过 ESLint——**只在 `frontend/node_modules/.bin/eslint` 存在时才跑**，
+   没装依赖的贡献者只会看到一行「跳过」提示，不会被卡住；CI 里 ESLint 始终是阻塞闸。
 
 ## 仓库规范
 
