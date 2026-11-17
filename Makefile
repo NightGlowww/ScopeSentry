@@ -72,7 +72,8 @@ frontend-check: frontend-lint frontend-build frontend-test ## 前端自检：ESL
 	cd frontend && node scripts/check-locales.mjs && npx esno ./scripts/check-theme.ts
 
 # 与 .github/workflows/ci.yml 的三道阻塞闸对齐：Go build/vet/单测 + 前端 ESLint/构建/自检/单测
-compose-check: ## 校验单机部署 compose（含国内镜像覆盖）
+compose-check: ## 校验单机部署 compose（含国内镜像覆盖）与 deploy.sh 语法
+	bash -n deploy.sh
 	docker compose -f single-host-deployment.yml config -q
 	docker compose -f single-host-deployment.yml -f single-host-deployment.cn.yml config -q
 

@@ -9,6 +9,19 @@
 ```bash
 git clone https://github.com/Autumn-27/ScopeSentry.git
 cd ScopeSentry
+./deploy.sh            # 一键部署：检查环境、生成/校验 .env、起栈、等 healthy、打印初始密码
+```
+
+`deploy.sh` 的常用参数：
+
+```bash
+./deploy.sh --check    # 只检查 docker/compose 与 compose 配置，不启动
+./deploy.sh --cn       # 国内镜像覆盖（等价于叠加 single-host-deployment.cn.yml）
+```
+
+手动部署（等价于脚本做的事）：
+
+```bash
 cp .env.example .env   # 没有 .env.example 时直接编辑仓库里的 .env
 # 修改 .env 里的 MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD / REDIS_PASSWORD
 docker compose -f single-host-deployment.yml up -d
