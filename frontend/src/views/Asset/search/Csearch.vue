@@ -59,6 +59,8 @@ const props = defineProps<{
   setActiveSegment?: (segment: 'tableSegment' | 'cardSegment', flag: boolean) => void // 可选方法
   getFilter: () => { [key: string]: any }
   iconData?: { value: string; number: number; icon_hash: string }[]
+  // 资产页专用：打开「标签颜色」设置（issue #217）
+  openTagColorSetting?: () => void
 }>()
 const localSearchKeywordsData = reactive([...props.searchKeywordsData])
 const newKeyword = {
@@ -516,6 +518,11 @@ const openCreateTask = async () => {
             <ElDropdownItem :icon="deleteicon" @click="delAllFiltered">{{
               t('asset.deleteFiltered')
             }}</ElDropdownItem>
+            <ElDropdownItem
+              v-if="index == 'asset'"
+              @click="openTagColorSetting && openTagColorSetting()"
+              >{{ t('asset.tagColorTitle') }}</ElDropdownItem
+            >
             <ElDropdownItem :icon="TASKicon" @click="openCreateTask">{{
               t('task.addTask')
             }}</ElDropdownItem>
