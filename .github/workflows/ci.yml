@@ -20,6 +20,8 @@ jobs:
   go:
     name: Go build / vet / hermetic tests
     runs-on: [self-hosted, linux, x64, scopesentry-ci]
+    # 自建 runner 曾因「日志/产物上传卡死」长时间占满，job 级超时兜底
+    timeout-minutes: 25
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +100,8 @@ jobs:
   frontend:
     name: Frontend build / locale / theme checks
     runs-on: [self-hosted, linux, x64, scopesentry-ci]
+    # 自建 runner 曾因「日志/产物上传卡死」长时间占满，job 级超时兜底
+    timeout-minutes: 25
     timeout-minutes: 25
     defaults:
       run:
@@ -147,6 +151,8 @@ jobs:
   integration:
     name: Integration (Mongo + Redis)
     runs-on: [self-hosted, linux, x64, scopesentry-ci]
+    # 自建 runner 曾因「日志/产物上传卡死」长时间占满，job 级超时兜底
+    timeout-minutes: 25
     timeout-minutes: 30
     env:
       MONGODB_IP: 127.0.0.1
