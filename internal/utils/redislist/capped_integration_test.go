@@ -108,3 +108,54 @@ func TestPushHeadCappedTrimsToNewestEntries(t *testing.T) {
 		}
 	}
 }
+
+func TestPushQueuedSetsExpiryAndKeepsPayload(t *testing.T) {
+	client := newClient(t)
+	key := fmt.Sprintf("test:redislist:queue:%d", time.Now().UnixNano())
+	cleanupKey(t, client, key)
+
+	ctx := context.Background()
+	if err := redislist.PushQueued(ctx, client, key, 90*time.Second, "payload-1"); err != nil {
+		t.Fatalf("push queued: %v", err)
+	}
+	ttl, err := client.TTL(ctx, key).Result()
+	if err != nil {
+		t.Fatalf("ttl: %v", err)
+	}
+	if ttl <= 0 || ttl > 90*time.Second {
+		t.Fatalf("ttl = %v, want (0, 90s]", ttl)
+	}
+	if got := client.LRange(ctx, key, 0, -1).Val(); len(got) != 1 || got[0] != "payload-1" {
+		t.Fatalf("list = %v, want [payload-1]", got)
+	}
+
+	// 再推一次会续期，而不是把 TTL 提前
+	if err := redislist.PushQueued(ctx, client, key, 90*time.Second, "payload-2"); err != nil {
+		t.Fatalf("push queued: %v", err)
+	}
+	if ttl2 := client.TTL(ctx, key).Val(); ttl2 <= 0 {
+		t.Fatalf("ttl after second push = %v, want > 0", ttl2)
+	}
+}
+
+func TestPushQueuedHeadKeepsLpushOrder(t *testing.T) {
+	client := newClient(t)
+	key := fmt.Sprintf("test:redislist:queuehead:%d", time.Now().UnixNano())
+	cleanupKey(t, client, key)
+
+	ctx := context.Background()
+	// LPUSH key a b 的语义：a 先入表头，b 再入表头 → [b, a]
+	if err := redislist.PushQueuedHead(ctx, client, key, time.Hour, "a", "b"); err != nil {
+		t.Fatalf("push queued head: %v", err)
+	}
+	got := client.LRange(ctx, key, 0, -1).Val()
+	want := []string{"b", "a"}
+	if len(got) != len(want) {
+		t.Fatalf("list = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("list = %v, want %v", got, want)
+		}
+	}
+}

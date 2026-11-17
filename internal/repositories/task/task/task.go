@@ -10,10 +10,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/redislist"
 	"github.com/gin-gonic/gin"
 	redisdriver "github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
@@ -21,6 +23,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// TaskQueueTTL 是任务队列（TaskInfo:<taskID> / NodeTask:<node>）的滑动存活时间。
+//
+// issue #200：这两类队列以前只在“删除任务”时清理，节点长期离线或被移除后，
+// 消息会永久留在 Redis 里。每次投递都会把整条队列的 TTL 续上，所以：
+//   - 一直在投递的队列不会中途过期；
+//   - 没人消费的队列在最后一次投递 30 天后自动回收；
+//   - 节点重新上线会由 checkNodeTask 重新投递待开始/运行中的任务。
+//
+// 取 30 天而不是几天：任务队列是“节点领了才消费”，节点维护一周以上很常见，
+// TTL 太短会把还在排队的任务清掉。30 天足够覆盖运维窗口，又能止住无限增长。
+const TaskQueueTTL = 30 * 24 * time.Hour
 
 // Repository 定义任务数据访问接口
 type Repository interface {
@@ -145,8 +159,11 @@ func (r *repository) PushTaskInfoList(ctx context.Context, id string, targetList
 		values[i] = v
 	}
 
-	// 推入 Redis 列表
-	if err := r.redisClient.LPush(ctx, fmt.Sprintf("TaskInfo:%s", id), values...).Err(); err != nil {
+	// 推入 Redis 列表。issue #200：队列只在删任务时清，节点长期不消费会一直堆着，
+	// 这里给整条队列滑动 TTL，没人领的旧消息会自动回收。
+	// 保持 LPush（最新在前）语义，避免节点侧消费顺序变化。
+	key := fmt.Sprintf("TaskInfo:%s", id)
+	if err := redislist.PushQueuedHead(ctx, r.redisClient, key, TaskQueueTTL, values...); err != nil {
 		return fmt.Errorf("failed to lpush TaskInfo list: %w", err)
 	}
 
@@ -185,8 +202,8 @@ func (r *repository) RPushNodeTask(ctx context.Context, name string, data any) e
 		return err
 	}
 
-	// 使用 Redis RPush 插入数据
-	return r.redisClient.RPush(ctx, key, value).Err()
+	// 使用 Redis RPush 插入数据，并给队列滑动 TTL（issue #200）
+	return redislist.PushQueued(ctx, r.redisClient, key, TaskQueueTTL, value)
 }
 
 // CheckTaskNameExists 检查任务名是否存在
