@@ -417,6 +417,9 @@ func createIndexes(db *mongo.Database) error {
 		{Keys: bson.D{{Key: "rootDomain", Value: 1}}},
 		// 1.8 新增索引
 		{Keys: bson.D{{Key: "tags", Value: 1}}},
+		// HTTP 状态视图：按状态码档位 + 时间倒序
+		{Keys: bson.D{{Key: "statuscode", Value: 1}, {Key: "time", Value: -1}}},
+		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "statuscode", Value: 1}}},
 		{Keys: bson.D{{Key: "technologies", Value: 1}}},
 		{Keys: bson.D{{Key: "faviconmmh3", Value: 1}}},
 		{Keys: bson.D{{Key: "bodyhash", Value: 1}}},
