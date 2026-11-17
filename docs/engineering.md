@@ -56,6 +56,13 @@ npx esno ./scripts/check-theme.ts
   触发时历史日志全丢。
 - **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
 
+## 资产备注（issue #335）
+
+- `Asset` 新增 `remark` 字段（扫描不会写，只有用户改）。
+- `POST /api/assets/asset/remark`，body `{id, remark}`：**定向 `$set` 只改 remark**——
+  扫描结果随时可能被节点写入，整文档覆盖会把用户没改过的字段一起冲掉。
+- 服务端 `TrimSpace` 后按**字符数**限长 500（空串表示清空），非法 ObjectID 返回 400 而不是 500。
+
 ## 按筛选条件批量删除（issue #258 / #191）
 
 - `POST /api/assets/common/delete_by_search`，body `{index, search, filter, confirmAll}`：

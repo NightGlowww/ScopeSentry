@@ -17,6 +17,7 @@ type Repository interface {
 	GetAssetByIDs(ctx context.Context, ids []string) ([]models.Asset, error)
 	CreateAsset(ctx context.Context, asset *models.Asset) error
 	UpdateAsset(ctx context.Context, id string, asset *models.Asset) error
+	SetRemark(ctx context.Context, id string, remark string) error
 	DeleteAsset(ctx context.Context, id string) error
 	GetScreenshot(ctx context.Context, id string) (string, error)
 	GetChangeLog(ctx context.Context, id string) ([]models.AssetChangeLog, error)
@@ -115,6 +116,18 @@ func (r *repository) UpdateAsset(ctx context.Context, id string, asset *models.A
 
 	update := bson.M{"$set": asset}
 	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, update)
+	return err
+}
+
+// SetRemark 只更新资产的备注字段（issue #335）。
+// 用 $set 定向更新而不是整文档覆盖：扫描结果随时可能被节点写入，
+// 整文档覆盖会把用户没改过的字段一起冲掉。
+func (r *repository) SetRemark(ctx context.Context, id string, remark string) error {
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objectID}, bson.M{"$set": bson.M{"remark": remark}})
 	return err
 }
 
