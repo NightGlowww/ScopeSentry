@@ -458,6 +458,24 @@ export default {
     hostsEmpty: 'This certificate is not linked to any asset record yet',
     hostsTruncated: 'Showing the first {shown} of {total} linked assets'
   },
+  httpStatus: {
+    bandAll: 'All status codes',
+    band2xx: '2xx Success',
+    band3xx: '3xx Redirection',
+    band4xx: '4xx Client error',
+    band5xx: '5xx Server error',
+    exactCodePlaceholder: 'Exact code, e.g. 404',
+    host: 'Host',
+    statusCode: 'Status',
+    title: 'Title',
+    url: 'URL',
+    service: 'Service',
+    time: 'Last probed',
+    keywordPlaceholder: 'Host / URL / title / service',
+    project: 'Project',
+    empty:
+      'Status codes come from HTTP probing during scans. Run a scan task with web probing and response codes are collected here.'
+  },
   cip: {
     company: 'Entity',
     companyUnknown: 'Unknown entity',
@@ -804,7 +822,9 @@ export default {
     login: 'Login',
     pluginsManager: 'Plugins Manager',
     dashboard: 'Dashboard',
-    document: 'Document'
+    document: 'Document',
+    httpStatus: 'HTTP status',
+    syslog: 'System logs'
   },
   permission: {
     hasPermission: 'Please set the operation permission value'
@@ -1211,6 +1231,23 @@ export default {
     deduplicationHour: 'Deduplication cycle',
     deduplicationFlag: 'Deduplication switch',
     runNowOne: 'Run once immediately'
+  },
+  syslog: {
+    levelAll: 'All levels',
+    levelDebug: 'Debug',
+    levelInfo: 'Info',
+    levelWarn: 'Warning',
+    levelError: 'Error',
+    keywordPlaceholder: 'Message / caller',
+    sourceLabel: 'Source',
+    sourceFile: 'Log file',
+    sourceMemory: 'Process buffer',
+    sourceNone: 'No logs',
+    total: '{total} entries',
+    truncated:
+      'Results are truncated: only the most recent part of the buffer is shown. Narrow the level or keyword to reach older records.',
+    empty:
+      'Logs come from the in-process ring buffer or the log file set in the configuration; recent runtime logs appear here once the service starts.'
   },
   form: {
     input: 'Search:'

@@ -455,6 +455,24 @@ export default {
     hostsEmpty: '이 인증서에 연결된 자산 기록이 아직 없습니다',
     hostsTruncated: '연결된 자산 {total}개 중 처음 {shown}개만 표시합니다'
   },
+  httpStatus: {
+    bandAll: '전체 상태 코드',
+    band2xx: '2xx 성공',
+    band3xx: '3xx 리다이렉트',
+    band4xx: '4xx 클라이언트 오류',
+    band5xx: '5xx 서버 오류',
+    exactCodePlaceholder: '정확한 코드, 예: 404',
+    host: 'Host',
+    statusCode: '상태 코드',
+    title: '제목',
+    url: 'URL',
+    service: '서비스',
+    time: '최근 탐지',
+    keywordPlaceholder: 'Host / URL / 제목 / 서비스',
+    project: '프로젝트',
+    empty:
+      '상태 코드는 스캔 작업의 HTTP 탐지 결과입니다. 웹 탐지를 포함한 스캔 작업을 실행하면 응답 코드가 이곳에 모입니다.'
+  },
   cip: {
     company: '기관명',
     companyUnknown: '알 수 없는 기관',
@@ -796,7 +814,9 @@ export default {
     login: '로그인',
     pluginsManager: '플러그인 관리',
     dashboard: '대시보드',
-    document: '문서'
+    document: '문서',
+    httpStatus: 'HTTP 상태',
+    syslog: '시스템 로그'
   },
   permission: {
     hasPermission: '작업 권한 값을 설정하세요.'
@@ -1199,6 +1219,23 @@ export default {
     deduplicationHour: '중복 제거 주기',
     deduplicationFlag: '중복 제거 활성화',
     runNowOne: '즉시 한 번 실행'
+  },
+  syslog: {
+    levelAll: '전체 레벨',
+    levelDebug: '디버그',
+    levelInfo: '정보',
+    levelWarn: '경고',
+    levelError: '오류',
+    keywordPlaceholder: '메시지 / 호출 위치',
+    sourceLabel: '데이터 소스',
+    sourceFile: '로그 파일',
+    sourceMemory: '프로세스 버퍼',
+    sourceNone: '로그 없음',
+    total: '총 {total}건',
+    truncated:
+      '결과가 잘렸습니다. 버퍼의 최근 로그만 표시되므로 레벨이나 키워드를 좁혀 이전 기록을 찾으세요.',
+    empty:
+      '로그는 프로세스 내 링 버퍼 또는 설정된 로그 파일에서 읽습니다. 서비스가 시작되면 최근 실행 로그가 여기에 표시됩니다.'
   },
   form: {
     input: '검색:'

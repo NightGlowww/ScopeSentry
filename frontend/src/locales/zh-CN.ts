@@ -446,6 +446,24 @@ export default {
     hostsEmpty: '这张证书还没有关联到资产记录',
     hostsTruncated: '只展示前 {shown} 条，该证书共关联 {total} 个资产'
   },
+  httpStatus: {
+    bandAll: '全部状态码',
+    band2xx: '2xx 成功',
+    band3xx: '3xx 跳转',
+    band4xx: '4xx 客户端错误',
+    band5xx: '5xx 服务端错误',
+    exactCodePlaceholder: '精确码，如 404',
+    host: 'Host',
+    statusCode: '状态码',
+    title: '标题',
+    url: 'URL',
+    service: '服务',
+    time: '最近探测',
+    keywordPlaceholder: 'Host / URL / 标题 / 服务',
+    project: '项目',
+    empty:
+      '状态码来自扫描任务里的 HTTP 探测：跑一个带 Web 探测的扫描任务，资产的响应码就会汇总到这里'
+  },
   cip: {
     company: '主体名称',
     companyUnknown: '未知主体',
@@ -773,7 +791,9 @@ export default {
     login: '登录',
     pluginsManager: '插件管理',
     dashboard: '首页',
-    document: '文档'
+    document: '文档',
+    httpStatus: 'HTTP 状态',
+    syslog: '系统日志'
   },
   permission: {
     hasPermission: '请设置操作权限值'
@@ -1173,6 +1193,22 @@ export default {
     deduplicationHour: '去重周期',
     deduplicationFlag: '去重开关',
     runNowOne: '立即运行一次'
+  },
+  syslog: {
+    levelAll: '全部级别',
+    levelDebug: '调试',
+    levelInfo: '信息',
+    levelWarn: '警告',
+    levelError: '错误',
+    keywordPlaceholder: '消息 / 调用位置',
+    sourceLabel: '数据源',
+    sourceFile: '日志文件',
+    sourceMemory: '进程缓冲',
+    sourceNone: '无日志',
+    total: '共 {total} 条',
+    truncated:
+      '结果被截断：只显示缓冲区里最近的一部分日志，用级别或关键字缩小范围可以定位更早的记录',
+    empty: '日志来自进程内环形缓冲或配置文件里的日志文件；服务启动后会展示最近的运行日志'
   },
   form: {
     input: '搜索'
