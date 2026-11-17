@@ -43,6 +43,7 @@ import { useRouter } from 'vue-router'
 import { tagColorProps } from '@/utils/tagColor'
 import Csearch from '../search/Csearch.vue'
 import TagColorSetting from './TagColorSetting.vue'
+import AssetAddDialog from './AssetAddDialog.vue'
 import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
 import AssetDetail2 from '../detail/AssetDetail2.vue'
@@ -660,6 +661,10 @@ const tagColorDialogVisible = ref(false)
 const openTagColorSetting = () => {
   tagColorDialogVisible.value = true
 }
+const addAssetDialogVisible = ref(false)
+const openAddAsset = () => {
+  addAssetDialogVisible.value = true
+}
 const loadTagColors = async () => {
   try {
     const res = await getTagColorsApi()
@@ -935,8 +940,14 @@ const confirmSelectedIcons = () => {
     :getFilter="getFilter"
     :iconData="AssetstatisticsData.Icon"
     :openTagColorSetting="openTagColorSetting"
+    :openAddAsset="openAddAsset"
   />
   <TagColorSetting v-model="tagColorDialogVisible" @saved="loadTagColors" />
+  <AssetAddDialog
+    v-model="addAssetDialogVisible"
+    :projectList="$props.projectList"
+    @saved="getList"
+  />
   <ElRow :gutter="3" v-if="activeSegment == 'tableSegment'">
     <ElCol
       :xs="statisticsHidden ? 0 : 24"
