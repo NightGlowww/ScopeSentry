@@ -82,6 +82,7 @@ jobs:
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         continue-on-error: true
+        timeout-minutes: 2
         with:
           name: go-coverage
           path: coverage.out
