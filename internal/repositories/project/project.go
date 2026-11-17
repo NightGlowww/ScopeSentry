@@ -34,6 +34,8 @@ type Repository interface {
 	DeleteProjects(ctx context.Context, ids []string) error
 	DeleteProjectTargets(ctx context.Context, ids []string) error
 	DeleteProjectAsset(ctx context.Context, ids []string) error
+	// UnsetProjectAssets 删除项目但保留资产时，把资产上的 project 字段清空，避免指向已删除的项目
+	UnsetProjectAssets(ctx context.Context, ids []string) error
 	UpdateProject(ctx context.Context, p *models.UpdateProject) error
 	UpdateAssetsProject(ctx context.Context, rootDomains []string, projectID string, change bool) error
 	CountProjectAssets(ctx context.Context, projectID string) (int64, error)
@@ -305,6 +307,25 @@ func (r *repository) DeleteProjectAsset(ctx context.Context, ids []string) error
 		collection := mongodb.DB.Collection(collectionName)
 		_, err := collection.DeleteMany(ctx, bson.M{"project": bson.M{"$in": ids}})
 		if err != nil {
+			logger.Error(err.Error())
+			continue
+		}
+	}
+	return nil
+}
+
+// UnsetProjectAssets 把属于这些项目的资产「解除归属」而不是删除。
+//
+// 删除项目时若选择保留资产，资产上的 project 字段会指向一个已经不存在的项目：
+// 列表里显示一个幽灵项目 ID，按项目筛选也永远命中不到。这里统一置空。
+func (r *repository) UnsetProjectAssets(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	filter := bson.M{"project": bson.M{"$in": ids}}
+	for _, collectionName := range constants.AssetDBNames {
+		collection := mongodb.DB.Collection(collectionName)
+		if _, err := collection.UpdateMany(ctx, filter, bson.M{"$set": bson.M{"project": ""}}); err != nil {
 			logger.Error(err.Error())
 			continue
 		}

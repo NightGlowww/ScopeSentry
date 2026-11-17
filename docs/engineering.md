@@ -73,6 +73,14 @@ npx esno ./scripts/check-theme.ts
 - 合并逻辑在 `services/export/exportfilter.ApplyTimeRange`：base 里已有 `time` 条件时用 `$and` 合并而不是覆盖；
   格式非法或 start > end 直接 400。
 
+## 删除项目时的资产归属
+
+- 删除项目支持两种语义：`delA=true` 连资产一起删（`DeleteProjectAsset`），`delA=false` 只删项目。
+- 「只删项目」时资产上的 `project` 字段必须清空（`UnsetProjectAssets`）：否则列表里会显示一个已删除的项目 ID，
+  按项目筛选也永远命中不到，形成幽灵归属。
+- `ProjectTargetData` 在两种语义下都会删除；项目级定时任务当前功能未启用（`CreateOrUpdateProjectSchedule` 调用被注释），
+  启用时需要在这里补 `RemoveProjectSchedule`。
+
 ## 任务完成后自动同步到绑定项目
 
 - `Task.BindProject`（MCP 建任务时可填）之前没有任何代码消费，等于“填了也没用”。
