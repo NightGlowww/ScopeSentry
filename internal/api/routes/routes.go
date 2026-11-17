@@ -33,6 +33,7 @@ import (
 	icpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/icp"
 	mcpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/mcp"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/node"
+	policyRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/policy"
 )
 
 // loggerWithSkipPaths 自定义日志中间件，支持跳过指定前缀的路径
@@ -145,6 +146,9 @@ func SetupRouter() *gin.Engine {
 
 		// 注册控制台信息路由（对标 ARL-Next console.py）
 		consoleRoutes.RegisterConsoleRoutes(api)
+
+		// 注册扫描策略路由（对标 ARL-Next policy.py 的可复用扫描参数）
+		policyRoutes.RegisterPolicyRoutes(api)
 	}
 
 	return router
