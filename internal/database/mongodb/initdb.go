@@ -796,6 +796,23 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create icp_task_log indexes: %v", err)
 	}
 
+	// FOFA 批量建任务（对标 ARL-Next taskFofa.py）：
+	//   - fofa_import(query,createdAt)：同 query 取最近一次导入做 host 去重（query 等值 + createdAt 倒序取 1）；
+	//   - fofa_import.createdAt：导入历史倒序分页。
+	fofaImport := db.Collection("fofa_import")
+	if _, err := fofaImport.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "query", Value: 1}, {Key: "createdAt", Value: -1}},
+			Options: options.Index().SetName("fofa_import_query_created"),
+		},
+		{
+			Keys:    bson.D{{Key: "createdAt", Value: -1}},
+			Options: options.Index().SetName("fofa_import_created"),
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to create fofa_import indexes: %v", err)
+	}
+
 	// 字典元数据（对标 ARL-Next dictionary.py）：列表按 kind 过滤 + updated_at 倒序；
 	// name 不做唯一索引——历史库可能已有重名，唯一索引会让启动直接失败。
 	dictionary := db.Collection("dictionary")
