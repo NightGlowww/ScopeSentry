@@ -305,6 +305,12 @@ func CreateDatabase() error {
 			}
 		}
 
+		// 升级路径：老库也要补新索引（createIndexes 对已存在的索引是 no-op）。
+		// 之前只有全新安装才会建索引，导致升级后新集合/新索引永远缺失。
+		if err := createIndexes(db); err != nil {
+			logger.Error(fmt.Sprintf("failed to ensure indexes on existing database: %v", err))
+		}
+
 		// 检查定时任务
 		scheduledTasksCollection := db.Collection("ScheduledTasks")
 		var taskResult bson.M
