@@ -67,3 +67,20 @@ func TestPushQueuedReportsExpireError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestPushQueuedCappedTrimsAndSetsTTL(t *testing.T) {
+	fake := &fakeClient{}
+	ttl := 7 * 24 * time.Hour
+	if err := PushQueuedCapped(context.Background(), fake, "refresh_config:node-1", 100, ttl, "payload"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(fake.pushed) != 1 || fake.pushed[0] != "payload" {
+		t.Fatalf("pushed = %v", fake.pushed)
+	}
+	if fake.trimCalls != 1 || fake.trimStart != -100 || fake.trimStop != -1 {
+		t.Fatalf("trim = (%d calls, [%d,%d]), want (1, [-100,-1])", fake.trimCalls, fake.trimStart, fake.trimStop)
+	}
+	if fake.expireCalls != 1 || fake.expireTTL != ttl {
+		t.Fatalf("expire = (%d calls, %v), want (1, %v)", fake.expireCalls, fake.expireTTL, ttl)
+	}
+}

@@ -128,6 +128,14 @@ npx esno ./scripts/check-theme.ts
 - 删除任务时（`DeleteMany`）与 `ClearTaskCache` 会连带删快照，不留孤儿文档；`taskID` 有索引。
 - 快照失败只记日志，不影响任务状态更新——它是补充数据，不是主链路。
 
+## 节点相关队列的清理
+
+- `refresh_config:<node>` 是「状态型」消息（指纹/字典/系统配置变更后通知节点重载），节点只关心近期几条。
+  以前是裸 `RPush`：节点离线时无限堆积，删节点后 key 也没人清。现在走 `redislist.PushQueuedCapped`——
+  每次写入后 `LTRIM` 只留最新 100 条，并带 7 天滑动 TTL。
+- `DeleteNodes` 现在一并删除 `node:<name>` / `refresh_config:<name>` / `NodeTask:<name>`，
+  不再留下永远不会被消费的孤儿 key。
+
 ## Redis 队列 TTL
 
 - 任务队列以前只在「删除任务」时清（issue #200）：节点长期离线/被移除后，消息会永久留在 Redis 里。

@@ -3,8 +3,10 @@ package node
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/redislist"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
@@ -80,19 +82,29 @@ func (r *repository) UpdateNodeState(ctx context.Context, nodeID string, state s
 	return err
 }
 
-// RefreshConfig 向指定节点的任务列表右侧插入一个任务
+// refreshConfigMaxLen 每个节点的配置刷新队列最多保留多少条。
+//
+// 配置刷新是「状态型」消息（指纹/字典/系统配置变更后通知节点重载），节点只关心近期的几条；
+// 节点离线时旧实现会无限堆积，删节点后这些 key 也永远没人清。
+const refreshConfigMaxLen = 100
+
+// refreshConfigTTL 配置刷新队列的存活时间：节点长期离线后自动回收。
+const refreshConfigTTL = 7 * 24 * time.Hour
+
+// RefreshConfig 向指定节点的任务列表右侧插入一条刷新消息（限长 + 滑动 TTL）
 func (r *repository) RefreshConfig(ctx context.Context, node string, msg string) error {
 	key := "refresh_config:" + node
-	_, err := r.redisClient.RPush(ctx, key, msg).Result()
-	return err
+	return redislist.PushQueuedCapped(ctx, r.redisClient, key, refreshConfigMaxLen, refreshConfigTTL, msg)
 }
 
-// DeleteNodes 删除多个节点
+// DeleteNodes 删除多个节点，并清掉跟它相关的队列。
+//
+// 只删 node:<name> 会留下 refresh_config:<name> / NodeTask:<name> 这些孤儿 key：
+// 节点已经不在列表里，消息永远不会被消费。
 func (r *repository) DeleteNodes(ctx context.Context, names []string) error {
 	for _, name := range names {
-		key := "node:" + name
-		_, err := r.redisClient.Del(ctx, key).Result()
-		if err != nil {
+		keys := []string{"node:" + name, "refresh_config:" + name, "NodeTask:" + name}
+		if err := r.redisClient.Del(ctx, keys...).Err(); err != nil {
 			return err
 		}
 	}

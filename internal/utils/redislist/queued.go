@@ -52,3 +52,20 @@ func pushQueued(ctx context.Context, c QueueClient, key string, ttl time.Duratio
 	}
 	return nil
 }
+
+// PushQueuedCapped 追加到队列尾部，同时限制长度并设置滑动 TTL。
+//
+// 配置刷新这类「状态型」消息既不需要无限堆积（节点只关心最新的几条），
+// 也不该永久留在 Redis 里（节点被删/长期离线就是垃圾）。
+func PushQueuedCapped(ctx context.Context, c QueueClient, key string, maxLen int64, ttl time.Duration, values ...interface{}) error {
+	if err := PushQueued(ctx, c, key, ttl, values...); err != nil {
+		return err
+	}
+	if maxLen <= 0 {
+		maxLen = DefaultMaxLen
+	}
+	if err := c.LTrim(ctx, key, -maxLen, -1).Err(); err != nil {
+		return fmt.Errorf("failed to trim %q to %d entries: %w", key, maxLen, err)
+	}
+	return nil
+}
