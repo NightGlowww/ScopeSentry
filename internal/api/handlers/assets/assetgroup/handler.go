@@ -46,6 +46,10 @@ func ListGroups(c *gin.Context) {
 		respondError(c, err)
 		return
 	}
+	if items == nil {
+		// 空列表返回 [] 而不是 null：前端 .map() 会炸，且与其它列表接口保持一致
+		items = []models.AssetGroup{}
+	}
 	response.Success(c, gin.H{"items": items, "total": len(items)}, "api.success")
 }
 
@@ -137,6 +141,9 @@ func ListScopes(c *gin.Context) {
 	if err != nil {
 		respondError(c, err)
 		return
+	}
+	if items == nil {
+		items = []models.AssetScope{}
 	}
 	response.Success(c, gin.H{"list": items, "total": total}, "api.success")
 }
