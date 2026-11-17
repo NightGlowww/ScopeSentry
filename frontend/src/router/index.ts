@@ -195,6 +195,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'mdi:web-check',
           noCache: true
         }
+      },
+      {
+        path: 'service',
+        component: () => import('@/views/AssetInsight/Service.vue'),
+        name: 'Asset-Service',
+        meta: {
+          title: t('router.assetService'),
+          icon: 'mdi:server-network',
+          noCache: true
+        }
       }
     ]
   },

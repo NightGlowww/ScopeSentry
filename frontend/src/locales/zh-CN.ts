@@ -464,6 +464,19 @@ export default {
     empty:
       '状态码来自扫描任务里的 HTTP 探测：跑一个带 Web 探测的扫描任务，资产的响应码就会汇总到这里'
   },
+  assetService: {
+    service: '服务',
+    assetCount: '资产数',
+    hostCount: '主机数',
+    portCount: '端口数',
+    samples: '样例主机',
+    hostsTotal: '共 {total} 个主机，仅展示前 {shown} 个样例',
+    lastSeen: '最近出现',
+    keywordPlaceholder: '服务名（子串匹配）',
+    project: '项目',
+    empty:
+      '服务来自资产端口识别与指纹探测：先跑一个带端口扫描的扫描任务，识别出的服务会按服务名汇总到这里'
+  },
   cip: {
     company: '主体名称',
     companyUnknown: '未知主体',
@@ -793,6 +806,7 @@ export default {
     dashboard: '首页',
     document: '文档',
     httpStatus: 'HTTP 状态',
+    assetService: '服务维度',
     syslog: '系统日志'
   },
   permission: {

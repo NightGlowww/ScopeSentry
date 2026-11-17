@@ -473,6 +473,19 @@ export default {
     empty:
       '상태 코드는 스캔 작업의 HTTP 탐지 결과입니다. 웹 탐지를 포함한 스캔 작업을 실행하면 응답 코드가 이곳에 모입니다.'
   },
+  assetService: {
+    service: '서비스',
+    assetCount: '자산 수',
+    hostCount: '호스트 수',
+    portCount: '포트 수',
+    samples: '샘플 호스트',
+    hostsTotal: '전체 {total}개 호스트 중 처음 {shown}개만 표시합니다',
+    lastSeen: '최근 발견',
+    keywordPlaceholder: '서비스 이름(부분 일치)',
+    project: '프로젝트',
+    empty:
+      '서비스는 자산 포트 식별과 핑거프린트 탐지에서 나옵니다. 포트 스캔이 포함된 스캔 작업을 실행하면 탐지된 서비스가 서비스 이름별로 이곳에 집계됩니다.'
+  },
   cip: {
     company: '기관명',
     companyUnknown: '알 수 없는 기관',
@@ -816,6 +829,7 @@ export default {
     dashboard: '대시보드',
     document: '문서',
     httpStatus: 'HTTP 상태',
+    assetService: '서비스',
     syslog: '시스템 로그'
   },
   permission: {

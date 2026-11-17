@@ -476,6 +476,19 @@ export default {
     empty:
       'Status codes come from HTTP probing during scans. Run a scan task with web probing and response codes are collected here.'
   },
+  assetService: {
+    service: 'Service',
+    assetCount: 'Assets',
+    hostCount: 'Hosts',
+    portCount: 'Ports',
+    samples: 'Sample hosts',
+    hostsTotal: '{total} hosts in total, showing the first {shown} samples',
+    lastSeen: 'Last seen',
+    keywordPlaceholder: 'Service name (substring)',
+    project: 'Project',
+    empty:
+      'Services come from port identification and fingerprint probing. Run a scan task with port scanning enabled and detected services are aggregated here by service name.'
+  },
   cip: {
     company: 'Entity',
     companyUnknown: 'Unknown entity',
@@ -824,6 +837,7 @@ export default {
     dashboard: 'Dashboard',
     document: 'Document',
     httpStatus: 'HTTP status',
+    assetService: 'Services',
     syslog: 'System logs'
   },
   permission: {
