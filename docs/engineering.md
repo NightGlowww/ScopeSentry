@@ -149,6 +149,14 @@ pre-commit 会做两件事：
 2. 暂存的 `frontend/src/**` 文件必须通过 ESLint——**只在 `frontend/node_modules/.bin/eslint` 存在时才跑**，
    没装依赖的贡献者只会看到一行「跳过」提示，不会被卡住；CI 里 ESLint 始终是阻塞闸。
 
+## 静态图片尺寸
+
+- 图片按「展示尺寸 ×2（Retina）」给，别直接放设计稿原图：logo 显示 40–100px，1024×1024 的 PNG 属于纯浪费。
+- 本轮实测：`logo.png` **664KB → 76KB**（1024²→256²，登录页 + `index.html` 首屏 loading 都用它）；
+  `avatar.jpg` **664KB → 9.5KB**（其实是张 1024² 的 PNG，转成 128² JPEG）；
+  `wx.jpg` 117KB→38KB、`zfb.png` 137KB→98KB（二维码 512px 足够扫）。
+- 二维码不要顺手转 JPEG 追求更小：压缩噪点会影响识别率，512px 的 PNG 已经够用。
+
 ## 首屏体积与 manualChunks 的坑
 
 - monaco 只在指纹编辑 / 资产 diff 里用，必须保持**按需加载**：源码里只 `import type`，运行时 `await import()`。
