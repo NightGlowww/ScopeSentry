@@ -187,6 +187,16 @@ func TestAPISmokeNewEndpointGuards(t *testing.T) {
 			token: true, want: http.StatusBadRequest,
 		},
 		{
+			name: "asset group list requires auth",
+			path: "/api/assets/asset_group/list", body: map[string]interface{}{},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
+			name: "asset group add rejects empty name",
+			path: "/api/assets/asset_group/add", body: map[string]interface{}{"description": "x"},
+			token: true, want: http.StatusBadRequest,
+		},
+		{
 			name: "tag color list requires auth",
 			path: "/api/assets/tag_color/list", body: map[string]interface{}{},
 			token: false, want: http.StatusUnauthorized,

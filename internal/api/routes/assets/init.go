@@ -32,6 +32,8 @@ func RegisterAssetsRoutes(api *gin.RouterGroup) {
 			registerVulnerabilityRoutes(),
 			registerPageMonitoringRoutes(),
 			registerTagColorRoutes(),
+			registerAssetGroupRoutes(),
+			registerAssetScopeRoutes(),
 		},
 	}
 
