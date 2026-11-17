@@ -41,6 +41,8 @@ type Service interface {
 	UpdateAssetsProject(ctx *gin.Context, id string) error
 	SyncTargets(ctx *gin.Context, option, projectID, name, tag string, targets []string) (string, int, error)
 	RefreshProjectAssociations(ctx context.Context) error
+	// SyncTaskTargets 任务完成后的自动同步（只用 context.Context）
+	SyncTaskTargets(ctx context.Context, projectID string, targets []string) (int, error)
 }
 
 type service struct {

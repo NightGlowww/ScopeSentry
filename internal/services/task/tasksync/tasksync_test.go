@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func TestValidateRejectsEmptyIDs(t *testing.T) {
@@ -90,5 +91,42 @@ func TestCountNew(t *testing.T) {
 	}
 	if got := CountNew("a.com", []string{"a.com"}); got != 0 {
 		t.Fatalf("CountNew = %d, want 0", got)
+	}
+}
+
+func TestAutoBindRequest(t *testing.T) {
+	validProject := "507f1f77bcf86cd799439011"
+	task := models.Task{}
+	task.ID = primitive.NewObjectID()
+	task.BindProject = validProject
+
+	req, ok := AutoBindRequest(task)
+	if !ok {
+		t.Fatal("expected auto bind request")
+	}
+	if req.Option != OptionExisting || req.Project != validProject {
+		t.Fatalf("unexpected request: %+v", req)
+	}
+	if len(req.IDS) != 1 || req.IDS[0] != task.ID.Hex() {
+		t.Fatalf("ids = %v, want [%s]", req.IDS, task.ID.Hex())
+	}
+
+	// 没有 BindProject / 不是合法 ObjectID：不自动同步
+	if _, ok := AutoBindRequest(models.Task{}); ok {
+		t.Fatal("empty bind project should not auto sync")
+	}
+	bad := models.Task{}
+	bad.ID = primitive.NewObjectID()
+	bad.BindProject = "not-an-object-id"
+	if _, ok := AutoBindRequest(bad); ok {
+		t.Fatal("invalid bind project should not auto sync")
+	}
+
+	// ID 为空时回退到字符串 TaskID
+	fallback := models.Task{TaskID: "task-string-id"}
+	fallback.BindProject = validProject
+	req, ok = AutoBindRequest(fallback)
+	if !ok || req.IDS[0] != "task-string-id" {
+		t.Fatalf("fallback request = %+v, ok=%v", req, ok)
 	}
 }
