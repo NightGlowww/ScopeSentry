@@ -149,6 +149,15 @@ pre-commit 会做两件事：
 2. 暂存的 `frontend/src/**` 文件必须通过 ESLint——**只在 `frontend/node_modules/.bin/eslint` 存在时才跑**，
    没装依赖的贡献者只会看到一行「跳过」提示，不会被卡住；CI 里 ESLint 始终是阻塞闸。
 
+## 首屏体积与 manualChunks 的坑
+
+- monaco 只在指纹编辑 / 资产 diff 里用，必须保持**按需加载**：源码里只 `import type`，运行时 `await import()`。
+- 光这样还不够——`manualChunks` 把 monaco 和其它 node_modules 一起归到 `vendor` 时，入口 chunk 会通过
+  共享 helper 静态依赖到它，Vite 就会把 `vendor-monaco` 放进 `modulepreload`，等于首屏白拉 ~962KB(gz)。
+  **规则**：按需加载的重库要在 `manualChunks` 里显式 `return undefined`，让它单独成异步 chunk，别落进 vendor。
+- 实测（`vite build --mode pro`，gzip）：首屏 modulepreload 的 JS 从 **1777KB → 815KB**（−54%）；
+  monaco 变成 `editor.main-*.js`（832KB gz）异步 chunk + 不再预加载 130KB 的 monaco CSS。
+
 ## 大结果集合的 time 索引
 
 - 所有资产类列表都按 `time` 倒序分页；`UrlScan` / `crawler` / `SensitiveResult` / `DirScanResult` /
