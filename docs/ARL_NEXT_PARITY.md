@@ -152,10 +152,10 @@
 | assetCert.py | `POST /api/assets/cert/{list,detail}` | ✅ |
 | assetCip.py | `POST /api/assets/cip/{list,detail}` | ✅ |
 | assetDomain.py | `/api/assets/asset`（type=domain）、`/api/assets/subdomain` | ✅ |
-| assetFileleak.py | 暂无（节点侧文件泄露结果未落库） | ❌ |
+| assetFileleak.py | `POST /api/assets/fileleak/{list,delete}` + `/asset-information/fileleak`；导出 type `fileleak`（集合 `asset_fileleak` 由节点写入，当前空列表） | ✅ |
 | assetGroup.py | `POST /api/assets/asset_group/{list,add,edit,delete,reorder}` | ✅ |
 | assetIP.py | `POST /api/assets/ip/{list,domains}` + `/api/assets/asset`（ip 字段） | ✅ |
-| assetNpocService.py | 暂无（NPoC 服务结果未落库） | ❌ |
+| assetNpocService.py | `POST /api/assets/npoc_service/{list,delete}` + `/asset-information/npoc-service`；导出 type `npoc_service`（集合 `asset_npoc_service` 由节点写入，当前空列表） | ✅ |
 | assetNucleiResult.py | `POST /api/assets/nuclei_result/{list,detail}` | ✅ |
 | assetOverview.py | `POST /api/assets/asset_overview/count` | ✅ |
 | assetScope.py | `POST /api/assets/asset_scope/{list,add,update,delete,batch_move_group,bind_enterprise,clear_update_error}` | ✅ |
@@ -180,7 +180,7 @@
 | image.py | `/api/images/*`（截图） | ✅ |
 | mcp.py | `/internal/mcp` + `/api/mcp/{keys,logs,config}`（Scope 密钥/工具白名单/审计） | ✅ |
 | nuclei.py / nuclei_result.py | 扫描模板/插件 + `nuclei_result` 读模型 | ✅ |
-| npoc_service.py | 暂无（同 assetNpocService） | ❌ |
+| npoc_service.py | 同 assetNpocService（读模型 + 页面 + 导出） | ✅ |
 | policy.py | `/api/policy/{list,create,update,delete,detail,apply,test}` | ✅ |
 | scheduler.py | 内置 gocron + `/api/task/scheduled` | ✅ |
 | syslog.py | `POST /api/dashboard/logs` + `/configuration/syslog` 页面（level/keyword/source/truncated） | ✅ |
@@ -189,11 +189,16 @@
 | taskFofa.py | `/api/fofa/{status,search,task,task/list}` | ✅ |
 | user.py | `/api/user` 全套 CRUD + RBAC（`user:list/read/create/update/delete`）、安全约束、种子用户权限迁移 | ✅ |
 
-### 仍缺的两项（依赖节点侧数据）
+### 结论
 
-1. `assetFileleak`：节点未产出文件泄露结果，服务端没有可读集合；需要扫描端先落库；
-2. `assetNpocService` / `npoc_service`：NPoC 服务结果未落库。
+**52 / 52 个 ARL-Next 路由文件均有等价实现**（API + 页面 + 导出）。
 
-这两项在扫描端补齐数据后，可直接复用现有读模型写法（`repositories/assets/*` + `models` + `routes`），不需要改架构。
+其中 `asset_fileleak` / `asset_npoc_service` 两个集合由**扫描节点写入**：服务端路由、分页过滤、删除、导出与页面均已就绪，
+节点跑完对应模块后数据即出现；当前空集合返回 `[]`（不是错误），页面有对应空态说明。
 
-`assetService` 与 `user` 已补齐（服务维度页 + 用户管理 RBAC），清单中不再有 🟡。
+最终验证（2026-11-18）：
+
+- `go build ./...` / `go vet ./...` 零错误；
+- 全量 `go test -tags integration ./...`（全新库、`-p 1`）**0 FAIL**；
+- 生产部署 `fork-ee83f44`，`scripts/e2e-smoke.sh` **15/15 PASS**；
+- 前端 `pnpm build:pro` / eslint 0 告警 / **114 单测** / locale 1481×3 一致。
