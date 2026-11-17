@@ -56,6 +56,15 @@ npx esno ./scripts/check-theme.ts
   触发时历史日志全丢。
 - **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
 
+## 按筛选条件批量删除（issue #258 / #191）
+
+- `POST /api/assets/common/delete_by_search`，body `{index, search, filter, confirmAll}`：
+  `search` / `filter` 与列表页同源（asset 走 `BuildSearchQuery`，其它集合走 `helper.GetSearchQuery`）。
+- 分批删：每次先查 1000 个 `_id` 再按 `_id` 批量删，避免单次 `deleteMany` 长时间持锁；
+  单次请求上限 `DeleteBySearchMaxPerRun = 50000` 条，剩下的再点一次，防止一个 HTTP 请求把网关拖超时。
+- **空筛选等于清空整个集合**：必须显式 `confirmAll: true`，否则返回 `ErrNeedConfirmAll`（400）。
+- 副作用与按 ID 删除保持一致：asset 清理不再被引用的 `HttpBody`，vulnerability 清理 `vulnerabilityDetail`（按 hash）。
+
 ## 任务进度快照（issue #278）
 
 - 节点把逐目标进度写在 Redis 的 `TaskInfo:progress:<taskID>:<target>` 哈希里；任务到 100% 时服务端会删

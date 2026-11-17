@@ -88,7 +88,7 @@
 | 270 | 域名泛解析全局过滤 | 无 wildcard 过滤逻辑（grep 仅命中 CT 模块），需在子域/资产入库前判定 |
 | 261 | 增加时间段导出 | 导出仅按筛选条件（`handlers/export/export.go:65-75`），缺时间区间与“已读”标记 |
 | 259 | 扫描器重启总是重新加载字典 | 建议加字典 hash 接口，节点比对一致则跳过下载 |
-| 258 | 删除全部（17w 条只能 1000 条删） | `handlers/assets/common/common.go:34-54` 只接受 ids；需“按筛选条件删除”后台任务 |
+| 258 | 删除全部（17w 条只能 1000 条删） | **后端已实现**：`POST /api/assets/common/delete_by_search` 复用列表页搜索表达式+筛选，分批（1000/批）删除、单次上限 5 万条；空筛选必须 `confirmAll`；asset 清 HttpBody、vulnerability 清正文。前端按钮下一步 |
 | 239 | 新增通知（webhook robot / 端口告警） | 现有通知配置仅基础项（`internal/config/notification.go`），需 webhook 通道 + 端口事件 |
 | 230 | 动态解析页面与跳转 URL 扫描 | 跳转链依赖 katana 上游（作者已改 katana，#230 评论），服务端只能扩范围配置 |
 | 224 | 通过 IP 取 ASN 再取网段 | 无 ASN 代码（grep 0 命中），需接第三方 API + CIDR 展开 |
@@ -96,7 +96,7 @@
 | 217 | 标签管理（颜色） | `models/asset.go:33` 有 tags 无颜色；可复用敏感规则的 color 设计 |
 | 203 | 资产管理（手工录入/任务创建即同步） | 服务端无资产写入接口（仅 initdb 写），需新增 add 接口 + 前端表单 |
 | 200 | redis 存储优化 | **队列侧已修**：`NodeTask:<node>` / `TaskInfo:<taskID>` 投递即 `EXPIRE`，滑动 TTL 30 天（`redislist.PushQueued`）。节点侧直接写的 `TaskInfo:tmp/progress/time` 本仓库只读，TTL 需 scan 节点自己加 |
-| 191 | 一键删除功能 | 同 #258，误报清理需要批量删除入口 |
+| 191 | 一键删除功能 | 同 #258：后端 `delete_by_search` 已到位，误报清理入口等前端接上 |
 | 188 | 扫描包 header 修改 | 作者已答“可以支持”（#188 评论）；在模板/插件参数层加自定义 header |
 | 182 | 通知设置默认发测试消息 | save 时发一条测试消息；notification 刷新通道已存在（`configuration/service.go:167-208`） |
 | 179 | 被动扫描改开关 | `PassiveScan` 已在模块列表（`constants/defaults.go:352-367`），缺独立开关与端口配置 |

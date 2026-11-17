@@ -53,6 +53,39 @@ func DeleteData(c *gin.Context) {
 	response.Success(c, nil, "api.success")
 }
 
+// DeleteBySearch 按当前筛选条件批量删除（issue #258 / #191）
+// @Summary 按筛选条件批量删除
+// @Description 复用列表页的搜索表达式 + 筛选条件，服务端分批删除；空筛选必须显式确认
+// @Tags 通用操作
+// @Accept json
+// @Produce json
+// @Param request body models.DeleteBySearchRequest true "删除请求参数"
+// @Success 200 {object} response.Response
+// @Router /api/assets/common/delete_by_search [post]
+func DeleteBySearch(c *gin.Context) {
+	var req models.DeleteBySearchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+
+	deleted, err := commonService.DeleteBySearch(c, &req)
+	if err != nil {
+		switch err {
+		case common.ErrInvalidCollection:
+			response.NotFound(c, "api.not_found", err)
+		case common.ErrNeedConfirmAll:
+			response.BadRequest(c, "api.bad_request", err)
+		default:
+			logger.Error(fmt.Sprintf("delete_by_search error: %v", err))
+			response.InternalServerError(c, "api.error", err)
+		}
+		return
+	}
+
+	response.Success(c, gin.H{"deleted": deleted}, "api.success")
+}
+
 // AddTag 添加标签
 // @Summary 添加标签
 // @Description 为指定文档添加标签
