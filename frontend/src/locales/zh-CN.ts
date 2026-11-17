@@ -477,6 +477,36 @@ export default {
     empty:
       '服务来自资产端口识别与指纹探测：先跑一个带端口扫描的扫描任务，识别出的服务会按服务名汇总到这里'
   },
+  fileLeak: {
+    url: 'URL',
+    site: '站点',
+    title: '标题',
+    statusCode: '状态码',
+    contentLength: '内容长度',
+    insertTime: '首次发现',
+    updateTime: '最近更新',
+    keywordPlaceholder: 'URL / 站点 / 标题（子串匹配）',
+    statusPlaceholder: '状态码，如 404',
+    selectedCount: '已选 {count} 条',
+    selectFirst: '请先勾选要删除的记录',
+    deleteConfirm: '确认删除选中的 {count} 条文件泄露记录？删除后不可恢复',
+    empty:
+      '数据来自扫描端的文件泄露检测：节点跑完文件泄露模块后，命中结果才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
+  },
+  npocService: {
+    scheme: '协议',
+    host: '主机',
+    port: '端口',
+    target: '目标',
+    insertTime: '发现时间',
+    keywordPlaceholder: '主机 / 目标（子串匹配）',
+    schemePlaceholder: '协议，如 http',
+    selectedCount: '已选 {count} 条',
+    selectFirst: '请先勾选要删除的记录',
+    deleteConfirm: '确认删除选中的 {count} 条 NPoC 服务记录？删除后不可恢复',
+    empty:
+      '数据来自扫描端的 NPoC 服务识别：节点跑完 NPoC 模块后，识别出的服务才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
+  },
   cip: {
     company: '主体名称',
     companyUnknown: '未知主体',
@@ -807,6 +837,8 @@ export default {
     document: '文档',
     httpStatus: 'HTTP 状态',
     assetService: '服务维度',
+    fileLeak: '文件泄露',
+    npocService: 'NPoC 服务',
     syslog: '系统日志'
   },
   permission: {

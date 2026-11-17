@@ -205,6 +205,26 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'mdi:server-network',
           noCache: true
         }
+      },
+      {
+        path: 'fileleak',
+        component: () => import('@/views/AssetInsight/FileLeak.vue'),
+        name: 'Asset-FileLeak',
+        meta: {
+          title: t('router.fileLeak'),
+          icon: 'mdi:file-alert-outline',
+          noCache: true
+        }
+      },
+      {
+        path: 'npoc-service',
+        component: () => import('@/views/AssetInsight/NpocService.vue'),
+        name: 'Asset-NpocService',
+        meta: {
+          title: t('router.npocService'),
+          icon: 'mdi:server-security',
+          noCache: true
+        }
       }
     ]
   },
