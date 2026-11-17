@@ -50,6 +50,11 @@ type MongoDBConfig struct {
 	Database string `mapstructure:"database"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
+	// issue #137：Atlas / 开了 authSource 的集群 / 要求 TLS 的实例需要这些参数
+	AuthSource    string `mapstructure:"auth_source"`
+	AuthMechanism string `mapstructure:"auth_mechanism"`
+	TLS           bool   `mapstructure:"tls"`
+	TLSCAFile     string `mapstructure:"tls_ca_file"`
 }
 
 // RedisConfig Redis配置
@@ -210,6 +215,18 @@ func loadFromEnv() {
 	}
 	if password := os.Getenv("MONGODB_PASSWORD"); password != "" {
 		viper.Set("mongodb.password", password)
+	}
+	if authSource := os.Getenv("MONGODB_AUTH_SOURCE"); authSource != "" {
+		viper.Set("mongodb.auth_source", authSource)
+	}
+	if authMechanism := os.Getenv("MONGODB_AUTH_MECHANISM"); authMechanism != "" {
+		viper.Set("mongodb.auth_mechanism", authMechanism)
+	}
+	if tls := os.Getenv("MONGODB_TLS"); tls != "" {
+		viper.Set("mongodb.tls", tls == "1" || tls == "true" || tls == "TRUE")
+	}
+	if ca := os.Getenv("MONGODB_TLS_CA_FILE"); ca != "" {
+		viper.Set("mongodb.tls_ca_file", ca)
 	}
 
 	// Redis 配置

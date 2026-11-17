@@ -123,7 +123,29 @@ docker compose -f scan-docker-compose.yml up -d
 仓库 `k8s/` 下是可直接套用的清单（Deployment / Service / PVC / Secret），已用 `kubeconform -strict` 校验。
 适合已有集群的环境；单机小规模用 compose 更省事。
 
-## 4. 常见问题
+## 4. 连接 Atlas / 带认证的 MongoDB（issue #137）
+
+除了 `MONGODB_IP/PORT/DATABASE/USER/PASSWORD`，服务端还支持：
+
+| 环境变量 | 作用 |
+| --- | --- |
+| `MONGODB_AUTH_SOURCE` | 认证库，MongoDB Atlas 通常填 `admin` |
+| `MONGODB_AUTH_MECHANISM` | 认证机制，如 `SCRAM-SHA-256`、`MONGODB-X509` |
+| `MONGODB_TLS` | `true` / `1` 开启 TLS |
+| `MONGODB_TLS_CA_FILE` | 自签 CA 的路径（容器内路径） |
+
+示例（Atlas）：
+
+```bash
+MONGODB_IP=cluster0.xxxxx.mongodb.net
+MONGODB_PORT=27017
+MONGODB_USER=app
+MONGODB_PASSWORD=***
+MONGODB_AUTH_SOURCE=admin
+MONGODB_TLS=true
+```
+
+## 5. 常见问题
 
 - **端口被占用**：8082（Web）、27017、6379。改 compose 里左侧端口即可，节点侧连的仍是服务端实际端口。
 - **时区**：compose 通过 `TIMEZONE`（服务端）与 `TimeZoneName`（节点）设置，默认 `Asia/Shanghai`；
