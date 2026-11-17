@@ -79,6 +79,7 @@ npx esno ./scripts/check-theme.ts
   资产平时由扫描节点直接写库，这里给「外部 recon 结果 + 人工确认过的主机」一个入口。
 - `host` 必填；`url` 必须是绝对地址，并据此推导 `type`（http/https）；`time` 由服务端填。
 - **host+port 是唯一索引**：重复录入返回 **409** `ErrAssetExists`（不是 500）；非法参数 400 `ErrAssetInvalid`。
+- 前端入口在资产页操作菜单「添加资产」（`AssetAddDialog.vue`）；错误提示交给 axios 拦截器统一弹（含 409），组件只负责成功后刷新列表。
 
 ## 资产备注（issue #335）
 

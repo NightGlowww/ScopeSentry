@@ -61,6 +61,8 @@ const props = defineProps<{
   iconData?: { value: string; number: number; icon_hash: string }[]
   // 资产页专用：打开「标签颜色」设置（issue #217）
   openTagColorSetting?: () => void
+  // 资产页专用：打开「添加资产」表单（issue #203）
+  openAddAsset?: () => void
 }>()
 const localSearchKeywordsData = reactive([...props.searchKeywordsData])
 const newKeyword = {
@@ -517,6 +519,9 @@ const openCreateTask = async () => {
             }}</ElDropdownItem>
             <ElDropdownItem :icon="deleteicon" @click="delAllFiltered">{{
               t('asset.deleteFiltered')
+            }}</ElDropdownItem>
+            <ElDropdownItem v-if="index == 'asset'" @click="openAddAsset && openAddAsset()">{{
+              t('asset.addAsset')
             }}</ElDropdownItem>
             <ElDropdownItem
               v-if="index == 'asset'"

@@ -305,6 +305,22 @@ export const delBySearchApi = (
 }
 
 // 更新资产备注（issue #335）：后端只做定向 $set，不会覆盖扫描结果
+// 手工录入资产（issue #203）：host+port 唯一，重复时后端返回 409
+export interface AddAssetPayload {
+  host: string
+  ip?: string
+  port?: string
+  url?: string
+  service?: string
+  title?: string
+  project?: string
+  tags?: string[]
+}
+
+export const addAssetApi = (payload: AddAssetPayload): Promise<IResponse<{ id: string }>> => {
+  return request.post({ url: '/api/assets/asset/add', data: payload })
+}
+
 export const setRemarkApi = (id: string, remark: string): Promise<IResponse<{ id: string }>> => {
   return request.post({ url: '/api/assets/asset/remark', data: { id, remark } })
 }
