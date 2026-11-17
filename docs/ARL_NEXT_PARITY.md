@@ -20,9 +20,9 @@
 
 | ARL-Next | 路由证据 | ScopeSentry | 计划 |
 | --- | --- | --- | --- |
-| 站点资产 site | `assetSite: / /export/ /delete/ /save_result_set/ /add_tag/ /delete_tag/ /subdomain_chain/` | 🟡 域名/子域合并展示 | P0：独立 `site` 集合 + 子域链路 |
+| 站点资产 site | `assetSite: / /export/ /delete/ /save_result_set/ /add_tag/ /delete_tag/ /subdomain_chain/` | ✅ 读模型：`/api/assets/site/{list,chain}`（host+port 聚合、$top 取最新、子域链路 500 上限） | 导出/打标签下一轮 |
 | 域名资产 domain | `assetDomain: / /delete/ /export/` | ✅ 资产表 domain/subdomain | 保持 |
-| IP 资产 ip | `assetIP: / /export/ /export_ip/ /export_domain/ /delete/` | ❌ 仅端口字段 | P0：`ip` 集合 + 反查域名 |
+| IP 资产 ip | `assetIP: / /export/ /export_ip/ /export_domain/ /delete/` | ✅ 读模型：`/api/assets/ip/{list,domains}`（ports/domains 聚合、asset+subdomain 双来源反查） | 导出/删除下一轮 |
 | URL 资产 url | `assetUrl: / /export/ /delete/` | ✅ URL 页 | 保持 |
 | 证书 cert | `assetCert: / /export/ /delete/` | ❌ | P1：`cert` 集合 + 关联域名 |
 | 企业 ICP cip | `assetCip: / /export/ /delete/ /ip_domain_detail/` | ❌ | P1：ICP 主体资产 + 详情 |
