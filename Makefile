@@ -22,7 +22,7 @@ HERMETIC_PKGS := \
 	./internal/utils/tagpalette/ \
 	./internal/utils/mongouri/
 
-.PHONY: help build binary run test-hermetic test-integration vet fmt fmt-check mod-check \
+.PHONY: help build binary binary-linux run test-hermetic test-integration vet fmt fmt-check mod-check \
 	frontend-install frontend-build frontend-test frontend-lint frontend-check compose-check ci clean
 
 help: ## 列出所有目标
@@ -34,6 +34,9 @@ build: ## 编译全部 Go 包（不产出二进制）
 binary: ## 产出服务器二进制到 dist/ScopeSentry
 	mkdir -p dist
 	$(GO) build -o $(BINARY) ./cmd/main
+
+binary-linux: ## 产出 linux/amd64 二进制（内嵌前端，保留 /map 微前端资源）
+	./scripts/build-linux.sh
 
 run: ## 本地启动服务（需先配置 Mongo/Redis 环境变量）
 	$(GO) run ./cmd/main
