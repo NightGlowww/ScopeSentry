@@ -489,6 +489,8 @@ func createIndexes(db *mongo.Database) error {
 		{Keys: bson.D{{Key: "taskName", Value: 1}}},
 		{Keys: bson.D{{Key: "rootDomain", Value: 1}}},
 		{Keys: bson.D{{Key: "time", Value: 1}}},
+		// site 页的「子域链路」按 host 精确查 + 时间倒序：没有这个索引会全表扫
+		{Keys: bson.D{{Key: "host", Value: 1}, {Key: "time", Value: -1}}},
 	}
 	_, err = subdomain.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {

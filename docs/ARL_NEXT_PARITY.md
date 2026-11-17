@@ -20,9 +20,9 @@
 
 | ARL-Next | 路由证据 | ScopeSentry | 计划 |
 | --- | --- | --- | --- |
-| 站点资产 site | `assetSite: / /export/ /delete/ /save_result_set/ /add_tag/ /delete_tag/ /subdomain_chain/` | 🟡 域名/子域合并展示 | P0：独立 `site` 集合 + 子域链路 |
+| 站点资产 site | `assetSite: / /export/ /delete/ /save_result_set/ /add_tag/ /delete_tag/ /subdomain_chain/` | ✅ 读模型：`/api/assets/site/{list,chain}`（host+port 聚合、$top 取最新、子域链路 500 上限） | 导出/打标签下一轮 |
 | 域名资产 domain | `assetDomain: / /delete/ /export/` | ✅ 资产表 domain/subdomain | 保持 |
-| IP 资产 ip | `assetIP: / /export/ /export_ip/ /export_domain/ /delete/` | ❌ 仅端口字段 | P0：`ip` 集合 + 反查域名 |
+| IP 资产 ip | `assetIP: / /export/ /export_ip/ /export_domain/ /delete/` | ✅ 读模型：`/api/assets/ip/{list,domains}`（ports/domains 聚合、asset+subdomain 双来源反查） | 导出/删除下一轮 |
 | URL 资产 url | `assetUrl: / /export/ /delete/` | ✅ URL 页 | 保持 |
 | 证书 cert | `assetCert: / /export/ /delete/` | ❌ | P1：`cert` 集合 + 关联域名 |
 | 企业 ICP cip | `assetCip: / /export/ /delete/ /ip_domain_detail/` | ❌ | P1：ICP 主体资产 + 详情 |
@@ -110,6 +110,31 @@
 2. **P1 资产与情报**：cert / cip / wih 对齐 / nuclei_result / statFinger / 字典增强 / GitHub 泄露监控 / MCP 治理 / 批量导出。
 3. **P2 运维与策略**：fileleak / npoc_service / taskFofa / policy / cdn_dict / console / syslog / http_status。
 4. **P3 UI 对齐**：仪表盘趋势与系统信息、表格体验、语言（ru）。
+
+## 性能约束（每个对齐 PR 必须满足）
+
+对齐不是把功能抄过来就完事——每加一条查询路径，就必须同时交代它的代价：
+
+1. **索引先行**：新增的 filter/sort/group 字段必须有索引（写进 `createIndexes`，升级路径自动补）。
+   例：`site/chain` 的 `subdomain {host:1,time:-1}`、`asset_scope {group_id:1}`、`asset_group {name:1}` 唯一索引。
+2. **禁止 N+1 / 全量拉取**：列表类接口用聚合（`$facet` 一次拿 total+分页、`$group`+`$top` 取最新），
+   不允许「先查全部再在内存里过滤/排序」；聚合一律 `SetAllowDiskUse(true)`。
+3. **计数与截断分开**：`portCount` 用完整数组计数，`ports` 只回传前 N 条（截断不能改变计数语义）。
+4. **分页有上限**：`pageSize` 超过阈值必须 400，不允许一次拉全库。
+5. **大集合要有实测**：新增列表/导出接口在 10 万级数据上做一次 explain/实测（docs 里记 docsExamined 与耗时），
+   参考已有记录：资产 10 万列表 2–3ms、漏洞 20 万排序 29ms→3ms（加 time 索引后）。
+6. **回归**：CI 的集成测试要覆盖分页、排序、截断与空结果；性能退化在 review 阶段拦，而不是上线后。
+
+已实测（2026-11-18，本地 Mongo 7，`PERF=1` 跑 `TestSiteIPReadModelPerformance`）：
+
+```
+20,000 asset + 6,000 subdomain
+  site/list（project 过滤，page 20）   152ms   total=20000
+  ip/list（前缀过滤，page 20）          43ms   total=1250
+  site/chain（500 条上限）             8.1ms   rows=500
+```
+
+复现：`PERF=1 MONGODB_IP=127.0.0.1 ... go test -tags integration -run TestSiteIPReadModelPerformance ./internal/services/assets/site/`。
 
 ## 验收方式
 

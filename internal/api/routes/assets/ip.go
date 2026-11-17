@@ -16,6 +16,25 @@ func registerIPRoutes() models.RouteGroup {
 				Handler:     iphandler.GetIPAssets,
 				Middlewares: common.WithAuth(),
 			},
+			// IP 读模型（对标 ARL-Next assetIP）：直接从 asset 集合现算，不依赖 IPAsset 回填
+			{
+				Method:      "GET",
+				Path:        "/list",
+				Handler:     iphandler.ListIPs,
+				Middlewares: common.WithAuth(),
+			},
+			{
+				Method:      "POST",
+				Path:        "/list",
+				Handler:     iphandler.ListIPs,
+				Middlewares: common.WithAuth(),
+			},
+			{
+				Method:      "POST",
+				Path:        "/domains",
+				Handler:     iphandler.GetDomainsByIP,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 }
