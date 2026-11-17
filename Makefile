@@ -17,7 +17,7 @@ HERMETIC_PKGS := \
 	./internal/api/middleware/compress/
 
 .PHONY: help build binary run test-hermetic test-integration vet fmt fmt-check mod-check \
-	frontend-install frontend-build frontend-test frontend-check ci clean
+	frontend-install frontend-build frontend-test frontend-lint frontend-check ci clean
 
 help: ## 列出所有目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -61,7 +61,11 @@ frontend-build: ## 前端生产构建（dist-pro）
 frontend-test: ## 前端单元测试（vitest）
 	cd frontend && $(PNPM) test
 
-frontend-check: ## 前端轻量自检：语言包一致性 + 主题三态 + 单测
+frontend-lint: ## 前端 ESLint（与 CI 完全同一口径，避免格式问题只在 CI 才暴露）
+	cd frontend && npx eslint --ext .js,.ts,.vue ./src --max-warnings 0
+
+frontend-check: ## 前端自检：ESLint + 语言包一致性 + 主题三态 + 单测
+	cd frontend && npx eslint --ext .js,.ts,.vue ./src --max-warnings 0
 	cd frontend && node scripts/check-locales.mjs && npx esno ./scripts/check-theme.ts
 	cd frontend && $(PNPM) test
 
