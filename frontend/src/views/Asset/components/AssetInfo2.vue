@@ -39,6 +39,7 @@ import {
 import { Icon } from '@/components/Icon'
 import { BaseButton } from '@/components/Button'
 import { useRouter } from 'vue-router'
+import { tagColorType } from '@/utils/tagColor'
 import Csearch from '../search/Csearch.vue'
 import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
@@ -442,7 +443,16 @@ let crudSchemas = reactive<CrudSchema[]>([
         ...tags.map((tag) =>
           h(ElCol, { span: 24, key: tag }, () => [
             h('div', { onClick: (event: MouseEvent) => handleTagClick(event, tag) }, [
-              h(ElTag, { closable: true, onClose: () => deleteTag(row, tag) }, () => tag)
+              h(
+                ElTag,
+                {
+                  closable: true,
+                  type: tagColorType(tag),
+                  effect: 'light',
+                  onClose: () => deleteTag(row, tag)
+                },
+                () => tag
+              )
             ])
           ])
         ),

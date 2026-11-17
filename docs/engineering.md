@@ -56,6 +56,13 @@ npx esno ./scripts/check-theme.ts
   触发时历史日志全丢。
 - **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
 
+## 标签配色（issue #217）
+
+- 标签颜色由标签名稳定推导：`utils/tagColor.ts` 的 `tagColorType(tag)`，同一个标签在任何页面、任何一次渲染里都同色。
+- 只从 Element Plus 的语义色（`primary/success/info/warning/danger`）里挑，颜色由主题变量驱动，日间/夜间自动适配——
+  不要在这里写死 hex，否则深色模式下对比度会崩。
+- 想支持「用户给某个标签指定固定颜色」时，在这一层加覆盖表即可，调用方不用改。
+
 ## 导出时间范围（issue #261）
 
 - 导出请求可带 `startTime` / `endTime`，格式 `YYYY-MM-DD HH:mm:ss`，可以只给一边。
