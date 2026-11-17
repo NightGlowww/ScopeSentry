@@ -644,6 +644,26 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create asset_group indexes: %v", err)
 	}
 
+	// MCP 调用审计（对标 ARL-Next mcp_call_logs）：
+	// 列表按 createdAt 倒序分页、按 keyId 过滤后仍按时间排序、按 tool 聚合统计
+	mcpCallLogs := db.Collection("mcp_call_logs")
+	if _, err := mcpCallLogs.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "createdAt", Value: -1}}},
+		{Keys: bson.D{{Key: "keyId", Value: 1}, {Key: "createdAt", Value: -1}}},
+		{Keys: bson.D{{Key: "tool", Value: 1}}},
+	}); err != nil {
+		return fmt.Errorf("failed to create mcp_call_logs indexes: %v", err)
+	}
+
+	// API Key 列表按 createdAt 倒序分页（keyHash 唯一索引由 apikey.EnsureIndexes 负责，
+	// 这里不重复创建，避免历史库里存在重复 keyHash 时启动直接失败）
+	apiKeyCollection := db.Collection("api_key")
+	if _, err := apiKeyCollection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys: bson.D{{Key: "createdAt", Value: -1}},
+	}); err != nil {
+		return fmt.Errorf("failed to create api_key createdAt index: %v", err)
+	}
+
 	// 资产组地契（对标 ARL-Next asset_scope）：按集团/名称查询
 	assetScope := db.Collection("asset_scope")
 	_, err = assetScope.Indexes().CreateMany(context.Background(), []mongo.IndexModel{

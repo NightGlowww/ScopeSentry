@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/Autumn-27/ScopeSentry/internal/constants"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/app"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/asset"
@@ -21,6 +23,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/subdomain"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/url"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/vulnerability"
+	"github.com/Autumn-27/ScopeSentry/internal/services/mcpguard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
@@ -29,6 +32,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/template"
 	"github.com/gin-gonic/gin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.uber.org/zap"
 )
 
 type deps struct {
@@ -75,91 +79,141 @@ var d = &deps{
 	pluginService:     plugin.NewService(),
 }
 
-func registerTools(server *mcp.Server) {
-	mcp.AddTool(server, &mcp.Tool{
+func registerTools(server *mcp.Server, allowedTools map[string]bool) {
+	names := make([]string, 0, 32)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_projects",
 		Description: "获取按标签分组的项目列表",
 	}, listProjects)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_projects_data",
 		Description: "分页获取项目列表，支持搜索",
 	}, listProjectsData)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "get_project",
 		Description: "根据项目 ID 获取项目详情",
 	}, getProject)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "create_project",
 		Description: "创建新项目。必填 name 和有效 target，可选 tag、template、node 等。名称已存在且 target 整理后仍有目标时，只替换该项目的资产范围。",
 	}, createProject)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_tasks",
 		Description: "分页获取扫描任务列表",
 	}, listTasks)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "get_task",
 		Description: "根据任务 ID 获取任务详情",
 	}, getTask)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_scan_templates",
 		Description: "分页获取扫描模板列表",
 	}, listScanTemplates)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "get_scan_template",
 		Description: "根据模板 ID 获取扫描模板详情",
 	}, getScanTemplate)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_plugin_modules",
 		Description: "获取扫描模板的全部模块名（流水线阶段）。扫描模板由这些模块构成，每个模块下挂载若干插件。",
 	}, listPluginModules)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_plugins",
 		Description: "获取可用扫描插件，可按 module 过滤。返回每个插件的 hash、name、module、默认 parameter。创建扫描模板时，模块字段引用的就是插件 hash。",
 	}, listPlugins)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "create_scan_template",
 		Description: createScanTemplateToolDesc,
 	}, createScanTemplate)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "create_scan_task",
 		Description: createScanTaskToolDesc,
 	}, createScanTask)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_assets",
 		Description: listAssetsToolDesc,
 	}, listAssets)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "count_assets",
 		Description: countAssetsToolDesc,
 	}, countAssets)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "get_asset_detail",
 		Description: "获取资产详情，asset_type 支持 asset 或 vulnerability",
 	}, getAssetDetail)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "add_asset_tag",
 		Description: "为资产添加标签",
 	}, addAssetTag)
 
-	mcp.AddTool(server, &mcp.Tool{
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_nodes",
 		Description: "获取扫描节点列表，online_only=true 时仅返回在线节点",
 	}, listNodes)
+	recordToolNames(names)
+	warnUnregisteredTools(names)
+}
+
+// warnUnregisteredTools 生产环境的漂移报警：工具注册了但 mcpguard.ToolScopes 里没有，
+// 持受限 scope 的 key 调用它会被默认拒绝。本包 init 需要数据库，纯单测覆盖不到，
+// 所以留一条运行期告警（集成测试 tools_registry_integration_test.go 会直接失败）。
+func warnUnregisteredTools(names []string) {
+	for _, name := range names {
+		if _, ok := mcpguard.RequiredScope(name); !ok {
+			logger.Warn("mcp: tool has no scope registered in mcpguard.ToolScopes",
+				zap.String("tool", name))
+		}
+	}
+}
+
+// addTool 统一注册入口。
+//
+// 两个职责：
+//  1. 登记工具名（names），供 ToolNames() 做「治理表 vs 实际工具」漂移测试；
+//  2. allowedTools 非 nil 时只注册集合内的工具，让 tools/list 与治理策略一致。
+func addTool[In, Out any](server *mcp.Server, allowedTools map[string]bool, names *[]string, tool *mcp.Tool, handler mcp.ToolHandlerFor[In, Out]) {
+	*names = append(*names, tool.Name)
+	if allowedTools != nil && !allowedTools[tool.Name] {
+		return
+	}
+	mcp.AddTool(server, tool, handler)
+}
+
+var (
+	registeredToolNamesMu sync.RWMutex
+	registeredToolNames   []string
+)
+
+// recordToolNames 幂等登记工具名列表（每次建 server 都会走到，内容恒定）
+func recordToolNames(names []string) {
+	registeredToolNamesMu.Lock()
+	defer registeredToolNamesMu.Unlock()
+	if len(registeredToolNames) == 0 {
+		registeredToolNames = append([]string(nil), names...)
+	}
+}
+
+// ToolNames 返回本包实际注册过的全部 MCP 工具名
+func ToolNames() []string {
+	registeredToolNamesMu.RLock()
+	defer registeredToolNamesMu.RUnlock()
+	return append([]string(nil), registeredToolNames...)
 }
 
 type listProjectsDataInput struct {
