@@ -445,6 +445,10 @@ export default {
     deleteFilteredAllConfirm:
       '当前没有任何筛选条件，将清空该集合的全部数据，且不可恢复。确定继续？',
     deleteFilteredDone: '已删除 {count} 条数据',
+    remark: '备注',
+    remarkPlaceholder: '添加备注',
+    remarkSaved: '备注已保存',
+    remarkSaveFailed: '备注保存失败',
     banner: 'Banner',
     products: '应用/组件',
     IP: 'IP',

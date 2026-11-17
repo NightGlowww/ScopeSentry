@@ -263,6 +263,7 @@ func (s *service) GetAssets(ctx *gin.Context, query models.SearchRequest) ([]mod
 		"faviconmmh3":  1,
 		"tags":         1,
 		"bodyhash":     1,
+		"remark":       1,
 	}
 
 	// 执行查询

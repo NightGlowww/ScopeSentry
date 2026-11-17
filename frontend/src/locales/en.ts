@@ -450,6 +450,10 @@ export default {
     deleteFilteredAllConfirm:
       'No filter is active: this empties the entire collection and cannot be undone. Continue?',
     deleteFilteredDone: 'Deleted {count} items',
+    remark: 'Remark',
+    remarkPlaceholder: 'Add a remark',
+    remarkSaved: 'Remark saved',
+    remarkSaveFailed: 'Failed to save remark',
     banner: 'Banner',
     products: 'Products',
     IP: 'IP',
