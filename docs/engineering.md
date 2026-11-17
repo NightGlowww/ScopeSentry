@@ -73,6 +73,13 @@ npx esno ./scripts/check-theme.ts
 - 合并逻辑在 `services/export/exportfilter.ApplyTimeRange`：base 里已有 `time` 条件时用 `$and` 合并而不是覆盖；
   格式非法或 start > end 直接 400。
 
+## 手工录入资产（issue #203）
+
+- `POST /api/assets/asset/add`，body `{host, ip, port, url, service, title, project, tags}`：
+  资产平时由扫描节点直接写库，这里给「外部 recon 结果 + 人工确认过的主机」一个入口。
+- `host` 必填；`url` 必须是绝对地址，并据此推导 `type`（http/https）；`time` 由服务端填。
+- **host+port 是唯一索引**：重复录入返回 **409** `ErrAssetExists`（不是 500）；非法参数 400 `ErrAssetInvalid`。
+
 ## 资产备注（issue #335）
 
 - `Asset` 新增 `remark` 字段（扫描不会写，只有用户改）。

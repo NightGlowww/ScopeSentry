@@ -3,6 +3,7 @@ package asset
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -133,6 +134,38 @@ func UpdateAsset(c *gin.Context) {
 	}
 
 	response.Success(c, asset, "api.asset.update.success")
+}
+
+// AddAsset 手工录入资产（issue #203）
+// @Summary 手工录入资产
+// @Description host 必填，host+port 是唯一索引，重复录入返回 409
+// @Tags 资产
+// @Accept json
+// @Produce json
+// @Param request body models.AssetAddRequest true "资产信息"
+// @Success 200 {object} response.SuccessResponse
+// @Router /api/assets/asset/add [post]
+func AddAsset(c *gin.Context) {
+	var req models.AssetAddRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+
+	created, err := assetService.AddAsset(c, &req)
+	if err != nil {
+		if errors.Is(err, asset.ErrAssetExists) {
+			c.JSON(http.StatusConflict, gin.H{"code": http.StatusConflict, "message": err.Error()})
+			return
+		}
+		if errors.Is(err, asset.ErrAssetInvalid) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
+		response.InternalServerError(c, "api.asset.create.failed", err)
+		return
+	}
+	response.Success(c, gin.H{"id": created.ID.Hex()}, "api.asset.create.success")
 }
 
 // SetRemark 更新资产备注（issue #335）

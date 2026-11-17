@@ -94,7 +94,7 @@
 | 224 | 通过 IP 取 ASN 再取网段 | 无 ASN 代码（grep 0 命中），需接第三方 API + CIDR 展开 |
 | 223 | 可自动化实现的 case | 参数收集入 Redis + 缓存投毒检测，属新检测能力 |
 | 217 | 标签管理（颜色） | **已修**：默认按标签名稳定取色（语义色随主题适配）；`TagColor` 表 + `/api/assets/tag_color/{list,set}` 支持按标签指定固定色（语义色名或 `#rgb/#rrggbb`，空值即清除）；资产页操作菜单新增「标签颜色」对话框（已有覆盖可清除、新增可按语义色或自定义取色），保存后列表即时刷新 |
-| 203 | 资产管理（手工录入/任务创建即同步） | 服务端无资产写入接口（仅 initdb 写），需新增 add 接口 + 前端表单 |
+| 203 | 资产管理（手工录入/任务创建即同步） | **后端已实现**：`POST /api/assets/asset/add`（host 必填，URL 推导 type，host+port 唯一索引冲突返回 409 `ErrAssetExists`，非法 URL 400）；前端录入表单下一步 |
 | 200 | redis 存储优化 | **队列侧已修**：`NodeTask:<node>` / `TaskInfo:<taskID>` 投递即 `EXPIRE`，滑动 TTL 30 天（`redislist.PushQueued`）。节点侧直接写的 `TaskInfo:tmp/progress/time` 本仓库只读，TTL 需 scan 节点自己加 |
 | 191 | 一键删除功能 | **已修**：与 #258 同一入口（资产表「删除全部（当前筛选）」），误报清理不再需要逐页勾选 |
 | 188 | 扫描包 header 修改 | 作者已答“可以支持”（#188 评论）；在模板/插件参数层加自定义 header |

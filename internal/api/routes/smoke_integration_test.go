@@ -157,6 +157,16 @@ func TestAPISmokeNewEndpointGuards(t *testing.T) {
 			token: true, want: http.StatusNotFound,
 		},
 		{
+			name: "manual asset add requires auth",
+			path: "/api/assets/asset/add", body: map[string]interface{}{"host": "smoke.example.com"},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
+			name: "manual asset add rejects bad url",
+			path: "/api/assets/asset/add", body: map[string]interface{}{"host": "smoke.example.com", "url": "not-a-url"},
+			token: true, want: http.StatusBadRequest,
+		},
+		{
 			name: "tag color list requires auth",
 			path: "/api/assets/tag_color/list", body: map[string]interface{}{},
 			token: false, want: http.StatusUnauthorized,
