@@ -1,3 +1,7 @@
+//go:build integration
+
+// 这个包导入链会触发 bootstrap（task service），没有数据库时会 log.Fatalf；
+// 所以放到 integration tag 下，用 CI 的真实 Mongo/Redis 环境跑。
 package fofa_test
 
 import (
