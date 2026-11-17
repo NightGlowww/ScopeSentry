@@ -526,9 +526,9 @@ const save = async () => {
                 type="textarea"
                 :rows="3"
                 readonly
-                style="background-color: #f5f5f5"
+                style="background-color: var(--el-fill-color-light)"
               />
-              <div style="font-size: 12px; color: #909399; margin-top: 4px">
+              <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px">
                 {{ t('plugin.parameterTip') }}
               </div>
             </ElFormItem>
