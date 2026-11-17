@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
-import { Ref, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { Ref, computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { useWindowSize } from '@vueuse/core'
 import { useTable } from '@/hooks/web/useTable'
 import { Dialog } from '@/components/Dialog'
 import {
@@ -759,6 +760,10 @@ const getTotal = async (
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
+
+// 表格高度跟随窗口：表头固定、内容区内部滚动，避免整页滚动把表头带走
+const { height: windowHeight } = useWindowSize()
+const tableMaxHeight = computed(() => Math.max(420, windowHeight.value - 340))
 const activeNames = ref(['1', '2', '3', '4', '5'])
 
 // 侧栏筛选：有数据时才给固定滚动高度，空数据收成一行提示，
@@ -1139,6 +1144,7 @@ const confirmSelectedIcons = () => {
               :border="true"
               :loading="loading"
               size="small"
+              :max-height="tableMaxHeight"
               @filter-change="filterChange"
               :resizable="true"
               @register="tableRegister"
