@@ -52,6 +52,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes"
 	scopesentrymcp "github.com/Autumn-27/ScopeSentry/internal/mcp"
+	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	redisLogSubscriber "github.com/Autumn-27/ScopeSentry/internal/services/redis_log_subscriber"
 
 	"github.com/Autumn-27/ScopeSentry/docs"
@@ -89,6 +90,11 @@ func main() {
 	scheduler.InitializeGlobalScheduler()
 	scheduler.GetGlobalScheduler().Start()
 	defer scheduler.GetGlobalScheduler().Stop()
+
+	// GitHub 情报调度：注册到内置 gocron（每分钟 tick，按各自配置间隔执行）
+	githubScheduler := githubsvc.DefaultScheduler()
+	githubScheduler.Start()
+	defer githubScheduler.Stop()
 
 	// 启动 Redis 日志订阅服务（在后台运行）
 	go redisLogSubscriber.SubscribeLogChannel()

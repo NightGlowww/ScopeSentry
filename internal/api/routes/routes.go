@@ -27,6 +27,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apikeyRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/apikey"
+	githubRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/github"
 	mcpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/mcp"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/node"
 )
@@ -129,6 +130,9 @@ func SetupRouter() *gin.Engine {
 
 		// 注册 MCP 治理路由（keys / logs / config）
 		mcpRoutes.RegisterMcpRoutes(api)
+
+		// 注册 GitHub 泄露 / 威胁情报路由（task / scheduler / result / threat）
+		githubRoutes.RegisterGithubRoutes(api)
 	}
 
 	return router
