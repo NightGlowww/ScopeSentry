@@ -142,3 +142,57 @@
   对照清单落在 `docs/arl-next-parity.json`（后续轮次自动生成 diff）。
 - 页面级：侧边栏菜单项逐一对照（资产/IP/站点/证书/ICP/文件泄露/WIH/指纹统计/资产组/情报/备份/策略…）。
 - 行为级：每族至少一条集成测试 + 一条冒烟守卫（沿用现有 `smoke_integration_test.go` 风格）。
+
+## 路由级对照（1:1 验收清单）
+
+对照 `owl234/ARL-Next/backend/app/routes/*.py`（52 个文件）。状态：✅ 已实现等价能力；🟡 部分/只读视图；❌ 依赖节点侧数据，当前无可读来源。
+
+| ARL-Next 路由文件 | ScopeSentry 对应 | 状态 |
+| --- | --- | --- |
+| assetCert.py | `POST /api/assets/cert/{list,detail}` | ✅ |
+| assetCip.py | `POST /api/assets/cip/{list,detail}` | ✅ |
+| assetDomain.py | `/api/assets/asset`（type=domain）、`/api/assets/subdomain` | ✅ |
+| assetFileleak.py | 暂无（节点侧文件泄露结果未落库） | ❌ |
+| assetGroup.py | `POST /api/assets/asset_group/{list,add,edit,delete,reorder}` | ✅ |
+| assetIP.py | `POST /api/assets/ip/{list,domains}` + `/api/assets/asset`（ip 字段） | ✅ |
+| assetNpocService.py | 暂无（NPoC 服务结果未落库） | ❌ |
+| assetNucleiResult.py | `POST /api/assets/nuclei_result/{list,detail}` | ✅ |
+| assetOverview.py | `POST /api/assets/asset_overview/count` | ✅ |
+| assetScope.py | `POST /api/assets/asset_scope/{list,add,update,delete,batch_move_group,bind_enterprise,clear_update_error}` | ✅ |
+| assetService.py | `/api/assets/service` + `asset.service` 统计 | 🟡 |
+| assetSite.py | `POST /api/assets/site/{list,chain}` | ✅ |
+| assetStatFinger.py | `POST /api/assets/stat_finger/{list,assets}` | ✅ |
+| assetUrl.py | `/api/assets/url` | ✅ |
+| assetVuln.py | `/api/assets/vulnerability` | ✅ |
+| assetWih.py | `POST /api/assets/wih/{list,detail}` + `/api/assets/sensitive` | ✅ |
+| backup.py | `POST /api/backup/{create,restore,upload}`、`GET /api/backup/{list,status,download,info}`、`DELETE /api/backup/:name` | ✅ |
+| batchExport.py | `POST /api/export/batch`、`POST /api/export/preview`、`GET /api/export/task/:id` | ✅ |
+| brute_dict.py / cdn_dict.py / dictionary.py | `/api/dictionary/*`、`/api/dict_brute/*`、`/api/dict_cdn/*` | ✅ |
+| cert.py / cip.py | 同 assetCert / assetCip（同一读模型） | ✅ |
+| console.py | `GET /api/console/info` | ✅ |
+| dashboard.py | `POST /api/dashboard/{stats,trend,logs,widgets}`、`GET /api/dashboard/sysinfo` | ✅ |
+| domain.py / ip.py / site.py / service.py / url.py / vuln.py / wih.py | 见上方 asset* 对应；旧式列表与读模型并存 | ✅ |
+| export.py | `GET /api/export/task/:id` | ✅ |
+| fingerprint.py | `/api/fingerprint/*`（导入/远程搜索/删除） | ✅ |
+| github_monitor_result.py / github_result.py / github_scheduler.py / github_task.py / github_threat.py | `/api/github/*`（task/scheduler/result/monitor/threat，26 接口） | ✅ |
+| http_status.py | 资产 `statuscode` 字段 + 页面筛选 | 🟡 |
+| icp.py | `/api/icp/*`（provider 抽象 + 任务链 + sync + CSV） | ✅ |
+| image.py | `/api/images/*`（截图） | ✅ |
+| mcp.py | `/internal/mcp` + `/api/mcp/{keys,logs,config}`（Scope 密钥/工具白名单/审计） | ✅ |
+| nuclei.py / nuclei_result.py | 扫描模板/插件 + `nuclei_result` 读模型 | ✅ |
+| npoc_service.py | 暂无（同 assetNpocService） | ❌ |
+| policy.py | `/api/policy/{list,create,update,delete,detail,apply,test}` | ✅ |
+| scheduler.py | 内置 gocron + `/api/task/scheduled` | ✅ |
+| syslog.py | `POST /api/dashboard/logs`（环形缓冲/文件尾部） | 🟡 |
+| system_config.py | `/api/system/config`、`/api/configuration/*` | ✅ |
+| task.py / task_schedule.py | `/api/task/*`（含模板、暂停/恢复、进度快照、自动同步项目） | ✅ |
+| taskFofa.py | `/api/fofa/{status,search,task,task/list}` | ✅ |
+| user.py | `/api/user/{login,changePassword}`；用户管理路由在上游被注释，沿用 | 🟡 |
+
+### 仍缺的三项（依赖节点侧数据）
+
+1. `assetFileleak`：节点未产出文件泄露结果，服务端没有可读集合；需要扫描端先落库；
+2. `assetNpocService` / `npoc_service`：NPoC 服务结果未落库；
+3. `http_status` / `syslog`：目前是字段与日志视图级别，没有独立页面（数据源有限）。
+
+这三项在扫描端补齐数据后，可直接复用现有读模型写法（`repositories/assets/*` + `models` + `routes`），不需要改架构。
