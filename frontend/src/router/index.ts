@@ -165,6 +165,26 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'mdi:account-search-outline',
           noCache: true
         }
+      },
+      {
+        path: 'fofa',
+        component: () => import('@/views/AssetInsight/Fofa.vue'),
+        name: 'Asset-Fofa',
+        meta: {
+          title: t('router.fofa'),
+          icon: 'mdi:radar',
+          noCache: true
+        }
+      },
+      {
+        path: 'policy',
+        component: () => import('@/views/AssetInsight/ScanPolicy.vue'),
+        name: 'Asset-Policy',
+        meta: {
+          title: t('router.scanPolicy'),
+          icon: 'mdi:file-cog-outline',
+          noCache: true
+        }
       }
     ]
   },
