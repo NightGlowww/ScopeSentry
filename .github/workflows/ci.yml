@@ -77,12 +77,15 @@ jobs:
             ./internal/api/middleware/compress/ \
             ./internal/api/handlers/health/
 
+      # 覆盖率产物只是信息：自建 runner 到 GitHub 偶尔 ECONNRESET，
+      # 不该让一次上传失败把整个阻塞闸判红（2026-11-17 实际踩到过）。
       - name: Upload coverage
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: go-coverage
           path: coverage.out
-          if-no-files-found: error
+          if-no-files-found: ignore
 
       # 全仓 vet：历史告警已清零，从此作为阻塞闸（新增未命名 bson.E 字面量等会被拦下）
       - name: go vet ./...
