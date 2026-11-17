@@ -81,7 +81,10 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
     component: Layout,
     name: 'AssetInformation',
     redirect: '/asset-information/index',
-    meta: {},
+    meta: {
+      title: t('router.assetManagement'),
+      icon: 'carbon:view'
+    },
     children: [
       {
         path: 'index',
@@ -90,6 +93,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         meta: {
           title: t('router.assetinfo'),
           icon: 'carbon:view',
+          noCache: true
+        }
+      },
+      {
+        path: 'asset-group',
+        component: () => import('@/views/AssetGroup/AssetGroup.vue'),
+        name: 'Asset-Group',
+        meta: {
+          title: t('router.assetGroup'),
+          icon: 'material-symbols:corporate-fare',
           noCache: true
         }
       }
