@@ -3,6 +3,7 @@ package assetgroup
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
@@ -42,6 +43,11 @@ type Repository interface {
 	TransferGroup(ctx context.Context, fromGroupID, toGroupID string) error
 	ClearUpdateErrors(ctx context.Context, ids []string) error
 	BindEnterprise(ctx context.Context, id, enterprise string) error
+	// FindScopeByName 按「集团 + 名称」定位地契（ICP 同步用；groupID 为空表示未分组）
+	FindScopeByName(ctx context.Context, groupID, name string) (*models.AssetScope, error)
+	// MergeScopeDomains 只向 domain_array / scope_array 追加（$addToSet 去重），
+	// 不删改任何已有条目，也不动 ip_array 等其它字段
+	MergeScopeDomains(ctx context.Context, scopeID string, domains []string) (added int64, total int64, err error)
 }
 
 type repository struct {
@@ -335,6 +341,82 @@ func (r *repository) BindEnterprise(ctx context.Context, id, enterprise string) 
 		return fmt.Errorf("failed to bind enterprise: %w", err)
 	}
 	return nil
+}
+
+// FindScopeByName 按集团 + 名称定位地契；不存在返回 (nil, nil)。
+// ICP 同步只关心「同名地契在不在」，因此同一集团下有重名时取最早创建的一条。
+func (r *repository) FindScopeByName(ctx context.Context, groupID, name string) (*models.AssetScope, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, nil
+	}
+	filter := bson.M{"name": name, "group_id": strings.TrimSpace(groupID)}
+	opts := options.FindOne().SetSort(bson.D{{Key: "created_at", Value: 1}})
+	var scope models.AssetScope
+	if err := r.scopes().FindOne(ctx, filter, opts).Decode(&scope); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find asset scope by name: %w", err)
+	}
+	return &scope, nil
+}
+
+// MergeScopeDomains 把域名并进地契的 domain_array / scope_array。
+//
+// $addToSet + $each 的语义正好是「去重追加」：已有条目顺序不变、不重复，新条目补在末尾。
+// 返回 (新增条数, 合并后域名总数)，统计基于更新前的快照计算。
+func (r *repository) MergeScopeDomains(ctx context.Context, scopeID string, domains []string) (int64, int64, error) {
+	oid, err := primitive.ObjectIDFromHex(scopeID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: invalid scope id", ErrInvalidID)
+	}
+	cleaned := make([]string, 0, len(domains))
+	seen := make(map[string]struct{}, len(domains))
+	for _, d := range domains {
+		d = strings.TrimSpace(d)
+		if d == "" {
+			continue
+		}
+		if _, ok := seen[d]; ok {
+			continue
+		}
+		seen[d] = struct{}{}
+		cleaned = append(cleaned, d)
+	}
+	if len(cleaned) == 0 {
+		return 0, 0, nil
+	}
+
+	var current models.AssetScope
+	if err := r.scopes().FindOne(ctx, bson.M{"_id": oid}).Decode(&current); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, 0, fmt.Errorf("asset scope not found: %s", scopeID)
+		}
+		return 0, 0, fmt.Errorf("failed to load asset scope: %w", err)
+	}
+	existing := make(map[string]struct{}, len(current.DomainArray)+len(cleaned))
+	for _, d := range current.DomainArray {
+		existing[d] = struct{}{}
+	}
+	var added int64
+	for _, d := range cleaned {
+		if _, ok := existing[d]; !ok {
+			added++
+			existing[d] = struct{}{}
+		}
+	}
+
+	if _, err := r.scopes().UpdateOne(ctx, bson.M{"_id": oid}, bson.M{
+		"$addToSet": bson.M{
+			"domain_array": bson.M{"$each": cleaned},
+			"scope_array":  bson.M{"$each": cleaned},
+		},
+		"$set": bson.M{"updated_at": time.Now()},
+	}); err != nil {
+		return 0, 0, fmt.Errorf("failed to merge scope domains: %w", err)
+	}
+	return added, int64(len(existing)), nil
 }
 
 func toObjectIDs(ids []string) ([]primitive.ObjectID, error) {

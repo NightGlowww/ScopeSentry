@@ -49,6 +49,11 @@ type Service interface {
 	MoveScopes(ctx context.Context, ids []string, groupID string) error
 	ClearUpdateErrors(ctx context.Context, ids []string) error
 	BindEnterprise(ctx context.Context, id, enterprise string) error
+
+	// FindScopeByName 按「集团 + 名称」定位地契（ICP 同步复用；不存在返回 nil, nil）
+	FindScopeByName(ctx context.Context, groupID, name string) (*models.AssetScope, error)
+	// MergeScopeDomains 只向 domain_array / scope_array 去重追加，不覆盖已有条目
+	MergeScopeDomains(ctx context.Context, scopeID string, domains []string) (int64, int64, error)
 }
 
 type service struct {
@@ -266,6 +271,22 @@ func (s *service) BindEnterprise(ctx context.Context, id, enterprise string) err
 		return ErrScopeNotFound
 	}
 	return s.repo.BindEnterprise(ctx, id, strings.TrimSpace(enterprise))
+}
+
+// FindScopeByName 按集团 + 名称定位地契（ICP 同步用）
+func (s *service) FindScopeByName(ctx context.Context, groupID, name string) (*models.AssetScope, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("%w: scope name is required", ErrInvalidInput)
+	}
+	return s.repo.FindScopeByName(ctx, groupID, name)
+}
+
+// MergeScopeDomains 把域名去重追加到地契；返回 (新增条数, 合并后域名总数)
+func (s *service) MergeScopeDomains(ctx context.Context, scopeID string, domains []string) (int64, int64, error) {
+	if len(domains) == 0 {
+		return 0, 0, fmt.Errorf("%w: domains is required", ErrInvalidInput)
+	}
+	return s.repo.MergeScopeDomains(ctx, scopeID, domains)
 }
 
 func (s *service) ensureGroup(ctx context.Context, groupID string) error {

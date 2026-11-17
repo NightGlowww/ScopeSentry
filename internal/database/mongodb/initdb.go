@@ -745,6 +745,57 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create asset_scope indexes: %v", err)
 	}
 
+	// ICP 企业主体 ↔ 域名查询（对标 ARL-Next icp_task / icp_asset）：
+	//   - icp_task(state,createdAt)：列表按状态过滤后倒序 + overview 按 state 计数；
+	//   - icp_result(taskId,createdAt)：任务结果分页 / CSV 导出；
+	//   - icp_result(domain) / (company)：manual provider 按域名/企业回读本地记录；
+	//   - icp_result(domain,company,icpNo) 唯一：跨任务去重键（bulk upsert 落点）；
+	//   - icp_task_log(taskId,createdAt)：log 端点取最近 200 行。
+	icpTask := db.Collection("icp_task")
+	if _, err := icpTask.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "state", Value: 1}, {Key: "createdAt", Value: -1}},
+		Options: options.Index().SetName("icp_task_state_created"),
+	}); err != nil {
+		return fmt.Errorf("failed to create icp_task indexes: %v", err)
+	}
+	icpResult := db.Collection("icp_result")
+	if _, err := icpResult.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "taskId", Value: 1}, {Key: "createdAt", Value: -1}},
+			Options: options.Index().SetName("icp_result_task_created"),
+		},
+		{
+			Keys:    bson.D{{Key: "domain", Value: 1}},
+			Options: options.Index().SetName("icp_result_domain"),
+		},
+		{
+			Keys:    bson.D{{Key: "company", Value: 1}},
+			Options: options.Index().SetName("icp_result_company"),
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to create icp_result indexes: %v", err)
+	}
+	// 去重键：跨任务唯一。历史库（手工导入）若已有重复，唯一索引建不起来，
+	// 退化成普通索引，避免脏数据把启动直接卡死；业务侧 bulk upsert 仍按同一组键去重。
+	if _, err := icpResult.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "domain", Value: 1}, {Key: "company", Value: 1}, {Key: "icpNo", Value: 1}},
+		Options: options.Index().SetName("icp_result_dedup").SetUnique(true),
+	}); err != nil {
+		if _, fallbackErr := icpResult.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+			Keys: bson.D{{Key: "domain", Value: 1}, {Key: "company", Value: 1}, {Key: "icpNo", Value: 1}},
+		}); fallbackErr != nil {
+			return fmt.Errorf("failed to create icp_result dedup index: %v", fallbackErr)
+		}
+		logger.Warn(fmt.Sprintf("icp_result unique index unavailable, fallback to plain index: %v", err))
+	}
+	icpTaskLog := db.Collection("icp_task_log")
+	if _, err := icpTaskLog.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "taskId", Value: 1}, {Key: "createdAt", Value: -1}},
+		Options: options.Index().SetName("icp_task_log_task_created"),
+	}); err != nil {
+		return fmt.Errorf("failed to create icp_task_log indexes: %v", err)
+	}
+
 	// 字典元数据（对标 ARL-Next dictionary.py）：列表按 kind 过滤 + updated_at 倒序；
 	// name 不做唯一索引——历史库可能已有重名，唯一索引会让启动直接失败。
 	dictionary := db.Collection("dictionary")
