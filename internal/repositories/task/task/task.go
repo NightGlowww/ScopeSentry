@@ -14,6 +14,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/redislist"
 	"github.com/gin-gonic/gin"
@@ -56,6 +57,11 @@ type Repository interface {
 	SCard(ctx context.Context, key string) (int64, error)
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
+	// 任务完成后的进度明细快照（issue #278）
+	CollectProgressSnapshot(ctx context.Context, taskID string) ([]models.TaskProgressSnapshot, error)
+	SaveProgressSnapshot(ctx context.Context, taskID string, rows []models.TaskProgressSnapshot) error
+	GetProgressSnapshot(ctx context.Context, taskID string) (map[string]map[string]string, error)
+	DeleteProgressSnapshot(ctx context.Context, taskIDs ...string) error
 }
 
 // repository 实现Repository接口
@@ -145,6 +151,11 @@ func (r *repository) ClearTaskCache(ctx context.Context, id string) error {
 			return fmt.Errorf("failed to delete redis keys: %w", err)
 		}
 	}
+
+	// 任务的进度快照也要一起清掉，避免删任务后留下孤儿文档（issue #278）
+	if err := r.DeleteProgressSnapshot(ctx, id); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -220,6 +231,18 @@ func (r *repository) DeleteMany(ctx *gin.Context, ids []primitive.ObjectID) (int
 	result, err := r.db.Collection("task").DeleteMany(ctx.Request.Context(), bson.M{"_id": bson.M{"$in": ids}})
 	if err != nil {
 		return 0, err
+	}
+
+	// 连带删除进度快照，避免孤儿文档（issue #278）。删快照失败不应让任务删除报错，
+	// 但要让运维看到日志。
+	if result.DeletedCount > 0 {
+		hexIDs := make([]string, 0, len(ids))
+		for _, id := range ids {
+			hexIDs = append(hexIDs, id.Hex())
+		}
+		if err := r.DeleteProgressSnapshot(ctx.Request.Context(), hexIDs...); err != nil {
+			logger.Error(fmt.Sprintf("failed to delete progress snapshot: %v", err))
+		}
 	}
 	return result.DeletedCount, nil
 }

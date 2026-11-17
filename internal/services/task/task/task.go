@@ -378,9 +378,43 @@ func (s *service) processTargetsWithPagination(ctx *gin.Context, targetStr, igno
 	return allTargets[startIndex:endIndex], nil
 }
 
+// snapshotTaskProgress 把完成任务的逐目标进度明细落库（issue #278）。
+// 失败只记日志：快照是补充数据，不能让任务状态更新跟着失败。
+func (s *service) snapshotTaskProgress(ctx context.Context, taskID string) {
+	rows, err := s.taskRepo.CollectProgressSnapshot(ctx, taskID)
+	if err != nil {
+		logger.Error(fmt.Sprintf("failed to collect progress snapshot for task %s: %v", taskID, err))
+		return
+	}
+	if len(rows) == 0 {
+		return
+	}
+	if err := s.taskRepo.SaveProgressSnapshot(ctx, taskID, rows); err != nil {
+		logger.Error(fmt.Sprintf("failed to save progress snapshot for task %s: %v", taskID, err))
+	}
+}
+
 // getProgressFromRedis 从Redis获取进度数据
 func (s *service) getProgressFromRedis(ctx *gin.Context, taskID string, targets []string) ([]models.TaskProgressDetail, error) {
 	var progressList []models.TaskProgressDetail
+
+	// issue #278：任务完成后 Redis 明细会被清理，这时回放 Mongo 快照。
+	// 只有真在 Redis 读不到数据时才查一次库，避免每轮进度轮询都打 Mongo。
+	var snapshot map[string]map[string]string
+	snapshotLoaded := false
+	loadSnapshot := func() map[string]map[string]string {
+		if snapshotLoaded {
+			return snapshot
+		}
+		snapshotLoaded = true
+		rows, err := s.taskRepo.GetProgressSnapshot(ctx.Request.Context(), taskID)
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to load progress snapshot for task %s: %v", taskID, err))
+			return nil
+		}
+		snapshot = rows
+		return snapshot
+	}
 
 	for _, target := range targets {
 		progress := s.createProgressResult(target)
@@ -388,8 +422,10 @@ func (s *service) getProgressFromRedis(ctx *gin.Context, taskID string, targets 
 		// 从Redis获取该目标的进度信息
 		redisKey := fmt.Sprintf("TaskInfo:progress:%s:%s", taskID, target)
 		progressData, err := s.taskRepo.GetProgressFromRedis(ctx, redisKey)
-		if err == nil && progressData != nil {
+		if err == nil && len(progressData) > 0 {
 			s.populateProgressFromRedis(progress, progressData)
+		} else if data := loadSnapshot()[target]; len(data) > 0 {
+			s.populateProgressFromRedis(progress, data)
 		}
 
 		progressList = append(progressList, *progress)
@@ -570,6 +606,10 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
 				return fmt.Errorf("failed to update task status: %w", err)
 			}
+
+			// issue #278：完成即删 tmp/time，逐目标明细随后也可能被清理。
+			// 先把 Redis 里的明细快照进 Mongo，接口在 Redis 读不到时回放这份快照。
+			s.snapshotTaskProgress(ctx, taskID)
 
 			// 删除Redis统计信息
 			if err := s.taskRepo.Del(ctx, tmpKey, timeKey); err != nil {
