@@ -145,7 +145,30 @@ MONGODB_AUTH_SOURCE=admin
 MONGODB_TLS=true
 ```
 
-## 5. 常见问题
+## 5. 升级时保留 JWT 密钥（否则所有人被踢下线）
+
+服务端启动时如果 `config.yaml` 不存在，会用随机值生成 `jwt.secret` 并写回文件。容器重建后这个文件随容器层丢失，
+新容器会生成新密钥 —— **旧 token 全部验签失败，用户被踢回登录页**。
+
+升级时把配置挂出来即可：
+
+```bash
+cd /opt/scopesentry/ScopeSentry
+docker cp scope-sentry:/opt/ScopeSentry/config.yaml ./data/config.yaml
+```
+
+在 compose 覆盖文件里加：
+
+```yaml
+services:
+  scope-sentry:
+    volumes:
+      - ./data/config.yaml:/opt/ScopeSentry/config.yaml
+```
+
+之后每次重建容器都会复用同一份 `jwt.secret`。**该文件包含 Mongo/Redis 密码，权限保持 600/644 并注意备份。**
+
+## 6. 常见问题
 
 - **端口被占用**：8082（Web）、27017、6379。改 compose 里左侧端口即可，节点侧连的仍是服务端实际端口。
 - **时区**：compose 通过 `TIMEZONE`（服务端）与 `TimeZoneName`（节点）设置，默认 `Asia/Shanghai`；
