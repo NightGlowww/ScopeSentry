@@ -95,7 +95,7 @@
 | 223 | 可自动化实现的 case | 参数收集入 Redis + 缓存投毒检测，属新检测能力 |
 | 217 | 标签管理（颜色） | `models/asset.go:33` 有 tags 无颜色；可复用敏感规则的 color 设计 |
 | 203 | 资产管理（手工录入/任务创建即同步） | 服务端无资产写入接口（仅 initdb 写），需新增 add 接口 + 前端表单 |
-| 200 | redis 存储优化 | task 相关 key 无 TTL（`repositories/task/task/task.go:107-120` 只删不设过期），进程态建议落 mongo |
+| 200 | redis 存储优化 | **队列侧已修**：`NodeTask:<node>` / `TaskInfo:<taskID>` 投递即 `EXPIRE`，滑动 TTL 30 天（`redislist.PushQueued`）。节点侧直接写的 `TaskInfo:tmp/progress/time` 本仓库只读，TTL 需 scan 节点自己加 |
 | 191 | 一键删除功能 | 同 #258，误报清理需要批量删除入口 |
 | 188 | 扫描包 header 修改 | 作者已答“可以支持”（#188 评论）；在模板/插件参数层加自定义 header |
 | 182 | 通知设置默认发测试消息 | save 时发一条测试消息；notification 刷新通道已存在（`configuration/service.go:167-208`） |

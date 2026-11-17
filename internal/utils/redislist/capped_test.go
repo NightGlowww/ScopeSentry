@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
 type fakeClient struct {
-	pushed []string
+	pushed     []string
+	pushedHead bool
 
 	pushErr error
 	trimErr error
@@ -19,6 +21,11 @@ type fakeClient struct {
 	trimKey   string
 	trimStart int64
 	trimStop  int64
+
+	expireCalls int
+	expireKey   string
+	expireTTL   time.Duration
+	expireErr   error
 }
 
 func (f *fakeClient) RPush(_ context.Context, _ string, values ...interface{}) *redis.IntCmd {
@@ -29,10 +36,18 @@ func (f *fakeClient) RPush(_ context.Context, _ string, values ...interface{}) *
 }
 
 func (f *fakeClient) LPush(_ context.Context, _ string, values ...interface{}) *redis.IntCmd {
+	f.pushedHead = true
 	for _, v := range values {
 		f.pushed = append(f.pushed, fmt.Sprint(v))
 	}
 	return redis.NewIntResult(int64(len(f.pushed)), f.pushErr)
+}
+
+func (f *fakeClient) Expire(_ context.Context, key string, ttl time.Duration) *redis.BoolCmd {
+	f.expireCalls++
+	f.expireKey = key
+	f.expireTTL = ttl
+	return redis.NewBoolResult(true, f.expireErr)
 }
 
 func (f *fakeClient) LTrim(_ context.Context, key string, start, stop int64) *redis.StatusCmd {

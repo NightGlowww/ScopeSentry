@@ -56,6 +56,16 @@ npx esno ./scripts/check-theme.ts
   触发时历史日志全丢。
 - **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
 
+## Redis 队列 TTL
+
+- 任务队列以前只在「删除任务」时清（issue #200）：节点长期离线/被移除后，消息会永久留在 Redis 里。
+- 现在 `NodeTask:<node>` 与 `TaskInfo:<taskID>` 走 `redislist.PushQueued / PushQueuedHead`：
+  每次投递后 `EXPIRE` 续期，存活窗口 `TaskQueueTTL = 30 天`。一直在投递的队列不会中途过期，
+  没人消费的最后一条消息 30 天后回收。取 30 天是留给运维窗口——节点维护一周以上很常见，TTL 太短会清掉还在排队的任务。
+- 节点重新上线时 `checkNodeTask` 会重新投递待开始/运行中的任务，所以过期丢掉的只是早就没人领的旧消息。
+- 节点侧直接写的那几个 key（`TaskInfo:tmp/progress/time` 的进度明细）本仓库只读，
+  TTL 需要 scan 节点写入时自己设置；服务端能做的已做完。
+
 ## 节点存活判定
 
 - 节点心跳写在 Redis `node:<name>` 哈希里（`state` / `updateTime`），服务端只读。
