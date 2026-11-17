@@ -27,7 +27,7 @@ import { Dialog } from '@/components/Dialog'
 import { useIcon } from '@/hooks/web/useIcon'
 import { Icon } from '@/components/Icon'
 import exportData from '../export/exportData.vue'
-import { delDataApi } from '@/api/asset'
+import { delBySearchApi, delDataApi } from '@/api/asset'
 import { useRoute } from 'vue-router'
 import { defineProps, defineEmits } from 'vue'
 import { CrudSchema } from '@/hooks/web/useCrudSchemas'
@@ -178,6 +178,37 @@ const delSelect = async () => {
     .then(async () => {
       await getIds()
       await delDataApi(ids.value, props.index)
+      props.getList()
+    })
+    .catch(() => {
+      ElMessage({
+        type: 'info',
+        message: t('localization.deleteCanceled')
+      })
+    })
+}
+
+// 按当前筛选批量删除（issue #258 / #191）：复用列表页的搜索表达式 + 筛选条件，
+// 服务端分批删。空筛选等于清空整个集合，这里换成更强的确认文案，并把 confirmAll 传下去。
+const delAllFiltered = async () => {
+  const filter = (props.getFilter && props.getFilter()) || {}
+  const search = (searchParams.value || '').trim()
+  const isEmptyScope = search === '' && Object.keys(filter).length === 0
+  const count = props.searchResultCount ?? 0
+  const message = isEmptyScope
+    ? t('asset.deleteFilteredAllConfirm')
+    : t('asset.deleteFilteredConfirm', { count })
+  ElMessageBox.confirm(message, t('common.delWarning'), {
+    confirmButtonText: 'OK',
+    cancelButtonText: 'Cancel',
+    type: 'warning'
+  })
+    .then(async () => {
+      const res = await delBySearchApi(props.index, search, filter, isEmptyScope)
+      ElMessage({
+        type: 'success',
+        message: t('asset.deleteFilteredDone', { count: res.data?.deleted ?? 0 })
+      })
       props.getList()
     })
     .catch(() => {
@@ -481,6 +512,9 @@ const openCreateTask = async () => {
           <ElDropdownMenu>
             <ElDropdownItem :icon="deleteicon" @click="delSelect">{{
               t('common.delete')
+            }}</ElDropdownItem>
+            <ElDropdownItem :icon="deleteicon" @click="delAllFiltered">{{
+              t('asset.deleteFiltered')
             }}</ElDropdownItem>
             <ElDropdownItem :icon="TASKicon" @click="openCreateTask">{{
               t('task.addTask')

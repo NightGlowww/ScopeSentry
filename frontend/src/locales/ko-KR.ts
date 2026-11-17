@@ -441,6 +441,11 @@ export default {
   },
   asset: {
     assetName: '자산',
+    deleteFiltered: '현재 필터 전체 삭제',
+    deleteFilteredConfirm: '현재 필터에 해당하는 {count}개 항목을 삭제합니다. 되돌릴 수 없습니다.',
+    deleteFilteredAllConfirm:
+      '필터가 없습니다. 컬렉션의 전체 데이터를 삭제하며 되돌릴 수 없습니다. 계속할까요?',
+    deleteFilteredDone: '{count}개 항목을 삭제했습니다',
     banner: '배너',
     products: '제품',
     IP: 'IP',
