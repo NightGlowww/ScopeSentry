@@ -10,6 +10,7 @@ HERMETIC_PKGS := \
 	./internal/services/task/tasksync/ \
 	./internal/services/task/taskstate/ \
 	./internal/services/task/tasksnapshot/ \
+	./internal/services/task/taskmsg/ \
 	./internal/services/task/audit/ \
 	./internal/api/routes/audit/ \
 	./internal/repositories/plugin/ \
