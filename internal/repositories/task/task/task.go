@@ -64,6 +64,12 @@ type Repository interface {
 	DeleteProgressSnapshot(ctx context.Context, taskIDs ...string) error
 	// RemoveQueuedNodeTasks 清掉 NodeTask:* 里还没被领取的该任务消息
 	RemoveQueuedNodeTasks(ctx context.Context, taskID string) (int64, error)
+	// 目标级暂停（issue #277）
+	AddTargetControl(ctx context.Context, taskID, target string) error
+	RemoveTargetControl(ctx context.Context, taskID, target string) error
+	ListTargetControls(ctx context.Context, taskID string) ([]models.TaskTargetControl, error)
+	RemoveTaskTarget(ctx context.Context, taskID, target string) (int64, error)
+	PrependTaskTarget(ctx context.Context, taskID, target string) error
 }
 
 // repository 实现Repository接口

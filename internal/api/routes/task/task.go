@@ -72,6 +72,18 @@ func registerTaskRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				Method:      "POST",
+				Path:        "target/pause",
+				Handler:     taskHandler.PauseTarget,
+				Middlewares: common.WithAuth(),
+			},
+			{
+				Method:      "POST",
+				Path:        "target/resume",
+				Handler:     taskHandler.ResumeTarget,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "GET",
 				Path:        "names",
 				Handler:     taskHandler.GetAllTaskNames,

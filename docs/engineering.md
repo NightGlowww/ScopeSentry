@@ -118,6 +118,14 @@ npx esno ./scripts/check-theme.ts
 - **空筛选等于清空整个集合**：必须显式 `confirmAll: true`，否则返回 `ErrNeedConfirmAll`（400）。
 - 副作用与按 ID 删除保持一致：asset 清理不再被引用的 `HttpBody`，vulnerability 清理 `vulnerabilityDetail`（按 hash）。
 
+## 目标级暂停（issue #277）
+
+- `POST /api/task/target/pause` / `resume`，body `{taskId, target}`。
+- 暂停语义是「这个目标先不扫」：还没被节点领取的目标从 `TaskInfo:<taskId>` 里 `LREM` 摘掉，并 `taskNum-1`——
+  这样进度仍然能走到 100%；**已经领取/扫完的目标不会被中断**，只记录在 `TaskTargetControl` 里，不扣 `taskNum`。
+- 恢复：删暂停记录 → `LPUSH` 回队列头（优先重扫）→ `taskNum+1`；已完成的任务只清记录、不再塞回队列。
+- 幂等：同目标重复暂停不会重复扣减（先查 `TaskTargetControl`）。
+
 ## 停止/删除任务时清队列
 
 - 只把任务状态置为暂停（2）并广播 `stop_task` 不够：任务消息还躺在 `NodeTask:<node>` 里，

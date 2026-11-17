@@ -41,6 +41,10 @@ type Service interface {
 	DeleteTasks(ctx *gin.Context, ids []string, delA bool) error
 	RetestTask(ctx context.Context, id string) error
 	StopTasks(ctx *gin.Context, ids []string) error
+	// 目标级暂停（issue #277）
+	PauseTarget(ctx *gin.Context, taskID, target string) error
+	ResumeTarget(ctx *gin.Context, taskID, target string) error
+	GetPausedTargets(ctx *gin.Context, taskID string) (map[string]bool, error)
 	StartTasks(ctx *gin.Context, ids []string) error
 	GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pageSize int) (map[string]interface{}, error)
 	TaskProgressNumber(ctx *gin.Context) error

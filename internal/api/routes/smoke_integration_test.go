@@ -177,6 +177,16 @@ func TestAPISmokeNewEndpointGuards(t *testing.T) {
 			token: true, want: http.StatusBadRequest,
 		},
 		{
+			name: "pause target requires auth",
+			path: "/api/task/target/pause", body: map[string]interface{}{"taskId": "507f1f77bcf86cd799439011", "target": "a.example.com"},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
+			name: "pause target rejects bad task id",
+			path: "/api/task/target/pause", body: map[string]interface{}{"taskId": "not-an-id", "target": "a.example.com"},
+			token: true, want: http.StatusBadRequest,
+		},
+		{
 			name: "tag color list requires auth",
 			path: "/api/assets/tag_color/list", body: map[string]interface{}{},
 			token: false, want: http.StatusUnauthorized,
