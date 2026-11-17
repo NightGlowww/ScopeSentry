@@ -187,6 +187,11 @@ func TestAPISmokeNewEndpointGuards(t *testing.T) {
 			token: true, want: http.StatusBadRequest,
 		},
 		{
+			name: "asset service list requires auth",
+			path: "/api/assets/service/list", body: map[string]interface{}{},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
 			name: "http status list requires auth",
 			path: "/api/assets/http_status/list", body: map[string]interface{}{},
 			token: false, want: http.StatusUnauthorized,
