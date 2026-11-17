@@ -18,6 +18,7 @@ import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getAppApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
+import { tagColorType } from '@/utils/tagColor'
 const { t } = useI18n()
 interface Project {
   value: string
@@ -176,7 +177,16 @@ const crudSchemas = reactive<CrudSchema[]>([
         ...tags.map((tag) =>
           h(ElCol, { span: 24, key: tag }, () => [
             h('div', { onClick: (event: MouseEvent) => handleTagClick(event, tag) }, [
-              h(ElTag, { closable: true, onClose: () => deleteTag(tag) }, () => tag)
+              h(
+                ElTag,
+                {
+                  closable: true,
+                  type: tagColorType(tag),
+                  effect: 'light',
+                  onClose: () => deleteTag(tag)
+                },
+                () => tag
+              )
             ])
           ])
         ),
