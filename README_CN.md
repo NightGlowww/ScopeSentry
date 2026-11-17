@@ -28,6 +28,8 @@ Scope Sentry是一款具有分布式资产测绘、子域名枚举、信息泄�
 - 插件模板：[https://github.com/Autumn-27/ScopeSentry-Plugin-Template](https://github.com/Autumn-27/ScopeSentry-Plugin-Template)
 
 
+> 部署文档（单机 / 国内镜像加速 / 分布式多节点）：[docs/deployment.md](docs/deployment.md)
+
 ## 安装
 ```
 git clone https://github.com/Autumn-27/ScopeSentry.git

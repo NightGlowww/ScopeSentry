@@ -21,7 +21,7 @@ HERMETIC_PKGS := \
 	./internal/utils/tagpalette/
 
 .PHONY: help build binary run test-hermetic test-integration vet fmt fmt-check mod-check \
-	frontend-install frontend-build frontend-test frontend-lint frontend-check ci clean
+	frontend-install frontend-build frontend-test frontend-lint frontend-check compose-check ci clean
 
 help: ## 列出所有目标
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -72,6 +72,10 @@ frontend-check: frontend-lint frontend-build frontend-test ## 前端自检：ESL
 	cd frontend && node scripts/check-locales.mjs && npx esno ./scripts/check-theme.ts
 
 # 与 .github/workflows/ci.yml 的三道阻塞闸对齐：Go build/vet/单测 + 前端 ESLint/构建/自检/单测
+compose-check: ## 校验单机部署 compose（含国内镜像覆盖）
+	docker compose -f single-host-deployment.yml config -q
+	docker compose -f single-host-deployment.yml -f single-host-deployment.cn.yml config -q
+
 ci: fmt-check mod-check build vet test-hermetic frontend-check ## 本地复现 CI 的全部阻塞门禁
 
 clean: ## 清理构建产物

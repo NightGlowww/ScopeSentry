@@ -33,6 +33,8 @@ Front-end：vue - vue-element-plus-admin
 - Plugin Market: [Plugin Market](https://plugin.scope-sentry.top/en)
 - Plugin Template：[https://github.com/Autumn-27/ScopeSentry-Plugin-Template](https://github.com/Autumn-27/ScopeSentry-Plugin-Template)
 
+> Deployment guide (single host / China mirror / distributed nodes): [docs/deployment.md](docs/deployment.md)
+
 ## Install
 ```
 git clone https://github.com/Autumn-27/ScopeSentry.git

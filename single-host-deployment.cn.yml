@@ -1,0 +1,16 @@
+# 中国大陆拉 Docker Hub 超时时的镜像加速覆盖（issue #283）。
+#
+# 用法：
+#   docker compose -f single-host-deployment.yml -f single-host-deployment.cn.yml up -d
+#
+# 只改镜像地址，其余配置（网络、卷、环境变量）全部沿用主 compose 文件。
+# 这个镜像源不可用时，把前缀整体换成别的公共镜像即可，见 docs/deployment.md。
+services:
+  mongodb:
+    image: docker.m.daocloud.io/library/mongo:7.0.28
+  redis:
+    image: docker.m.daocloud.io/library/redis:7.0.11
+  scope-sentry:
+    image: docker.m.daocloud.io/autumn27/scopesentry:latest
+  scopesentry-scan:
+    image: docker.m.daocloud.io/autumn27/scopesentry-scan:latest
