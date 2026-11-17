@@ -39,6 +39,10 @@ func RegisterAssetsRoutes(api *gin.RouterGroup) {
 			registerStatFingerRoutes(),
 			registerNucleiResultRoutes(),
 			registerWIHRoutes(),
+			// 资产读模型（对标 ARL-Next）：证书 / ICP 主体 / 资产族总览
+			registerCertRoutes(),
+			registerCIPRoutes(),
+			registerAssetOverviewRoutes(),
 		},
 	}
 

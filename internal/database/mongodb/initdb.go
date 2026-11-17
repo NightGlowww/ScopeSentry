@@ -432,6 +432,20 @@ func createIndexes(db *mongo.Database) error {
 		//   - {project, technologies}: 反查时的 count(total) 走 COUNT_SCAN（只读索引不回表，explain 实测）。
 		{Keys: bson.D{{Key: "technologies", Value: 1}, {Key: "time", Value: -1}}},
 		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "technologies", Value: 1}}},
+
+		// 证书读模型（对标 ARL-Next assetCert）：
+		// 扫描端把 tlsx 证书写在 tls.certificateresponse.*（无 bson tag 的嵌入指针结构体，
+		// 驱动编码成 certificateresponse 子文档）；服务端 legacy 模型是 tlsdata.*。
+		// 这些字段用于详情定位与按到期时间取数，sparse 避免给无证书资产建空键。
+		//   - fingerprint.sha256: 证书详情按指纹回到 TLS 文档；
+		//   - notafter: 按到期时间范围取数（当前列表的过期过滤在分组后做，
+		//     保证同一证书的 host 计数完整；索引为日期范围查询预留）；
+		//   - subjectan: 证书 SAN 是多值字段，multikey 索引，支持按 SAN 反查（预留）；
+		//   - tlsdata.not_after: legacy map 形状的日期字段。
+		{Keys: bson.D{{Key: "tls.certificateresponse.fingerprinthash.sha256", Value: 1}}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.D{{Key: "tls.certificateresponse.notafter", Value: 1}}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.D{{Key: "tls.certificateresponse.subjectan", Value: 1}}, Options: options.Index().SetSparse(true)},
+		{Keys: bson.D{{Key: "tlsdata.not_after", Value: 1}}, Options: options.Index().SetSparse(true)},
 	}
 	_, err = asset.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
@@ -628,6 +642,9 @@ func createIndexes(db *mongo.Database) error {
 		{Keys: bson.D{{Key: "taskName", Value: 1}}},
 		{Keys: bson.D{{Key: "domain", Value: 1}}, Options: options.Index().SetUnique(true)},
 		{Keys: bson.D{{Key: "time", Value: 1}}},
+		// ICP 主体读模型（对标 ARL-Next assetCip）：按 company 分组统计域名数，
+		// 详情按 company 过滤并按 time 倒序分页；复合索引直接提供过滤 + 排序。
+		{Keys: bson.D{{Key: "company", Value: 1}, {Key: "time", Value: -1}}},
 	}
 	_, err = rootDomain.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
