@@ -111,6 +111,20 @@
 3. **P2 运维与策略**：fileleak / npoc_service / taskFofa / policy / cdn_dict / console / syslog / http_status。
 4. **P3 UI 对齐**：仪表盘趋势与系统信息、表格体验、语言（ru）。
 
+## 性能约束（每个对齐 PR 必须满足）
+
+对齐不是把功能抄过来就完事——每加一条查询路径，就必须同时交代它的代价：
+
+1. **索引先行**：新增的 filter/sort/group 字段必须有索引（写进 `createIndexes`，升级路径自动补）。
+   例：`site/chain` 的 `subdomain {host:1,time:-1}`、`asset_scope {group_id:1}`、`asset_group {name:1}` 唯一索引。
+2. **禁止 N+1 / 全量拉取**：列表类接口用聚合（`$facet` 一次拿 total+分页、`$group`+`$top` 取最新），
+   不允许「先查全部再在内存里过滤/排序」；聚合一律 `SetAllowDiskUse(true)`。
+3. **计数与截断分开**：`portCount` 用完整数组计数，`ports` 只回传前 N 条（截断不能改变计数语义）。
+4. **分页有上限**：`pageSize` 超过阈值必须 400，不允许一次拉全库。
+5. **大集合要有实测**：新增列表/导出接口在 10 万级数据上做一次 explain/实测（docs 里记 docsExamined 与耗时），
+   参考已有记录：资产 10 万列表 2–3ms、漏洞 20 万排序 29ms→3ms（加 time 索引后）。
+6. **回归**：CI 的集成测试要覆盖分页、排序、截断与空结果；性能退化在 review 阶段拦，而不是上线后。
+
 ## 验收方式
 
 - 路由级：ARL-Next 的 52 个路由文件 → 每条能力在我们仓库有对应路由与页面；
