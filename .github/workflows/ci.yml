@@ -1,11 +1,11 @@
 name: CI
 
 # 跑在自建 runner 上（dev-tx-sh-app-01），与 ARTEX 同一台机器、独立 runner 进程。
-# 触发器：PR / push main / 手动。
+# 触发器：PR / 手动。
+# 不再在 push main 上重复跑：合入前 PR 已经跑过同一棵树，post-merge 只会占满单并发的 runner，
+# 把后面的 PR 排队（2026-11-18 实测排队 20 分钟以上）。
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
