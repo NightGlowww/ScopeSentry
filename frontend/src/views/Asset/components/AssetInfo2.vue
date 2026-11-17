@@ -26,6 +26,7 @@ import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import {
   addTagApi,
   deleteTagApi,
+  getTagColorsApi,
   getAssetApi,
   getAssetCardApi,
   getAssetScreenshotApi,
@@ -39,7 +40,7 @@ import {
 import { Icon } from '@/components/Icon'
 import { BaseButton } from '@/components/Button'
 import { useRouter } from 'vue-router'
-import { tagColorType } from '@/utils/tagColor'
+import { tagColorProps } from '@/utils/tagColor'
 import Csearch from '../search/Csearch.vue'
 import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
@@ -446,8 +447,8 @@ let crudSchemas = reactive<CrudSchema[]>([
               h(
                 ElTag,
                 {
+                  ...tagColorProps(tag, tagColors.value),
                   closable: true,
-                  type: tagColorType(tag),
                   effect: 'light',
                   onClose: () => deleteTag(row, tag)
                 },
@@ -651,6 +652,18 @@ crudSchemas.forEach((schema) => {
   schema.hidden = schema.hidden ?? false // 如果没有 hidden 属性，添加并设置为 false
 })
 let statisticsHidden = ref(false)
+
+// 标签颜色覆盖（issue #217）：加载失败就退回默认确定性配色，不影响列表渲染
+const tagColors = ref<Record<string, string>>({})
+const loadTagColors = async () => {
+  try {
+    const res = await getTagColorsApi()
+    tagColors.value = res.data?.colors ?? {}
+  } catch {
+    tagColors.value = {}
+  }
+}
+onMounted(loadTagColors)
 // 从localStorage读取配置并更新列的显示状态
 const loadColumnConfig = () => {
   const savedConfig = JSON.parse(localStorage.getItem(`columnConfig_${index}`) || '{}')

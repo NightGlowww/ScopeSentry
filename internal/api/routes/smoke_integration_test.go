@@ -157,6 +157,21 @@ func TestAPISmokeNewEndpointGuards(t *testing.T) {
 			token: true, want: http.StatusNotFound,
 		},
 		{
+			name: "tag color list requires auth",
+			path: "/api/assets/tag_color/list", body: map[string]interface{}{},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
+			name: "tag color set rejects empty tag",
+			path: "/api/assets/tag_color/set", body: map[string]interface{}{"tag": "", "color": "success"},
+			token: true, want: http.StatusBadRequest,
+		},
+		{
+			name: "tag color set rejects unknown color",
+			path: "/api/assets/tag_color/set", body: map[string]interface{}{"tag": "prod", "color": "rainbow"},
+			token: true, want: http.StatusBadRequest,
+		},
+		{
 			name: "export rejects bad time range",
 			path: "/api/export",
 			body: map[string]interface{}{
