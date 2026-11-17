@@ -149,6 +149,14 @@ pre-commit 会做两件事：
 2. 暂存的 `frontend/src/**` 文件必须通过 ESLint——**只在 `frontend/node_modules/.bin/eslint` 存在时才跑**，
    没装依赖的贡献者只会看到一行「跳过」提示，不会被卡住；CI 里 ESLint 始终是阻塞闸。
 
+## 大结果集合的 time 索引
+
+- 所有资产类列表都按 `time` 倒序分页；`UrlScan` / `crawler` / `SensitiveResult` / `DirScanResult` /
+  `vulnerability` / `PageMonitoring` 之前没有 `time` 索引，查询会退化成全集合 `SORT`。
+- 实测（Mongo 7，20 万条文档，`sort({time:-1}).limit(20)`）：无索引 **29ms / stage=SORT / docsExamined=200000**；
+  加 `{time:-1}` 后 **3ms / stage=LIMIT / docsExamined=20**。除延迟外，大集合的 blocking sort 还有 100MB 内存上限风险。
+- 索引在 `initdb.createIndexes` 创建；`initdb_integration_test.go` 会断言这六个集合都有 `time` 索引，防止以后漏掉。
+
 ## 仓库规范
 
 - `.editorconfig`：Go 用 tab，其余 2 空格；LF。
