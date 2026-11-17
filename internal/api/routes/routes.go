@@ -12,6 +12,8 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/assets"
 	backupRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/backup"
 	confRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/configuration"
+	consoleRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/console"
+	dashboardRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/dashboard"
 	dictRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/export"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/fingerprint"
@@ -133,6 +135,12 @@ func SetupRouter() *gin.Engine {
 
 		// 注册 GitHub 泄露 / 威胁情报路由（task / scheduler / result / threat）
 		githubRoutes.RegisterGithubRoutes(api)
+
+		// 注册仪表盘路由（对标 ARL-Next dashboard.py）
+		dashboardRoutes.RegisterDashboardRoutes(api)
+
+		// 注册控制台信息路由（对标 ARL-Next console.py）
+		consoleRoutes.RegisterConsoleRoutes(api)
 	}
 
 	return router

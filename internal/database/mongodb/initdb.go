@@ -672,6 +672,21 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create task indexes: %v", err)
 	}
 
+	// 仪表盘 / 控制台读模型（对标 ARL-Next dashboard.py + console.py）：
+	//   - 趋势的「当天完成任务数」= status=3 且 endTime 落在窗口内，
+	//     {status,endTime} 让 $match 整段走索引（status 前缀也能单独服务「运行中/已完成」计数）；
+	//   - 统计卡片的「任务」按 project 过滤（task.project 是数组，multikey）。
+	// 资产 / 漏洞 / URL / 子域 / 敏感信息的 time 与 project 索引上面已经建过（asset/vulnerability/
+	// UrlScan/subdomain/SensitiveResult 都有 project 与 time 相关索引），这里不重复创建。
+	_, err = task.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "endTime", Value: -1}}},
+		{Keys: bson.D{{Key: "endTime", Value: -1}}},
+		{Keys: bson.D{{Key: "project", Value: 1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create task dashboard indexes: %v", err)
+	}
+
 	// 资产集团（对标 ARL-Next asset_group）：名称唯一
 	assetGroup := db.Collection("asset_group")
 	_, err = assetGroup.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
