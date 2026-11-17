@@ -369,6 +369,7 @@ let crudSchemas = reactive<CrudSchema[]>([
         }
       }
       return h(ElInput, {
+        class: 'remark-cell-input',
         modelValue: row.remark,
         'onUpdate:modelValue': (value: string) => (row.remark = value),
         size: 'small',
@@ -758,9 +759,6 @@ const getTotal = async (
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
-function rowstyle() {
-  return { maxheight: '10px' }
-}
 const activeNames = ref(['1', '2', '3', '4', '5'])
 
 // 侧栏筛选：有数据时才给固定滚动高度，空数据收成一行提示，
@@ -1140,8 +1138,8 @@ const confirmSelectedIcons = () => {
               stripe
               :border="true"
               :loading="loading"
+              size="small"
               @filter-change="filterChange"
-              :rowStyle="rowstyle"
               :resizable="true"
               @register="tableRegister"
               :headerCellStyle="tableHeaderColor"
@@ -1456,5 +1454,24 @@ const confirmSelectedIcons = () => {
 
 :deep(.el-card__body) {
   padding: 16px 16px 8px;
+}
+
+// 行内备注：默认无边框，hover/聚焦才显示边框——避免每行放一个输入框把行高撑起来
+:deep(.remark-cell-input) {
+  .el-input__wrapper {
+    box-shadow: none;
+    background: transparent;
+    padding: 0 6px;
+  }
+
+  &:hover .el-input__wrapper,
+  &.is-focus .el-input__wrapper {
+    box-shadow: 0 0 0 1px var(--el-border-color) inset;
+    background: var(--el-fill-color-blank);
+  }
+
+  .el-input__inner {
+    height: 26px;
+  }
 }
 </style>

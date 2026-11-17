@@ -100,6 +100,19 @@ html.dark {
   --el-mask-color: rgb(0 0 0 / 60%);
   --el-menu-bg-color: var(--app-surface);
   --el-menu-hover-bg-color: #1e232a;
+
+  /* 语义色的浅底（alert / tag / message 都会用）：深色下必须是深底，
+     否则 ElAlert 这类组件会保留浅色 #f1f5f9 面板，在深色页面里像一块白板 */
+  --el-color-primary-light-3: #2b4a7d;
+  --el-color-primary-light-5: #23375c;
+  --el-color-primary-light-7: #1c2b45;
+  --el-color-primary-light-8: #182436;
+  --el-color-primary-light-9: #141d2b;
+  --el-color-success-light-9: #12251a;
+  --el-color-warning-light-9: #2a2114;
+  --el-color-danger-light-9: #2a1618;
+  --el-color-error-light-9: #2a1618;
+  --el-color-info-light-9: #1c2129;
 }
 
 /* ===========================================================================
@@ -322,8 +335,13 @@ html .el-table th.el-table__cell{
 }
 
 html .el-table td.el-table__cell{
-  padding: 11px 0;
+  /* 行高由内容决定：只给上下内边距，不再锁死高度 */
+  padding: 7px 0;
   border-bottom-color: var(--el-border-color-lighter);
+}
+
+html .el-table--small td.el-table__cell{
+  padding: 5px 0;
 }
 
 html .el-table__inner-wrapper::before{
@@ -340,7 +358,7 @@ html .el-table__empty-text{
 }
 
 html .el-table .cell{
-  line-height: 1.55;
+  line-height: 1.4;
 }
 
 /* ===========================================================================
