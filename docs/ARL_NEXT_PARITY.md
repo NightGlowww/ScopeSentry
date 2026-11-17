@@ -37,8 +37,8 @@
 
 | ARL-Next | 路由证据 | ScopeSentry | 计划 |
 | --- | --- | --- | --- |
-| 多级资产组 | `assetGroup: / /edit/ /delete/ /reorder/` | 🟡 项目 + 标签 | P0：`asset_group` 树 + 排序/移动 |
-| 资产范围/归属 | `assetScope: / /delete/ /add/ /update/ /edit/ /batch_move_group/ /bind_enterprise/ /clear_update_error/` | ❌ | P0：范围表 + 绑定企业 + 批量移动 |
+| 多级资产组 | `assetGroup: / /edit/ /delete/ /reorder/` | ✅ 后端：`/api/assets/asset_group/{list,add,edit,delete,reorder}`（名称唯一、dissolve/transfer、scopeCount） | 前端页面（进行中） |
+| 资产范围/归属 | `assetScope: / /delete/ /add/ /update/ /edit/ /batch_move_group/ /bind_enterprise/ /clear_update_error/` | ✅ 后端：`/api/assets/asset_scope/{list,add,update,delete,batch_move_group,bind_enterprise,clear_update_error}`，域名/IP 自动解析与去重 | 前端页面（进行中） |
 | ICP 查询/任务 | `icp: /task /task/statistics /task/overview_count /tyc_check /tyc_task /asset /stop/:id /batch_stop/ /task/log/:id /delete/ /restart/:id /resume/:id /backfill_details/:id /export/:id /batch_export /sync/:id` | ❌ | P1：ICP 任务链（提交/轮询/回填/导出） |
 
 ### 3. 任务与调度

@@ -632,6 +632,27 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create task indexes: %v", err)
 	}
 
+	// 资产集团（对标 ARL-Next asset_group）：名称唯一
+	assetGroup := db.Collection("asset_group")
+	_, err = assetGroup.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "name", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "sort_order", Value: 1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create asset_group indexes: %v", err)
+	}
+
+	// 资产组地契（对标 ARL-Next asset_scope）：按集团/名称查询
+	assetScope := db.Collection("asset_scope")
+	_, err = assetScope.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "group_id", Value: 1}}},
+		{Keys: bson.D{{Key: "name", Value: 1}}},
+		{Keys: bson.D{{Key: "created_at", Value: -1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create asset_scope indexes: %v", err)
+	}
+
 	return nil
 }
 
