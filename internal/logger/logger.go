@@ -97,6 +97,10 @@ func init() {
 		cores = append(cores, fileCore)
 	}
 
+	// 环形缓冲：/api/dashboard/logs 的 memory 数据源。
+	// 默认部署没有配置 logs.file_name（日志只进 stdout），没有这个缓冲就读不到任何服务端日志。
+	cores = append(cores, newRingCore())
+
 	// 合并所有输出
 	core := zapcore.NewTee(cores...)
 
