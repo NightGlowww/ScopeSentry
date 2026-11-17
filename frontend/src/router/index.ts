@@ -135,6 +135,36 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'mdi:key-alert',
           noCache: true
         }
+      },
+      {
+        path: 'cert',
+        component: () => import('@/views/AssetInsight/Cert.vue'),
+        name: 'Asset-Cert',
+        meta: {
+          title: t('router.cert'),
+          icon: 'mdi:certificate-outline',
+          noCache: true
+        }
+      },
+      {
+        path: 'cip',
+        component: () => import('@/views/AssetInsight/Cip.vue'),
+        name: 'Asset-CIP',
+        meta: {
+          title: t('router.cip'),
+          icon: 'mdi:domain',
+          noCache: true
+        }
+      },
+      {
+        path: 'icp-task',
+        component: () => import('@/views/AssetInsight/IcpTask.vue'),
+        name: 'Asset-IcpTask',
+        meta: {
+          title: t('router.icpTask'),
+          icon: 'mdi:account-search-outline',
+          noCache: true
+        }
       }
     ]
   },

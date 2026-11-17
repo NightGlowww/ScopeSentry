@@ -18,6 +18,7 @@ import RootDomain from './components/RootDomain.vue'
 import APP from './components/APP.vue'
 import MP from './components/MP.vue'
 import IP from './components/IP.vue'
+import AssetOverviewCards from '@/views/AssetInsight/components/AssetOverviewCards.vue'
 const { t } = useI18n()
 interface Project {
   value: string
@@ -53,6 +54,8 @@ const handleTabClick = (tab: any) => {
 </script>
 
 <template>
+  <!-- 资产族数量总览：一行统计卡片（asset/subdomain/url/app/mp/vulnerability/sensitive/cert/cip） -->
+  <AssetOverviewCards />
   <ElTabs type="border-card" @tab-click="handleTabClick">
     <ElTabPane :label="t('asset.assetName')"
       ><AssetInfo2 :projectList="projectList" :taskList="taskList"
