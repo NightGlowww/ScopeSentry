@@ -22,6 +22,8 @@ const (
 	ExportTypeAssetWIH      = "asset_wih"
 	ExportTypeVulnerability = "vulnerability"
 	ExportTypeSensitive     = "sensitive"
+	ExportTypeFileLeak      = "fileleak"
+	ExportTypeNpocService   = "npoc_service"
 )
 
 // BatchExportRequest 批量导出 / 预览请求。

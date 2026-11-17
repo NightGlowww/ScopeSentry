@@ -183,6 +183,21 @@ var exportSpecs = map[string]exportSpec{
 		Fields:     wihFields,
 		Sort:       timeSortDesc,
 	},
+	// 文件泄露 / NPoC 服务：集合由节点侧写入，服务端只读导出（字段沿用 ARL-Next bson 名）
+	models.ExportTypeFileLeak: {
+		Type:       models.ExportTypeFileLeak,
+		Collection: "asset_fileleak",
+		Kind:       kindFind,
+		Fields:     []string{"url", "site", "title", "status_code", "content_length", "insert_time", "update_date"},
+		Sort:       bson.D{{Key: "insert_time", Value: -1}},
+	},
+	models.ExportTypeNpocService: {
+		Type:       models.ExportTypeNpocService,
+		Collection: "asset_npoc_service",
+		Kind:       kindFind,
+		Fields:     []string{"scheme", "host", "port", "target", "insert_time"},
+		Sort:       bson.D{{Key: "insert_time", Value: -1}},
+	},
 }
 
 // ExportTypes 返回全部支持的 type（排序后，用于错误提示）。
