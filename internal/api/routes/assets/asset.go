@@ -24,6 +24,12 @@ func registerAssetRoutes() models.RouteGroup {
 			},
 			{
 				Method:      "POST",
+				Path:        "/add_batch",
+				Handler:     asset.AddAssets,
+				Middlewares: common.WithAuth(),
+			},
+			{
+				Method:      "POST",
 				Path:        "/remark",
 				Handler:     asset.SetRemark,
 				Middlewares: common.WithAuth(),

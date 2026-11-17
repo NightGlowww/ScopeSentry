@@ -80,6 +80,9 @@ npx esno ./scripts/check-theme.ts
 - `host` 必填；`url` 必须是绝对地址，并据此推导 `type`（http/https）；`time` 由服务端填。
 - **host+port 是唯一索引**：重复录入返回 **409** `ErrAssetExists`（不是 500）；非法参数 400 `ErrAssetInvalid`。
 - 前端入口在资产页操作菜单「添加资产」（`AssetAddDialog.vue`）；错误提示交给 axios 拦截器统一弹（含 409），组件只负责成功后刷新列表。
+- 批量：`POST /api/assets/asset/add_batch`，body `{items: [...], project, tags}`，一次最多 **500** 条；
+  逐条复用单条校验与唯一索引处理，返回 `{inserted, duplicated, invalid, errors}`（错误最多回传 20 条），
+  前端弹窗里的「批量导入」模式把每行一个 host 转成 items，共享的 project/tags 由服务端补到每条。
 
 ## 资产备注（issue #335）
 
