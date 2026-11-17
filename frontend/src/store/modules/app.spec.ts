@@ -41,7 +41,8 @@ const fireSystemChange = (matches: boolean) => {
 
 const hasClass = (className: string) => document.documentElement.classList.contains(className)
 
-const storedMode = () => JSON.parse(window.localStorage.getItem(THEME_MODE_STORAGE_KEY) as string).value
+const storedMode = () =>
+  JSON.parse(window.localStorage.getItem(THEME_MODE_STORAGE_KEY) as string).value
 
 describe('app store theme mode', () => {
   beforeEach(() => {
@@ -82,7 +83,10 @@ describe('app store theme mode', () => {
   })
 
   it('restores a persisted mode on boot instead of blindly following the system', () => {
-    window.localStorage.setItem(THEME_MODE_STORAGE_KEY, JSON.stringify({ type: 'String', value: 'light' }))
+    window.localStorage.setItem(
+      THEME_MODE_STORAGE_KEY,
+      JSON.stringify({ type: 'String', value: 'light' })
+    )
     installMatchMedia({ dark: true }) // 系统是深色
 
     const store = useAppStore()
@@ -96,7 +100,10 @@ describe('app store theme mode', () => {
 
   it('never turns a legacy isDark flag into a fixed mode', () => {
     // 旧版本每次启动都按系统覆盖写 isDark，它不能代表用户的选择
-    window.localStorage.setItem(LEGACY_IS_DARK_STORAGE_KEY, JSON.stringify({ type: 'Boolean', value: true }))
+    window.localStorage.setItem(
+      LEGACY_IS_DARK_STORAGE_KEY,
+      JSON.stringify({ type: 'Boolean', value: true })
+    )
     installMatchMedia({ dark: false })
 
     const store = useAppStore()
@@ -187,7 +194,11 @@ describe('app store theme mode', () => {
   })
 
   it('survives an environment without matchMedia', () => {
-    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: undefined })
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: undefined
+    })
     const store = useAppStore()
 
     expect(() => store.setThemeMode('dark')).not.toThrow()
