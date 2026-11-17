@@ -12,8 +12,9 @@ make fmt             # gofmt -w .
 make fmt-check       # CI 同款：有未格式化文件就失败
 make mod-check       # go mod tidy 后检查 go.mod/go.sum 是否漂移
 make frontend-test   # 前端单元测试（vitest）
-make frontend-check  # 语言包一致性 + 主题三态自检 + 单测
-make ci              # fmt-check + mod-check + test-hermetic + frontend-check
+make frontend-lint   # 前端 ESLint（与 CI 同一条命令，--max-warnings 0）
+make frontend-check  # ESLint + 生产构建 + 语言包/主题自检 + 单测
+make ci              # 与 CI 三道阻塞闸一一对应：fmt/mod-check + go build + go vet + 单测 + 前端全套
 ```
 
 前端另有：
@@ -36,7 +37,9 @@ npx esno ./scripts/check-theme.ts
   - `go build ./...`（阻塞）
   - hermetic 单测（阻塞）
   - 全仓 `go vet ./...`（阻塞；历史 144 条告警已清零）
+  - 前端 `eslint --ext .js,.ts,.vue ./src --max-warnings 0`（阻塞）
   - 前端 `build:pro` + 语言包 + 主题自检（阻塞）
+  - 前端 vitest（阻塞）
   - `vue-tsc`（非阻塞，历史类型错误较多）
   - **Integration job**（阻塞）：临时起 Mongo + Redis（随机端口、run_id 命名、跑完清理），
     先跑一个包把空库初始化一次，再 `go test ./...`；CI 上等价于 `make test-integration`
@@ -63,9 +66,12 @@ npx esno ./scripts/check-theme.ts
 | hermetic | 纯逻辑/中间件，不连库 | `make test-hermetic` |
 | integration | 需要 Mongo/Redis（包 init 就会连库） | 本地起容器后 `make test-integration` |
 | api smoke | 真实路由 + 中间件 + Mongo/Redis：/healthz、未认证 401、登录拿 token、带 token 访问受保护接口 | 同上（`internal/api/routes/smoke_integration_test.go`） |
-| frontend | 语言包/主题自检 + 单元测试（vitest + jsdom） | `make frontend-check` |
+| frontend | ESLint + 语言包/主题自检 + 单元测试（vitest + jsdom） | `make frontend-check` |
 
 新增测试优先放叶子包（不 import `internal/bootstrap`），否则包级 init 会直接连库、CI 无法运行。
+
+**新增 CI 阻塞步骤必须同步进 Makefile**（`make ci` 要能本地复现）。ESLint 就是因为只在 CI 里跑，
+本地全绿、push 之后才被打回——这类往返本可以避免。
 
 ## 本地 Git hook（可选）
 

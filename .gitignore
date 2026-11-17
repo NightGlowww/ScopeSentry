@@ -6,6 +6,7 @@ file/
 PLUGINKEY
 dist/
 .uploads/
+node_modules/
 frontend/node_modules/
 frontend/dist-pro/
 .cursor/mcp.json
