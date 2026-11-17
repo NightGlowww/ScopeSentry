@@ -29,6 +29,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apikeyRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/apikey"
+	fofaRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/fofa"
 	githubRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/github"
 	icpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/icp"
 	mcpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/mcp"
@@ -140,6 +141,9 @@ func SetupRouter() *gin.Engine {
 
 		// 注册 ICP 企业主体 ↔ 域名查询路由（对标 ARL-Next icp.py）
 		icpRoutes.RegisterIcpRoutes(api)
+
+		// 注册 FOFA 批量建任务路由（对标 ARL-Next taskFofa.py）
+		fofaRoutes.RegisterFofaRoutes(api)
 
 		// 注册仪表盘路由（对标 ARL-Next dashboard.py）
 		dashboardRoutes.RegisterDashboardRoutes(api)
