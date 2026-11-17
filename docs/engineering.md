@@ -46,6 +46,16 @@ npx esno ./scripts/check-theme.ts
 - Go 单测产出 `coverage.out` 并上传 artifact（`go-coverage`）。
 - Go 模块走 `goproxy.cn`（这台机器到 proxy.golang.org 的 IPv6 无路由）；`setup-go` 的 Actions 缓存关闭，模块缓存在 runner 的 `~/go/pkg/mod` 常驻。
 
+## Redis 日志上限
+
+- 节点日志（`log:<node>`）与插件日志（`logs:plugins:<module>:<hash>`）都是 Redis list，
+  写入统一走 `internal/utils/redislist.PushCapped`：`RPush` 后跟一次 `LTRIM key -N -1`，
+  只保留最新 N 条。
+- N 取 `logs.total_logs`（默认 1000）；配置缺失/为 0/负数时回落到 `redislist.DefaultMaxLen`，
+  不会退化成「不裁剪」。改动前是「进程内计数到阈值就 DEL 整个 key」——重启归零、多实例各数一份，
+  触发时历史日志全丢。
+- **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
+
 ## 节点存活判定
 
 - 节点心跳写在 Redis `node:<name>` 哈希里（`state` / `updateTime`），服务端只读。
