@@ -10,6 +10,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/api/middleware"
 	"github.com/Autumn-27/ScopeSentry/internal/api/middleware/compress"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/assets"
+	backupRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/backup"
 	confRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/configuration"
 	dictRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/export"
@@ -113,6 +114,9 @@ func SetupRouter() *gin.Engine {
 		poc.RegisterPocRoutes(api)
 
 		export.RegisterExportRoutes(api)
+
+		// 注册全量备份 / 恢复路由
+		backupRoutes.RegisterBackupRoutes(api)
 
 		plugin.RegisterPluginRoutes(api)
 
