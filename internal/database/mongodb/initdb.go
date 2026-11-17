@@ -367,6 +367,14 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create FingerprintRules name index: %v", err)
 	}
 
+	// 任务进度快照索引：按 taskID 查/删（issue #278）
+	progressSnapshot := db.Collection("TaskProgressSnapshot")
+	if _, err := progressSnapshot.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys: bson.D{{Key: "taskID", Value: 1}},
+	}); err != nil {
+		return fmt.Errorf("failed to create TaskProgressSnapshot taskID index: %v", err)
+	}
+
 	// 创建资产索引
 	asset := db.Collection("asset")
 	indexes := []mongo.IndexModel{

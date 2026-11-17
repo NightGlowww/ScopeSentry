@@ -56,6 +56,15 @@ npx esno ./scripts/check-theme.ts
   触发时历史日志全丢。
 - **任务队列不能这样裁**：`NodeTask:<node>`、`TaskInfo:<id>` 是待消费数据，`LTRIM` 等于直接丢任务。
 
+## 任务进度快照（issue #278）
+
+- 节点把逐目标进度写在 Redis 的 `TaskInfo:progress:<taskID>:<target>` 哈希里；任务到 100% 时服务端会删
+  `TaskInfo:tmp/time`，Redis 数据也可能被清理或重启丢掉，前端「进度详情」随之变空。
+- 现在完成瞬间先把这些哈希快照进 Mongo `TaskProgressSnapshot`（每个目标一行，`data` 原样保存），
+  接口在 Redis 读不到某目标的数据时回放快照；只有真的 miss 才查一次库，进度轮询不会每轮打 Mongo。
+- 删除任务时（`DeleteMany`）与 `ClearTaskCache` 会连带删快照，不留孤儿文档；`taskID` 有索引。
+- 快照失败只记日志，不影响任务状态更新——它是补充数据，不是主链路。
+
 ## Redis 队列 TTL
 
 - 任务队列以前只在「删除任务」时清（issue #200）：节点长期离线/被移除后，消息会永久留在 Redis 里。

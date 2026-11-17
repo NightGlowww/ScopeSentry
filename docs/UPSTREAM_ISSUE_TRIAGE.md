@@ -82,7 +82,7 @@
 | 334 | 资产类别新增快应用 | ICP 分类只有 域名/小程序/APP；需新增 quickapp 集合与统计口径 |
 | 337 | 如何配置全局代理 | 与 #266 同一需求；需配置项 + 节点注入插件进程环境变量 |
 | 266 | 全局代理 | 扫描流量走代理需节点侧支持；SYN 端口扫描无法走 HTTP 代理（#266 评论） |
-| 278 | 进度详情 100% 时迁入 mongodb | 完成即删 `TaskInfo:tmp/time`（`task.go:556-560`），详情随之丢失；建议完成时快照落库 |
+| 278 | 进度详情 100% 时迁入 mongodb | **已修**：完成瞬间把 `TaskInfo:progress:*` 快照进 `TaskProgressSnapshot`（`services/task/tasksnapshot` + `repositories/task/task/progress_snapshot.go`），接口 Redis miss 时回放；删任务连带删快照。4 项纯函数单测 + 1 项真实 Mongo/Redis 集成测试 |
 | 277 | 可以选择目标暂停 | 现仅整任务 stop（`task.go:243-257`），需 target 粒度控制 |
 | 273 | 插件参数设为全局变量 | 参数只存在 `ScanTemplate.Parameters`（`models/template.go:26,45`），建议加全局默认层 |
 | 270 | 域名泛解析全局过滤 | 无 wildcard 过滤逻辑（grep 仅命中 CT 模块），需在子域/资产入库前判定 |

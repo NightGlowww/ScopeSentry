@@ -7,6 +7,8 @@
 package models
 
 import (
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -89,6 +91,19 @@ type TaskProgressDetail struct {
 	Target              string               `json:"target"`
 	Node                string               `json:"node"`
 	Children            []TaskProgressDetail `json:"children,omitempty"`
+}
+
+// TaskProgressSnapshot 任务结束后落库的逐目标进度明细（issue #278）。
+//
+// 节点把进度写进 Redis 的 TaskInfo:progress:<taskID>:<target> 哈希；任务完成时服务端
+// 会删掉 tmp/time，Redis 数据也可能被清理或重启丢掉。完成时把每个目标的哈希原样快照
+// 到这里，接口在 Redis 读不到数据时回放同一份明细。
+type TaskProgressSnapshot struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
+	TaskID    string             `bson:"taskID" json:"taskID"`
+	Target    string             `bson:"target" json:"target"`
+	Data      map[string]string  `bson:"data" json:"data"`
+	UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
 // ListRequest 任务列表分页查询请求
