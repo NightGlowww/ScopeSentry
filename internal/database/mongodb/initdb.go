@@ -655,7 +655,71 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create asset_scope indexes: %v", err)
 	}
 
+	// 字典元数据（对标 ARL-Next dictionary.py）：列表按 kind 过滤 + updated_at 倒序；
+	// name 不做唯一索引——历史库可能已有重名，唯一索引会让启动直接失败。
+	dictionary := db.Collection("dictionary")
+	_, err = dictionary.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "category", Value: 1}, {Key: "name", Value: 1}}},
+		{Keys: bson.D{{Key: "category", Value: 1}, {Key: "updated_at", Value: -1}}},
+		{Keys: bson.D{{Key: "updated_at", Value: -1}}},
+		{Keys: bson.D{{Key: "name", Value: 1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create dictionary indexes: %v", err)
+	}
+
+	// 字典行级存储：(dict_id, value) 唯一是「追加去重」的核心，
+	// (dict_id, seq) 支撑按写入顺序做预览/导出。
+	dictionaryEntry := db.Collection("dictionary_entry")
+	_, err = dictionaryEntry.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "dict_id", Value: 1}, {Key: "value", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	if err != nil {
+		// 唯一索引建不起来（历史脏数据）时退化为普通索引：去重仍有业务兜底，但不会阻塞启动
+		if _, fallbackErr := dictionaryEntry.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+			Keys: bson.D{{Key: "dict_id", Value: 1}, {Key: "value", Value: 1}},
+		}); fallbackErr != nil {
+			return fmt.Errorf("failed to create dictionary_entry value index: %v", fallbackErr)
+		}
+		logger.Warn(fmt.Sprintf("dictionary_entry unique index unavailable, fallback to plain index: %v", err))
+	}
+	_, err = dictionaryEntry.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "dict_id", Value: 1}, {Key: "seq", Value: 1}}},
+		{Keys: bson.D{{Key: "category", Value: 1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create dictionary_entry indexes: %v", err)
+	}
+
+	// GridFS 内容元数据：字典下载/删除都按 filename 查（内容文件以字典 ID 命名）。
+	// driver 只在 fs.files 为空时自动补同名索引，升级库可能已经错过，这里显式创建。
+	filesColl := db.Collection("fs.files")
+	_, err = filesColl.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys: bson.D{{Key: "filename", Value: 1}, {Key: "uploadDate", Value: 1}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create fs.files filename index: %v", err)
+	}
+
+	// 大文件上传任务：task_id 唯一，status 用于重启恢复扫描
+	uploadTasks := db.Collection("dict_upload_tasks")
+	_, err = uploadTasks.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{Keys: bson.D{{Key: "task_id", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "status", Value: 1}}},
+		{Keys: bson.D{{Key: "created_at", Value: -1}}},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create dict_upload_tasks indexes: %v", err)
+	}
+
 	return nil
+}
+
+// EnsureIndexes 导出索引初始化：集成测试需要在不跑完整 initdb 的情况下
+// 建好新集合的索引（唯一索引缺失会静默丢失去重语义）。
+func EnsureIndexes(db *mongo.Database) error {
+	return createIndexes(db)
 }
 
 func contains(slice []string, item string) bool {

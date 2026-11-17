@@ -3,6 +3,7 @@ package dictionary
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -23,6 +24,34 @@ type ManageRepository interface {
 	DownloadFile(ctx context.Context, filename string) ([]byte, error)
 	DeleteFile(ctx context.Context, filename string) error
 	ReplaceFile(ctx context.Context, filename string, content []byte) error
+
+	// ---- 字典对标（ARL-Next dictionary/brute/cdn）新增 ----
+	// ListPaged 按 kind/名称前缀分页查询元数据
+	ListPaged(ctx context.Context, filter bson.M, skip, limit int64) ([]models.DictionaryMeta, error)
+	// Count 统计满足条件的字典数
+	Count(ctx context.Context, filter bson.M) (int64, error)
+	// CountByCategory 按 kind 聚合数量（列表页的 kinds 面板）
+	CountByCategory(ctx context.Context) ([]models.DictionaryKindCount, error)
+	// FindMetaByNameCategory 按 (name, category) 精确取一条元数据
+	FindMetaByNameCategory(ctx context.Context, name, category string) (*models.DictionaryMeta, error)
+	// FindMetaByID 按 ID 取元数据
+	FindMetaByID(ctx context.Context, id string) (*models.DictionaryMeta, error)
+	// DeleteMetaByNameCategory 按 (name, category) 删除元数据
+	DeleteMetaByNameCategory(ctx context.Context, name, category string) error
+	// UpdateMetaStats 更新行数/大小/对齐标记/更新时间
+	UpdateMetaStats(ctx context.Context, id string, size string, lineCount int64, synced bool) error
+	// MarkEntriesSynced 只标记行级对齐，不动 updated_at（回填发生在读路径上，不能让列表排序抖动）
+	MarkEntriesSynced(ctx context.Context, id string, lineCount int64) error
+	// NextSeq 为一次批量写入分配自增序号区间，返回区间起点
+	NextSeq(ctx context.Context, id string, n int64) (int64, error)
+	// DeleteFileSafe 删除 GridFS 内容，文件不存在不算错误
+	DeleteFileSafe(ctx context.Context, filename string) error
+	// OpenFileStream 打开 GridFS 内容流（下载/回填用）
+	OpenFileStream(ctx context.Context, filename string) (*gridfs.DownloadStream, error)
+	// FileLength 查询 GridFS 内容长度；exists=false 表示没有该文件
+	FileLength(ctx context.Context, filename string) (length int64, exists bool, err error)
+	// WriteFileStream 以流的方式写入 GridFS，fill 里逐行写，避免整份内容进内存
+	WriteFileStream(ctx context.Context, filename string, fill func(io.Writer) error) error
 }
 
 type manageRepository struct {
@@ -125,11 +154,10 @@ func (r *manageRepository) DownloadFile(ctx context.Context, filename string) ([
 		return nil, err
 	}
 	defer ds.Close()
-	file := ds.GetFile()
-	buf := make([]byte, file.Length)
-	_, err = ds.Read(buf)
+	// 单次 Read 不保证读满（旧实现会把大字典截断），统一 ReadAll。
+	buf, err := io.ReadAll(ds)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read gridfs file %s: %w", filename, err)
 	}
 	return buf, nil
 }
