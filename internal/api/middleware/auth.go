@@ -17,7 +17,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 获取Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			response.Unauthorized(c, "Authorization header is required", nil)
+			response.Unauthorized(c, "api.unauthorized", nil)
 			c.Abort()
 			return
 		}
@@ -25,7 +25,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 检查Bearer token格式
 		parts := strings.Split(authHeader, " ")
 		if len(parts) != 2 || parts[0] != "Bearer" {
-			response.Unauthorized(c, "Invalid authorization header format", nil)
+			response.Unauthorized(c, "api.unauthorized", nil)
 			c.Abort()
 			return
 		}
@@ -41,8 +41,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil {
+			// 细节只进服务端日志；返回给前端统一是「未授权访问」，不带内部错误串
 			logger.Error("Failed to parse token", zap.Error(err))
-			response.Unauthorized(c, "Failed to parse token", nil)
+			response.Unauthorized(c, "api.unauthorized", nil)
 			c.Abort()
 			return
 		}
@@ -55,7 +56,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.Set("role", claims["role"])
 			c.Next()
 		} else {
-			response.Unauthorized(c, "Invalid token", nil)
+			response.Unauthorized(c, "api.unauthorized", nil)
 			c.Abort()
 			return
 		}

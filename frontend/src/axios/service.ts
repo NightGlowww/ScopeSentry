@@ -35,6 +35,11 @@ axiosInstance.interceptors.response.use(
   (error: AxiosError) => {
     console.log('err： ' + error) // for debug
     if (error.response?.data) {
+      // 401 只做静默登出：token 过期/换了密钥时不该在登录页弹「Failed to parse token」
+      if (error.response.status === 401) {
+        useUserStoreWithOut().logout()
+        return Promise.reject(error)
+      }
       const responseData = error.response.data as { message: string; data: string }
       // 显示后端返回的具体错误消息
       const errorMsg =
@@ -42,10 +47,6 @@ axiosInstance.interceptors.response.use(
           ? translateApiMessage(responseData.message) + ':' + responseData.data
           : translateApiMessage(responseData.message)
       ElMessage.error(errorMsg || useI18n().t('localization.requestFailed'))
-      if (error.response?.status === 401) {
-        const userStore = useUserStoreWithOut()
-        userStore.logout()
-      }
     } else {
       // 如果没有响应数据，显示网络错误或其他错误
       ElMessage.error(error.message || useI18n().t('localization.networkError'))

@@ -126,9 +126,14 @@ func InternalServerError(c *gin.Context, msgKey string, err error) {
 }
 
 func Unauthorized(c *gin.Context, msgKey string, err error) {
+	// 不要把 nil 格式化成 "<nil>" 发给前端（历史上前端会拼成「Failed to parse token:<nil>」）
+	data := ""
+	if err != nil {
+		data = err.Error()
+	}
 	c.JSON(http.StatusUnauthorized, Response{
 		Code:    http.StatusUnauthorized,
 		Message: i18n.Translate(getLocale(c), msgKey),
-		Data:    fmt.Sprintf("%v", err),
+		Data:    data,
 	})
 }

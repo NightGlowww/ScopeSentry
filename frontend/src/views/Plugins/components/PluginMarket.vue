@@ -18,6 +18,7 @@ import {
 import { BaseButton } from '@/components/Button'
 import { Icon } from '@/components/Icon'
 import type { RemotePluginData } from '@/api/plugins/types'
+import { useAppStore } from '@/store/modules/app'
 
 interface PluginMarketProps {
   visible: boolean
@@ -31,6 +32,7 @@ interface PluginMarketProps {
 const props = defineProps<PluginMarketProps>()
 
 const { t } = useI18n()
+const appStore = useAppStore()
 
 // 筛选条件
 const marketSearch = ref('')
@@ -285,27 +287,15 @@ const confirmTokenAndInstall = async () => {
             >
               <div class="plugin-card-cover">
                 <div
+                  class="plugin-cover"
                   :style="{
-                    height: '150px',
-                    background:
-                      moduleBackgrounds[plugin.module] ||
-                      'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative'
+                    background: appStore.getIsDark
+                      ? 'linear-gradient(135deg, #252b38 0%, #1b2029 100%)'
+                      : moduleBackgrounds[plugin.module] ||
+                        'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
                   }"
                 >
-                  <div
-                    :style="{
-                      fontSize: '18px',
-                      fontWeight: 'bold',
-                      color: '#333',
-                      textShadow: '1px 1px 3px rgba(0, 0, 0, 0.1)',
-                      letterSpacing: '0.5px',
-                      textAlign: 'center'
-                    }"
-                  >
+                  <div class="plugin-cover__title">
                     {{ plugin.name }}
                   </div>
                   <ElTag
@@ -440,6 +430,23 @@ const confirmTokenAndInstall = async () => {
   border-radius: 12px 12px 0 0;
 }
 
+.plugin-cover {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.plugin-cover__title {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--el-text-color-primary);
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
 .plugin-card-content {
   padding: 15px;
 }
@@ -451,12 +458,12 @@ const confirmTokenAndInstall = async () => {
 
   .label {
     font-weight: 600;
-    color: #606266;
+    color: var(--el-text-color-regular);
     margin-right: 5px;
   }
 
   .value {
-    color: #303133;
+    color: var(--el-text-color-primary);
   }
 
   &.introduction {
@@ -467,7 +474,7 @@ const confirmTokenAndInstall = async () => {
       -webkit-box-orient: vertical;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #909399;
+      color: var(--el-text-color-secondary);
     }
   }
 }
@@ -483,7 +490,7 @@ const confirmTokenAndInstall = async () => {
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   font-size: 16px;
 }
 </style>
