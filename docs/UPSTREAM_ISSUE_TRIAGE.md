@@ -115,7 +115,7 @@
 | 109 | 一键更新 | 现仅启动时 DB 迁移（`internal/update`），无 UI 升级；文档仍要求手工 docker pull |
 | 91 | 项目树状分组 | 现有 project 为平铺，需层级模型 |
 | 86 | 节点自动选择/可达性探测 | 建任务前探测节点可达并自动分配；与 #285“节点主动拉取”可一并解决 |
-| 285 | redis 相关问题（节点分发/日志） | 见深度分析：改节点主动拉取 + Redis Stream 日志 |
+| 285 | redis 相关问题（节点分发/日志） | 日志侧已修（LTRIM 上限，`internal/utils/redislist`）；分发侧需节点主动拉取，见深度分析 |
 
 ## 插件需求
 
@@ -188,8 +188,16 @@
 
 - 任务分发是“服务端推、节点被动消费”：`CreateTaskScan` 遍历 `task.Node` 逐节点 `RPush`（`internal/services/task/common/common.go:213-220` → `internal/repositories/task/task/task.go:179-190`，key `NodeTask:<node>`）。
 - `AllNode` 只在**建任务那一刻**展开节点列表（`common.go:178-190` `nodeService.GetNodeData`），之后加入的节点拿不到该任务；节点离线期间消息在 list 里无限堆积，恢复后一次性消费 → 与 #297（旧模板）、#254（越重启越乱）同源。
-- 日志侧：`GetLogs` 用 `logs:plugins:<module>:<hash>` 的 Redis list（`internal/services/plugin/plugin.go:259-271`），无长度上限；作者也在 #285 承认要“限制插件日志存储条数”。
-- 建议：节点改为主动拉取（服务端暴露按节点名 claim/pop 的接口，或共享 Stream + 消费组），日志改 `XADD ... MAXLEN ~ N`；节点侧任务列表按 target 粒度分片，避免单节点堆积全量任务。
+- 日志侧（**已修**）：`GetLogs` 用 `logs:plugins:<module>:<hash>` 的 Redis list（`internal/services/plugin/plugin.go:196-227`），无长度上限；作者也在 #285 承认要“限制插件日志存储条数”。
+  - 旧实现是在订阅端打进程内计数器，到 `logs.total_logs` 就 `DEL` 整个 key：重启归零、多实例各数一份，触发时还把历史日志全清掉。
+  - 现改为写入即裁剪：`internal/utils/redislist.PushCapped` 每次 `RPush` 后跟一次 `LTRIM key -N -1`，
+    节点日志（`log:<node>`）与插件日志共用 `logs.total_logs`（默认 1000，配置非法时回落到默认值）。
+    上限对每个 key 恒定、重启与多实例都成立，也不会再出现“整段日志突然消失”。
+- 分发侧（**未修，需节点配合**）：改成节点主动拉取才能根治——服务端暴露按节点名 claim/pop 的接口，
+  或共享 Stream + 消费组；节点侧任务列表按 target 粒度分片，避免单节点堆积全量任务。
+  `NodeTask:<node>` 是任务队列而不是日志，**不能**用 LTRIM 截断（会直接丢任务）。
+- 剩下的日志优化（Redis Stream + 消费组）只有在日志也要被多消费者分食时才值得做；当前是“写多读少、
+  前端按节点整段拉”，LTRIM 已经解决增长问题。
 
 ### #254 分布式节点总是离线 + 资源打满
 

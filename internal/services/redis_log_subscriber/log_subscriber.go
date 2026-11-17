@@ -23,6 +23,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/common"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/redislist"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
@@ -83,11 +84,6 @@ func trySubscribe(channelName string) {
 	}
 }
 
-var (
-	logCounters   = make(map[string]int)
-	logCountersMu sync.Mutex
-)
-
 // handleMessage 处理接收到的消息
 func handleMessage(ctx context.Context, payload string) error {
 	// 解析 JSON 数据
@@ -141,23 +137,16 @@ func handleMessage(ctx context.Context, payload string) error {
 		}()
 	}
 
-	// 将日志推送到 Redis list
+	// 将日志推送到 Redis list。
+	//
+	// issue #285：以前这里靠进程内计数器兜底，超过 logs.total_logs 就 DEL 整个 key——
+	// 计数只在单进程内存里，重启归零、多实例各数一份；一旦触发还把历史日志全清掉。
+	// 现在改成每次写入后 LTRIM，只保留最新 N 条：上限恒定、重启/多实例都成立，
+	// 也不会再出现「整段日志突然消失」。
 	logKey := fmt.Sprintf("log:%s", logName)
-	if err := redisdb.Client.RPush(ctx, logKey, logContent).Err(); err != nil {
+	maxLen := redislist.MaxLenFromConfig(config.GetTotalLogs())
+	if err := redislist.PushCapped(ctx, redisdb.Client, logKey, maxLen, logContent); err != nil {
 		return fmt.Errorf("failed to push log to Redis: %w", err)
-	}
-
-	logCountersMu.Lock()
-	defer logCountersMu.Unlock()
-
-	// 更新本地计数器
-	logCounters[logName]++
-	if logCounters[logName] > config.GlobalConfig.Log.TotalLogs {
-		// 超过限制，直接清理 Redis，并重置本地计数器
-		if err := redisdb.Client.Del(ctx, logKey).Err(); err != nil {
-			logger.Error("Failed to delete log key", zap.String("key", logKey), zap.Error(err))
-		}
-		logCounters[logName] = 0
 	}
 
 	return nil
