@@ -351,6 +351,11 @@ export default {
     taskCycle: 'Task Cycle',
     msgTaskName: 'Please enter the task name',
     taskTarget: 'Target',
+    pauseTarget: 'Pause target',
+    resumeTarget: 'Resume target',
+    targetPaused: 'Paused',
+    pauseTargetConfirm:
+      'This target will not be scanned (targets already picked up by a node will finish). Pause {target}?',
     subdomainTakeover: 'Subdomain Takeover',
     assetMapping: 'Asset Mapping',
     msgTarget:

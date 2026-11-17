@@ -73,24 +73,26 @@ type TaskProgress struct {
 
 // TaskProgressDetail 任务进度详情（用于API响应）
 type TaskProgressDetail struct {
-	ID                  primitive.ObjectID   `bson:"_id,omitempty" json:"_id"`
-	TargetHandler       []string             `json:"TargetHandler"`       // [start, end]
-	SubdomainScan       []string             `json:"SubdomainScan"`       // [start, end]
-	SubdomainSecurity   []string             `json:"SubdomainSecurity"`   // [start, end]
-	PortScanPreparation []string             `json:"PortScanPreparation"` // [start, end]
-	PortScan            []string             `json:"PortScan"`            // [start, end]
-	PortFingerprint     []string             `json:"PortFingerprint"`     // [start, end]
-	AssetMapping        []string             `json:"AssetMapping"`        // [start, end]
-	AssetHandle         []string             `json:"AssetHandle"`         // [start, end]
-	URLScan             []string             `json:"URLScan"`             // [start, end]
-	WebCrawler          []string             `json:"WebCrawler"`          // [start, end]
-	URLSecurity         []string             `json:"URLSecurity"`         // [start, end]
-	DirScan             []string             `json:"DirScan"`             // [start, end]
-	VulnerabilityScan   []string             `json:"VulnerabilityScan"`   // [start, end]
-	All                 []string             `json:"All"`                 // [start, end]
-	Target              string               `json:"target"`
-	Node                string               `json:"node"`
-	Children            []TaskProgressDetail `json:"children,omitempty"`
+	ID                  primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
+	TargetHandler       []string           `json:"TargetHandler"`       // [start, end]
+	SubdomainScan       []string           `json:"SubdomainScan"`       // [start, end]
+	SubdomainSecurity   []string           `json:"SubdomainSecurity"`   // [start, end]
+	PortScanPreparation []string           `json:"PortScanPreparation"` // [start, end]
+	PortScan            []string           `json:"PortScan"`            // [start, end]
+	PortFingerprint     []string           `json:"PortFingerprint"`     // [start, end]
+	AssetMapping        []string           `json:"AssetMapping"`        // [start, end]
+	AssetHandle         []string           `json:"AssetHandle"`         // [start, end]
+	URLScan             []string           `json:"URLScan"`             // [start, end]
+	WebCrawler          []string           `json:"WebCrawler"`          // [start, end]
+	URLSecurity         []string           `json:"URLSecurity"`         // [start, end]
+	DirScan             []string           `json:"DirScan"`             // [start, end]
+	VulnerabilityScan   []string           `json:"VulnerabilityScan"`   // [start, end]
+	All                 []string           `json:"All"`                 // [start, end]
+	Target              string             `json:"target"`
+	Node                string             `json:"node"`
+	// Paused 该目标被用户暂停/跳过（issue #277）
+	Paused   bool                 `json:"paused,omitempty"`
+	Children []TaskProgressDetail `json:"children,omitempty"`
 }
 
 // TaskProgressSnapshot 任务结束后落库的逐目标进度明细（issue #278）。

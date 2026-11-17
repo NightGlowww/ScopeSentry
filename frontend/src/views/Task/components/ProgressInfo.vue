@@ -2,9 +2,18 @@
 import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, h, effect } from 'vue'
 import { Table, TableColumn } from '@/components/Table'
-import { getTaskProgressApi } from '@/api/task'
+import { getTaskProgressApi, pauseTaskTargetApi, resumeTaskTargetApi } from '@/api/task'
 import { useTable } from '@/hooks/web/useTable'
-import { ElTag, ElTooltip, ElTooltipProps, ElCard, ElPagination } from 'element-plus'
+import {
+  ElButton,
+  ElCard,
+  ElMessage,
+  ElMessageBox,
+  ElPagination,
+  ElTag,
+  ElTooltip,
+  ElTooltipProps
+} from 'element-plus'
 import { Icon } from '@/components/Icon'
 const { t } = useI18n()
 
@@ -21,17 +30,22 @@ const progressColums = reactive<TableColumn[]>([
     minWidth: 40,
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
       const tooltipContent = row.node && row.node !== '' ? row.node : null
-      if (tooltipContent) {
-        return h(
-          ElTooltip,
-          { content: tooltipContent, placement: 'top', rawContent: true },
-          {
-            default: () => cellValue // 用 cellValue 作为原始数据显示
-          }
-        )
-      } else {
-        return cellValue // 如果 row.node 是空字符串，则直接显示 cellValue
+      const base = tooltipContent
+        ? h(
+            ElTooltip,
+            { content: tooltipContent, placement: 'top', rawContent: true },
+            {
+              default: () => cellValue // 用 cellValue 作为原始数据显示
+            }
+          )
+        : cellValue // 如果 row.node 是空字符串，则直接显示 cellValue
+      if (row.paused === true) {
+        return h('span', { class: 'paused-target' }, [
+          base,
+          h(ElTag, { type: 'info', size: 'small', class: 'ml-2' }, () => t('task.targetPaused'))
+        ])
       }
+      return base
     }
   },
   {
@@ -383,6 +397,23 @@ const progressColums = reactive<TableColumn[]>([
         )
       }
     }
+  },
+  {
+    field: 'pausedAction',
+    label: t('common.operation'),
+    width: 100,
+    formatter: (row: Recordable) => {
+      const paused = row.paused === true
+      return h(
+        ElButton,
+        {
+          link: true,
+          type: paused ? 'primary' : 'warning',
+          onClick: () => toggleTarget(row)
+        },
+        () => (paused ? t('task.resumeTarget') : t('task.pauseTarget'))
+      )
+    }
   }
 ])
 const { tableRegister, tableState, tableMethods } = useTable({
@@ -397,6 +428,28 @@ const { tableRegister, tableState, tableMethods } = useTable({
 })
 const { loading, dataList, total, currentPage, pageSize } = tableState
 const { getList } = tableMethods
+
+// 暂停/恢复单个目标（issue #277）：暂停前确认一次，恢复直接执行
+const toggleTarget = async (row: Recordable) => {
+  const paused = row.paused === true
+  try {
+    if (paused) {
+      await resumeTaskTargetApi(props.getProgressInfoID, row.target)
+    } else {
+      await ElMessageBox.confirm(
+        t('task.pauseTargetConfirm', { target: row.target }),
+        t('common.delWarning'),
+        { confirmButtonText: 'OK', cancelButtonText: t('common.cancel'), type: 'warning' }
+      )
+      await pauseTaskTargetApi(props.getProgressInfoID, row.target)
+    }
+    ElMessage.success(t('common.success'))
+    getList()
+  } catch {
+    // 取消确认或请求失败：失败提示由 axios 拦截器统一弹出
+  }
+}
+
 getList()
 </script>
 <template>

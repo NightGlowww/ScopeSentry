@@ -348,6 +348,11 @@ export default {
     taskCycle: '작업 주기',
     msgTaskName: '작업 이름을 입력하세요.',
     taskTarget: '대상',
+    pauseTarget: '대상 일시중지',
+    resumeTarget: '대상 재개',
+    targetPaused: '일시중지됨',
+    pauseTargetConfirm:
+      '이 대상은 더 이상 스캔되지 않습니다(이미 노드가 가져간 대상은 계속 실행됩니다). {target}을(를) 일시중지할까요?',
     subdomainTakeover: '서브도메인 탈취',
     assetMapping: '자산 매핑',
     msgTarget:

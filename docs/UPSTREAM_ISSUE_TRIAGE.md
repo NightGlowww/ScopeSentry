@@ -83,7 +83,7 @@
 | 337 | 如何配置全局代理 | 与 #266 同一需求；需配置项 + 节点注入插件进程环境变量 |
 | 266 | 全局代理 | 扫描流量走代理需节点侧支持；SYN 端口扫描无法走 HTTP 代理（#266 评论） |
 | 278 | 进度详情 100% 时迁入 mongodb | **已修**：完成瞬间把 `TaskInfo:progress:*` 快照进 `TaskProgressSnapshot`（`services/task/tasksnapshot` + `repositories/task/task/progress_snapshot.go`），接口 Redis miss 时回放；删任务连带删快照。4 项纯函数单测 + 1 项真实 Mongo/Redis 集成测试 |
-| 277 | 可以选择目标暂停 | **后端已实现**：`POST /api/task/target/{pause,resume}`——未领取的目标从 `TaskInfo:<taskId>` 摘掉并 `taskNum-1`（进度仍能走到 100%），已领取的目标只记状态不打断；`TaskTargetControl` 记录暂停项，恢复时放回队列头并加回 `taskNum`。集成测试覆盖幂等/已领取/恢复顺序；进度详情标记与前端按钮下一步 |
+| 277 | 可以选择目标暂停 | **已修**：`POST /api/task/target/{pause,resume}`——未领取的目标从 `TaskInfo:<taskId>` 摘掉并 `taskNum-1`（进度仍能走到 100%），已领取的目标只记状态不打断；恢复放回队列头并加回 `taskNum`；进度详情接口返回 `paused` 标记，任务进度表新增「操作」列（暂停需确认、恢复直接执行），暂停目标在列表里带「已暂停」标签 |
 | 273 | 插件参数设为全局变量 | 参数只存在 `ScanTemplate.Parameters`（`models/template.go:26,45`），建议加全局默认层 |
 | 270 | 域名泛解析全局过滤 | 无 wildcard 过滤逻辑（grep 仅命中 CT 模块），需在子域/资产入库前判定 |
 | 261 | 增加时间段导出 | **已修**：导出请求新增 `startTime` / `endTime`（`YYYY-MM-DD HH:mm:ss`，可只给一边），`services/export/exportfilter.ApplyTimeRange` 把范围并进 `time` 条件（已有 time 过滤用 `$and` 合并不覆盖），非法/倒序 400；导出对话框加日期范围选择器。5 项纯函数单测 |
