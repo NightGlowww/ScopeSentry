@@ -30,6 +30,7 @@ import (
 
 	apikeyRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/apikey"
 	githubRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/github"
+	icpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/icp"
 	mcpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/mcp"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/node"
 )
@@ -135,6 +136,9 @@ func SetupRouter() *gin.Engine {
 
 		// 注册 GitHub 泄露 / 威胁情报路由（task / scheduler / result / threat）
 		githubRoutes.RegisterGithubRoutes(api)
+
+		// 注册 ICP 企业主体 ↔ 域名查询路由（对标 ARL-Next icp.py）
+		icpRoutes.RegisterIcpRoutes(api)
 
 		// 注册仪表盘路由（对标 ARL-Next dashboard.py）
 		dashboardRoutes.RegisterDashboardRoutes(api)
