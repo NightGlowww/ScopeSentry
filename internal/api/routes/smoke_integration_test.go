@@ -187,6 +187,16 @@ func TestAPISmokeNewEndpointGuards(t *testing.T) {
 			token: true, want: http.StatusBadRequest,
 		},
 		{
+			name: "fileleak list requires auth",
+			path: "/api/assets/fileleak/list", body: map[string]interface{}{},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
+			name: "npoc service list requires auth",
+			path: "/api/assets/npoc_service/list", body: map[string]interface{}{},
+			token: false, want: http.StatusUnauthorized,
+		},
+		{
 			name: "asset service list requires auth",
 			path: "/api/assets/service/list", body: map[string]interface{}{},
 			token: false, want: http.StatusUnauthorized,
