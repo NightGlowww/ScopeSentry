@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -77,8 +78,12 @@ func CreateDatabase() error {
 		hashedPassword := helper.Sha256Hex(password)
 		// 创建用户
 		_, err = collection.InsertOne(context.Background(), bson.M{
-			"username": "ScopeSentry",
-			"password": hashedPassword,
+			"username":   "ScopeSentry",
+			"password":   hashedPassword,
+			"role":       constants.RoleSuperAdmin,
+			"status":     "active",
+			"created_at": time.Now(),
+			"updated_at": time.Now(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create user: %v", err)
@@ -303,6 +308,22 @@ func CreateDatabase() error {
 			} else {
 				return fmt.Errorf("failed to get timezone config: %v", err)
 			}
+		}
+
+		// 升级路径：用户管理启用后，历史库里的种子用户没有 role/status，会被权限中间件 403 挡死。
+		// 只给内置的 ScopeSentry 补超管（其它用户不擅自提权），缺 status 的统一置 active。
+		userColl := db.Collection("user")
+		if _, err := userColl.UpdateOne(context.Background(),
+			bson.M{"username": "ScopeSentry", "role": bson.M{"$in": []interface{}{"", nil}}},
+			bson.M{"$set": bson.M{"role": constants.RoleSuperAdmin, "status": "active", "updated_at": time.Now()}},
+		); err != nil {
+			logger.Error(fmt.Sprintf("failed to backfill seed user role: %v", err))
+		}
+		if _, err := userColl.UpdateMany(context.Background(),
+			bson.M{"status": bson.M{"$in": []interface{}{"", nil}}},
+			bson.M{"$set": bson.M{"status": "active", "updated_at": time.Now()}},
+		); err != nil {
+			logger.Error(fmt.Sprintf("failed to backfill user status: %v", err))
 		}
 
 		// 升级路径：老库也要补新索引（createIndexes 对已存在的索引是 no-op）。
