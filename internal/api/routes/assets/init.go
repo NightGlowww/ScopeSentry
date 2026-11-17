@@ -34,6 +34,7 @@ func RegisterAssetsRoutes(api *gin.RouterGroup) {
 			registerTagColorRoutes(),
 			registerAssetGroupRoutes(),
 			registerAssetScopeRoutes(),
+			registerSiteRoutes(),
 		},
 	}
 
