@@ -64,12 +64,11 @@ frontend-test: ## 前端单元测试（vitest）
 frontend-lint: ## 前端 ESLint（与 CI 完全同一口径，避免格式问题只在 CI 才暴露）
 	cd frontend && npx eslint --ext .js,.ts,.vue ./src --max-warnings 0
 
-frontend-check: ## 前端自检：ESLint + 语言包一致性 + 主题三态 + 单测
-	cd frontend && npx eslint --ext .js,.ts,.vue ./src --max-warnings 0
+frontend-check: frontend-lint frontend-build frontend-test ## 前端自检：ESLint + 生产构建 + 语言包/主题自检 + 单测
 	cd frontend && node scripts/check-locales.mjs && npx esno ./scripts/check-theme.ts
-	cd frontend && $(PNPM) test
 
-ci: fmt-check mod-check test-hermetic frontend-check ## 本地复现 CI 的核心门禁
+# 与 .github/workflows/ci.yml 的三道阻塞闸对齐：Go build/vet/单测 + 前端 ESLint/构建/自检/单测
+ci: fmt-check mod-check build vet test-hermetic frontend-check ## 本地复现 CI 的全部阻塞门禁
 
 clean: ## 清理构建产物
 	rm -rf dist frontend/dist-pro
