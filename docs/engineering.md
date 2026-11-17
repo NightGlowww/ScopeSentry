@@ -62,6 +62,8 @@ npx esno ./scripts/check-theme.ts
 - `POST /api/assets/asset/remark`，body `{id, remark}`：**定向 `$set` 只改 remark**——
   扫描结果随时可能被节点写入，整文档覆盖会把用户没改过的字段一起冲掉。
 - 服务端 `TrimSpace` 后按**字符数**限长 500（空串表示清空），非法 ObjectID 返回 400 而不是 500。
+- 资产列表的「备注」列是行内编辑：失焦或回车保存，失败回滚到上一次保存成功的内容；
+  `GetAssets` 的投影里要带 `remark`，否则列表拿不到这个字段。
 
 ## 按筛选条件批量删除（issue #258 / #191）
 

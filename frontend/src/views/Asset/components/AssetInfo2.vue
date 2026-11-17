@@ -18,7 +18,8 @@ import {
   ElText,
   ElButton,
   InputInstance,
-  ElInput
+  ElInput,
+  ElMessage
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
@@ -32,6 +33,7 @@ import {
   getAssetStatisticsTypeApi,
   getAssetStatisticsappApi,
   getAssetStatisticsiconApi,
+  setRemarkApi,
   totalDataApi
 } from '@/api/asset'
 import { Icon } from '@/components/Icon'
@@ -341,6 +343,40 @@ let crudSchemas = reactive<CrudSchema[]>([
           </ElCol>
         </ElRow>
       )
+    }
+  },
+  {
+    field: 'remark',
+    label: t('asset.remark'),
+    minWidth: '160',
+    formatter: (row: Recordable) => {
+      // 行内编辑：失焦或回车保存，失败回滚到上一次保存成功的内容（issue #335）
+      const saved = row.remark ?? ''
+      const save = async () => {
+        const value = (row.remark ?? '').toString().trim()
+        if (value === saved) return
+        try {
+          await setRemarkApi(row.id, value)
+          row.remark = value
+          ElMessage.success(t('asset.remarkSaved'))
+        } catch {
+          row.remark = saved
+          ElMessage.error(t('asset.remarkSaveFailed'))
+        }
+      }
+      return h(ElInput, {
+        modelValue: row.remark,
+        'onUpdate:modelValue': (value: string) => (row.remark = value),
+        size: 'small',
+        maxlength: 500,
+        placeholder: t('asset.remarkPlaceholder'),
+        onBlur: save,
+        onKeyup: (event: KeyboardEvent) => {
+          if (event.key === 'Enter') {
+            ;(event.target as HTMLInputElement).blur()
+          }
+        }
+      })
     }
   },
   {

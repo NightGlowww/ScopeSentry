@@ -446,6 +446,10 @@ export default {
     deleteFilteredAllConfirm:
       '필터가 없습니다. 컬렉션의 전체 데이터를 삭제하며 되돌릴 수 없습니다. 계속할까요?',
     deleteFilteredDone: '{count}개 항목을 삭제했습니다',
+    remark: '비고',
+    remarkPlaceholder: '비고 추가',
+    remarkSaved: '비고를 저장했습니다',
+    remarkSaveFailed: '비고 저장에 실패했습니다',
     banner: '배너',
     products: '제품',
     IP: 'IP',

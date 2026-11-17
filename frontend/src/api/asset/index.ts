@@ -304,6 +304,11 @@ export const delBySearchApi = (
   })
 }
 
+// 更新资产备注（issue #335）：后端只做定向 $set，不会覆盖扫描结果
+export const setRemarkApi = (id: string, remark: string): Promise<IResponse<{ id: string }>> => {
+  return request.post({ url: '/api/assets/asset/remark', data: { id, remark } })
+}
+
 export const addTagApi = (
   id: string,
   tp: string,
