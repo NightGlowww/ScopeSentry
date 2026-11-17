@@ -125,6 +125,17 @@
    参考已有记录：资产 10 万列表 2–3ms、漏洞 20 万排序 29ms→3ms（加 time 索引后）。
 6. **回归**：CI 的集成测试要覆盖分页、排序、截断与空结果；性能退化在 review 阶段拦，而不是上线后。
 
+已实测（2026-11-18，本地 Mongo 7，`PERF=1` 跑 `TestSiteIPReadModelPerformance`）：
+
+```
+20,000 asset + 6,000 subdomain
+  site/list（project 过滤，page 20）   152ms   total=20000
+  ip/list（前缀过滤，page 20）          43ms   total=1250
+  site/chain（500 条上限）             8.1ms   rows=500
+```
+
+复现：`PERF=1 MONGODB_IP=127.0.0.1 ... go test -tags integration -run TestSiteIPReadModelPerformance ./internal/services/assets/site/`。
+
 ## 验收方式
 
 - 路由级：ARL-Next 的 52 个路由文件 → 每条能力在我们仓库有对应路由与页面；
