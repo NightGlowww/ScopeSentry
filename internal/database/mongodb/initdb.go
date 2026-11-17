@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -77,8 +78,12 @@ func CreateDatabase() error {
 		hashedPassword := helper.Sha256Hex(password)
 		// 创建用户
 		_, err = collection.InsertOne(context.Background(), bson.M{
-			"username": "ScopeSentry",
-			"password": hashedPassword,
+			"username":   "ScopeSentry",
+			"password":   hashedPassword,
+			"role":       constants.RoleSuperAdmin,
+			"status":     "active",
+			"created_at": time.Now(),
+			"updated_at": time.Now(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create user: %v", err)
@@ -305,6 +310,22 @@ func CreateDatabase() error {
 			}
 		}
 
+		// 升级路径：用户管理启用后，历史库里的种子用户没有 role/status，会被权限中间件 403 挡死。
+		// 只给内置的 ScopeSentry 补超管（其它用户不擅自提权），缺 status 的统一置 active。
+		userColl := db.Collection("user")
+		if _, err := userColl.UpdateOne(context.Background(),
+			bson.M{"username": "ScopeSentry", "role": bson.M{"$in": []interface{}{"", nil}}},
+			bson.M{"$set": bson.M{"role": constants.RoleSuperAdmin, "status": "active", "updated_at": time.Now()}},
+		); err != nil {
+			logger.Error(fmt.Sprintf("failed to backfill seed user role: %v", err))
+		}
+		if _, err := userColl.UpdateMany(context.Background(),
+			bson.M{"status": bson.M{"$in": []interface{}{"", nil}}},
+			bson.M{"$set": bson.M{"status": "active", "updated_at": time.Now()}},
+		); err != nil {
+			logger.Error(fmt.Sprintf("failed to backfill user status: %v", err))
+		}
+
 		// 升级路径：老库也要补新索引（createIndexes 对已存在的索引是 no-op）。
 		// 之前只有全新安装才会建索引，导致升级后新集合/新索引永远缺失。
 		if err := createIndexes(db); err != nil {
@@ -342,6 +363,48 @@ func CreateDatabase() error {
 // 而不是「测试库没建索引 -> 计划退化成 COLLSCAN」的假阴性。
 func EnsureIndexes(db *mongo.Database) error {
 	return createIndexes(db)
+}
+
+// createUserIndexes 建立用户管理面（对标 ARL-Next user.py）需要的索引：
+//
+//   - user(created_at -1)：列表固定按创建时间倒序分页；
+//   - user(role)：最后一个 super_admin 保护要按角色计数；
+//   - user(username) 唯一：登录按用户名取人，创建时去重，并发由唯一索引兜底；
+//   - user(email) 普通索引：FindByEmail / 列表精确匹配用。
+//
+// 为什么 email 不做唯一索引：历史库和测试库里都可能存在共用同一个 email 的账号
+// （例如集成测试的种子用户统一用 e2e@example.invalid），唯一索引会直接把启动打成
+// 「退化路径」，唯一性形同虚设还多一条误导性 warn。邮箱唯一性由业务层
+// （services/user 的 FindByEmail 预检查 + 并发写入的重复键兜底）保证。
+//
+// 用户名唯一索引在历史库上也可能因为脏数据建不起来：这时退化成普通索引并记一条 warn，
+// 不让启动直接失败——业务层仍然做存在性校验。退化索引用不同名字（user_username），
+// 避免和已建成的唯一索引重名冲突。
+func createUserIndexes(ctx context.Context, db *mongo.Database) error {
+	coll := db.Collection("user")
+	if _, err := coll.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "created_at", Value: -1}}, Options: options.Index().SetName("user_created_at")},
+		{Keys: bson.D{{Key: "role", Value: 1}}, Options: options.Index().SetName("user_role")},
+		{Keys: bson.D{{Key: "email", Value: 1}}, Options: options.Index().SetName("user_email")},
+	}); err != nil {
+		return fmt.Errorf("failed to create user list indexes: %v", err)
+	}
+
+	if _, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "username", Value: 1}},
+		Options: options.Index().SetName("user_username_unique").SetUnique(true),
+	}); err == nil {
+		return nil
+	} else {
+		logger.Warn(fmt.Sprintf("user index user_username_unique unavailable, fallback to plain index: %v", err))
+	}
+	if _, err := coll.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "username", Value: 1}},
+		Options: options.Index().SetName("user_username"),
+	}); err != nil {
+		return fmt.Errorf("failed to create user username index: %v", err)
+	}
+	return nil
 }
 
 func createIndexes(db *mongo.Database) error {
@@ -737,6 +800,11 @@ func createIndexes(db *mongo.Database) error {
 		Keys: bson.D{{Key: "createdAt", Value: -1}},
 	}); err != nil {
 		return fmt.Errorf("failed to create api_key createdAt index: %v", err)
+	}
+
+	// 用户管理（对标 ARL-Next user.py）：列表分页 / 角色计数 / 用户名邮箱唯一
+	if err := createUserIndexes(context.Background(), db); err != nil {
+		return err
 	}
 
 	// 资产组地契（对标 ARL-Next asset_scope）：按集团/名称查询
