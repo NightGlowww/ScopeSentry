@@ -18,7 +18,8 @@ HERMETIC_PKGS := \
 	./internal/api/middleware/compress/ \
 	./internal/utils/redislist/ \
 	./internal/services/export/exportfilter/ \
-	./internal/utils/tagpalette/
+	./internal/utils/tagpalette/ \
+	./internal/utils/mongouri/
 
 .PHONY: help build binary run test-hermetic test-integration vet fmt fmt-check mod-check \
 	frontend-install frontend-build frontend-test frontend-lint frontend-check compose-check ci clean

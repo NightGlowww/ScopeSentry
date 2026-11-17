@@ -106,7 +106,7 @@
 | 159 | 自带 nuclei POC 缺变量不可用 | 需 POC 导入时校验 variables 并在 UI 标记不可用 |
 | 157 | 线程运行逻辑优化 | 建议按模块批量投递（收 N 个目标再跑单进程），降内存与进程数 |
 | 140 | 云主机自动创建节点 | 需云厂商 API + 节点注册自动化 |
-| 137 | mongodb 认证加密参数 | `config.go:46-52,276` 只有 user/pass；缺 authSource/authMechanism/TLS |
+| 137 | mongodb 认证加密参数 | **已修**：`MongoDBConfig` 增加 `auth_source` / `auth_mechanism` / `tls` / `tls_ca_file`（对应 `MONGODB_AUTH_SOURCE` 等环境变量），`utils/mongouri.Build` 统一拼 URI（密码按 URL 规则转义，不再双重转义）；日志只打印不含密码的展示地址。6 项单测 |
 | 132 | 内网域名不能扫描 | 作者定位为 DNS 校验（默认外网 DNS 导致内网域名丢失，#132 评论）；建议加“跳过 DNS 校验/自定义 resolver” |
 | 117 | 增加工具、反弹 shell | 内置工具箱与 shell 通道，属新能力，需先定安全边界 |
 | 116 | 权限划分 | RBAC 骨架已在（`routes/role`、`constants/permissions.go`），user 路由被注释（`routes/user/user.go:29-56`） |
