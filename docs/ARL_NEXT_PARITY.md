@@ -175,7 +175,7 @@
 | export.py | `GET /api/export/task/:id` | ✅ |
 | fingerprint.py | `/api/fingerprint/*`（导入/远程搜索/删除） | ✅ |
 | github_monitor_result.py / github_result.py / github_scheduler.py / github_task.py / github_threat.py | `/api/github/*`（task/scheduler/result/monitor/threat，26 接口） | ✅ |
-| http_status.py | 资产 `statuscode` 字段 + 页面筛选 | 🟡 |
+| http_status.py | `POST /api/assets/http_status/list` + `/asset-information/http-status` 页面（分档/精确码/keyword/project） | ✅ |
 | icp.py | `/api/icp/*`（provider 抽象 + 任务链 + sync + CSV） | ✅ |
 | image.py | `/api/images/*`（截图） | ✅ |
 | mcp.py | `/internal/mcp` + `/api/mcp/{keys,logs,config}`（Scope 密钥/工具白名单/审计） | ✅ |
@@ -183,16 +183,17 @@
 | npoc_service.py | 暂无（同 assetNpocService） | ❌ |
 | policy.py | `/api/policy/{list,create,update,delete,detail,apply,test}` | ✅ |
 | scheduler.py | 内置 gocron + `/api/task/scheduled` | ✅ |
-| syslog.py | `POST /api/dashboard/logs`（环形缓冲/文件尾部） | 🟡 |
+| syslog.py | `POST /api/dashboard/logs` + `/configuration/syslog` 页面（level/keyword/source/truncated） | ✅ |
 | system_config.py | `/api/system/config`、`/api/configuration/*` | ✅ |
 | task.py / task_schedule.py | `/api/task/*`（含模板、暂停/恢复、进度快照、自动同步项目） | ✅ |
 | taskFofa.py | `/api/fofa/{status,search,task,task/list}` | ✅ |
 | user.py | `/api/user/{login,changePassword}`；用户管理路由在上游被注释，沿用 | 🟡 |
 
-### 仍缺的三项（依赖节点侧数据）
+### 仍缺的两项（依赖节点侧数据）
 
 1. `assetFileleak`：节点未产出文件泄露结果，服务端没有可读集合；需要扫描端先落库；
-2. `assetNpocService` / `npoc_service`：NPoC 服务结果未落库；
-3. `http_status` / `syslog`：目前是字段与日志视图级别，没有独立页面（数据源有限）。
+2. `assetNpocService` / `npoc_service`：NPoC 服务结果未落库。
 
-这三项在扫描端补齐数据后，可直接复用现有读模型写法（`repositories/assets/*` + `models` + `routes`），不需要改架构。
+这两项在扫描端补齐数据后，可直接复用现有读模型写法（`repositories/assets/*` + `models` + `routes`），不需要改架构。
+
+另有 2 个部分项保留 🟡：`assetService`（服务维度目前是字段/统计，没有独立页）、`user`（上游 user 管理路由本身被注释，未启用）。
