@@ -62,6 +62,8 @@ type Repository interface {
 	SaveProgressSnapshot(ctx context.Context, taskID string, rows []models.TaskProgressSnapshot) error
 	GetProgressSnapshot(ctx context.Context, taskID string) (map[string]map[string]string, error)
 	DeleteProgressSnapshot(ctx context.Context, taskIDs ...string) error
+	// RemoveQueuedNodeTasks 清掉 NodeTask:* 里还没被领取的该任务消息
+	RemoveQueuedNodeTasks(ctx context.Context, taskID string) (int64, error)
 }
 
 // repository 实现Repository接口
@@ -156,6 +158,8 @@ func (r *repository) ClearTaskCache(ctx context.Context, id string) error {
 	if err := r.DeleteProgressSnapshot(ctx, id); err != nil {
 		return err
 	}
+	// 队列里还没被节点领取的消息同样要清，否则节点重新上线会把已删除的任务跑起来
+	_, _ = r.RemoveQueuedNodeTasks(ctx, id)
 	return nil
 }
 

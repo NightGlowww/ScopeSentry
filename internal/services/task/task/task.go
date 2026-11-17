@@ -269,6 +269,10 @@ func (s *service) StopTasks(ctx *gin.Context, ids []string) error {
 	for _, id := range ids {
 		// 广播停止任务
 		_ = s.nodeService.RefreshConfig(ctx, models.Message{Name: "all", Type: "stop_task", Content: id})
+		// 清掉还没被节点领取的队列消息：节点若在停止后才上线，不该再把这条任务跑起来
+		if removed, err := s.taskRepo.RemoveQueuedNodeTasks(ctx.Request.Context(), id); err == nil && removed > 0 {
+			logger.Info(fmt.Sprintf("removed %d queued node task message(s) for stopped task %s", removed, id))
+		}
 		// 状态置为2
 		if oid, err := primitive.ObjectIDFromHex(id); err == nil {
 			_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 2}})

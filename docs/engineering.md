@@ -91,6 +91,15 @@ npx esno ./scripts/check-theme.ts
 - **空筛选等于清空整个集合**：必须显式 `confirmAll: true`，否则返回 `ErrNeedConfirmAll`（400）。
 - 副作用与按 ID 删除保持一致：asset 清理不再被引用的 `HttpBody`，vulnerability 清理 `vulnerabilityDetail`（按 hash）。
 
+## 停止/删除任务时清队列
+
+- 只把任务状态置为暂停（2）并广播 `stop_task` 不够：任务消息还躺在 `NodeTask:<node>` 里，
+  节点如果在停止之后才上线（或重启），会把这条消息当新任务领走——用户看到的“已停止”任务又跑起来。
+- `StopTasks` 与 `ClearTaskCache` 会调用 `taskRepo.RemoveQueuedNodeTasks`：扫描 `NodeTask:*`，
+  按 payload 里的任务 ID（模板是小写 `id`、页面监控是大写 `ID`，两种都认）用 `LREM` 精确删除，
+  不影响同一队列里的其它任务。
+- 停止只清“还没被领取”的消息；节点正在跑的目标仍然只能靠它自己响应 `stop_task`。
+
 ## 任务进度快照（issue #278）
 
 - 节点把逐目标进度写在 Redis 的 `TaskInfo:progress:<taskID>:<target>` 哈希里；任务到 100% 时服务端会删
