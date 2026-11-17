@@ -24,6 +24,7 @@ type Service interface {
 	GetAssetByIDs(ctx *gin.Context, ids []string) ([]models.Asset, error)
 	GetAssetByID(ctx *gin.Context, id string) (*models.Asset, error)
 	CreateAsset(ctx *gin.Context, asset *models.Asset) error
+	AddAsset(ctx *gin.Context, req *models.AssetAddRequest) (*models.Asset, error)
 	UpdateAsset(ctx *gin.Context, id string, asset *models.Asset) error
 	SetRemark(ctx *gin.Context, id string, remark string) error
 	DeleteAsset(ctx *gin.Context, id string) error
