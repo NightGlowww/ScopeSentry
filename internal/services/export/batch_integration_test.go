@@ -49,6 +49,8 @@ func seedBatchData(t *testing.T) batchSeed {
 	rootDomainDocs := make([]interface{}, 0, 3)
 	sensitiveDocs := make([]interface{}, 0, 3)
 	vulnDocs := make([]interface{}, 0, 3)
+	fileLeakDocs := make([]interface{}, 0, 3)
+	npocDocs := make([]interface{}, 0, 3)
 
 	for i := 0; i < 3; i++ {
 		host := fmt.Sprintf("%s-%d.example.com", seed.Prefix, i)
@@ -133,6 +135,24 @@ func seedBatchData(t *testing.T) batchSeed {
 			"time":       fmt.Sprintf("2026-11-18 12:00:0%d", i+1),
 			"md5":        fmt.Sprintf("%s-md5-%d", seed.Prefix, i),
 		})
+		fileLeakDocs = append(fileLeakDocs, bson.M{
+			"url":            "https://" + host + "/backup.zip",
+			"site":           host,
+			"title":          fmt.Sprintf("中文泄露-%d", i),
+			"status_code":    200 + i,
+			"content_length": 1024 + i,
+			"insert_time":    fmt.Sprintf("2026-11-18 12:00:0%d", i+1),
+			"update_date":    fmt.Sprintf("2026-11-18 12:10:0%d", i+1),
+			"project":        seed.Project,
+		})
+		npocDocs = append(npocDocs, bson.M{
+			"scheme":      []string{"redis", "ssh", "mysql"}[i],
+			"host":        host,
+			"port":        []string{"6379", "22", "3306"}[i],
+			"target":      host,
+			"insert_time": fmt.Sprintf("2026-11-18 12:00:0%d", i+1),
+			"project":     seed.Project,
+		})
 		vulnDocs = append(vulnDocs, bson.M{
 			"url":        "https://" + host + "/admin",
 			"vulnid":     fmt.Sprintf("cve-2026-%04d", i),
@@ -150,13 +170,15 @@ func seedBatchData(t *testing.T) batchSeed {
 	}
 
 	collections := map[string][]interface{}{
-		"asset":           assetDocs,
-		"subdomain":       subdomainDocs,
-		"UrlScan":         urlDocs,
-		"IPAsset":         ipAssetDocs,
-		"RootDomain":      rootDomainDocs,
-		"SensitiveResult": sensitiveDocs,
-		"vulnerability":   vulnDocs,
+		"asset":              assetDocs,
+		"subdomain":          subdomainDocs,
+		"UrlScan":            urlDocs,
+		"IPAsset":            ipAssetDocs,
+		"RootDomain":         rootDomainDocs,
+		"SensitiveResult":    sensitiveDocs,
+		"vulnerability":      vulnDocs,
+		"asset_fileleak":     fileLeakDocs,
+		"asset_npoc_service": npocDocs,
 	}
 	ctx := context.Background()
 	for coll, docs := range collections {
