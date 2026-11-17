@@ -42,6 +42,7 @@ import { BaseButton } from '@/components/Button'
 import { useRouter } from 'vue-router'
 import { tagColorProps } from '@/utils/tagColor'
 import Csearch from '../search/Csearch.vue'
+import TagColorSetting from './TagColorSetting.vue'
 import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
 import AssetDetail2 from '../detail/AssetDetail2.vue'
@@ -655,6 +656,10 @@ let statisticsHidden = ref(false)
 
 // 标签颜色覆盖（issue #217）：加载失败就退回默认确定性配色，不影响列表渲染
 const tagColors = ref<Record<string, string>>({})
+const tagColorDialogVisible = ref(false)
+const openTagColorSetting = () => {
+  tagColorDialogVisible.value = true
+}
 const loadTagColors = async () => {
   try {
     const res = await getTagColorsApi()
@@ -929,7 +934,9 @@ const confirmSelectedIcons = () => {
     :setActiveSegment="setActiveSegment"
     :getFilter="getFilter"
     :iconData="AssetstatisticsData.Icon"
+    :openTagColorSetting="openTagColorSetting"
   />
+  <TagColorSetting v-model="tagColorDialogVisible" @saved="loadTagColors" />
   <ElRow :gutter="3" v-if="activeSegment == 'tableSegment'">
     <ElCol
       :xs="statisticsHidden ? 0 : 24"
