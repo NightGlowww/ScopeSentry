@@ -327,7 +327,11 @@ func (s *service) DeleteProjects(ctx *gin.Context, ids []string, delA bool) erro
 		go func() {
 			s.projectRepo.DeleteProjectAsset(ctx, ids)
 		}()
-
+	} else {
+		// 保留资产时把 project 字段清空：否则资产会指向一个已删除的项目（幽灵归属）
+		if err := s.projectRepo.UnsetProjectAssets(ctx, ids); err != nil {
+			return err
+		}
 	}
 	return nil
 }
