@@ -35,6 +35,10 @@ func RegisterAssetsRoutes(api *gin.RouterGroup) {
 			registerAssetGroupRoutes(),
 			registerAssetScopeRoutes(),
 			registerSiteRoutes(),
+			// 资产读模型（对标 ARL-Next）：指纹统计 / Nuclei 结果 / WIH 敏感信息
+			registerStatFingerRoutes(),
+			registerNucleiResultRoutes(),
+			registerWIHRoutes(),
 		},
 	}
 

@@ -337,6 +337,13 @@ func CreateDatabase() error {
 	return nil
 }
 
+// EnsureIndexes 幂等地补齐所有集合索引（createIndexes 对已存在的索引是 no-op）。
+// 生产启动路径会调用它；集成测试在断言 explain 之前也先调一次，确保索引真的建出来了，
+// 而不是「测试库没建索引 -> 计划退化成 COLLSCAN」的假阴性。
+func EnsureIndexes(db *mongo.Database) error {
+	return createIndexes(db)
+}
+
 func createIndexes(db *mongo.Database) error {
 	// 创建页面监控索引
 	pageMonitoring := db.Collection("PageMonitoring")
@@ -417,6 +424,14 @@ func createIndexes(db *mongo.Database) error {
 		{Keys: bson.D{{Key: "host", Value: 1}}},
 
 		{Keys: bson.D{{Key: "rootDomain", Value: 1}, {Key: "time", Value: -1}}}, // 优化按 rootDomain 查询并按 time 排序的性能
+
+		// 指纹统计读模型（对标 ARL-Next assetStatFinger）：
+		// technologies 是多值字段，{technologies:1} 单字段 multikey 索引上面已有；
+		// 这里补两条：
+		//   - {technologies, time}: 按技术反查资产并按 time 倒序，索引直接提供排序，不退化成 blocking sort；
+		//   - {project, technologies}: 反查时的 count(total) 走 COUNT_SCAN（只读索引不回表，explain 实测）。
+		{Keys: bson.D{{Key: "technologies", Value: 1}, {Key: "time", Value: -1}}},
+		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "technologies", Value: 1}}},
 	}
 	_, err = asset.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
@@ -544,6 +559,16 @@ func createIndexes(db *mongo.Database) error {
 	if err != nil {
 		return fmt.Errorf("failed to create SensitiveResult indexes: %v", err)
 	}
+	// WIH 敏感信息读模型（对标 ARL-Next assetWih）：type(->sid)/project 过滤 + time 倒序分页
+	indexes = []mongo.IndexModel{
+		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "time", Value: -1}}},
+		{Keys: bson.D{{Key: "sid", Value: 1}, {Key: "time", Value: -1}}},
+		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "sid", Value: 1}, {Key: "time", Value: -1}}},
+	}
+	_, err = sensitiveResult.Indexes().CreateMany(context.Background(), indexes)
+	if err != nil {
+		return fmt.Errorf("failed to create SensitiveResult read model indexes: %v", err)
+	}
 
 	// 创建目录扫描结果索引
 	dirScanResult := db.Collection("DirScanResult")
@@ -571,6 +596,19 @@ func createIndexes(db *mongo.Database) error {
 	_, err = vulnerability.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
 		return fmt.Errorf("failed to create vulnerability indexes: %v", err)
+	}
+	// Nuclei 结果读模型（对标 ARL-Next assetNucleiResult）：
+	// 过滤 project/severity 后按 time 倒序分页，三种组合各配一条索引，
+	// 让 count 与列表的排序都落在索引上（explain 实测三种形状都是 IXSCAN + 无 blocking sort）。
+	// templateId 是子串匹配，正则没有索引边界，故意不为 vulnid 建「用不上」的索引。
+	indexes = []mongo.IndexModel{
+		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "time", Value: -1}}},
+		{Keys: bson.D{{Key: "level", Value: 1}, {Key: "time", Value: -1}}},
+		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "level", Value: 1}, {Key: "time", Value: -1}}},
+	}
+	_, err = vulnerability.Indexes().CreateMany(context.Background(), indexes)
+	if err != nil {
+		return fmt.Errorf("failed to create vulnerability read model indexes: %v", err)
 	}
 
 	// 创建vulDetail索引
