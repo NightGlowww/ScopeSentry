@@ -8,13 +8,16 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func newServer() *mcp.Server {
+// newServer 建一个 MCP server。
+// allowedTools 为 nil 表示不限制；非 nil 时只注册集合内的工具，
+// 这样 tools/list 不会被治理中间件拦下却又把无权工具列给客户端看。
+func newServer(allowedTools map[string]bool) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "scopesentry",
 		Version: constants.Version,
 	}, nil)
 
-	registerTools(server)
+	registerTools(server, allowedTools)
 	return server
 }
 
