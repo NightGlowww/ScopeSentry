@@ -348,6 +348,10 @@ export default {
     nextTime: '下次运行',
     msgTaskName: '请输入任务名称',
     taskTarget: '目标',
+    pauseTarget: '暂停目标',
+    resumeTarget: '恢复目标',
+    targetPaused: '已暂停',
+    pauseTargetConfirm: '暂停后该目标不再扫描（已被节点领取的目标会继续跑完）。确定暂停 {target}？',
     subdomainTakeover: '子域名接管',
     assetMapping: '资产测绘',
     msgTarget:

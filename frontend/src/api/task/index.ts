@@ -205,6 +205,15 @@ interface TaskProgessInforesp {
   list: TaskProgessInfo[]
   total: number
 }
+// 目标级暂停/恢复（issue #277）
+export const pauseTaskTargetApi = (taskId: string, target: string): Promise<IResponse<null>> => {
+  return request.post({ url: '/api/task/target/pause', data: { taskId, target } })
+}
+
+export const resumeTaskTargetApi = (taskId: string, target: string): Promise<IResponse<null>> => {
+  return request.post({ url: '/api/task/target/resume', data: { taskId, target } })
+}
+
 export const getTaskProgressApi = (
   id: string,
   pageIndex: number,

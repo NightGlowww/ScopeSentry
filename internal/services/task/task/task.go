@@ -344,6 +344,15 @@ func (s *service) GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pa
 		return nil, fmt.Errorf("failed to get progress data: %w", err)
 	}
 
+	// 4. 标记被暂停（跳过）的目标（issue #277）
+	if paused, err := s.GetPausedTargets(ctx, taskID); err == nil && len(paused) > 0 {
+		for i := range progressData {
+			if paused[progressData[i].Target] {
+				progressData[i].Paused = true
+			}
+		}
+	}
+
 	return map[string]interface{}{
 		"list":  progressData,
 		"total": task.TaskNum,
