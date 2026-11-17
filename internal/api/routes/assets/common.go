@@ -24,6 +24,12 @@ func registerCommonRoutes() models.RouteGroup {
 			},
 			{
 				Method:      "POST",
+				Path:        "/delete_by_search",
+				Handler:     assetcommon.DeleteBySearch,
+				Middlewares: common.WithAuth(),
+			},
+			{
+				Method:      "POST",
 				Path:        "/delete_tag",
 				Handler:     assetcommon.DeleteTag,
 				Middlewares: common.WithAuth(),

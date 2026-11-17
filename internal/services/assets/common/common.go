@@ -37,6 +37,7 @@ type Service interface {
 	DeleteTag(ctx *gin.Context, req *models.TagRequest) error
 	UpdateStatus(ctx *gin.Context, req *models.StatusRequest) error
 	TotalData(ctx context.Context, req *models.SearchRequest) (int64, error)
+	DeleteBySearch(ctx *gin.Context, req *models.DeleteBySearchRequest) (int64, error)
 }
 
 type service struct {
@@ -126,54 +127,7 @@ func (s *service) DeleteData(ctx *gin.Context, req *models.DeleteRequest) error 
 
 	// 删除资产后，检查并清理不再使用的 HttpBody 数据
 	if req.Index == "asset" && len(bodyHashesToCheck) > 0 {
-		go func() {
-			// 使用聚合查询，一次性获取所有还在使用的 bodyhash
-			pipeline := mongo.Pipeline{
-				{{Key: "$match", Value: bson.M{"bodyhash": bson.M{"$in": bodyHashesToCheck}}}},
-				{{Key: "$group", Value: bson.M{"_id": "$bodyhash"}}},
-			}
-
-			cursor, err := s.commonRepo.Aggregate(context.Background(), "asset", pipeline)
-			if err != nil {
-				logger.Error("failed to aggregate bodyhash", zap.Error(err))
-				return
-			}
-			defer cursor.Close(context.Background())
-
-			// 收集还在使用的 bodyhash
-			usedHashes := make(map[string]bool)
-			for cursor.Next(context.Background()) {
-				var result struct {
-					ID string `bson:"_id"`
-				}
-				if err := cursor.Decode(&result); err != nil {
-					logger.Error("failed to decode bodyhash", zap.Error(err))
-					continue
-				}
-				if result.ID != "" {
-					usedHashes[result.ID] = true
-				}
-			}
-
-			// 找出不再使用的 bodyhash
-			unusedHashes := make([]string, 0)
-			for _, hash := range bodyHashesToCheck {
-				if !usedHashes[hash] {
-					unusedHashes = append(unusedHashes, hash)
-				}
-			}
-
-			// 一次性删除所有不再使用的 HttpBody 数据
-			if len(unusedHashes) > 0 {
-				httpBodyFilter := bson.M{"hash": bson.M{"$in": unusedHashes}}
-				_, err := s.repo.DeleteMany(context.Background(), "HttpBody", httpBodyFilter)
-				if err != nil {
-					logger.Error("failed to delete HttpBody", zap.Error(err))
-					return
-				}
-				logger.Info("deleted unused HttpBody", zap.Int("count", len(unusedHashes)))
-			}
-		}()
+		go s.cleanupUnusedBodyHashes(bodyHashesToCheck)
 	}
 
 	return nil
@@ -299,6 +253,7 @@ var (
 	ErrInvalidID          = errors.New("invalid id")
 	ErrNoValidIDs         = errors.New("no valid ids")
 	ErrNoDocumentsDeleted = errors.New("no documents deleted")
+	ErrNeedConfirmAll     = errors.New("empty filter requires confirmAll")
 )
 
 // ---------------------------------------------
