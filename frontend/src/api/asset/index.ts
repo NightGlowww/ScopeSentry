@@ -321,6 +321,22 @@ export const addAssetApi = (payload: AddAssetPayload): Promise<IResponse<{ id: s
   return request.post({ url: '/api/assets/asset/add', data: payload })
 }
 
+// 批量录入（issue #203）：一次最多 500 条，返回成功/重复/非法计数
+export interface AddAssetBatchResult {
+  inserted: number
+  duplicated: number
+  invalid: number
+  errors?: string[]
+}
+
+export const addAssetBatchApi = (payload: {
+  items: AddAssetPayload[]
+  project?: string
+  tags?: string[]
+}): Promise<IResponse<AddAssetBatchResult>> => {
+  return request.post({ url: '/api/assets/asset/add_batch', data: payload })
+}
+
 export const setRemarkApi = (id: string, remark: string): Promise<IResponse<{ id: string }>> => {
   return request.post({ url: '/api/assets/asset/remark', data: { id, remark } })
 }

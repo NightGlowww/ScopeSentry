@@ -168,6 +168,32 @@ func AddAsset(c *gin.Context) {
 	response.Success(c, gin.H{"id": created.ID.Hex()}, "api.asset.create.success")
 }
 
+// AddAssets 批量录入资产（issue #203）
+// @Summary 批量录入资产
+// @Description 一次最多 500 条；返回成功/重复/非法计数
+// @Tags 资产
+// @Accept json
+// @Produce json
+// @Router /api/assets/asset/add_batch [post]
+func AddAssets(c *gin.Context) {
+	var req models.AssetAddBatchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+
+	result, err := assetService.AddAssets(c, &req)
+	if err != nil {
+		if errors.Is(err, asset.ErrAssetInvalid) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
+		response.InternalServerError(c, "api.asset.create.failed", err)
+		return
+	}
+	response.Success(c, result, "api.asset.create.success")
+}
+
 // SetRemark 更新资产备注（issue #335）
 // @Summary 更新资产备注
 // @Description 只更新 remark 一个字段；空字符串表示清空备注，最长 500 字符
