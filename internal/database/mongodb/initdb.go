@@ -771,6 +771,54 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create dict_upload_tasks indexes: %v", err)
 	}
 
+	// 批量导出（/api/export/batch、/api/export/task/:taskId）的流式读索引。
+	//
+	// 导出的查询形状固定是「filter(project 或 taskName) + sort(time 倒序) + cursor 流式写」：
+	// 缺 {project,time:-1} / {taskName,time:-1} 时，Mongo 要么退化成 COLLSCAN，
+	// 要么为了排序起一个阻塞式 SORT——find 的排序内存上限只有 32MB，
+	// 大集合上会直接 "Sort exceeded memory limit"，导出就废了。
+	// 只补还没有的组合：asset / vulnerability / SensitiveResult 的 {project,time:-1}
+	// 已由前面的读模型索引提供；相同键的索引重复创建是 no-op，所以不指定 name。
+	exportIndexes := []struct {
+		collection string
+		keys       []bson.D
+	}{
+		{"asset", []bson.D{
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+		{"subdomain", []bson.D{
+			{{Key: "project", Value: 1}, {Key: "time", Value: -1}},
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+		{"UrlScan", []bson.D{
+			{{Key: "project", Value: 1}, {Key: "time", Value: -1}},
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+		{"IPAsset", []bson.D{
+			{{Key: "project", Value: 1}, {Key: "time", Value: -1}},
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+		{"RootDomain", []bson.D{
+			{{Key: "project", Value: 1}, {Key: "time", Value: -1}},
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+		{"SensitiveResult", []bson.D{
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+		{"vulnerability", []bson.D{
+			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+		}},
+	}
+	for _, group := range exportIndexes {
+		idxModels := make([]mongo.IndexModel, 0, len(group.keys))
+		for _, keys := range group.keys {
+			idxModels = append(idxModels, mongo.IndexModel{Keys: keys})
+		}
+		if _, err := db.Collection(group.collection).Indexes().CreateMany(context.Background(), idxModels); err != nil {
+			return fmt.Errorf("failed to create %s export indexes: %v", group.collection, err)
+		}
+	}
+
 	return nil
 }
 

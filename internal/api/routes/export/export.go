@@ -49,6 +49,27 @@ func RegisterExportRoutes(api *gin.RouterGroup) {
 				Handler:     export.DownloadExport,
 				Middlewares: common.WithAuth(),
 			},
+			// 批量导出（对标 ARL-Next batchExport）：按 type 流式导出 CSV
+			{
+				Method:      "POST",
+				Path:        "/batch",
+				Handler:     export.BatchExport,
+				Middlewares: common.WithAuth(),
+			},
+			// 按任务导出：zip 内按集合分文件
+			{
+				Method:      "GET",
+				Path:        "/task/:taskId",
+				Handler:     export.TaskExport,
+				Middlewares: common.WithAuth(),
+			},
+			// 导出预览：前 20 行 + 命中总数，前端确认字段用
+			{
+				Method:      "POST",
+				Path:        "/preview",
+				Handler:     export.PreviewExport,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 
