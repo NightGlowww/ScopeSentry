@@ -118,6 +118,9 @@ export default {
     success: 'Success'
   },
   export: {
+    timeRange: 'Time range',
+    timeRangeStart: 'Start time',
+    timeRangeEnd: 'End time',
     exportType: 'Export Type',
     exportTypeAll: 'All data',
     exportTypeSearch: 'Current search criteria',

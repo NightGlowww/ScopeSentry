@@ -21,6 +21,9 @@ type ExportRequest struct {
 	Type       string            `json:"type" binding:"required" example:"search"`
 	FileType   string            `json:"filetype" binding:"required" example:"csv"`
 	Field      []string          `json:"field" binding:"required" example:"['host','ip']"`
+	// StartTime / EndTime 导出时间范围（issue #261），格式 "YYYY-MM-DD HH:MM:SS"，可只给一边
+	StartTime string `json:"startTime"`
+	EndTime   string `json:"endTime"`
 }
 
 // ExportResponse 导出响应结构体

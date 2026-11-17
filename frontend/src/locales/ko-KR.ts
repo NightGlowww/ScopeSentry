@@ -118,6 +118,9 @@ export default {
     success: '성공'
   },
   export: {
+    timeRange: '시간 범위',
+    timeRangeStart: '시작 시간',
+    timeRangeEnd: '종료 시간',
     exportType: '내보내기 유형',
     exportTypeAll: '전체 데이터',
     exportTypeSearch: '현재 검색 조건',

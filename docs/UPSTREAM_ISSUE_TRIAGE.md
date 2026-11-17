@@ -86,7 +86,7 @@
 | 277 | 可以选择目标暂停 | 现仅整任务 stop（`task.go:243-257`），需 target 粒度控制 |
 | 273 | 插件参数设为全局变量 | 参数只存在 `ScanTemplate.Parameters`（`models/template.go:26,45`），建议加全局默认层 |
 | 270 | 域名泛解析全局过滤 | 无 wildcard 过滤逻辑（grep 仅命中 CT 模块），需在子域/资产入库前判定 |
-| 261 | 增加时间段导出 | 导出仅按筛选条件（`handlers/export/export.go:65-75`），缺时间区间与“已读”标记 |
+| 261 | 增加时间段导出 | **已修**：导出请求新增 `startTime` / `endTime`（`YYYY-MM-DD HH:mm:ss`，可只给一边），`services/export/exportfilter.ApplyTimeRange` 把范围并进 `time` 条件（已有 time 过滤用 `$and` 合并不覆盖），非法/倒序 400；导出对话框加日期范围选择器。5 项纯函数单测 |
 | 259 | 扫描器重启总是重新加载字典 | 建议加字典 hash 接口，节点比对一致则跳过下载 |
 | 258 | 删除全部（17w 条只能 1000 条删） | **已修（全栈）**：后端 `POST /api/assets/common/delete_by_search` 复用列表页搜索表达式+筛选，分批（1000/批）删除、单次上限 5 万条，空筛选必须 `confirmAll`，asset 清 HttpBody、vulnerability 清正文；前端资产表操作菜单新增「删除全部（当前筛选）」，确认框带命中条数、空筛选走强提示，三语 key 齐备 |
 | 239 | 新增通知（webhook robot / 端口告警） | 现有通知配置仅基础项（`internal/config/notification.go`），需 webhook 通道 + 端口事件 |

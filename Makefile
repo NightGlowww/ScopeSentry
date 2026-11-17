@@ -16,7 +16,8 @@ HERMETIC_PKGS := \
 	./internal/services/project/ \
 	./internal/api/handlers/sensitiveRule/ \
 	./internal/api/middleware/compress/ \
-	./internal/utils/redislist/
+	./internal/utils/redislist/ \
+	./internal/services/export/exportfilter/
 
 .PHONY: help build binary run test-hermetic test-integration vet fmt fmt-check mod-check \
 	frontend-install frontend-build frontend-test frontend-lint frontend-check ci clean

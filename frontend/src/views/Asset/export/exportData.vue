@@ -13,7 +13,8 @@ import {
   ElSpace,
   ElCheckbox,
   CheckboxValueType,
-  ElCheckboxGroup
+  ElCheckboxGroup,
+  ElDatePicker
 } from 'element-plus'
 import { onMounted, reactive, Ref, ref } from 'vue'
 import {
@@ -35,17 +36,22 @@ const props = defineProps<{
 }>()
 const exportForm = reactive({
   type: 'all',
-  quantity: 0
+  quantity: 0,
+  // issue #261：可选的导出时间范围，Element 的 datetimerange 给的是 [start, end]
+  timeRange: [] as string[]
 })
 const create = async () => {
   createLoading.value = true
   const searchFilter = props.getFilter()
+  const [startTime = '', endTime = ''] = exportForm.timeRange || []
   await exportApi(
     props.index,
     exportForm.quantity,
     exportForm.type,
     props.searchParams,
     searchFilter,
+    startTime,
+    endTime,
     checkedField.value,
     filetype.value
   )
@@ -234,6 +240,17 @@ const filetype = ref('xlsx')
         </ElFormItem>
         <ElFormItem :label="t('export.exportQuantity')">
           <ElInput v-model.number="exportForm.quantity" />
+        </ElFormItem>
+        <ElFormItem :label="t('export.timeRange')">
+          <ElDatePicker
+            v-model="exportForm.timeRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            :start-placeholder="t('export.timeRangeStart')"
+            :end-placeholder="t('export.timeRangeEnd')"
+            clearable
+            style="width: 100%"
+          />
         </ElFormItem>
         <ElFormItem :label="t('export.field')">
           <ElCheckbox

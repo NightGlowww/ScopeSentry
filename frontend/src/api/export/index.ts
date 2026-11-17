@@ -7,12 +7,14 @@ export const exportApi = (
   type: string,
   search: string,
   filter: Record<string, any>,
+  startTime: string,
+  endTime: string,
   field: string[],
   filetype: string
 ): Promise<IResponse<commonRespData>> => {
   return request.post({
     url: '/api/export',
-    data: { index, quantity, type, search, filter, field, filetype }
+    data: { index, quantity, type, search, filter, startTime, endTime, field, filetype }
   })
 }
 
