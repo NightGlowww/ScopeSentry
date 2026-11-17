@@ -367,6 +367,15 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create FingerprintRules name index: %v", err)
 	}
 
+	// 标签颜色覆盖：tag 唯一（issue #217）
+	tagColor := db.Collection("TagColor")
+	if _, err := tagColor.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "tag", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}); err != nil {
+		return fmt.Errorf("failed to create TagColor tag index: %v", err)
+	}
+
 	// 任务进度快照索引：按 taskID 查/删（issue #278）
 	progressSnapshot := db.Collection("TaskProgressSnapshot")
 	if _, err := progressSnapshot.Indexes().CreateOne(context.Background(), mongo.IndexModel{

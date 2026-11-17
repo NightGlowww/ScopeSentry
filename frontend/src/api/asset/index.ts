@@ -309,6 +309,15 @@ export const setRemarkApi = (id: string, remark: string): Promise<IResponse<{ id
   return request.post({ url: '/api/assets/asset/remark', data: { id, remark } })
 }
 
+// 标签颜色覆盖（issue #217）：list 返回 tag → color 的覆盖表，set 传空 color 表示清除覆盖
+export const getTagColorsApi = (): Promise<IResponse<{ colors: Record<string, string> }>> => {
+  return request.post({ url: '/api/assets/tag_color/list' })
+}
+
+export const setTagColorApi = (tag: string, color: string): Promise<IResponse<null>> => {
+  return request.post({ url: '/api/assets/tag_color/set', data: { tag, color } })
+}
+
 export const addTagApi = (
   id: string,
   tp: string,

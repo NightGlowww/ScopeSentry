@@ -61,7 +61,9 @@ npx esno ./scripts/check-theme.ts
 - 标签颜色由标签名稳定推导：`utils/tagColor.ts` 的 `tagColorType(tag)`，同一个标签在任何页面、任何一次渲染里都同色。
 - 只从 Element Plus 的语义色（`primary/success/info/warning/danger`）里挑，颜色由主题变量驱动，日间/夜间自动适配——
   不要在这里写死 hex，否则深色模式下对比度会崩。
-- 想支持「用户给某个标签指定固定颜色」时，在这一层加覆盖表即可，调用方不用改。
+- 用户覆盖：Mongo `TagColor`（tag 唯一）+ `POST /api/assets/tag_color/list` / `set`（`set` 传空 color 即清除覆盖）。
+  合法值是语义色名或 `#rgb/#rrggbb`；前端 `tagColorProps(tag, overrides)` 合并——hex 走 `ElTag.color`，语义色走 `ElTag.type`。
+  列表加载失败时静默退回默认配色，不影响渲染。
 
 ## 导出时间范围（issue #261）
 
