@@ -902,6 +902,28 @@ func createIndexes(db *mongo.Database) error {
 		}
 	}
 
+	// 扫描策略（对标 ARL-Next policy.py）：
+	//   - name 唯一：同名的第二份策略在建/改接口里就被拒（400），索引是并发兜底；
+	//   - enabled+updatedAt：列表按 enabled 过滤后仍按更新时间倒序，索引直接提供过滤 + 排序；
+	//   - updatedAt：不带 enabled 过滤的默认列表（新→旧），避免大集合上退化成内存排序。
+	scanPolicy := db.Collection("scan_policy")
+	if _, err := scanPolicy.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "name", Value: 1}},
+			Options: options.Index().SetName("scan_policy_name_unique").SetUnique(true),
+		},
+		{
+			Keys:    bson.D{{Key: "enabled", Value: 1}, {Key: "updatedAt", Value: -1}},
+			Options: options.Index().SetName("scan_policy_enabled_updated"),
+		},
+		{
+			Keys:    bson.D{{Key: "updatedAt", Value: -1}},
+			Options: options.Index().SetName("scan_policy_updated"),
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to create scan_policy indexes: %v", err)
+	}
+
 	return nil
 }
 
