@@ -22,10 +22,12 @@ import {
   CheckboxValueType,
   ElText,
   ElTreeSelect,
-  ElDrawer
+  ElDrawer,
+  ElAlert,
+  ElTag
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
-import { onMounted, reactive, ref, toRefs, watch } from 'vue'
+import { computed, onMounted, reactive, ref, toRefs, watch } from 'vue'
 import { getNodeDataOnlineApi } from '@/api/node'
 import {
   addScheduledTaskApi,
@@ -37,6 +39,10 @@ import {
 } from '@/api/task'
 import DetailTemplate from './DetailTemplate.vue'
 import { getProjectAllApi } from '@/api/project'
+import { applyPolicyApi, getPolicyListApi } from '@/api/policy'
+import type { ScanPolicyApplyResult, ScanPolicyConfig } from '@/api/policy/types'
+import { POLICY_MAX_PAGE_SIZE, applyPolicyToTaskForm, policyFieldLabelKey } from '@/utils/policy'
+import type { PolicyConflict } from '@/utils/policy'
 const { t } = useI18n()
 
 const props = defineProps<{
@@ -419,6 +425,83 @@ const getProjectList = async () => {
   })
 }
 getProjectList()
+
+// ---- 扫描策略（建任务弹窗内的「一键套用」入口） ----
+// 下拉只列 enabled=true 的策略；选中后调 apply 把策略覆盖模板默认后的 merged config 带回来。
+// 规则：只填表单里还空着的字段（目前是扫描模板），已填的一律不覆盖，冲突用 warning 提示。
+const policyId = ref('')
+const policyOptions = ref<{ id: string; name: string }[]>([])
+const policyApplied = ref<ScanPolicyApplyResult | null>(null)
+const policyConflicts = ref<PolicyConflict[]>([])
+const policyLoading = ref(false)
+
+const loadPolicies = async () => {
+  try {
+    const res = await getPolicyListApi({
+      enabled: true,
+      pageIndex: 1,
+      pageSize: POLICY_MAX_PAGE_SIZE
+    })
+    policyOptions.value = (res?.data?.list ?? []).map((item) => ({ id: item.id, name: item.name }))
+  } catch {
+    // 策略列表拿不到不影响建任务本身
+    policyOptions.value = []
+  }
+}
+
+const resetPolicy = () => {
+  policyId.value = ''
+  policyApplied.value = null
+  policyConflicts.value = []
+}
+
+const policyFieldText = (field?: string) => {
+  const key = policyFieldLabelKey(field)
+  return key ? t(key) : field || '-'
+}
+
+// 后端 warnings 描述的是「策略合并到模板默认」，本地冲突描述的是「我们没覆盖表单值」；
+// 同一个字段同时出现时只留后者，避免两句话互相打脸。
+const policyWarnings = computed(() => {
+  const warnings = policyApplied.value?.warnings ?? []
+  if (!policyConflicts.value.some((item) => item.field === 'template')) return warnings
+  return warnings.filter((item) => item.field !== 'templateId')
+})
+
+const onPolicyChange = async () => {
+  policyApplied.value = null
+  policyConflicts.value = []
+  if (!policyId.value) return
+  policyLoading.value = true
+  try {
+    // 把当前表单当作 taskTemplate 带上去：后端只在用户没填的字段上合并
+    const taskTemplate: ScanPolicyConfig = { templateId: taskData.template }
+    const res = await applyPolicyApi(policyId.value, taskTemplate)
+    const applied = res?.data ?? null
+    policyApplied.value = applied
+    const fill = applyPolicyToTaskForm({ template: taskData.template }, applied?.config)
+    if (fill.values.template) {
+      taskData.template = fill.values.template
+    }
+    policyConflicts.value = fill.conflicts
+  } catch {
+    policyApplied.value = null
+    policyConflicts.value = []
+  } finally {
+    policyLoading.value = false
+  }
+}
+
+// 换任务（或切回「新建」）时清掉上一条策略的合并结果。
+// 注意注册在 policy 的 ref 之后：immediate 的上一个 watch 触发时这些 ref 还没初始化。
+watch(
+  () => props.taskid,
+  () => {
+    resetPolicy()
+  }
+)
+
+loadPolicies()
 </script>
 <template>
   <ElForm
@@ -643,6 +726,73 @@ getProjectList()
       </ElCol>
     </ElRow>
     <ElDivider content-position="center" style="width: 60%; left: 20%">{{
+      t('policy.pickTitle')
+    }}</ElDivider>
+    <ElFormItem :label="t('policy.pickLabel')">
+      <ElSelect
+        v-model="policyId"
+        clearable
+        filterable
+        :loading="policyLoading"
+        :placeholder="t('policy.pickPlaceholder')"
+        style="width: 40%"
+        @change="onPolicyChange"
+      >
+        <ElOption
+          v-for="item in policyOptions"
+          :key="item.id"
+          :label="item.name"
+          :value="item.id"
+        />
+      </ElSelect>
+      <span class="policy-hint inline">{{ t('policy.pickHint') }}</span>
+    </ElFormItem>
+    <ElFormItem v-if="policyApplied" :label="t('policy.pickSummaryTitle')">
+      <div class="policy-summary">
+        <div v-if="(policyApplied.appliedFields ?? []).length" class="policy-tags">
+          <ElTag v-for="field in policyApplied.appliedFields" :key="field" size="small" type="info">
+            {{ policyFieldText(field) }}
+          </ElTag>
+        </div>
+        <div v-else class="policy-hint">{{ t('policy.pickAppliedEmpty') }}</div>
+        <div class="policy-hint">{{ t('policy.pickSummaryHint') }}</div>
+      </div>
+    </ElFormItem>
+    <ElAlert
+      v-if="policyConflicts.length"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="policy-alert"
+      :title="t('policy.pickConflictTitle')"
+    >
+      <ul class="policy-conflict-list">
+        <li v-for="(conflict, index) in policyConflicts" :key="`${conflict.field}-${index}`">
+          {{
+            t('policy.pickConflict', {
+              field: policyFieldText(conflict.field),
+              current: conflict.current,
+              next: conflict.next
+            })
+          }}
+        </li>
+      </ul>
+    </ElAlert>
+    <ElAlert
+      v-if="policyWarnings.length"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="policy-alert"
+      :title="t('policy.previewWarnings')"
+    >
+      <ul class="policy-conflict-list">
+        <li v-for="(warning, index) in policyWarnings" :key="`${warning.code}-${index}`">
+          {{ policyFieldText(warning.field) }}: {{ warning.message }}
+        </li>
+      </ul>
+    </ElAlert>
+    <ElDivider content-position="center" style="width: 60%; left: 20%">{{
       t('router.scanTemplate')
     }}</ElDivider>
     <ElFormItem :label="t('router.scanTemplate')" prop="template">
@@ -718,3 +868,37 @@ getProjectList()
     />
   </ElDrawer>
 </template>
+
+<style scoped>
+.policy-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.policy-hint.inline {
+  margin-left: 10px;
+}
+
+.policy-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.policy-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.policy-alert {
+  margin: 0 0 14px;
+}
+
+.policy-conflict-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+</style>
