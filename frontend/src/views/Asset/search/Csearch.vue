@@ -889,12 +889,12 @@ const openCreateTask = async () => {
   padding: 0 12px;
   cursor: pointer;
   transition: all 0.3s;
-  background-color: #fff;
+  background-color: var(--app-surface);
   min-width: 40px;
 }
 
 .segment:hover {
-  background-color: #f5f7fa;
+  background-color: var(--el-fill-color-light);
 }
 
 .segment.active {
