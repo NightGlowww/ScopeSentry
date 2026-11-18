@@ -25,7 +25,13 @@ import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { useI18n } from '@/hooks/web/useI18n'
 import { useIcon } from '@/hooks/web/useIcon'
-import { createFofaTasksApi, getFofaStatusApi, listFofaImportsApi, searchFofaApi } from '@/api/fofa'
+import {
+  createFofaTasksApi,
+  getFofaStatusApi,
+  listFofaImportsApi,
+  saveFofaConfigApi,
+  searchFofaApi
+} from '@/api/fofa'
 import type {
   FofaCreateMode,
   FofaImport,
@@ -68,6 +74,38 @@ const loadStatus = async () => {
 }
 
 const statusAvailable = computed(() => !!status.value?.available)
+
+// ---- FOFA Key 就地配置（写入 config.fofa.key，provider 下次调用即生效）----
+const keyInput = ref('')
+const keySaving = ref(false)
+
+const saveKey = async () => {
+  const key = keyInput.value.trim()
+  if (!key) {
+    ElMessage.warning(t('fofa.keyRequired'))
+    return
+  }
+  keySaving.value = true
+  try {
+    const res = await saveFofaConfigApi({ key })
+    status.value = res?.data ?? status.value
+    keyInput.value = ''
+    ElMessage.success(t('fofa.keySaved'))
+  } finally {
+    keySaving.value = false
+  }
+}
+
+const clearKey = async () => {
+  keySaving.value = true
+  try {
+    const res = await saveFofaConfigApi({ key: '' })
+    status.value = res?.data ?? status.value
+    ElMessage.success(t('fofa.keyCleared'))
+  } finally {
+    keySaving.value = false
+  }
+}
 const balance = computed(() => status.value?.balance ?? null)
 
 // ---- 查询 / 预览 ----
@@ -341,6 +379,27 @@ onMounted(() => {
       :title="t('fofa.statusReasonHint', { reason: status.reason || '-' })"
     />
 
+    <div class="key-config">
+      <span class="label">{{ t('fofa.keyLabel') }}</span>
+      <ElInput
+        v-model="keyInput"
+        type="password"
+        show-password
+        clearable
+        class="key-input"
+        :placeholder="
+          status?.configured ? t('fofa.keyPlaceholderSet') : t('fofa.keyPlaceholderEmpty')
+        "
+      />
+      <ElButton type="primary" :loading="keySaving" @click="saveKey">
+        {{ t('fofa.keySave') }}
+      </ElButton>
+      <ElButton v-if="status?.configured" :loading="keySaving" @click="clearKey">
+        {{ t('fofa.keyClear') }}
+      </ElButton>
+    </div>
+    <div class="key-hint">{{ t('fofa.keyHint') }}</div>
+
     <ElDivider content-position="left">{{ t('fofa.searchTitle') }}</ElDivider>
     <ElForm label-width="120px">
       <ElFormItem :label="t('fofa.query')">
@@ -365,9 +424,18 @@ onMounted(() => {
           </ElFormItem>
         </ElCol>
         <ElCol :span="16">
-          <ElButton type="primary" :icon="searchIcon" :loading="previewLoading" @click="runPreview">
+          <ElButton
+            type="primary"
+            :icon="searchIcon"
+            :loading="previewLoading"
+            :disabled="!statusAvailable"
+            @click="runPreview"
+          >
             {{ t('fofa.preview') }}
           </ElButton>
+          <span v-if="!statusAvailable" class="form-hint warn-hint">
+            {{ t('fofa.statusReasonHint', { reason: status?.reason || '-' }) }}
+          </span>
           <span class="form-hint inline-hint">
             {{ t('fofa.previewSizeHint', { max: FOFA_MAX_PREVIEW_SIZE }) }}
           </span>
@@ -559,6 +627,45 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* FOFA Key 行：标签 + 定宽输入 + 按钮同一行，说明文字单独一行 */
+.key-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 2px;
+  flex-wrap: wrap;
+}
+
+.key-config .label {
+  flex: 0 0 auto;
+  min-width: 64px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.key-config .key-input {
+  flex: 0 1 360px;
+  width: 360px;
+  max-width: 100%;
+}
+
+.key-hint {
+  margin: 0 0 2px 72px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .key-hint {
+    margin-left: 0;
+  }
+  .key-config .key-input {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
 .status-bar {
   display: flex;
   flex-wrap: wrap;

@@ -172,7 +172,7 @@ func (r *ProviderRegistry) Statuses(ctx context.Context) []ProviderStatus {
 // noneReason 未配置 key 时的明确原因
 func noneReason(cfg ProviderConfig) string {
 	if strings.TrimSpace(cfg.Key) == "" {
-		return "未配置 fofa.key（在系统配置里写入 FOFA API Key，或设置环境变量 FOFA_KEY 后自动启用 http provider）"
+		return "未配置 fofa.key（可直接在本页下方填写 FOFA Key，或在系统配置/环境变量 FOFA_KEY 中设置）"
 	}
 	return "未配置 FOFA provider"
 }

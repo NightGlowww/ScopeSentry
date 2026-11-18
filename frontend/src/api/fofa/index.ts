@@ -34,3 +34,11 @@ export const listFofaImportsApi = (
 ): Promise<IResponse<FofaImportListResult>> => {
   return request.post({ url: '/api/fofa/task/list', data: payload })
 }
+
+// saveFofaConfigApi 保存/清除 FOFA Key（写入 config.fofa.key，provider 下次调用即生效）
+export const saveFofaConfigApi = (data: {
+  key: string
+  baseUrl?: string
+}): Promise<IResponse<any>> => {
+  return request.post({ url: '/api/fofa/config', data })
+}
