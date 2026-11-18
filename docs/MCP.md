@@ -145,3 +145,12 @@ curl -s http://127.0.0.1:8082/mcp \
 - 导出：`GET /api/mcp/logs/export`，CSV 流式输出（上限 10 万行）。
 
 数据来自 `mcp_call_logs`，由 `apikey` 中间件异步批量写入，主请求不等 Mongo。
+
+## 全局配置（v2.0.86）
+
+「配置 → MCP 调用日志」顶部新增「全局配置」卡片，对应 `GET/POST /api/mcp/config`：
+
+- **启用 MCP**：关掉后所有 `/mcp` 调用返回 `503 {"code":-32000,"message":"mcp is disabled"}`；
+- **全局限速/分**：0 = 不限；
+- **日志保留条数**：`mcp_call_logs` 保留上限（默认 10 万）；
+- **工具白名单**：留空 = 全部；填了就只放行列表内的工具（可与 key 级 `tools` 白名单叠加）。

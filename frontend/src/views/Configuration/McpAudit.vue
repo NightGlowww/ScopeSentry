@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -10,11 +10,15 @@ import {
   ElSelect,
   ElOption,
   ElDatePicker,
-  ElTag
+  ElTag,
+  ElCard,
+  ElSwitch,
+  ElInputNumber,
+  ElMessage
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
-import { getMcpLogsApi, exportMcpLogsApi } from '@/api/mcp'
+import { getMcpLogsApi, exportMcpLogsApi, getMcpConfigApi, updateMcpConfigApi } from '@/api/mcp'
 import { useUserStore } from '@/store/modules/user'
 import { formatTime } from '@/utils'
 
@@ -33,6 +37,48 @@ const filters = reactive({
   status: '',
   range: [] as string[]
 })
+
+// ---- 全局配置 ----
+const cfgLoading = ref(false)
+const cfgSaving = ref(false)
+const cfg = reactive({
+  enabled: true,
+  rateLimitPerMin: 0,
+  logRetention: 100000,
+  allowedTools: [] as string[]
+})
+
+const loadConfig = async () => {
+  cfgLoading.value = true
+  try {
+    const res = await getMcpConfigApi()
+    const data = res.data
+    cfg.enabled = data.enabled
+    cfg.rateLimitPerMin = data.rateLimitPerMin || 0
+    cfg.logRetention = data.logRetention || 100000
+    cfg.allowedTools = data.allowedTools || []
+  } finally {
+    cfgLoading.value = false
+  }
+}
+
+const saveConfig = async () => {
+  cfgSaving.value = true
+  try {
+    await updateMcpConfigApi({
+      enabled: cfg.enabled,
+      rateLimitPerMin: cfg.rateLimitPerMin,
+      logRetention: cfg.logRetention,
+      allowedTools: cfg.allowedTools
+    })
+    ElMessage.success('已保存')
+    loadConfig()
+  } finally {
+    cfgSaving.value = false
+  }
+}
+
+onMounted(loadConfig)
 
 const formatDateTime = (value?: string) => {
   if (!value) return '-'
@@ -147,6 +193,41 @@ const handleExport = async () => {
 
 <template>
   <ContentWrap>
+    <ElCard class="mb-12px" shadow="never" v-loading="cfgLoading">
+      <template #header>
+        <span>全局配置</span>
+      </template>
+      <ElRow :gutter="12" align="middle">
+        <ElCol :span="4">
+          <span class="cfg-label">启用 MCP</span>
+          <ElSwitch v-model="cfg.enabled" />
+        </ElCol>
+        <ElCol :span="4">
+          <span class="cfg-label">全局限速/分</span>
+          <ElInputNumber v-model="cfg.rateLimitPerMin" :min="0" :max="100000" />
+        </ElCol>
+        <ElCol :span="4">
+          <span class="cfg-label">日志保留条数</span>
+          <ElInputNumber v-model="cfg.logRetention" :min="1000" :max="1000000" :step="10000" />
+        </ElCol>
+        <ElCol :span="8">
+          <span class="cfg-label">工具白名单</span>
+          <ElSelect
+            v-model="cfg.allowedTools"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="留空 = 全部工具"
+            style="width: 100%"
+          />
+        </ElCol>
+        <ElCol :span="4">
+          <ElButton type="primary" :loading="cfgSaving" @click="saveConfig">保存配置</ElButton>
+        </ElCol>
+      </ElRow>
+    </ElCard>
+
     <ElRow :gutter="12" class="mb-10px">
       <ElCol :span="5">
         <ElInput v-model="filters.keyId" placeholder="Key ID" clearable />
@@ -193,5 +274,15 @@ const handleExport = async () => {
 <style scoped>
 .mb-10px {
   margin-bottom: 10px;
+}
+
+.mb-12px {
+  margin-bottom: 12px;
+}
+
+.cfg-label {
+  margin-right: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 </style>
