@@ -116,3 +116,41 @@ export const runThreatOnceApi = (kind: ThreatKind): Promise<IResponse<unknown>> 
 
 export const getGithubTokenStatusApi = (): Promise<IResponse<{ status: string; remaining?: number; login?: string }>> =>
   request.post({ url: '/api/github/threat/token_status', data: {} })
+
+export interface ThreatHistoryItem {
+  id: string
+  kind: string
+  key: string
+  title: string
+  url: string
+  repo?: string
+  description?: string
+  severity?: string
+  keyword?: string
+  discoveredAt: string
+}
+
+export const getCveHistoryApi = (data: {
+  keyword?: string
+  limit?: number
+}): Promise<IResponse<{ list: ThreatHistoryItem[]; total: number; limit: number }>> =>
+  request.post({ url: '/api/github/threat/cve_history', data })
+
+const targetUrl = (kind: 'hackers' | 'tools') => '/api/github/threat/' + kind + '_target'
+
+export const listThreatTargetsApi = (
+  kind: 'hackers' | 'tools'
+): Promise<IResponse<{ items: string[]; total: number }>> =>
+  request.post({ url: targetUrl(kind), data: { action: 'list' } })
+
+export const addThreatTargetsApi = (
+  kind: 'hackers' | 'tools',
+  targets: string[]
+): Promise<IResponse<{ items: string[]; total: number }>> =>
+  request.post({ url: targetUrl(kind), data: { action: 'add', targets } })
+
+export const removeThreatTargetsApi = (
+  kind: 'hackers' | 'tools',
+  targets: string[]
+): Promise<IResponse<{ items: string[]; total: number }>> =>
+  request.post({ url: targetUrl(kind), data: { action: 'remove', targets } })
