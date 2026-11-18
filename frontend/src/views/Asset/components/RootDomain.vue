@@ -90,7 +90,7 @@ const crudSchemas = reactive<CrudSchema[]>([
       <div class="flex items-center">
         <span>{domain}</span>
         <ElTooltip content="复制根域名" placement="top">
-          <Icon aria-label="复制根域名"
+          <Icon aria-label="复制根域名" role="button" tabindex="0"
             icon="ep:copy-document"
             size={13}
             color="var(--el-text-color-placeholder)"

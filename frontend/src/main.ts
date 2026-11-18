@@ -30,6 +30,7 @@ import { setupPermission } from './directives'
 
 // 列表页搜索框回车即搜索
 import { setupEnterToSearch } from '@/utils/enterSearch'
+import { setupKeyboardActivation } from '@/utils/a11yKeyboard'
 
 import { createApp } from 'vue'
 
@@ -40,6 +41,7 @@ import './permission'
 // 创建实例
 const setupAll = async () => {
   setupEnterToSearch()
+  setupKeyboardActivation()
   const app = createApp(App)
 
   await setupI18n(app)
