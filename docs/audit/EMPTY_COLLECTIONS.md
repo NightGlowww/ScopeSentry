@@ -216,3 +216,12 @@
 | mcp_call_logs | 4481 | **4610** |
 | notification 生产者 | 「无生产者」 | **有**（AddNotification 调 InsertOne）；断点在投递函数 |
 | plugins 判读 | 隐含 status 为执行开关 | status 全 false 但扫描在跑；真正开关是模板模块数组 |
+## 处置记录（截至 v2.0.128）
+
+| 集合 | 处置 |
+| --- | --- |
+| `scan_policy` | 已接线（v2.0.128）：建任务 policyId → templateId 兜底 + plugins 按阶段裁剪；生产已验证策略插件进入 NodeTask 载荷 |
+| `PageMonitoring` / `PageMonitoringBody` | 已闭环：三处断点修复 + 启动期自动注册；实测 cron 每分钟触发，25s 内 body 0→1 |
+| `app` / `mp` / `cip` / `fileleak` / `npoc_service` | 已标注：页面顶部说明「无写入方」 |
+| `github_result` / `github_task` / `github_threat_history` | 未启用属预期：采集开关默认 false 且需 GitHub Token；缺 token 时 Threat 页显示 token=missing |
+| `icon` | 待删（C 类）：v18 后改存 asset.iconcontent，无写入方，worker 仍在读 |
