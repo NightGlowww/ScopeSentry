@@ -44,7 +44,11 @@ export default defineComponent({
     }
 
     const renderBreadcrumb = () => {
-      const breadcrumbList = treeToList<AppRouteRecordRaw[]>(unref(levelList))
+      // 路由链里有一些只用于布局/重定向、没有 title 的节点，
+      // 不过滤会在面包屑里留下"配置 / / / 系统日志"这种空条目和多余分隔符
+      const breadcrumbList = treeToList<AppRouteRecordRaw[]>(unref(levelList)).filter(
+        (v) => !!v?.meta?.title
+      )
       return breadcrumbList.map((v) => {
         const disabled = !v.redirect || v.redirect === 'noredirect'
         const meta = v.meta
