@@ -509,6 +509,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'status',
+        component: () => import('@/views/Configuration/SystemStatus.vue'),
+        name: 'system status',
+        meta: {
+          title: t('router.systemStatus'),
+          icon: 'mdi:server-network',
+          noCache: true
+        }
+      },
+      {
         path: 'backup',
         component: () => import('@/views/Configuration/Backup.vue'),
         name: 'backup configuration',
