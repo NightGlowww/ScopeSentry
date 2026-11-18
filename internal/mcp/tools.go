@@ -30,7 +30,9 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
 	"github.com/Autumn-27/ScopeSentry/internal/services/poc"
+	"github.com/Autumn-27/ScopeSentry/internal/services/policy"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
+	"github.com/Autumn-27/ScopeSentry/internal/services/sensitive_rule"
 	taskCommon "github.com/Autumn-27/ScopeSentry/internal/services/task/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/template"
@@ -40,55 +42,59 @@ import (
 )
 
 type deps struct {
-	projectService     project.Service
-	taskService        task.Service
-	taskCommonService  taskCommon.Service
-	templateService    template.Service
-	assetService       asset.Service
-	rootDomainService  root_domain.Service
-	subdomainService   subdomain.Service
-	appService         app.Service
-	mpService          mp.Service
-	urlService         url.Service
-	sensitiveService   sensitive.Service
-	dirscanService     dirscan.Service
-	crawlerService     crawler.Service
-	vulnService        vulnerability.Service
-	ipService          ip.Service
-	pageMonService     page_monitoring.Service
-	commonService      assetCommon.Service
-	nodeService        node.Service
-	pluginService      plugin.Service
-	pocService         poc.Service
-	fingerprintService fingerprint.Service
-	dictService        dictionary.ManageService
-	dashboardService   dashboard.Service
+	projectService       project.Service
+	taskService          task.Service
+	taskCommonService    taskCommon.Service
+	templateService      template.Service
+	assetService         asset.Service
+	rootDomainService    root_domain.Service
+	subdomainService     subdomain.Service
+	appService           app.Service
+	mpService            mp.Service
+	urlService           url.Service
+	sensitiveService     sensitive.Service
+	dirscanService       dirscan.Service
+	crawlerService       crawler.Service
+	vulnService          vulnerability.Service
+	ipService            ip.Service
+	pageMonService       page_monitoring.Service
+	commonService        assetCommon.Service
+	nodeService          node.Service
+	pluginService        plugin.Service
+	pocService           poc.Service
+	fingerprintService   fingerprint.Service
+	dictService          dictionary.ManageService
+	dashboardService     dashboard.Service
+	policyService        *policy.Service
+	sensitiveRuleService sensitive_rule.Service
 }
 
 var d = &deps{
-	projectService:     project.NewService(),
-	taskService:        task.NewService(),
-	taskCommonService:  taskCommon.NewService(),
-	templateService:    template.NewService(),
-	assetService:       asset.NewService(),
-	rootDomainService:  root_domain.NewService(),
-	subdomainService:   subdomain.NewService(),
-	appService:         app.NewService(),
-	mpService:          mp.NewService(),
-	urlService:         url.NewService(),
-	sensitiveService:   sensitive.NewService(),
-	dirscanService:     dirscan.NewService(),
-	crawlerService:     crawler.NewService(),
-	vulnService:        vulnerability.NewService(),
-	ipService:          ip.NewService(),
-	pageMonService:     page_monitoring.NewService(),
-	commonService:      assetCommon.NewService(),
-	nodeService:        node.NewService(),
-	pluginService:      plugin.NewService(),
-	pocService:         poc.NewService(),
-	fingerprintService: fingerprint.NewService(),
-	dictService:        dictionary.NewManageService(),
-	dashboardService:   dashboard.NewService(),
+	projectService:       project.NewService(),
+	taskService:          task.NewService(),
+	taskCommonService:    taskCommon.NewService(),
+	templateService:      template.NewService(),
+	assetService:         asset.NewService(),
+	rootDomainService:    root_domain.NewService(),
+	subdomainService:     subdomain.NewService(),
+	appService:           app.NewService(),
+	mpService:            mp.NewService(),
+	urlService:           url.NewService(),
+	sensitiveService:     sensitive.NewService(),
+	dirscanService:       dirscan.NewService(),
+	crawlerService:       crawler.NewService(),
+	vulnService:          vulnerability.NewService(),
+	ipService:            ip.NewService(),
+	pageMonService:       page_monitoring.NewService(),
+	commonService:        assetCommon.NewService(),
+	nodeService:          node.NewService(),
+	pluginService:        plugin.NewService(),
+	pocService:           poc.NewService(),
+	fingerprintService:   fingerprint.NewService(),
+	dictService:          dictionary.NewManageService(),
+	dashboardService:     dashboard.NewService(),
+	policyService:        policy.NewService(),
+	sensitiveRuleService: sensitive_rule.NewService(),
 }
 
 func registerTools(server *mcp.Server, allowedTools map[string]bool) {
@@ -219,6 +225,52 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "get_console_info",
 		Description: "控制台信息：版本、uptime、节点与任务数量、依赖状态",
 	}, getConsoleInfo)
+
+	// ---- 写/控：任务、扫描策略、敏感信息规则 ----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_task_progress",
+		Description: "查询任务的目标级进度（分页）",
+	}, getTaskProgress)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "start_task",
+		Description: "启动指定任务（任务需处于暂停/待开始状态）",
+	}, startTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "stop_task",
+		Description: "暂停指定任务",
+	}, stopTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_task",
+		Description: "删除指定任务，可选同时删除其资产",
+	}, deleteTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_scan_policies",
+		Description: "分页查询扫描策略",
+	}, listScanPolicies)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_scan_policy",
+		Description: "创建扫描策略",
+	}, createScanPolicy)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_scan_policies",
+		Description: "批量删除扫描策略",
+	}, deleteScanPolicies)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_sensitive_rules",
+		Description: "分页查询敏感信息规则",
+	}, listSensitiveRules)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "set_sensitive_rule_state",
+		Description: "批量启用/停用敏感信息规则",
+	}, setSensitiveRuleState)
 
 	recordToolNames(names)
 	warnUnregisteredTools(names)
@@ -1131,4 +1183,214 @@ func getConsoleInfo(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*m
 		return errorResult("获取控制台信息失败", err)
 	}
 	return jsonToolResult(res)
+}
+
+// ---------------------------------------------------------------------------
+// 写/控工具：任务 / 扫描策略 / 敏感信息规则
+// ---------------------------------------------------------------------------
+
+type taskIDInput struct {
+	ID string `json:"id" jsonschema:"任务 ID"`
+}
+
+func getTaskProgress(ctx context.Context, _ *mcp.CallToolRequest, input struct {
+	ID        string `json:"id" jsonschema:"任务 ID"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20"`
+}) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.ID) == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	if pi <= 0 {
+		pi = 1
+	}
+	if ps <= 0 {
+		ps = 20
+	}
+	res, err := d.taskService.GetTaskProgress(ginContext(ctx), input.ID, pi, ps)
+	if err != nil {
+		return errorResult("获取任务进度失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+func startTask(ctx context.Context, _ *mcp.CallToolRequest, input taskIDInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.ID) == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	if err := d.taskService.StartTasks(ginContext(ctx), []string{input.ID}); err != nil {
+		return errorResult("启动任务失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "id": input.ID})
+}
+
+func stopTask(ctx context.Context, _ *mcp.CallToolRequest, input taskIDInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.ID) == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	if err := d.taskService.StopTasks(ginContext(ctx), []string{input.ID}); err != nil {
+		return errorResult("暂停任务失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "id": input.ID})
+}
+
+type deleteTaskInput struct {
+	IDs          []string `json:"ids" jsonschema:"要删除的任务 ID 列表"`
+	DeleteAssets bool     `json:"deleteAssets,omitempty" jsonschema:"是否同时删除任务产出的资产，默认 false"`
+}
+
+func deleteTask(ctx context.Context, _ *mcp.CallToolRequest, input deleteTaskInput) (*mcp.CallToolResult, any, error) {
+	ids := make([]string, 0, len(input.IDs))
+	for _, id := range input.IDs {
+		if strings.TrimSpace(id) != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return errorResult("ids 不能为空", nil)
+	}
+	if err := d.taskService.DeleteTasks(ginContext(ctx), ids, input.DeleteAssets); err != nil {
+		return errorResult("删除任务失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "deleted": len(ids), "deleteAssets": input.DeleteAssets})
+}
+
+type listScanPoliciesInput struct {
+	Keyword   string `json:"keyword,omitempty" jsonschema:"策略名称关键字"`
+	Enabled   *bool  `json:"enabled,omitempty" jsonschema:"按启用状态过滤"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listScanPolicies(ctx context.Context, _ *mcp.CallToolRequest, input listScanPoliciesInput) (*mcp.CallToolResult, any, error) {
+	if d.policyService == nil {
+		return errorResult("扫描策略服务未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	if pi <= 0 {
+		pi = 1
+	}
+	if ps <= 0 {
+		ps = 20
+	}
+	if ps > 200 {
+		ps = 200
+	}
+	list, total, err := d.policyService.List(ctx, models.ScanPolicyListQuery{
+		Keyword: input.Keyword, Enabled: input.Enabled, PageIndex: pi, PageSize: ps,
+	})
+	if err != nil {
+		return errorResult("获取扫描策略失败", err)
+	}
+	return jsonToolResult(ginH{"list": list, "total": total})
+}
+
+type createScanPolicyInput struct {
+	Name        string         `json:"name" jsonschema:"策略名称"`
+	Description string         `json:"description,omitempty" jsonschema:"策略描述"`
+	Config      map[string]any `json:"config,omitempty" jsonschema:"策略配置对象（并发、超时、插件开关等），结构同 UI 导出"`
+	Enabled     *bool          `json:"enabled,omitempty" jsonschema:"是否启用，默认 true"`
+}
+
+func createScanPolicy(ctx context.Context, _ *mcp.CallToolRequest, input createScanPolicyInput) (*mcp.CallToolResult, any, error) {
+	if d.policyService == nil {
+		return errorResult("扫描策略服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Name) == "" {
+		return errorResult("name 不能为空", nil)
+	}
+	var cfg models.ScanPolicyConfig
+	if len(input.Config) > 0 {
+		raw, err := json.Marshal(input.Config)
+		if err != nil {
+			return errorResult("config 序列化失败", err)
+		}
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			return errorResult("config 结构不符合扫描策略格式", err)
+		}
+	}
+	res, err := d.policyService.Create(ctx, models.ScanPolicyCreateRequest{
+		Name: input.Name, Description: input.Description, Config: cfg, Enabled: input.Enabled,
+	})
+	if err != nil {
+		return errorResult("创建扫描策略失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type deleteScanPoliciesInput struct {
+	IDs []string `json:"ids" jsonschema:"要删除的策略 ID 列表"`
+}
+
+func deleteScanPolicies(ctx context.Context, _ *mcp.CallToolRequest, input deleteScanPoliciesInput) (*mcp.CallToolResult, any, error) {
+	if d.policyService == nil {
+		return errorResult("扫描策略服务未初始化", nil)
+	}
+	ids := make([]string, 0, len(input.IDs))
+	for _, id := range input.IDs {
+		if strings.TrimSpace(id) != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return errorResult("ids 不能为空", nil)
+	}
+	n, err := d.policyService.Delete(ctx, ids)
+	if err != nil {
+		return errorResult("删除扫描策略失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "deleted": n})
+}
+
+type listSensitiveRulesInput struct {
+	Search    string `json:"search,omitempty" jsonschema:"规则名称/正则关键字"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listSensitiveRules(ctx context.Context, _ *mcp.CallToolRequest, input listSensitiveRulesInput) (*mcp.CallToolResult, any, error) {
+	if d.sensitiveRuleService == nil {
+		return errorResult("敏感信息规则服务未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	if pi <= 0 {
+		pi = 1
+	}
+	if ps <= 0 {
+		ps = 20
+	}
+	if ps > 200 {
+		ps = 200
+	}
+	list, total, err := d.sensitiveRuleService.RuleList(ginContext(ctx), input.Search, pi, ps)
+	if err != nil {
+		return errorResult("获取敏感信息规则失败", err)
+	}
+	return jsonToolResult(ginH{"list": list, "total": total})
+}
+
+type setSensitiveRuleStateInput struct {
+	IDs   []string `json:"ids" jsonschema:"规则 ID 列表"`
+	State bool     `json:"state" jsonschema:"true 启用，false 停用"`
+}
+
+func setSensitiveRuleState(ctx context.Context, _ *mcp.CallToolRequest, input setSensitiveRuleStateInput) (*mcp.CallToolResult, any, error) {
+	if d.sensitiveRuleService == nil {
+		return errorResult("敏感信息规则服务未初始化", nil)
+	}
+	ids := make([]string, 0, len(input.IDs))
+	for _, id := range input.IDs {
+		if strings.TrimSpace(id) != "" {
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return errorResult("ids 不能为空", nil)
+	}
+	n, err := d.sensitiveRuleService.RuleUpdateState(ginContext(ctx), ids, input.State)
+	if err != nil {
+		return errorResult("更新规则状态失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "updated": n, "state": input.State})
 }
