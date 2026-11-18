@@ -916,6 +916,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    allPocNucleiWarning: '현재 스캔 노드의 nuclei는 단일 파일 -t만 지원합니다. All POC를 선택하면 조용히 무시되어 0건이 됩니다. 개별 POC를 선택하거나 노드 측 파라미터 처리를 먼저 업그레이드하세요.',
     failed: '실패',
     syncToProjectHint: '선택한 작업의 자산을 프로젝트로 동기화합니다. 이미 있는 자산은 중복되지 않습니다.',
     confirmStopSelected: '선택한 작업을 일시중지할까요? 나중에 재개할 수 있습니다.',

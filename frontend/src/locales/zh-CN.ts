@@ -893,6 +893,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    allPocNucleiWarning: '当前扫描节点的 nuclei 只接受单文件 -t，选择「全部 POC」会被静默忽略（0 命中）。请改选具体 POC，或先升级节点侧 nuclei 参数解析。',
     failed: '失败',
     syncToProjectHint: '把选中任务的资产同步到项目，已存在的资产不会重复导入。',
     confirmStopSelected: '暂停选中的任务？暂停后可以继续，未完成的查询会保留。',

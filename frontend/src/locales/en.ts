@@ -924,6 +924,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    allPocNucleiWarning: 'The scan node currently accepts only a single-file -t; choosing All POC is silently ignored (0 hits). Pick explicit POCs, or upgrade the node-side nuclei argument handling first.',
     failed: 'Failed',
     syncToProjectHint:
       'Sync selected task assets into a project; existing assets are not duplicated.',
