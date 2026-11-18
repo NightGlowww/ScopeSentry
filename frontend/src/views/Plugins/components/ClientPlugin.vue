@@ -2,7 +2,7 @@
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, onMounted, h, inject, computed, type Ref } from 'vue'
-import { ArrowDown, Search } from '@element-plus/icons-vue'
+import { ArrowDown, Search, Upload } from '@element-plus/icons-vue'
 import {
   ElButton,
   ElCol,
@@ -546,10 +546,7 @@ defineExpose({
             @change="handleFileChange"
           >
             <template #trigger>
-              <BaseButton>
-                <template #icon>
-                  <Icon icon="iconoir:upload" />
-                </template>
+              <BaseButton :icon="Upload">
                 {{ t('plugin.import') }}
               </BaseButton>
             </template>

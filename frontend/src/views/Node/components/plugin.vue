@@ -21,15 +21,18 @@ const progressColums = reactive<TableColumn[]>([
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '15'
+    width: 56
   },
   {
     field: 'name',
-    label: t('plugin.name')
+    label: t('plugin.name'),
+    minWidth: 170,
+    showOverflowTooltip: true
   },
   {
     field: 'install',
     label: t('plugin.install'),
+    width: 84,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       return cellValue == '1' ? correctIcon : errorIcon
     }
@@ -37,6 +40,7 @@ const progressColums = reactive<TableColumn[]>([
   {
     field: 'check',
     label: t('plugin.reCheck'),
+    width: 96,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       return cellValue == '1' ? correctIcon : errorIcon
     }
@@ -44,10 +48,10 @@ const progressColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 200,
+    width: 250,
     formatter: (row, __: TableColumn, _: number) => {
       return (
-        <>
+        <div style="display: flex; align-items: center; gap: 6px">
           <BaseButton type="warning" onClick={() => handleAction('reinstall', row)}>
             {t('plugin.reInstall')}
           </BaseButton>
@@ -57,7 +61,7 @@ const progressColums = reactive<TableColumn[]>([
           <BaseButton type="danger" onClick={() => handleAction('uninstall', row)}>
             {t('plugin.uninstall')}
           </BaseButton>
-        </>
+        </div>
       )
     }
   }
