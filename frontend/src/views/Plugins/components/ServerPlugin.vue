@@ -63,16 +63,18 @@ const taskColums = reactive<TableColumn[]>([
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '15'
+    width: 56
   },
   {
     field: 'selection',
     type: 'selection',
-    minWidth: 55
+    width: 48
   },
   {
     field: 'name',
     label: t('plugin.name'),
+    minWidth: 190,
+    showOverflowTooltip: true,
     formatter: (row, __: TableColumn, value: string) => {
       return (
         <a
@@ -88,7 +90,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'status',
     label: t('plugin.status'),
-    minWidth: 100,
+    width: 96,
     formatter: (row, __: TableColumn, value: boolean | undefined) => {
       const handleStatusChange = async (checked: boolean) => {
         const status = checked
@@ -114,7 +116,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'lastTime',
     label: t('task.lastTime'),
-    minWidth: 100,
+    width: 172,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       if (cellValue == '') {
         return '-'
@@ -125,7 +127,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'nextTime',
     label: t('task.nextTime'),
-    minWidth: 100,
+    width: 172,
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
       if (cellValue == '') {
         return '-'
@@ -139,17 +141,18 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'version',
     label: t('plugin.version'),
-    minWidth: 50
+    width: 84
   },
   {
     field: 'introduction',
     label: t('plugin.introduction'),
-    minWidth: 200
+    minWidth: 180,
+    showOverflowTooltip: true
   },
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: '300',
+    width: 300,
     fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
