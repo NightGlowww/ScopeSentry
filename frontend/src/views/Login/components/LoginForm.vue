@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { reactive, ref, watch, onMounted, unref } from 'vue'
+import { reactive, ref, watch, onMounted, unref, nextTick } from 'vue'
 import { Form, FormSchema } from '@/components/Form'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ElCheckbox } from 'element-plus'
@@ -117,6 +117,11 @@ const initLoginInfo = () => {
 }
 onMounted(() => {
   initLoginInfo()
+  // 组件里的 autofocus 属性在自定义 Form 里不生效，这里显式聚焦第一个输入框
+  nextTick(() => {
+    const el = document.querySelector('.login-form input') as HTMLInputElement | null
+    el?.focus()
+  })
 })
 
 const { formRegister, formMethods } = useForm()
