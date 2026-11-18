@@ -11,13 +11,16 @@ import {
   InputInstance,
   ElTag,
   ElInput,
-  ElButton
+  ElButton,
+  ElTooltip
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getSubdomainApi, totalDataApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
+import { Icon } from '@/components/Icon'
+import { copyText } from '@/utils/clipboard'
 const { t } = useI18n()
 interface Project {
   value: string
@@ -87,7 +90,21 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'host',
     label: t('subdomain.subdomainName'),
-    minWidth: 200
+    minWidth: 200,
+    formatter: (_: Recordable, __: TableColumn, host: string) => (
+      <div class="flex items-center">
+        <span>{host}</span>
+        <ElTooltip content="复制子域名" placement="top">
+          <Icon
+            icon="ep:copy-document"
+            size={13}
+            color="var(--el-text-color-placeholder)"
+            class="ml-4px cursor-pointer"
+            onClick={() => copyText(host)}
+          />
+        </ElTooltip>
+      </div>
+    )
   },
   {
     field: 'type',
@@ -107,14 +124,22 @@ const crudSchemas = reactive<CrudSchema[]>([
     label: t('subdomain.recordValue'),
     minWidth: 250,
     formatter: (_: Recordable, __: TableColumn, RecordValue: string[]) => {
-      if (RecordValue == null) {
-        return
-      }
-      let content = ''
-      RecordValue.forEach((item, _) => {
-        content += `${item}\r\n`
-      })
-      return content
+      if (RecordValue == null) return '-'
+      const text = RecordValue.join('\n')
+      return (
+        <div class="flex items-center">
+          <span style="white-space: pre-line">{text}</span>
+          <ElTooltip content="复制记录值" placement="top">
+            <Icon
+              icon="ep:copy-document"
+              size={13}
+              color="var(--el-text-color-placeholder)"
+              class="ml-4px cursor-pointer"
+              onClick={() => copyText(text)}
+            />
+          </ElTooltip>
+        </div>
+      )
     }
   },
   {
@@ -122,14 +147,22 @@ const crudSchemas = reactive<CrudSchema[]>([
     label: t('asset.IP'),
     minWidth: 150,
     formatter: (_: Recordable, __: TableColumn, IPValue: string[]) => {
-      if (IPValue == null) {
-        return
-      }
-      let content = ''
-      IPValue.forEach((item, _) => {
-        content += `${item}\r\n`
-      })
-      return content
+      if (IPValue == null) return '-'
+      const text = IPValue.join('\n')
+      return (
+        <div class="flex items-center">
+          <span style="white-space: pre-line">{text}</span>
+          <ElTooltip content="复制 IP" placement="top">
+            <Icon
+              icon="ep:copy-document"
+              size={13}
+              color="var(--el-text-color-placeholder)"
+              class="ml-4px cursor-pointer"
+              onClick={() => copyText(text)}
+            />
+          </ElTooltip>
+        </div>
+      )
     }
   },
   {
