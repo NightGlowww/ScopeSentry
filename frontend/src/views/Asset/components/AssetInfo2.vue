@@ -228,8 +228,8 @@ let crudSchemas = reactive<CrudSchema[]>([
           <Icon
             icon="arcticons:ip-tools"
             style={'transform: translateY(30%)'}
-            size={15}
-            color="red"
+            size={14}
+            color="var(--el-text-color-secondary)"
           />
           <ElLink href={row.url} underline={false}>
             {ipValue}

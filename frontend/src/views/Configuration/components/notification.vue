@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { confirmDialog } from '@/utils/confirm'
 import {
   ElRow,
   ElCol,
@@ -215,7 +216,7 @@ const del = async (data) => {
 const ids = ref<string[]>([])
 
 const confirmDelete = async () => {
-  const confirmed = window.confirm(t('common.delMessage'))
+  const confirmed = await confirmDialog(t('common.delMessage'))
   if (confirmed) {
     await delSelect()
   }

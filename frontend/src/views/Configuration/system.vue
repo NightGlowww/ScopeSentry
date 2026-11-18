@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmDialog } from '@/utils/confirm'
 import {
   ElRow,
   ElCol,
@@ -39,7 +40,7 @@ onBeforeMount(async () => {
   }
 })
 const confirmAdd = async () => {
-  const confirmed = window.confirm(t('localization.saveConfirm'))
+  const confirmed = await confirmDialog(t('localization.saveConfirm'))
   if (confirmed) {
     await save()
   }

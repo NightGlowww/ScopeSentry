@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { confirmDialog } from '@/utils/confirm'
 import { ElRow, ElCol, ElButton } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ElCard } from 'element-plus'
@@ -24,7 +25,7 @@ onBeforeMount(async () => {
   }
 })
 const confirmAdd = async () => {
-  const confirmed = window.confirm(t('localization.saveConfirm'))
+  const confirmed = await confirmDialog(t('localization.saveConfirm'))
   if (confirmed) {
     await save()
   }

@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, h, onMounted, resolveComponent } from 'vue'
@@ -503,7 +504,7 @@ const delSelect = async (delA) => {
   }
 }
 const confirmRetest = async (data) => {
-  const confirmed = window.confirm(t('localization.retestConfirm'))
+  const confirmed = await confirmDialog(t('localization.retestConfirm'))
   if (confirmed) {
     await retestTask(data)
   }
