@@ -269,6 +269,11 @@ const confirmCleanAllLog = async () => {
   })
 }
 const delLoading = ref(false)
+// 未勾选任何插件时，批量删除应禁用（系统插件不可选，此时按钮保持禁用）
+const tableSelectedCount = ref(0)
+const handleTableSelectionChange = (rows: unknown[]) => {
+  tableSelectedCount.value = rows?.length ?? 0
+}
 const del = async (hash: string, module: string) => {
   delLoading.value = true
   try {
@@ -506,7 +511,12 @@ defineExpose({
             {{ t('plugin.new') }}
           </BaseButton>
 
-          <BaseButton type="danger" :loading="delLoading" @click="confirmDeleteSelect">
+          <BaseButton
+            type="danger"
+            :loading="delLoading"
+            :disabled="tableSelectedCount === 0"
+            @click="confirmDeleteSelect"
+          >
             {{ t('plugin.delete') }}
           </BaseButton>
 
@@ -560,7 +570,8 @@ defineExpose({
           total: total,
           pageSizes: [20, 30, 50, 100, 200, 500, 1000]
         }"
-        @register="tableRegister"
+        @selection-change="handleTableSelectionChange"
+      @register="tableRegister"
         :headerCellStyle="tableHeaderColor"
         :style="{
           fontFamily:
