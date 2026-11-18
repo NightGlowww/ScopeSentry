@@ -133,6 +133,9 @@ const nodeUsageColumns = reactive<TableColumn[]>([
       return h(ElProgress, {
         percentage: numericValue,
         type: 'dashboard',
+        /* 默认 126px 的仪表盘放在表格里会把行撑到 130px 高，缩到 56px */
+        width: 56,
+        strokeWidth: 5,
         color: numericValue < 50 ? '#26a33f' : numericValue <= 80 ? '#fe9900' : '#df2800'
       })
     }
@@ -146,6 +149,8 @@ const nodeUsageColumns = reactive<TableColumn[]>([
       return h(ElProgress, {
         percentage: numericValue,
         type: 'dashboard',
+        width: 56,
+        strokeWidth: 5,
         color: numericValue < 50 ? '#26a33f' : numericValue < 80 ? '#fe9900' : '#df2800'
       })
     }

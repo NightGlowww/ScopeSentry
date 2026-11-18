@@ -267,7 +267,11 @@ watch(
     <span
       :class="`${prefixCls}__tool ${prefixCls}__tool--first`"
       class="w-[var(--tags-view-height)] h-[var(--tags-view-height)] flex items-center justify-center cursor-pointer"
+      role="button"
+      tabindex="0"
+      aria-label="向左滚动标签"
       @click="move(-200)"
+      @keydown.enter="move(-200)"
     >
       <Icon
         icon="ep:d-arrow-left"
@@ -384,7 +388,11 @@ watch(
     <span
       :class="`${prefixCls}__tool`"
       class="w-[var(--tags-view-height)] h-[var(--tags-view-height)] flex items-center justify-center cursor-pointer"
+      role="button"
+      tabindex="0"
+      aria-label="向右滚动标签"
       @click="move(200)"
+      @keydown.enter="move(200)"
     >
       <Icon
         icon="ep:d-arrow-right"
@@ -395,7 +403,11 @@ watch(
     <span
       :class="`${prefixCls}__tool`"
       class="w-[var(--tags-view-height)] h-[var(--tags-view-height)] flex items-center justify-center cursor-pointer"
+      role="button"
+      tabindex="0"
+      :aria-label="t('common.reload')"
       @click="refreshSelectedTag(selectedTag)"
+      @keydown.enter="refreshSelectedTag(selectedTag)"
     >
       <Icon
         icon="ant-design:reload-outlined"
