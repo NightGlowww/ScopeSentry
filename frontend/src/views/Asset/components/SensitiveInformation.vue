@@ -89,7 +89,7 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '55'
+    minWidth: 55
   },
   {
     field: 'index',
@@ -308,7 +308,7 @@ const crudSchemas = reactive<CrudSchema[]>([
         )
       ])
     },
-    minWidth: '130'
+    minWidth: 130
   },
   {
     field: 'time',

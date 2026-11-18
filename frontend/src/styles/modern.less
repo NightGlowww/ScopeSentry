@@ -916,3 +916,13 @@ html .el-button {
   color: var(--el-button-text-color, var(--el-text-color-regular));
 }
 
+
+/* 这些"一个 col 一个按钮"的行通常带 :gutter，ElRow 会给行本身负 margin（-gutter/2），
+   而我们把 col 的 padding 归零了，行就整体左移、第一个按钮被卡片边缘切掉。
+   行级负 margin 一并归零。 */
+html .el-row:has(> .el-col:has(> .el-button)),
+html .el-row:has(> .el-col:has(> div > .el-button)) {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+

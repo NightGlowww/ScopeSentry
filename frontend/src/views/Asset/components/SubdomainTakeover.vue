@@ -78,33 +78,33 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '55'
+    minWidth: 55
   },
   {
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '30'
+    minWidth: 30
   },
   {
     field: 'host',
     label: t('asset.domain'),
-    minWidth: '300'
+    minWidth: 300
   },
   {
     field: 'value',
     label: t('subdomain.recordValue'),
-    minWidth: '400'
+    minWidth: 400
   },
   {
     field: 'type',
     label: t('export.type'),
-    minWidth: '200'
+    minWidth: 200
   },
   {
     field: 'response',
     label: t('localization.response'),
-    minWidth: '300',
+    minWidth: 300,
     formatter: (_: Recordable, __: TableColumn, Value: string) => {
       return (
         <ElScrollbar max-height="100">
@@ -209,7 +209,7 @@ const crudSchemas = reactive<CrudSchema[]>([
         )
       ])
     },
-    minWidth: '130'
+    minWidth: 130
   }
 ])
 let index = 'SubdomainTakerResult'

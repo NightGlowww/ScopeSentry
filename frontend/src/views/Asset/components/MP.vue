@@ -71,38 +71,38 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '35'
+    minWidth: 35
   },
   {
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '30'
+    minWidth: 30
   },
   {
     field: 'name',
     label: t('app.name'),
-    minWidth: '120'
+    minWidth: 120
   },
   {
     field: 'description',
     label: t('app.description'),
-    minWidth: '100'
+    minWidth: 100
   },
   {
     field: 'icp',
     label: 'ICP',
-    minWidth: '180'
+    minWidth: 180
   },
   {
     field: 'company',
     label: t('rootDomain.company'),
-    minWidth: '210'
+    minWidth: 210
   },
   {
     field: 'project',
     label: t('project.project'),
-    minWidth: '150'
+    minWidth: 150
   },
   {
     field: 'tags',
@@ -200,12 +200,12 @@ const crudSchemas = reactive<CrudSchema[]>([
         )
       ])
     },
-    minWidth: '130'
+    minWidth: 130
   },
   {
     field: 'time',
     label: t('asset.time'),
-    minWidth: '180'
+    minWidth: 180
   }
 ])
 let index = 'mp'
