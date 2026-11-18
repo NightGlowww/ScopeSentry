@@ -78,3 +78,17 @@
 | 暗色模式大面积浅色面板（>4000px²） | 0（抽查 7 页） |
 
 覆盖路由：dashboard、asset-information 14 个子页、task-management 3 个、plugin、node、project(+detail)、poc、fingerprint、sensitive、dictionary 4 个、configuration 5 个、about。
+
+## 交互规范（评审清单）
+
+新增功能或修 UI 时逐条对照：
+
+1. **确认框**：必须同时有「取消 + 确定」和一句正文（说明后果），不允许只有标题或只有「确定」。
+2. **破坏性操作**（删除/清空/覆盖）：按钮用 `danger`，且未满足前置条件（未勾选、未填必填项）时禁用。
+3. **空结果**：不显示分页器；空态用 `ElEmpty`，必要时说明「为什么会空、去哪看」。
+4. **长文本单元格**：链接负责 `text-overflow: ellipsis`，行内图标 `flex: 0 0 auto`，不允许把图标裁掉。
+5. **列表操作列**：宽度按按钮实际需要设定；不需要横向滚动时不要 `fixed: 'right'`。
+6. **i18n**：新增文案必须进语言包（zh-CN / en / ko-KR），禁止在组件里写死中英文；新增 key 后要确认三个语言包都有。
+7. **加载态**：首屏无数据时用骨架屏；有数据刷新时用 `v-loading`，不要闪骨架。
+8. **可访问性**：纯图标按钮必须有 `aria-label`；键盘可聚焦（`role=button` + `tabindex=0` + Enter）。
+9. **数字展示**：字节、百分比等按人类可读格式化（B/KB/MB、保留 1~2 位小数），原始值放 `title`。

@@ -907,6 +907,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    syncToProjectHint:
+      'Sync selected task assets into a project; existing assets are not duplicated.',
     confirmStopSelected: 'Pause the selected tasks? You can resume later.',
     confirmStartSelected: 'Resume the selected tasks from where they stopped.',
     done: 'Done',

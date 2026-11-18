@@ -876,6 +876,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    syncToProjectHint: '把选中任务的资产同步到项目，已存在的资产不会重复导入。',
     confirmStopSelected: '暂停选中的任务？暂停后可以继续，未完成的查询会保留。',
     confirmStartSelected: '继续选中的任务？会从上次暂停的位置接着查。',
     done: '完成',
