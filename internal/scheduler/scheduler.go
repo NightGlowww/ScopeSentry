@@ -43,6 +43,9 @@ type Job struct {
 // Scheduler 表示计划任务调度器
 type Scheduler struct {
 	// started 标记 Start() 是否已执行；之后注册 handler 需要回头补排历史任务
+	// mu 保护 jobs 映射与 started：AddJob/UpdateJob/RemoveJob 会来自并发 HTTP 请求，
+	// gocron 自身线程安全，但 map 并发读写会让进程直接 panic。
+	mu             sync.Mutex
 	started        bool
 	scheduler      *gocron.Scheduler
 	db             *mongo.Database
@@ -102,7 +105,7 @@ func NewScheduler() *Scheduler {
 func (s *Scheduler) RegisterHandler(name string, handler JobHandler) {
 	s.handlers[name] = handler
 	s.logger.Info("Registered job handler", zap.String("handler_name", name))
-	if s.started {
+	if s.isStarted() {
 		s.schedulePendingForHandler(name)
 	}
 }
@@ -121,7 +124,7 @@ func (s *Scheduler) schedulePendingForHandler(name string) {
 		if err := cursor.Decode(&job); err != nil {
 			continue
 		}
-		if _, exists := s.jobs[job.ID]; exists {
+		if s.hasJob(job.ID) {
 			continue
 		}
 		if !s.scheduleJob(job) {
@@ -136,7 +139,47 @@ func (s *Scheduler) schedulePendingForHandler(name string) {
 func (s *Scheduler) Start() {
 	s.scheduler.StartAsync()
 	s.loadJobs()
+	s.mu.Lock()
 	s.started = true
+	s.mu.Unlock()
+}
+
+// isStarted 读 started（加锁）。
+func (s *Scheduler) isStarted() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.started
+}
+
+// setJob / hasJob / getJob / takeJob 统一收口 jobs 映射的并发访问。
+func (s *Scheduler) setJob(id string, j *gocron.Job) {
+	s.mu.Lock()
+	s.jobs[id] = j
+	s.mu.Unlock()
+}
+
+func (s *Scheduler) hasJob(id string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.jobs[id]
+	return ok
+}
+
+func (s *Scheduler) getJob(id string) (*gocron.Job, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	return j, ok
+}
+
+func (s *Scheduler) takeJob(id string) (*gocron.Job, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	j, ok := s.jobs[id]
+	if ok {
+		delete(s.jobs, id)
+	}
+	return j, ok
 }
 
 // Stop 停止调度器
@@ -152,7 +195,7 @@ func (s *Scheduler) AddJob(job *Job) error {
 	}
 
 	// 检查任务是否已经存在（内存中）
-	if _, exists := s.jobs[job.ID]; exists {
+	if s.hasJob(job.ID) {
 		// 任务已存在，直接返回成功
 		return nil
 	}
@@ -195,7 +238,7 @@ func (s *Scheduler) AddJob(job *Job) error {
 		return err2
 	}
 
-	s.jobs[job.ID] = schedJob
+	s.setJob(job.ID, schedJob)
 
 	// 添加日志记录
 	s.logger.Info("Successfully added new job",
@@ -211,9 +254,8 @@ func (s *Scheduler) AddJob(job *Job) error {
 // RemoveJob 移除一个任务
 func (s *Scheduler) RemoveJob(jobID string) error {
 	// 从调度器中移除任务
-	if job, exists := s.jobs[jobID]; exists {
+	if job, exists := s.takeJob(jobID); exists {
 		s.scheduler.RemoveByReference(job)
-		delete(s.jobs, jobID)
 	}
 
 	// 从 MongoDB 中删除任务
@@ -241,7 +283,7 @@ func (s *Scheduler) UpdateJob(job *Job) error {
 	}
 
 	// 从调度器中移除旧任务
-	if oldJob, exists := s.jobs[job.ID]; exists {
+	if oldJob, exists := s.getJob(job.ID); exists {
 		s.scheduler.RemoveByReference(oldJob)
 	}
 
@@ -251,7 +293,7 @@ func (s *Scheduler) UpdateJob(job *Job) error {
 		return err
 	}
 
-	s.jobs[job.ID] = schedJob
+	s.setJob(job.ID, schedJob)
 	return nil
 }
 
@@ -301,7 +343,7 @@ func (s *Scheduler) scheduleJob(job Job) bool {
 		s.logger.Error("Failed to schedule job", zap.String("job_id", job.ID), zap.Error(err))
 		return false
 	}
-	s.jobs[job.ID] = schedJob
+	s.setJob(job.ID, schedJob)
 	return true
 }
 
@@ -325,7 +367,9 @@ func (s *Scheduler) executeJob(job *Job) {
 
 	// 更新最后执行时间
 	job.LastRunTime = helper.GetNowTime()
-	job.NextRunTime = s.jobs[job.ID].NextRun()
+	if j, ok := s.getJob(job.ID); ok {
+		job.NextRunTime = j.NextRun()
+	}
 
 	// 执行处理函数
 	if err := handler(job.Params, helper.FormatTime(job.NextRunTime)); err != nil {
