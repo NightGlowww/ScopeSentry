@@ -180,10 +180,13 @@ func ScopeMatches(granted, required string) bool {
 }
 
 // ScopeAllowed 判断一组授予项是否覆盖所需 scope。
-// 空授予列表 = 历史 key（治理字段上线前创建），按向后兼容等同于 *。
+//
+// 空授予列表 = 治理字段上线前创建的历史 key。过去按向后兼容等同于 *，
+// 这会连带放行新增的写工具（例如 delete_asset_groups），等于历史 key 静默获得删除权。
+// 现在改为：空 scope 只保留读权限（*:read），写权限必须在 key 上显式授予。
 func ScopeAllowed(granted []string, required string) bool {
 	if len(granted) == 0 {
-		return true
+		return strings.HasSuffix(strings.TrimSpace(required), ":read")
 	}
 	for _, g := range granted {
 		if ScopeMatches(g, required) {

@@ -21,6 +21,14 @@ VERSION="${VERSION#v}"
 
 # CDPATH 会让 cd 打印解析结果，命令替换会把两行都吞进来，必须 >/dev/null
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
+# MCP schema 标签门禁：struct tag 以 WORD= 开头会被 go-sdk 判为非法并 panic，
+# 表现为整个 /mcp 端点 500（v2.0.125 真实事故）。发布前拦一道。
+if grep -nE 'jsonschema:"[A-Za-z_][A-Za-z0-9_]*=' "$ROOT"/internal/mcp/tools.go >/tmp/mcp_schema_bad.txt 2>/dev/null; then
+  echo "✗ MCP schema 标签非法（以 WORD= 开头）："
+  cat /tmp/mcp_schema_bad.txt
+  rm -f /tmp/mcp_schema_bad.txt
+  exit 1
+fi
 cd "$ROOT"
 
 PROD_HOST="${PROD_HOST:-prod-tx-sh-app-02}"

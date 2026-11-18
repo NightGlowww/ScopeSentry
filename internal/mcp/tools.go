@@ -446,6 +446,15 @@ func addTool[In, Out any](server *mcp.Server, allowedTools map[string]bool, name
 	if allowedTools != nil && !allowedTools[tool.Name] {
 		return
 	}
+	// 单个工具的 schema 非法（例如 struct tag 以 "WORD=" 开头）会让 go-sdk 直接 panic，
+	// 一旦发生在注册阶段，整个 /mcp 端点对所有客户端 500。这里隔离到单个工具：
+	// 坏的那个跳过并记错误，其余工具照常可用。
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("mcp: tool registration skipped (invalid schema)",
+				zap.String("tool", tool.Name), zap.Any("panic", r))
+		}
+	}()
 	mcp.AddTool(server, tool, handler)
 }
 
