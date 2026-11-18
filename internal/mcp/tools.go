@@ -11,8 +11,10 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/constants"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
+	auditrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/audit"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/app"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/asset"
+	assetgroup "github.com/Autumn-27/ScopeSentry/internal/services/assets/assetgroup"
 	assetCommon "github.com/Autumn-27/ScopeSentry/internal/services/assets/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/crawler"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/dirscan"
@@ -28,6 +30,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export"
 	"github.com/Autumn-27/ScopeSentry/internal/services/fingerprint"
+	"github.com/Autumn-27/ScopeSentry/internal/services/icp"
 	"github.com/Autumn-27/ScopeSentry/internal/services/mcpguard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
@@ -73,6 +76,12 @@ type deps struct {
 	policyService        *policy.Service
 	sensitiveRuleService sensitive_rule.Service
 	exportService        export.Service
+	// 资产组 / 地契（asset_group + asset_scope，ARL-Next 资产模型）
+	assetGroupService assetgroup.Service
+	// ICP 主体任务（company → domain → asset 链路的入口）
+	icpService *icp.Service
+	// 服务端操作日志（只读，仓库层直接给 List）
+	auditRepo auditrepo.Repository
 }
 
 var d = &deps{
@@ -102,6 +111,10 @@ var d = &deps{
 	policyService:        policy.NewService(),
 	sensitiveRuleService: sensitive_rule.NewService(),
 	exportService:        export.NewService(),
+	assetGroupService:    assetgroup.NewService(),
+	// icp 服务是进程内单例（与 HTTP handler 共用），构造只建仓库句柄，不碰库
+	icpService: icp.DefaultService(),
+	auditRepo:  auditrepo.NewRepository(),
 }
 
 func registerTools(server *mcp.Server, allowedTools map[string]bool) {
@@ -356,6 +369,28 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "uninstall_plugin",
 		Description: "从指定节点卸载插件",
 	}, uninstallPlugin)
+
+	// ---- 资产组 / 地契 / ICP 任务 / 服务端操作日志 ----
+	// 全部只读、全部复用 asset:read（见 mcpguard.ToolScopes 的说明）。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_asset_groups",
+		Description: listAssetGroupsToolDesc,
+	}, listAssetGroups)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_asset_scopes",
+		Description: listAssetScopesToolDesc,
+	}, listAssetScopes)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_icp_tasks",
+		Description: listICPTasksToolDesc,
+	}, listICPTasks)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_audit_logs",
+		Description: listAuditLogsToolDesc,
+	}, listAuditLogs)
 
 	recordToolNames(names)
 	warnUnregisteredTools(names)
@@ -1844,4 +1879,169 @@ func uninstallPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNo
 		return errorResult("卸载插件失败", err)
 	}
 	return jsonToolResult(ginH{"ok": true, "node": input.Node, "hash": input.Hash, "action": "uninstall"})
+}
+
+// ---------------------------------------------------------------------------
+// 资产组 / 地契 / ICP 任务 / 服务端操作日志（只读扩展）
+//
+// 入参字段与后端 handler 严格同名同义（逐个读签名得来，不猜）：
+//   - assetgroup.ListGroups / ListScopes → internal/api/handlers/assets/assetgroup/handler.go
+//     ListGroups 无入参；ListScopes 绑 {groupId, search, pageIndex, pageSize}
+//   - icp.ListTasks → internal/api/handlers/icp/handler.go 的 taskListRequest
+//     {state, type, keyword, provider, pageIndex, pageSize} → models.IcpTaskListQuery
+//   - audit.List → internal/api/handlers/audit/audit.go 直接绑 models.AuditLogQuery
+//     {user, path, method, statusMin, pageIndex, pageSize}
+//
+// 与 REST 的唯一差别：MCP 不经 gin 绑定，handler 层的校验（分页上限、闭集枚举）
+// 由 mcpguard.Normalize* 补回来，避免「调用成功 + 空结果」这类静默错误。
+// ---------------------------------------------------------------------------
+
+func listAssetGroups(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	if d.assetGroupService == nil {
+		return errorResult("资产组服务未初始化", nil)
+	}
+	groups, err := d.assetGroupService.ListGroups(ctx)
+	if err != nil {
+		return errorResult("获取资产组列表失败", err)
+	}
+	if groups == nil {
+		// 与 HTTP handler 一致：空列表返回 []，不是 null
+		groups = []models.AssetGroup{}
+	}
+	return jsonToolResult(ginH{"items": groups, "total": len(groups)})
+}
+
+type listAssetScopesInput struct {
+	GroupID   string `json:"groupId,omitempty" jsonschema:"按集团过滤：集团 ObjectID（list_asset_groups 返回的 id）；unassigned / 0 / 空 表示未分组"`
+	Search    string `json:"search,omitempty" jsonschema:"地契名称或范围文本模糊搜索（不区分大小写）"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 500"`
+}
+
+func listAssetScopes(ctx context.Context, _ *mcp.CallToolRequest, input listAssetScopesInput) (*mcp.CallToolResult, any, error) {
+	if d.assetGroupService == nil {
+		return errorResult("资产组服务未初始化", nil)
+	}
+	groupID, err := mcpguard.NormalizeScopeGroupID(input.GroupID)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	pageIndex, pageSize, err := mcpguard.NormalizePaging(input.PageIndex, input.PageSize,
+		mcpguard.DefaultPageSize, mcpguard.MaxPageSizeAssetScope)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	items, total, err := d.assetGroupService.ListScopes(ctx, groupID, strings.TrimSpace(input.Search), pageIndex, pageSize)
+	if err != nil {
+		return errorResult("获取地契列表失败", err)
+	}
+	if items == nil {
+		items = []models.AssetScope{}
+	}
+	return jsonToolResult(ginH{
+		"list":      items,
+		"total":     total,
+		"pageIndex": pageIndex,
+		"pageSize":  pageSize,
+	})
+}
+
+type listICPTasksInput struct {
+	State     *int   `json:"state,omitempty" jsonschema:"按状态过滤：0 待开始 / 1 运行中 / 2 已暂停 / 3 已完成；不传表示全部"`
+	Type      string `json:"type,omitempty" jsonschema:"按任务类型过滤：company（企业名查域名）/ domain（域名查主体）；不传表示全部"`
+	Keyword   string `json:"keyword,omitempty" jsonschema:"任务名或查询目标模糊搜索（后端对 name / queries 做不区分大小写正则）"`
+	Provider  string `json:"provider,omitempty" jsonschema:"按数据来源过滤：manual / none / http；不传表示全部"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listICPTasks(ctx context.Context, _ *mcp.CallToolRequest, input listICPTasksInput) (*mcp.CallToolResult, any, error) {
+	if d.icpService == nil {
+		return errorResult("ICP 服务未初始化", nil)
+	}
+	state, err := mcpguard.NormalizeICPTaskState(input.State)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	taskType, err := mcpguard.NormalizeICPTaskType(input.Type)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	provider, err := mcpguard.NormalizeICPProvider(input.Provider)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	pageIndex, pageSize, err := mcpguard.NormalizePaging(input.PageIndex, input.PageSize,
+		mcpguard.DefaultPageSize, mcpguard.MaxPageSizeICP)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	list, total, err := d.icpService.ListTasks(ctx, models.IcpTaskListQuery{
+		State:     state,
+		Type:      taskType,
+		Keyword:   strings.TrimSpace(input.Keyword),
+		Provider:  provider,
+		PageIndex: pageIndex,
+		PageSize:  pageSize,
+	})
+	if err != nil {
+		return errorResult("获取 ICP 任务列表失败", err)
+	}
+	if list == nil {
+		list = []models.IcpTask{}
+	}
+	return jsonToolResult(ginH{
+		"list":      list,
+		"total":     total,
+		"pageIndex": pageIndex,
+		"pageSize":  pageSize,
+	})
+}
+
+type listAuditLogsInput struct {
+	User      string `json:"user,omitempty" jsonschema:"按操作者用户名模糊搜索（不区分大小写）"`
+	Path      string `json:"path,omitempty" jsonschema:"按请求路径模糊搜索，如 /api/task/add"`
+	Method    string `json:"method,omitempty" jsonschema:"按 HTTP 方法精确过滤：GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS（大小写不敏感）"`
+	StatusMin int    `json:"statusMin,omitempty" jsonschema:"状态码下界：0 不过滤；给 400 表示只看 4xx/5xx，给 500 表示只看 5xx（范围 100-599）"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listAuditLogs(ctx context.Context, _ *mcp.CallToolRequest, input listAuditLogsInput) (*mcp.CallToolResult, any, error) {
+	if d.auditRepo == nil {
+		return errorResult("审计仓库未初始化", nil)
+	}
+	method, err := mcpguard.NormalizeAuditMethod(input.Method)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	statusMin, err := mcpguard.NormalizeAuditStatusMin(input.StatusMin)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	pageIndex, pageSize, err := mcpguard.NormalizePaging(input.PageIndex, input.PageSize,
+		mcpguard.DefaultPageSize, mcpguard.MaxPageSizeAudit)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	list, total, err := d.auditRepo.List(ctx, models.AuditLogQuery{
+		User:      strings.TrimSpace(input.User),
+		Path:      strings.TrimSpace(input.Path),
+		Method:    method,
+		StatusMin: statusMin,
+		PageIndex: pageIndex,
+		PageSize:  pageSize,
+	})
+	if err != nil {
+		return errorResult("获取操作日志失败", err)
+	}
+	if list == nil {
+		list = []models.AuditLog{}
+	}
+	return jsonToolResult(ginH{
+		"list":      list,
+		"total":     total,
+		"pageIndex": pageIndex,
+		"pageSize":  pageSize,
+	})
 }

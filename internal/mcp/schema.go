@@ -181,3 +181,80 @@ asset_type 取值同 list_assets（asset、RootDomain、subdomain、vulnerabilit
 
 示例：统计某任务产生的 Web 资产
 {"asset_type":"asset","search":"task==\"某任务名\""}`
+
+// listAssetGroupsToolDesc 资产组（集团）列表说明
+const listAssetGroupsToolDesc = `资产组（集团）列表，对应 POST /api/assets/asset_group/list。
+
+资产模型三个层次（ARL-Next 口径，与「项目」不同）:
+- asset_group: 企业/集团维度，一个集团下挂多个「地契」
+- asset_scope: 地契，一段资产范围（域名/IP 文本，解析成 domainArray / ipArray）
+- project: 扫描与资产归属的容器，与集团无关
+
+返回字段:
+- id / name / description / sortOrder / createdAt / updatedAt
+- scopeCount: 该集团下的地契数量（列表接口现算，不是存储字段）
+
+响应结构与 Web 端一致: {"items":[...], "total": N}。
+拿到 id 后可传给 list_asset_scopes 的 groupId 查看该集团覆盖了哪些域名/IP。`
+
+// listAssetScopesToolDesc 地契列表说明
+const listAssetScopesToolDesc = `地契（asset_scope）列表，对应 POST /api/assets/asset_scope/list。
+
+地契 = 一个集团下的一段资产范围。scope 是用户填写的原始文本，
+解析后落成 scopeArray / domainArray / ipArray；企业名绑定在 enterprise 字段。
+
+入参（与 handler 同名）:
+- groupId: 集团 ObjectID（list_asset_groups 的 id）。传 unassigned 或 0 或留空 = 只看未分组；
+           其它值必须是 24 位 ObjectID，否则直接报错（避免「过滤后空列表」的静默失败）
+- search: 对地契名称与范围文本做不区分大小写的模糊匹配
+- pageIndex / pageSize: 分页，默认 1 / 20，pageSize 上限 500
+
+返回: {"list":[...], "total": N, "pageIndex": n, "pageSize": n}
+每条含 id / name / scope / scopeType(domain|ip|mixed) / groupId / scopeArray /
+domainArray / ipArray / enterprise / updateError / icpUpdatedAt / createdAt / updatedAt。
+
+典型链路: list_asset_groups 找集团 → list_asset_scopes 看覆盖域名 → 用 list_assets 查这些域名的资产。
+updateError 非空表示 ICP 回填或同步失败过，可结合 list_icp_tasks 排查。`
+
+// listICPTasksToolDesc ICP 任务列表说明
+const listICPTasksToolDesc = `ICP 主体查询任务列表，对应 POST /api/icp/task/list（复用 services/icp.ListTasks）。
+
+任务模型:
+- type=company: 用企业名查其备案域名；type=domain: 用域名反查备案主体
+- state: 0 待开始 / 1 运行中 / 2 已暂停 / 3 已完成（2 可用 REST 接口 resume 续跑）
+- stats: {total, done, found, failed}，found 只计真正新增入库的条数
+- queries / cursor: 查询列表与下一个待处理下标（resume 从这里继续）
+
+入参（与 handler taskListRequest 同名）:
+- state: 0-3，闭集外直接报错（Mongo 里匹配不到会返回空列表，容易误判成「没有任务」）
+- type: company / domain（大小写不敏感）；provider: manual / none / http
+- keyword: 对 name 与 queries 做不区分大小写模糊匹配
+- pageIndex / pageSize: 默认 1 / 20，pageSize 上限 200（与 REST 一致）
+
+返回: {"list":[...], "total": N, "pageIndex": n, "pageSize": n}
+
+注意: 创建/停止/恢复/删除任务属于写操作，MCP 未暴露（P1 只读面）。
+查询结果落库、地契同步等能力在 REST /api/icp/{asset,sync,backfill_details}，同样未暴露。`
+
+// listAuditLogsToolDesc 服务端操作日志说明
+const listAuditLogsToolDesc = `服务端操作日志（audit_logs），对应 POST /api/audit/list。
+
+日志由审计中间件写入，记录的是「谁、用什么方法、打了哪个路径、结果如何」：
+- user: 操作者用户名；ip / ua: 来源
+- method + path + status: 请求特征与响应码
+- durationMs: 处理耗时；at: 时间（按时间倒序返回）
+
+入参（直接对应 models.AuditLogQuery，与 handler 同名）:
+- user: 用户名模糊匹配（不区分大小写）
+- path: 路径模糊匹配，如 /api/task/add
+- method: GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS，大小写不敏感；其它值报错
+- statusMin: 0 不过滤；给 400 只看 4xx+5xx，给 500 只看 5xx；范围 100-599
+- pageIndex / pageSize: 默认 1 / 20，pageSize 上限 200（与 REST 一致）
+
+返回: {"list":[...], "total": N, "pageIndex": n, "pageSize": n}
+
+用途示例:
+- 自证「我刚才那次写操作有没有落到服务端」: path=/api/task/add, method=POST
+- 找失败请求: statusMin=400
+注意: 日志里能看到其他账号的路径与 IP，属运维敏感面；当前挂在 asset:read 下，
+若需要隔离请按 docs/audit/MCP_TOOLS_V2.md 的说明拆 audit:read。`

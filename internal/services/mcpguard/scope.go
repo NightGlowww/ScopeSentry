@@ -94,6 +94,20 @@ var ToolScopes = map[string]string{
 	"reinstall_plugin": ScopePluginWrite,
 	"recheck_plugin":   ScopePluginWrite,
 	"uninstall_plugin": ScopePluginWrite,
+	// 资产组 / 地契 / ICP 任务 / 服务端操作日志（v2.0.87 只读扩展）
+	//
+	// 全部复用 asset:read，不新增 scope 家族。理由：
+	//  1. 生产受限 key 的授予集是 {asset:read, task:read, plugin:read, node:read}，
+	//     新增 icp:read / audit:read 会让这些 key 立刻调不到新工具，等于白补；
+	//  2. 新家族还要同步前端 ApiKey.vue 的 SCOPE_OPTIONS 与 docs/MCP.md，
+	//     属于授权面变更，应由「只给情报不给资产」的真实诉求驱动，不是顺手扩。
+	// 语义上这四项都是「资产模型 / 资产来源 / 资产操作痕迹」，归 asset 面成立。
+	// 若将来确需把审计日志单独授权（它能读到其他账号的路径与 IP），
+	// 再加 audit:read 并在 ApiKey.vue 里补选项，见 docs/audit/MCP_TOOLS_V2.md。
+	"list_asset_groups": ScopeAssetRead,
+	"list_asset_scopes": ScopeAssetRead,
+	"list_icp_tasks":    ScopeAssetRead,
+	"list_audit_logs":   ScopeAssetRead,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）
