@@ -6,7 +6,18 @@ export interface ConsoleDependency {
   error?: string
 }
 
+export interface HostStats {
+  cpus: number
+  load1: number
+  diskFreeBytes: number
+  diskTotalBytes: number
+  diskFreePercent: number
+  memAvailablePercent: number
+}
+
 export interface ConsoleInfo {
+  hostStats?: HostStats
+  hostWarnings?: string[]
   version: string
   startTime: string
   uptimeSeconds: number
