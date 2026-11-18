@@ -30,6 +30,8 @@ import {
   listGithubResultsApi,
   triageGithubResultsApi
 } from '@/api/github'
+import SchedulerTab from './SchedulerTab.vue'
+import ThreatTab from './ThreatTab.vue'
 import { formatTime } from '@/utils'
 
 const activeTab = ref('task')
@@ -339,6 +341,13 @@ const handleTriage = async (row: { id: string }, status: string) => {
           :pagination="{ total: resultTotal, pageSizes: [20, 50, 100] }"
           @register="resultRegister"
         />
+      </ElTabPane>
+      <ElTabPane label="周期任务" name="scheduler">
+        <SchedulerTab />
+      </ElTabPane>
+
+      <ElTabPane label="威胁情报" name="threat">
+        <ThreatTab />
       </ElTabPane>
     </ElTabs>
 
