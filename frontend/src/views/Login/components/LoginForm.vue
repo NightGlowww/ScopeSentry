@@ -39,6 +39,10 @@ const schema = reactive<FormSchema[]>([
     component: 'Input',
     colProps: {
       span: 24
+    },
+    componentProps: {
+      // 进登录页直接聚焦用户名，省一次点击
+      autofocus: true
     }
   },
   {
@@ -218,5 +222,6 @@ const getRole = async () => {
     size="large"
     class="login-form"
     @register="formRegister"
+    @keyup.enter="signIn"
   />
 </template>
