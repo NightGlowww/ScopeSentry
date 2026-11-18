@@ -573,6 +573,9 @@ watch(
   margin: 7px 6px 7px 0;
   /* 右侧给关闭按钮留位置，避免“资产信息×”文字和图标叠在一起 */
   padding: 0 22px 0 12px;
+  /* 标签是 flex 子项：默认 shrink=1 会被压到 50 多像素，文字随之被截
+     （「系统日志」显示成「系统日」）。不参与收缩，超宽交给外层滚动条。 */
+  flex: 0 0 auto;
   overflow: hidden;
   font-size: 12px;
   font-weight: 500;
