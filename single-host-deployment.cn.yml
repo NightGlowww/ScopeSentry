@@ -13,4 +13,7 @@ services:
   scope-sentry:
     image: docker.m.daocloud.io/autumn27/scopesentry:latest
   scopesentry-scan:
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 4096
     image: docker.m.daocloud.io/autumn27/scopesentry-scan:latest
