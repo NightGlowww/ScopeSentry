@@ -23,7 +23,14 @@ const toggleCollapse = () => {
 </script>
 
 <template>
-  <div :class="prefixCls" @click="toggleCollapse">
+  <div
+    :class="prefixCls"
+    role="button"
+    tabindex="0"
+    aria-label="折叠/展开侧边栏"
+    @click="toggleCollapse"
+    @keydown.enter="toggleCollapse"
+  >
     <Icon
       :size="18"
       :icon="collapse ? 'ant-design:menu-unfold-outlined' : 'ant-design:menu-fold-outlined'"

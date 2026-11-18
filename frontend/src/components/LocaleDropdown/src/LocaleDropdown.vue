@@ -56,6 +56,9 @@ const setLang = async (lang: LocaleType) => {
       class="cursor-pointer !p-0"
       :class="$attrs.class"
       :color="color"
+      role="button"
+      tabindex="0"
+      aria-label="切换语言"
     />
     <template #dropdown>
       <ElDropdownMenu>
