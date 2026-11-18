@@ -65,6 +65,16 @@ var ToolScopes = map[string]string{
 	"search_dictionary_lines": ScopeAssetRead,
 	"get_dashboard_stats":     ScopeAssetRead,
 	"get_console_info":        ScopeAssetRead,
+	// 写/控：任务、扫描策略、敏感信息规则
+	"get_task_progress":        ScopeTaskRead,
+	"start_task":               ScopeTaskWrite,
+	"stop_task":                ScopeTaskWrite,
+	"delete_task":              ScopeTaskWrite,
+	"list_scan_policies":       ScopeTaskRead,
+	"create_scan_policy":       ScopeTaskWrite,
+	"delete_scan_policies":     ScopeTaskWrite,
+	"list_sensitive_rules":     ScopeAssetRead,
+	"set_sensitive_rule_state": ScopeAssetWrite,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）

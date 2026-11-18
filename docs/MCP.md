@@ -58,3 +58,24 @@ curl -s http://127.0.0.1:8082/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call",
        "params":{"name":"list_pocs","arguments":{"search":"wordpress","pageSize":5}}}'
 ```
+
+## 写/控工具（v2.0.78 新增，共 9 个）
+
+**任务**
+`get_task_progress`（task:read）任务目标级分页进度
+`start_task` / `stop_task` / `delete_task`（task:write）启动 / 暂停 / 删除（可带 `deleteAssets`）
+
+**扫描策略**
+`list_scan_policies`（task:read）
+`create_scan_policy`（task:write）`config` 传 JSON 对象，结构与 UI 导出一致
+`delete_scan_policies`（task:write）
+
+**敏感信息规则**
+`list_sensitive_rules`（asset:read）
+`set_sensitive_rule_state`（asset:write）批量启用 / 停用
+
+> 写/控工具同样受 key 的 scope 与 `tools` 白名单约束；受限 key 调不到未授权工具（默认拒绝）。
+
+## 工具总数
+
+25（只读） + 9（写/控） = 34。
