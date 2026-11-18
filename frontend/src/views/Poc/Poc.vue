@@ -234,6 +234,11 @@ const closeDialog = () => {
   dialogVisible.value = false
 }
 const delLoading = ref(false)
+// 没勾选任何行时批量删除按钮应禁用，避免点了弹确认却什么都不删
+const selectedCount = ref(0)
+const handleSelectionChange = (rows: unknown[]) => {
+  selectedCount.value = rows?.length ?? 0
+}
 const del = async (data) => {
   delLoading.value = true
   try {
@@ -326,7 +331,12 @@ const filterChange = async (newFilters: any) => {
     </div>
     <div class="poc-actions">
       <ElButton type="primary" @click="addPoc">{{ t('common.new') }}</ElButton>
-      <BaseButton type="danger" :loading="delLoading" @click="confirmDelete">
+      <BaseButton
+        type="danger"
+        :loading="delLoading"
+        :disabled="selectedCount === 0"
+        @click="confirmDelete"
+      >
         {{ t('common.delete') }}
       </BaseButton>
       <ElTooltip
@@ -357,6 +367,7 @@ const filterChange = async (newFilters: any) => {
     <Table
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
+      @selection-change="handleSelectionChange"
       @filter-change="filterChange"
       :columns="nodeColums"
       :data="dataList"
