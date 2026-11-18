@@ -4,6 +4,7 @@ import { h, nextTick, reactive, Ref, ref } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
 import {
+  ElAlert,
   ElCard,
   ElPagination,
   ElRow,
@@ -315,6 +316,13 @@ const getFilter = () => {
 </script>
 
 <template>
+  <ElAlert
+    type="info"
+    :closable="false"
+    show-icon
+    style="margin-bottom: 10px"
+    :title="t('asset.noProducerHint')"
+  />
   <Csearch
     :getList="getList"
     :handleSearch="handleSearch"
