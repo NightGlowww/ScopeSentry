@@ -18,8 +18,11 @@ import {
   InputInstance,
   ElSelect,
   ElOption,
-  ElLink
+  ElLink,
+  ElTooltip
 } from 'element-plus'
+import { Icon as AppIcon } from '@/components/Icon'
+import { copyText } from '@/utils/clipboard'
 import { Dialog } from '@/components/Dialog'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
@@ -100,7 +103,23 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'url',
     label: t('dashboard.URL'),
-    minWidth: 200
+    minWidth: 220,
+    formatter: (_: Recordable, __: TableColumn, url: string) => (
+      <div class="flex items-center">
+        <ElLink href={url} underline={false} target="_blank">
+          {url}
+        </ElLink>
+        <ElTooltip content="复制 URL" placement="top">
+          <AppIcon
+            icon="ep:copy-document"
+            size={13}
+            color="var(--el-text-color-placeholder)"
+            class="ml-4px cursor-pointer"
+            onClick={() => copyText(url)}
+          />
+        </ElTooltip>
+      </div>
+    )
   },
   {
     field: 'name',
