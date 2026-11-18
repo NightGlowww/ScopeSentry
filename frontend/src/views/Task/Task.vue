@@ -475,6 +475,11 @@ const confirmDelete = async (data) => {
   })
 }
 const delLoading = ref(false)
+// 未勾选任何行时，工具条上的批量删除应禁用
+const tableSelectedCount = ref(0)
+const handleTableSelectionChange = (rows: unknown[]) => {
+  tableSelectedCount.value = rows?.length ?? 0
+}
 const del = async (data, delA) => {
   delLoading.value = true
   try {
@@ -551,7 +556,12 @@ const setMaxHeight = () => {
       <ElCol style="position: relative; top: 16px">
         <div class="mb-10px">
           <BaseButton type="primary" @click="addTask">{{ t('task.addTask') }}</BaseButton>
-          <BaseButton type="danger" :loading="delLoading" @click="confirmDeleteSelect">
+          <BaseButton
+        type="danger"
+        :loading="delLoading"
+        :disabled="tableSelectedCount === 0"
+        @click="confirmDeleteSelect"
+      >
             {{ t('task.delTask') }}
           </BaseButton>
           <BaseButton type="warning" :loading="delLoading" @click="confirmStopSelect">
@@ -593,6 +603,7 @@ const setMaxHeight = () => {
           total: total,
           pageSizes: [20, 30, 50, 100, 200, 500, 1000]
         }"
+        @selection-change="handleTableSelectionChange"
         @register="tableRegister"
         :headerCellStyle="tableHeaderColor"
         :style="{

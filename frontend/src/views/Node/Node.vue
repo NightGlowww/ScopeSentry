@@ -199,6 +199,11 @@ const restartNode = async (name) => {
   await restartNodeApi(name)
 }
 const delLoading = ref(false)
+// 未勾选任何行时，工具条上的批量删除应禁用
+const tableSelectedCount = ref(0)
+const handleTableSelectionChange = (rows: unknown[]) => {
+  tableSelectedCount.value = rows?.length ?? 0
+}
 const names = ref<string[]>([])
 const delSelect = async () => {
   const elTableExpose = await getElTableExpose()
@@ -272,7 +277,12 @@ const closepluginDialogVisible = () => {
       </ElCol>
     </ElRow> -->
     <div class="node-toolbar">
-      <BaseButton type="danger" :loading="delLoading" @click="confirmDelete">
+      <BaseButton
+        type="danger"
+        :loading="delLoading"
+        :disabled="tableSelectedCount === 0"
+        @click="confirmDelete"
+      >
         {{ t('common.delete') }}
       </BaseButton>
     </div>
@@ -286,7 +296,8 @@ const closepluginDialogVisible = () => {
         :border="true"
         :loading="loading"
         :resizable="true"
-        @register="tableRegister"
+        @selection-change="handleTableSelectionChange"
+      @register="tableRegister"
         :headerCellStyle="tableHeaderColor"
         :style="{
           fontFamily:
