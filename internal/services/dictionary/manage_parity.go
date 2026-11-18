@@ -433,3 +433,31 @@ func mergeKinds(counts []models.DictionaryKindCount) []models.DictionaryKindCoun
 	}
 	return out
 }
+
+// BackfillEntryIndex 为历史（仅文件、未建行索引）的字典补建行级索引。
+//
+// 背景：lineCount 存在 meta 上，只有 entries_synced=true 之后才有值；
+// 老版本只写文件不建索引，列表里会一直显示 0 行。Preview/Search/Append 会懒同步，
+// 但没人点就一直不对，所以启动时补一次（失败不影响服务启动）。
+func (s *manageService) BackfillEntryIndex(ctx context.Context) (int, error) {
+	done := 0
+	for {
+		metas, err := s.repo.ListPaged(ctx, bson.M{"entries_synced": bson.M{"$ne": true}}, 0, 20)
+		if err != nil {
+			return done, err
+		}
+		if len(metas) == 0 {
+			return done, nil
+		}
+		for i := range metas {
+			m := &metas[i]
+			unlock := s.locks.Lock(m.ID.Hex())
+			err := s.ensureEntriesLocked(ctx, m)
+			unlock()
+			if err != nil {
+				return done, err
+			}
+			done++
+		}
+	}
+}

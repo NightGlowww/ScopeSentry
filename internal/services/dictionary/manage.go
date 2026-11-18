@@ -46,6 +46,8 @@ type ManageService interface {
 	CreateByKind(ctx context.Context, kind, name, content string) (*models.DictionaryCreateResult, error)
 	// SaveByKind 整份保存（存在则覆盖），供 dict_cdn / dict_brute 使用
 	SaveByKind(ctx context.Context, kind, name, content string, lines []string) (*models.DictionaryCreateResult, error)
+	// BackfillEntryIndex 为历史字典补建行级索引（否则列表 lineCount 恒为 0）
+	BackfillEntryIndex(ctx context.Context) (int, error)
 }
 
 type manageService struct {
