@@ -901,8 +901,11 @@ html .el-row > .el-col:has(> div > .el-button) > div > .el-button {
   margin-right: 10px;
 }
 
-html .el-row > .el-col:has(> .el-button) > .el-button:last-child,
-html .el-row > .el-col:has(> div > .el-button) > div > .el-button:last-child {
+/* 只有"同一容器里有多个按钮"时才去掉最后一个的右边距；
+   老页面常见「一个 col 里包一个按钮」，那样每个按钮都是 :last-child，
+   会被误判成末尾而丢掉间距（新建/开启/关闭/删除 贴在一起就是这个原因）。 */
+html .el-row > .el-col:has(> .el-button) > .el-button:last-child:not(:first-child),
+html .el-row > .el-col:has(> div > .el-button) > div > .el-button:last-child:not(:first-child) {
   margin-right: 0;
 }
 
