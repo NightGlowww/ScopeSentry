@@ -108,3 +108,10 @@
 ## 审计脚本
 
 `scripts/ui-audit.browser.js` 提供 `uiAudit(routes)`，在已登录页面里通过 Agent Bridge `eval` 执行，返回每页的 pageOverflow / tables / rows / pagination / emptyState / paginationWithoutRows / destructiveEnabledWithoutSelection / unnamedIconControls / skeletonVisible。除 skeletonVisible（加载瞬间可为 1）外都应为 0。基线见 `docs/ui-audit-baseline.json`。
+## 发版前置
+
+出包前先跑一次审计（`scripts/ui-audit.routes.js` 是路由清单）：
+
+1. 打开已登录页面，执行 `scripts/ui-audit.browser.js` 的 `uiAudit(routes)`；
+2. 确认 `notFound=false`，且除 `skeletonVisible` 外所有指标为 0；
+3. 结果更新到 `docs/ui-audit-baseline.json`。
