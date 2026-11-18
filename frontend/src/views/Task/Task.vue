@@ -137,8 +137,10 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 420,
-    fixed: 'right',
+    /* 之前 minWidth 420 + fixed:'right'：列宽远超按钮实际需要，
+       固定列又脱离文档流，导致右侧留一条空白、还把「创建时间」压在下面。
+       收窄到 300 并取消固定，让操作列正常排在最后一列、贴住表格右边缘。 */
+    width: 300,
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
         ids.value = []
