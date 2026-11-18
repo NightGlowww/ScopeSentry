@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -26,6 +27,10 @@ type Service interface {
 	GetPageMonitData(ctx *gin.Context, search string, pageIndex, pageSize int) ([]models.PageMonitoringTask, int64, error)
 	AddPageMonitTask(ctx *gin.Context, url string) error
 	DeletePageMonitTasks(ctx *gin.Context, ids []string) error
+	// EnsurePageMonitoringJob 启动期幂等注册页面监控定时任务：
+	// ScheduledTasks 里的 page_monitoring 文档 state=true 时，保证 scheduled 里存在对应 job，
+	// 否则用户加了监控 URL 也永远不会被调度（历史默认不注册）。
+	EnsurePageMonitoringJob(ctx context.Context) error
 }
 
 type service struct {
@@ -467,4 +472,26 @@ func (s *service) DeletePageMonitTasks(ctx *gin.Context, ids []string) error {
 // calculateMD5 计算MD5值
 func calculateMD5(url string) string {
 	return helper.CalculateMD5FromContent(url)
+}
+
+// EnsurePageMonitoringJob 启动期幂等注册页面监控任务。
+func (s *service) EnsurePageMonitoringJob(ctx context.Context) error {
+	task, state, err := s.schedulerRepo.FindPageMonitoringScheduled(ctx)
+	if err != nil {
+		return fmt.Errorf("ensure page_monitoring: load task: %w", err)
+	}
+	if task == nil || !state {
+		return nil
+	}
+	// 历史种子文档没有 cycleType/minute，hour=24 表示每 24 小时；补默认值后再注册。
+	if task.CycleType == "" {
+		task.CycleType = "nhours"
+	}
+	if task.Hour <= 0 {
+		task.Hour = 24
+	}
+	if task.Minute < 0 || task.Minute > 59 {
+		task.Minute = 0
+	}
+	return s.addScheduler(task, "page_monitoring")
 }

@@ -55,6 +55,7 @@ import (
 	dictionarysvc "github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	redisLogSubscriber "github.com/Autumn-27/ScopeSentry/internal/services/redis_log_subscriber"
+	schedulerSvc "github.com/Autumn-27/ScopeSentry/internal/services/task/scheduler"
 	taskSvc "github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 
 	"github.com/Autumn-27/ScopeSentry/docs"
@@ -109,6 +110,16 @@ func main() {
 		}
 		if n > 0 {
 			logger.Info("dictionary: backfilled entry index", zap.Int("count", n))
+		}
+	}()
+
+	// 页面监控定时任务自愈：ScheduledTasks 里 page_monitoring.state=true 但 scheduled 里没有 job 时补注册。
+	// 历史默认不注册，用户加了监控 URL 也永远不会被调度。
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := schedulerSvc.NewService().EnsurePageMonitoringJob(ctx); err != nil {
+			logger.Warn("ensure page_monitoring job failed", zap.Error(err))
 		}
 	}()
 
