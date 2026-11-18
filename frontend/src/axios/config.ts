@@ -45,8 +45,16 @@ const defaultResponseInterceptors = (response: AxiosResponse) => {
     const looksLikeQuery =
       !!payload && typeof payload === 'object' && ('list' in payload || 'total' in payload)
     const isRead = method === 'get' || looksLikeQuery
-    if (response?.data?.message && (!isRead || forceSuccessMessage)) {
-      ElMessage.success(translateApiMessage(response?.data?.message))
+    const rawMessage = String(response?.data?.message || '')
+    // 通用成功文案（api.success / success / xx.success）不弹：登录、进页面、状态查询都会命中，
+    // 属于纯噪音；只有业务自定义文案（如“导入成功”）或显式 showSuccessMessage 才提示。
+    const isGenericSuccess =
+      rawMessage === '' ||
+      rawMessage === 'success' ||
+      rawMessage === 'api.success' ||
+      rawMessage.endsWith('.success')
+    if (rawMessage && (forceSuccessMessage || (!isGenericSuccess && !isRead))) {
+      ElMessage.success(translateApiMessage(rawMessage))
     }
     return response.data
   } else {

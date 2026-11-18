@@ -132,7 +132,9 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'updateTime',
     label: t('node.updateTime'),
-    minWidth: 20
+    // 20px 的列宽装不下 "2026-11-18 12:52:34"，右侧永远被截成 "2026-11-18 12:5…"。
+    minWidth: 175,
+    showOverflowTooltip: true
   },
   {
     field: 'action',

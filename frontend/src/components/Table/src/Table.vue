@@ -67,6 +67,8 @@ export default defineComponent({
     },
     height: propTypes.oneOfType([Number, String]),
     maxHeight: propTypes.oneOfType([Number, String]),
+    // 未显式给 height 时，是否让表格撑满视口剩余高度（滚动区在表格内部，表头吸顶）
+    fillHeight: propTypes.bool.def(true),
     stripe: propTypes.bool.def(false),
     border: propTypes.bool.def(true),
     size: {
@@ -184,9 +186,10 @@ export default defineComponent({
       type: Object as PropType<{ hasChildren?: string; children?: string; label?: string }>,
       default: () => ({ hasChildren: 'hasChildren', children: 'children', label: 'label' })
     },
+    // 列宽策略：默认 auto，按内容自适应（XLSX 那种感觉）；需要固定列宽时页面显式传 fixed
     tableLayout: {
       type: String as PropType<'auto' | 'fixed'>,
-      default: 'fixed'
+      default: 'auto'
     },
     scrollbarAlwaysOn: propTypes.bool.def(false),
     flexible: propTypes.bool.def(false),
@@ -330,11 +333,21 @@ export default defineComponent({
       }
     )
 
+    // 表格高度：页面显式传 height 就用；否则有分页时默认撑满视口剩余区域，
+    // 让长表格在内部滚动、表头吸顶，而不是整页越拉越长。
+    const computedHeight = computed(() => {
+      const { height: h, maxHeight: mh, pagination: pg, fillHeight: fill } = unref(getProps)
+      if (h) return h
+      if (mh || !fill) return undefined
+      return pg ? 'calc(100vh - 280px)' : undefined
+    })
+
     const getBindValue = computed(() => {
       const bindValue: Recordable = { ...attrs, ...unref(getProps) }
       bindValue.emptyText = bindValue.emptyText ?? t('common.noData')
       delete bindValue.columns
       delete bindValue.data
+      delete bindValue.fillHeight
       return bindValue
     })
 
@@ -554,7 +567,13 @@ export default defineComponent({
                   onRefresh={refresh}
                 />
               ) : null}
-              <ElTable ref={elTableRef} data={unref(getProps).data} {...unref(getBindValue)}>
+              <ElTable
+                ref={elTableRef}
+                data={unref(getProps).data}
+                {...unref(getBindValue)}
+                height={unref(computedHeight)}
+                table-layout={unref(getProps).tableLayout}
+              >
                 {{
                   default: () => renderTableColumn(),
                   ...tableSlots

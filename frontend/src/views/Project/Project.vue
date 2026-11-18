@@ -5,23 +5,20 @@ import {
   ElTabPane,
   ElTabs,
   ElInput,
-  ElRow,
-  ElCol,
   ElSwitch,
-  ElText,
-  ElFormItem,
-  ElForm,
   ElDropdown,
+  ElDropdownMenu,
   ElDropdownItem,
+  ElIcon,
   ElMessageBox
 } from 'element-plus'
+import { ArrowDown, Delete, Search } from '@element-plus/icons-vue'
 import ProjectList from './components/ProjectList.vue'
 import AddProject from './components/AddProject.vue'
 import { useI18n } from '@/hooks/web/useI18n'
 import { h, reactive, ref } from 'vue'
 import { Dialog } from '@/components/Dialog'
 import { deleteProjectApi, getProjectDataApi } from '@/api/project'
-import { useIcon } from '@/hooks/web/useIcon'
 const { t } = useI18n()
 let allProjectData = reactive({})
 let tabNames = ref<string[]>([])
@@ -57,7 +54,6 @@ const closeDialog = () => {
   dialogVisible.value = false
 }
 const search = ref('')
-const searchicon = useIcon({ icon: 'iconoir:search' })
 const currentPage = ref(1)
 const currentpageSize = ref(50)
 
@@ -71,7 +67,6 @@ const handleSearch = async () => {
 }
 handleSearch()
 const multipleSelection = ref(false)
-const deleteicon = useIcon({ icon: 'openmoji:delete' })
 const delSelect = async () => {
   const deleteAsset = ref<boolean>(false)
   ElMessageBox({
@@ -93,66 +88,50 @@ const delSelect = async () => {
     getProjectTag(currentPage.value, currentpageSize.value)
   })
 }
-const elDropdownicon = useIcon({ icon: 'ri:arrow-drop-down-line' })
 const selectedRowIds = ref([])
 </script>
 
 <template>
   <ContentWrap>
-    <ElRow class="locale-search-row" style="margin-bottom: 20px">
-      <ElCol :span="0.5">
-        <ElText class="mx-1">{{ t('common.search') }}:</ElText>
-      </ElCol>
-      <ElCol :span="5">
-        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 38px" />
-      </ElCol>
-      <ElCol :span="5">
-        <ElButton
-          :loading="loading"
-          type="primary"
-          :icon="searchicon"
-          size="large"
-          style="height: 100%"
-          @click="handleSearch"
+    <!-- 2026-11-18 布局事故：搜索按钮只有图标、还带 size="large" + height:100%，
+         渲染成一个和输入框不等高的蓝色药丸；"多选"裹在 ElFormItem 里带来表单默认
+         间隙；标签列用了非法 span=0.5。这里统一成一个工具栏：左搜索、右操作。 -->
+    <div class="project-toolbar">
+      <div class="project-toolbar__search">
+        <span class="project-toolbar__label">{{ t('common.search') }}:</span>
+        <ElInput
+          v-model="search"
+          class="project-toolbar__input"
+          :placeholder="t('common.inputText')"
+          clearable
+          @keyup.enter="handleSearch"
         />
-      </ElCol>
-    </ElRow>
-    <ElRow class="locale-actions-row" style="margin-bottom: 0%">
-      <ElCol :span="2">
-        <div class="mb-10px">
-          <ElButton type="primary" @click="addProject">{{ t('project.addProject') }}</ElButton>
-        </div>
-      </ElCol>
-      <ElCol :span="2">
-        <ElForm>
-          <ElFormItem :label="t('common.multipleSelection')">
-            <ElSwitch
-              v-model="multipleSelection"
-              class="mb-2"
-              inline-prompt
-              :active-text="t('common.on')"
-              :inactive-text="t('common.off')"
-            />
-          </ElFormItem>
-        </ElForm>
-      </ElCol>
-      <ElCol v-if="multipleSelection" :span="1">
-        <ElDropdown trigger="click">
-          <ElButton plain class="custom-button align-bottom">
+        <ElButton :icon="Search" :loading="loading" @click="handleSearch">
+          {{ t('common.search') }}
+        </ElButton>
+      </div>
+      <div class="project-toolbar__actions">
+        <ElButton type="primary" @click="addProject">{{ t('project.addProject') }}</ElButton>
+        <span class="project-toolbar__switch">
+          <span>{{ t('common.multipleSelection') }}</span>
+          <ElSwitch v-model="multipleSelection" />
+        </span>
+        <ElDropdown v-if="multipleSelection" trigger="click">
+          <ElButton plain>
             {{ t('common.operation') }}
-            <ElIcon class="el-icon--right"><elDropdownicon /></ElIcon>
+            <ElIcon class="el-icon--right"><ArrowDown /></ElIcon>
           </ElButton>
           <template #dropdown>
             <ElDropdownMenu>
-              <ElDropdownItem :icon="deleteicon" @click="delSelect">{{
+              <ElDropdownItem :icon="Delete" @click="delSelect">{{
                 t('common.delete')
               }}</ElDropdownItem>
             </ElDropdownMenu>
           </template>
         </ElDropdown>
-      </ElCol>
-    </ElRow>
-    <ElTabs class="demo-tabs" v-loading="projectListLoading">
+      </div>
+    </div>
+    <ElTabs v-loading="projectListLoading">
       <ElTabPane :label="`${t('common.all')} (${tagNum['All']})`"
         ><ProjectList
           :tableDataList="allProjectData['All']"
@@ -188,39 +167,40 @@ const selectedRowIds = ref([])
     />
   </Dialog>
 </template>
-<style>
-.demo-tabs > .el-tabs__content {
-  padding: 32px;
-  color: #6b778c;
-  font-size: 32px;
-  font-weight: 600;
-}
-</style>
 
 <style scoped>
-.locale-search-row {
+.project-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.project-toolbar__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.project-toolbar__label {
+  color: var(--el-text-color-regular);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.project-toolbar__input {
+  width: 260px;
+}
+.project-toolbar__actions {
+  display: flex;
   align-items: center;
   gap: 12px;
 }
-.locale-search-row > .el-col {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: 100%;
-}
-.locale-search-row > .el-col:nth-child(2) {
-  flex: 0 1 260px;
-  min-width: 0;
-}
-.locale-search-row .el-text {
-  white-space: nowrap;
-}
-.locale-actions-row {
+.project-toolbar__switch {
+  display: inline-flex;
   align-items: center;
-  gap: 16px;
-}
-.locale-actions-row > .el-col {
-  flex: 0 0 auto;
-  width: auto;
-  max-width: 100%;
+  gap: 8px;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
 }
 </style>
