@@ -785,7 +785,7 @@ const handleCheckChange = (data, checked) => {
   </ElForm>
   <Dialog
     v-model="dialogVisible"
-    :title="t('router.pocManagement')"
+    :title="t('common.selectPoc')"
     center
     fullscreen
     style="border-radius: 15px; box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3)"
@@ -799,6 +799,11 @@ const handleCheckChange = (data, checked) => {
       :height="600"
       @check-change="handleCheckChange"
     />
+    <template #footer>
+      <ElButton type="primary" @click="dialogVisible = false">
+        {{ t('common.confirm') }}
+      </ElButton>
+    </template>
   </Dialog>
 
   <!-- 参数配置抽屉 -->
