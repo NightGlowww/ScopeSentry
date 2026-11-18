@@ -55,6 +55,7 @@ import (
 	dictionarysvc "github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	redisLogSubscriber "github.com/Autumn-27/ScopeSentry/internal/services/redis_log_subscriber"
+	taskSvc "github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 
 	"github.com/Autumn-27/ScopeSentry/docs"
 	"github.com/gin-gonic/gin"
@@ -108,6 +109,24 @@ func main() {
 		}
 		if n > 0 {
 			logger.Info("dictionary: backfilled entry index", zap.Int("count", n))
+		}
+	}()
+
+	// 任务进度巡检：每 30 秒重算运行中任务的进度与终态，并把僵尸任务判 failed。
+	// 此前进度只在「有人打开任务列表」或节点上报 Task end 时才更新，没人看页面就一直显示 0%。
+	go func() {
+		svc := taskSvc.NewService()
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+			if err := svc.TaskProgress(ctx); err != nil {
+				logger.Warn("task progress tick failed", zap.Error(err))
+			}
+			if n, err := svc.SweepStaleTasks(ctx, 15*time.Minute); err == nil && n > 0 {
+				logger.Info("stale tasks marked failed", zap.Int("count", n))
+			}
+			cancel()
 		}
 	}()
 

@@ -13,6 +13,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/tasksync"
 	"strings"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 
@@ -49,6 +50,8 @@ type Service interface {
 	GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pageSize int) (map[string]interface{}, error)
 	TaskProgressNumber(ctx *gin.Context) error
 	TaskProgress(ctx context.Context) error
+	// SweepStaleTasks 把长期无进度、无疑活动迹象的运行中任务判定为失败
+	SweepStaleTasks(ctx context.Context, staleAfter time.Duration) (int, error)
 	ProcessTaskProgress(ctx context.Context, task models.Task) error
 	GetAllTaskNames(ctx *gin.Context) ([]models.Task, error)
 }
@@ -734,4 +737,64 @@ func (s *service) GetAllTaskNames(ctx *gin.Context) ([]models.Task, error) {
 	}
 
 	return tasks, nil
+}
+
+// SweepStaleTasks 巡检僵尸任务：状态仍是运行中、进度未满，但创建时间已超过 staleAfter，
+// 且 Redis 里既没有待处理目标队列（TaskInfo:<id>）也没有进度集合（TaskInfo:tmp:<id>），
+// 判定为 failed。此前没有 failed 态，节点挂掉后任务会永久停在「运行中」。
+func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration) (int, error) {
+	filter := bson.M{
+		"status":   constants.TaskStatusRunning,
+		"progress": bson.M{"$ne": 100},
+	}
+	tasks, err := s.taskRepo.Find(ctx, filter, nil)
+	if err != nil {
+		return 0, fmt.Errorf("sweep stale tasks: %w", err)
+	}
+	now := time.Now()
+	// 节点仍在线时不要轻易判死：长任务可能几小时才产出第一份进度。
+	// 只有「任务节点全部离线」或「超过硬上限（6 小时）」才进入失败判定。
+	onlineNodes := map[string]struct{}{}
+	if nodeData, err := s.nodeService.GetNodeData(ctx, true); err == nil {
+		for _, n := range nodeData {
+			onlineNodes[n.Name] = struct{}{}
+		}
+	}
+	const hardLimit = 6 * time.Hour
+	swept := 0
+	for _, task := range tasks {
+		created, perr := time.ParseInLocation("2006-01-02 15:04:05", task.CreatTime, time.Local)
+		if perr != nil || now.Sub(created) < staleAfter {
+			continue
+		}
+		nodeAlive := false
+		for _, n := range task.Node {
+			if _, ok := onlineNodes[n]; ok {
+				nodeAlive = true
+				break
+			}
+		}
+		if nodeAlive && now.Sub(created) < hardLimit {
+			continue
+		}
+		id := task.ID.Hex()
+		if ok, _ := s.taskRepo.Exists(ctx, "TaskInfo:"+id); ok {
+			continue // 还有目标没被节点领走
+		}
+		if ok, _ := s.taskRepo.Exists(ctx, "TaskInfo:tmp:"+id); ok {
+			continue // 节点仍在写进度
+		}
+		update := bson.M{"$set": bson.M{
+			"status":   constants.TaskStatusFailed,
+			"endTime":  helper.GetNowTimeString(),
+			"progress": task.Progress,
+		}}
+		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
+			logger.Error(fmt.Sprintf("sweep stale tasks: update %s failed: %v", id, err))
+			continue
+		}
+		logger.Warn(fmt.Sprintf("task %s marked failed: no progress after %s", id, staleAfter))
+		swept++
+	}
+	return swept, nil
 }
