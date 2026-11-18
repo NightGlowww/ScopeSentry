@@ -106,7 +106,7 @@ const searchTruncated = ref(false)
 const selectedValues = ref<string[]>([])
 
 const rowColumns = reactive<TableColumn[]>([
-  { field: 'selection', type: 'selection', width: '55' },
+  { field: 'selection', type: 'selection', width: 55 },
   { field: 'seq', label: t('dictManager.seq'), width: 90 },
   { field: 'value', label: t('dictManager.value'), minWidth: 200 }
 ])

@@ -71,33 +71,33 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '55'
+    minWidth: 55
   },
   {
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '30'
+    minWidth: 30
   },
   {
     field: 'domain',
     label: t('rootDomain.rootDomainName'),
-    minWidth: '200'
+    minWidth: 200
   },
   {
     field: 'icp',
     label: 'ICP',
-    minWidth: '200'
+    minWidth: 200
   },
   {
     field: 'company',
     label: t('rootDomain.company'),
-    minWidth: '250'
+    minWidth: 250
   },
   {
     field: 'project',
     label: t('project.project'),
-    minWidth: '150'
+    minWidth: 150
   },
   {
     field: 'tags',
@@ -195,12 +195,12 @@ const crudSchemas = reactive<CrudSchema[]>([
         )
       ])
     },
-    minWidth: '130'
+    minWidth: 130
   },
   {
     field: 'time',
     label: t('asset.time'),
-    minWidth: '200'
+    minWidth: 200
   }
 ])
 let index = 'RootDomain'

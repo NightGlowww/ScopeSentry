@@ -186,18 +186,18 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '55'
+    minWidth: 55
   },
   {
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '15'
+    minWidth: 15
   },
   {
     field: 'domain',
     label: t('asset.domain'),
-    minWidth: '200',
+    minWidth: 200,
     formatter: (row, __: TableColumn, domainValue: string) => {
       return (
         <div class="flex">
@@ -221,7 +221,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'ip',
     label: t('asset.IP'),
-    minWidth: '130',
+    minWidth: 130,
     formatter: (row, __: TableColumn, ipValue: string) => {
       return (
         <div class="flex">
@@ -241,7 +241,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'port',
     label: t('asset.port') + '/' + t('asset.service'),
-    minWidth: '110',
+    minWidth: 110,
     formatter: (raw, __: TableColumn, statusValue: number) => {
       if (raw.service == '') {
         return <div>{statusValue}</div>
@@ -266,7 +266,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'status',
     label: t('asset.status'),
-    minWidth: '85',
+    minWidth: 85,
     columnKey: 'statuscode',
     formatter: (row: Recordable, __: TableColumn, statusValue: number) => {
       if (row.type == 'other') {
@@ -319,7 +319,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'title',
     label: t('asset.title'),
-    minWidth: '150',
+    minWidth: 150,
     formatter: (row: Recordable, __: TableColumn, title: string) => {
       if (title == null || title == '') {
         title = ''
@@ -353,7 +353,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'remark',
     label: t('asset.remark'),
-    minWidth: '160',
+    minWidth: 160,
     formatter: (row: Recordable) => {
       // 行内编辑：失焦或回车保存，失败回滚到上一次保存成功的内容（issue #335）
       const saved = row.remark ?? ''
@@ -490,7 +490,7 @@ let crudSchemas = reactive<CrudSchema[]>([
         )
       ])
     },
-    minWidth: '130'
+    minWidth: 130
   },
   {
     field: 'banner',
@@ -512,12 +512,12 @@ let crudSchemas = reactive<CrudSchema[]>([
         </ElScrollbar>
       )
     },
-    minWidth: '190'
+    minWidth: 190
   },
   {
     field: 'products',
     label: t('asset.products'),
-    minWidth: '110',
+    minWidth: 110,
     formatter: (_: Recordable, __: TableColumn, ProductsValue: string[] | null) => {
       if (!ProductsValue || ProductsValue.length === 0) return
       if (ProductsValue.length != 0) {
@@ -579,7 +579,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'screenshot',
     label: t('asset.screenshot'),
-    minWidth: '170',
+    minWidth: 170,
     formatter: (row) => {
       if (row.ResponseBodyHash == undefined) {
         return
@@ -612,7 +612,7 @@ let crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'time',
     label: t('asset.time'),
-    minWidth: '170'
+    minWidth: 170
   },
   {
     field: 'action',
@@ -630,7 +630,7 @@ let crudSchemas = reactive<CrudSchema[]>([
         </>
       )
     },
-    minWidth: '100'
+    minWidth: 100
   }
 ])
 

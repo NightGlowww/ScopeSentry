@@ -79,32 +79,32 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '35'
+    minWidth: 35
   },
   {
     field: 'ip',
     label: t('asset.IP'),
-    minWidth: '120'
+    minWidth: 120
   },
   {
     field: 'port',
     label: t('asset.port'),
-    minWidth: '100'
+    minWidth: 100
   },
   {
     field: 'domain',
     label: t('asset.domain'),
-    minWidth: '100'
+    minWidth: 100
   },
   {
     field: 'service',
     label: t('asset.service'),
-    minWidth: '100'
+    minWidth: 100
   },
   {
     field: 'products',
     label: t('asset.products'),
-    minWidth: '180',
+    minWidth: 180,
     formatter: (_: Recordable, __: TableColumn, ProductsValue: string[] | null) => {
       if (!ProductsValue || ProductsValue.length === 0) return
       if (ProductsValue.length != 0) {
@@ -123,7 +123,7 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'time',
     label: t('asset.time'),
-    minWidth: '180'
+    minWidth: 180
   }
 ])
 let index = 'IPAsset'

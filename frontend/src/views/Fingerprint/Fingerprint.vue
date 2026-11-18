@@ -28,7 +28,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'selection',
     type: 'selection',
-    width: '55'
+    width: 55
   },
   {
     field: 'id',

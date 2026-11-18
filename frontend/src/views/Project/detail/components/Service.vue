@@ -48,18 +48,18 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: '55'
+    minWidth: 55
   },
   {
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '30'
+    minWidth: 30
   },
   {
     field: 'service',
     label: t('asset.service'),
-    minWidth: '100',
+    minWidth: 100,
     formatter: (row, __: TableColumn, domainValue: string) => {
       if (!row.count) {
         return <ElText>{domainValue}</ElText>
@@ -91,7 +91,7 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'host',
     label: t('asset.domain'),
-    minWidth: '200',
+    minWidth: 200,
     slots: {
       header: () => {
         return (
@@ -112,7 +112,7 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'ip',
     label: t('asset.IP'),
-    minWidth: '250',
+    minWidth: 250,
     slots: {
       header: () => {
         return (
@@ -133,7 +133,7 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'port',
     label: t('asset.port'),
-    minWidth: '250',
+    minWidth: 250,
     slots: {
       header: () => {
         return (
@@ -154,7 +154,7 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'time',
     label: t('asset.time'),
-    minWidth: '200'
+    minWidth: 200
   }
 ])
 
