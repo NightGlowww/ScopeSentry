@@ -516,6 +516,14 @@ export default defineComponent({
       const tableSlots = {}
       if (getSlot(slots, 'empty')) {
         tableSlots['empty'] = (...args: any[]) => getSlot(slots, 'empty', args)
+      } else {
+        // 统一空态：带插画的 ElEmpty，而不是一行灰字
+        tableSlots['empty'] = () => (
+          <ElEmpty
+            description={unref(getProps).emptyText ?? t('common.noData')}
+            imageSize={64}
+          />
+        )
       }
       if (getSlot(slots, 'append')) {
         tableSlots['append'] = (...args: any[]) => getSlot(slots, 'append', args)
