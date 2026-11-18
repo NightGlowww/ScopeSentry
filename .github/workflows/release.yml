@@ -1,9 +1,8 @@
 name: Release
 
+# 只保留手动触发：每次 push tag 都跑一遍完整构建（Go + 前端 + Docker）
+# 属于纯排队噪音，发布实际由本地出包 + 手动部署完成。
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       version:
