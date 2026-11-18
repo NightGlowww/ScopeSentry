@@ -736,7 +736,6 @@ const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func generatePluginHash(length int, tp string) string {
 	// 初始化随机数种子
-	rand.Seed(time.Now().UnixNano())
 
 	// 生成随机字符串
 	b := make([]byte, length)

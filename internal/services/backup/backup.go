@@ -656,7 +656,7 @@ func (s *service) restoreLocked(ctx context.Context, name, archivePath string) (
 }
 
 func isRegularTarEntry(hdr *tar.Header) bool {
-	return hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA
+	return hdr.Typeflag == tar.TypeReg
 }
 
 // safeRelativePath 归一化归档条目名，拒绝绝对路径与路径穿越。
