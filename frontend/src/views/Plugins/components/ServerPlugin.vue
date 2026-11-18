@@ -2,7 +2,7 @@
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, onMounted, h, inject, computed, type Ref } from 'vue'
-import { ArrowDown, Search, Upload } from '@element-plus/icons-vue'
+import { ArrowDown, Search } from '@element-plus/icons-vue'
 import {
   ElButton,
   ElCol,
@@ -37,10 +37,10 @@ import {
   deletePluginDataApi,
   getPluginDataApi,
   getPluginLogApi,
-  reCheckPluginApi,
+
   reInstallPluginApi,
   runPluginOnceApi,
-  uninstallPluginApi,
+
   updatePluginStatusApi
 } from '@/api/plugins'
 import detail from './detail.vue'

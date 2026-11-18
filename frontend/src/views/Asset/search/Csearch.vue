@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import {
   ElCol,
   ElRow,

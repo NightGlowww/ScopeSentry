@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h, nextTick, Ref } from 'vue'
+import { ref, reactive } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -16,7 +16,7 @@ import {
   UploadRawFile,
   UploadInstance,
   ElTag,
-  InputInstance
+
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -24,7 +24,7 @@ import { Icon } from '@/components/Icon'
 import { Upload } from '@element-plus/icons-vue'
 import { useIcon } from '@/hooks/web/useIcon'
 import { BaseButton } from '@/components/Button'
-import { getPocDataApi, getPocContentApi, deletePocDataApi, getPocDetailApi } from '@/api/poc'
+import { getPocDataApi, deletePocDataApi, getPocDetailApi } from '@/api/poc'
 import Detail from './components/Detail.vue'
 import { Dialog } from '@/components/Dialog'
 import { useUserStore } from '@/store/modules/user'

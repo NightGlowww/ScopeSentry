@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { reactive } from 'vue'
-import { ElButton, ElCol, ElRow, ElInput, ElSelect, ElOption, ElTag, ElMessage, ElMessageBox } from 'element-plus'
+import { ElButton, ElCol, ElRow, ElInput, ElSelect, ElOption, ElTag, ElMessage } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { BaseButton } from '@/components/Button'

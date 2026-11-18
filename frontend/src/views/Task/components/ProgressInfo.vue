@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, h, effect } from 'vue'
+import { reactive, h } from 'vue'
 import { Table, TableColumn } from '@/components/Table'
 import { getTaskProgressApi, pauseTaskTargetApi, resumeTaskTargetApi } from '@/api/task'
 import { useTable } from '@/hooks/web/useTable'
@@ -12,7 +12,7 @@ import {
   ElPagination,
   ElTag,
   ElTooltip,
-  ElTooltipProps
+
 } from 'element-plus'
 import { Icon } from '@/components/Icon'
 const { t } = useI18n()

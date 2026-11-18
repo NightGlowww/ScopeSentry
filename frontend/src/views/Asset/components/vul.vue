@@ -17,7 +17,7 @@ import {
   InputInstance,
   ElSelect,
   ElOption,
-  ElMessage
+
 } from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { Table, TableColumn } from '@/components/Table'
@@ -29,7 +29,7 @@ import { BaseButton } from '@/components/Button'
 import { addTagApi, deleteTagApi, updateStatusApi } from '@/api/asset'
 import { RowState } from '@/api/asset/types'
 import Detail from '../../Poc/components/Detail.vue'
-import { getPocContentApi, getPocDetailApi } from '@/api/poc'
+import { getPocDetailApi } from '@/api/poc'
 const { t } = useI18n()
 interface Project {
   value: string
