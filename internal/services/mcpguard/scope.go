@@ -28,6 +28,7 @@ const (
 	ScopeTemplateRead  = "template:read"
 	ScopeTemplateWrite = "template:write"
 	ScopePluginRead    = "plugin:read"
+	ScopePluginWrite   = "plugin:write"
 	ScopeNodeRead      = "node:read"
 	ScopeNodeWrite     = "node:write"
 )
@@ -89,6 +90,10 @@ var ToolScopes = map[string]string{
 	"get_export_fields":         ScopeAssetRead,
 	"create_export_task":        ScopeAssetWrite,
 	"delete_export_files":       ScopeAssetWrite,
+	// 插件安装 / 重检 / 卸载
+	"reinstall_plugin": ScopePluginWrite,
+	"recheck_plugin":   ScopePluginWrite,
+	"uninstall_plugin": ScopePluginWrite,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）
