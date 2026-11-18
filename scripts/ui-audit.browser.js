@@ -10,7 +10,8 @@
  */
 async function uiAudit(routes, opts) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-  const wait = (opts && opts.wait) || 900
+  // 列表页首屏要等接口返回，900ms 时可能还在骨架屏
+  const wait = (opts && opts.wait) || 1600
   const vis = (el) => el && el.offsetParent !== null
   const out = []
 
