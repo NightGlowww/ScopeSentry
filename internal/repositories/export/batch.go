@@ -35,6 +35,8 @@ type BatchQuery struct {
 	Sort       bson.D
 	Projection bson.D
 	Pipeline   mongo.Pipeline
+	// Limit > 0 时限制返回行数（find 模式；aggregate 模式用 $limit 阶段）
+	Limit int64
 }
 
 // BatchRepository 批量导出的只读仓库。
@@ -79,6 +81,10 @@ func (r *batchRepository) Cursor(ctx context.Context, q BatchQuery) (*mongo.Curs
 		}
 		if len(q.Projection) > 0 {
 			opts.SetProjection(q.Projection)
+		}
+		// 预览等场景会传 limit：必须在查询层截断，否则会把整个集合拉回内存。
+		if q.Limit > 0 {
+			opts.SetLimit(q.Limit)
 		}
 		// 批量大小与游标分批一致：一次 1000 条，边读边写，不把结果集堆在内存里。
 		opts.SetBatchSize(batchCursorSize)
