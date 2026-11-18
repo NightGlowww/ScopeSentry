@@ -114,8 +114,11 @@ const style = computed(() => {
     :style="style"
     @click="() => emits('click')"
   >
-    <slot></slot>
+    <!-- 图标必须在文字前面：之前 #icon 插槽排在默认插槽之后，
+         用 <template #icon> 的按钮会把图标渲染到文字右边（导入 ↑），
+         极端情况下图标组件未就绪还会出现整块空白按钮 -->
     <slot name="icon"></slot>
+    <slot></slot>
     <slot name="loading"></slot>
   </ElButton>
 </template>
