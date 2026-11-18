@@ -272,6 +272,47 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: "批量启用/停用敏感信息规则",
 	}, setSensitiveRuleState)
 
+	// ---- 节点运维 + 字典维护 ----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_node_plugins",
+		Description: "列出某节点上各插件的安装/检查状态",
+	}, listNodePlugins)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_node_logs",
+		Description: "读取某节点的日志文本",
+	}, getNodeLogs)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "restart_node",
+		Description: "重启指定节点",
+	}, restartNode)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_nodes",
+		Description: "批量删除节点记录",
+	}, deleteNodes)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_dictionary",
+		Description: "按类型新建字典（重名报错），content 为换行分隔的行",
+	}, createDictionary)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "append_dictionary_lines",
+		Description: "向已有字典追加行（唯一索引去重）",
+	}, appendDictionaryLines)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_dictionary",
+		Description: "按类型 + 名称删除整个字典",
+	}, deleteDictionary)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_dictionary_entries",
+		Description: "删除字典中的指定行",
+	}, deleteDictionaryEntries)
+
 	recordToolNames(names)
 	warnUnregisteredTools(names)
 }
@@ -1081,7 +1122,7 @@ func listFingerprints(ctx context.Context, _ *mcp.CallToolRequest, input listFin
 }
 
 type listDictionariesInput struct {
-	Kind      string `json:"kind,omitempty" jsonschema:"字典类型：port/subdomain/dir/brute，默认 port"`
+	Kind      string `json:"kind,omitempty" jsonschema:"字典类型：subdomain/dir/brute/cdn/other，默认 subdomain"`
 	Search    string `json:"search,omitempty" jsonschema:"字典名称模糊搜索"`
 	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
 	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
@@ -1090,7 +1131,7 @@ type listDictionariesInput struct {
 func listDictionaries(ctx context.Context, _ *mcp.CallToolRequest, input listDictionariesInput) (*mcp.CallToolResult, any, error) {
 	kind := input.Kind
 	if strings.TrimSpace(kind) == "" {
-		kind = "port"
+		kind = "subdomain"
 	}
 	if input.PageIndex <= 0 {
 		input.PageIndex = 1
@@ -1109,7 +1150,7 @@ func listDictionaries(ctx context.Context, _ *mcp.CallToolRequest, input listDic
 }
 
 type previewDictionaryInput struct {
-	Kind  string `json:"kind,omitempty" jsonschema:"字典类型，默认 port"`
+	Kind  string `json:"kind,omitempty" jsonschema:"字典类型，默认 subdomain"`
 	Name  string `json:"name" jsonschema:"字典名称"`
 	Limit int    `json:"limit,omitempty" jsonschema:"预览行数，默认 50，上限 200"`
 }
@@ -1120,7 +1161,7 @@ func previewDictionary(ctx context.Context, _ *mcp.CallToolRequest, input previe
 	}
 	kind := input.Kind
 	if strings.TrimSpace(kind) == "" {
-		kind = "port"
+		kind = "subdomain"
 	}
 	limit := input.Limit
 	if limit <= 0 {
@@ -1137,7 +1178,7 @@ func previewDictionary(ctx context.Context, _ *mcp.CallToolRequest, input previe
 }
 
 type searchDictionaryLinesInput struct {
-	Kind    string `json:"kind,omitempty" jsonschema:"字典类型，默认 port"`
+	Kind    string `json:"kind,omitempty" jsonschema:"字典类型，默认 subdomain"`
 	Name    string `json:"name" jsonschema:"字典名称"`
 	Keyword string `json:"keyword" jsonschema:"行内关键字"`
 	Limit   int    `json:"limit,omitempty" jsonschema:"返回行数上限，默认 50，最大 200"`
@@ -1149,7 +1190,7 @@ func searchDictionaryLines(ctx context.Context, _ *mcp.CallToolRequest, input se
 	}
 	kind := input.Kind
 	if strings.TrimSpace(kind) == "" {
-		kind = "port"
+		kind = "subdomain"
 	}
 	limit := input.Limit
 	if limit <= 0 {
@@ -1393,4 +1434,151 @@ func setSensitiveRuleState(ctx context.Context, _ *mcp.CallToolRequest, input se
 		return errorResult("更新规则状态失败", err)
 	}
 	return jsonToolResult(ginH{"ok": true, "updated": n, "state": input.State})
+}
+
+// ---------------------------------------------------------------------------
+// 节点运维 + 字典维护
+// ---------------------------------------------------------------------------
+
+type nodeNameInput struct {
+	Node string `json:"node" jsonschema:"节点名称"`
+}
+
+func listNodePlugins(ctx context.Context, _ *mcp.CallToolRequest, input nodeNameInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.Node) == "" {
+		return errorResult("node 不能为空", nil)
+	}
+	res, err := d.nodeService.GetNodePlugin(ctx, input.Node)
+	if err != nil {
+		return errorResult("获取节点插件失败", err)
+	}
+	return jsonToolResult(ginH{"node": input.Node, "plugins": res})
+}
+
+func getNodeLogs(ctx context.Context, _ *mcp.CallToolRequest, input nodeNameInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.Node) == "" {
+		return errorResult("node 不能为空", nil)
+	}
+	res, err := d.nodeService.GetNodeLogs(ctx, input.Node)
+	if err != nil {
+		return errorResult("读取节点日志失败", err)
+	}
+	return jsonToolResult(ginH{"node": input.Node, "logs": res})
+}
+
+func restartNode(ctx context.Context, _ *mcp.CallToolRequest, input nodeNameInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.Node) == "" {
+		return errorResult("node 不能为空", nil)
+	}
+	if err := d.nodeService.RestartNode(ctx, input.Node); err != nil {
+		return errorResult("重启节点失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "node": input.Node})
+}
+
+type deleteNodesInput struct {
+	Names []string `json:"names" jsonschema:"节点名称列表"`
+}
+
+func deleteNodes(ctx context.Context, _ *mcp.CallToolRequest, input deleteNodesInput) (*mcp.CallToolResult, any, error) {
+	names := make([]string, 0, len(input.Names))
+	for _, n := range input.Names {
+		if strings.TrimSpace(n) != "" {
+			names = append(names, n)
+		}
+	}
+	if len(names) == 0 {
+		return errorResult("names 不能为空", nil)
+	}
+	if err := d.nodeService.DeleteNodes(ctx, names); err != nil {
+		return errorResult("删除节点失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "deleted": len(names)})
+}
+
+type createDictionaryInput struct {
+	Kind    string   `json:"kind" jsonschema:"字典类型：subdomain/dir/brute/cdn/other"`
+	Name    string   `json:"name" jsonschema:"字典名称"`
+	Content string   `json:"content,omitempty" jsonschema:"字典内容，换行分隔；与 lines 二选一"`
+	Lines   []string `json:"lines,omitempty" jsonschema:"字典行数组；与 content 二选一"`
+}
+
+func createDictionary(ctx context.Context, _ *mcp.CallToolRequest, input createDictionaryInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.Name) == "" || strings.TrimSpace(input.Kind) == "" {
+		return errorResult("kind 和 name 不能为空", nil)
+	}
+	if d.dictService == nil {
+		return errorResult("字典服务未初始化", nil)
+	}
+	content := input.Content
+	if content == "" && len(input.Lines) > 0 {
+		content = strings.Join(input.Lines, "\n")
+	}
+	if strings.TrimSpace(content) == "" {
+		return errorResult("content/lines 不能同时为空", nil)
+	}
+	res, err := d.dictService.CreateByKind(ctx, input.Kind, input.Name, content)
+	if err != nil {
+		return errorResult("创建字典失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type appendDictionaryLinesInput struct {
+	Kind  string   `json:"kind" jsonschema:"字典类型"`
+	Name  string   `json:"name" jsonschema:"字典名称"`
+	Lines []string `json:"lines" jsonschema:"要追加的行"`
+}
+
+func appendDictionaryLines(ctx context.Context, _ *mcp.CallToolRequest, input appendDictionaryLinesInput) (*mcp.CallToolResult, any, error) {
+	if d.dictService == nil {
+		return errorResult("字典服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Name) == "" || len(input.Lines) == 0 {
+		return errorResult("name 和 lines 不能为空", nil)
+	}
+	res, err := d.dictService.Append(ctx, input.Kind, input.Name, input.Lines)
+	if err != nil {
+		return errorResult("追加字典行失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type deleteDictionaryInput struct {
+	Kind string `json:"kind" jsonschema:"字典类型"`
+	Name string `json:"name" jsonschema:"字典名称"`
+}
+
+func deleteDictionary(ctx context.Context, _ *mcp.CallToolRequest, input deleteDictionaryInput) (*mcp.CallToolResult, any, error) {
+	if d.dictService == nil {
+		return errorResult("字典服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Name) == "" {
+		return errorResult("name 不能为空", nil)
+	}
+	res, err := d.dictService.DeleteFileByName(ctx, input.Kind, input.Name)
+	if err != nil {
+		return errorResult("删除字典失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type deleteDictionaryEntriesInput struct {
+	Kind    string   `json:"kind" jsonschema:"字典类型"`
+	Name    string   `json:"name" jsonschema:"字典名称"`
+	Entries []string `json:"entries" jsonschema:"要删除的行"`
+}
+
+func deleteDictionaryEntries(ctx context.Context, _ *mcp.CallToolRequest, input deleteDictionaryEntriesInput) (*mcp.CallToolResult, any, error) {
+	if d.dictService == nil {
+		return errorResult("字典服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Name) == "" || len(input.Entries) == 0 {
+		return errorResult("name 和 entries 不能为空", nil)
+	}
+	res, err := d.dictService.DeleteEntries(ctx, input.Kind, input.Name, input.Entries)
+	if err != nil {
+		return errorResult("删除字典行失败", err)
+	}
+	return jsonToolResult(res)
 }
