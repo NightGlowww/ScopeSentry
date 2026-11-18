@@ -477,7 +477,13 @@ onMounted(() => {
         </ElCol>
       </ElRow>
       <ElFormItem>
-        <ElButton type="primary" :icon="plusIcon" :loading="createLoading" @click="submitCreate">
+        <ElButton
+          type="primary"
+          :icon="plusIcon"
+          :loading="createLoading"
+          :disabled="!statusAvailable"
+          @click="submitCreate"
+        >
           {{ t('fofa.create') }}
         </ElButton>
         <span class="form-hint inline-hint">{{ t('fofa.createHint') }}</span>
