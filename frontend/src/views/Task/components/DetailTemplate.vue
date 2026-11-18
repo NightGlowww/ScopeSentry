@@ -524,13 +524,14 @@ const vulSelectOptions = reactive<{ value: string; label: string }[]>([])
 const getPocList = async () => {
   const res = await getPocDataAllApi() // 调用后端API
   if (res.data.list.length > 0) {
-    vulSelectOptions.push({ value: 'All Poc', label: 'All Poc' })
+    // value 必须保持 'All Poc'（后端按这个字符串判断全量），只本地化显示文案
+    vulSelectOptions.push({ value: 'All Poc', label: t('common.allPoc') })
     res.data.list.forEach((item) => {
       vulSelectOptions.push({ value: item.id, label: item.name })
     })
   }
 
-  vulOptions.push({ value: 'All Poc', label: 'All Poc', children: [] })
+  vulOptions.push({ value: 'All Poc', label: t('common.allPoc'), children: [] })
   const tree = buildTree(res.data.list)
   vulOptions.push(...tree)
 }

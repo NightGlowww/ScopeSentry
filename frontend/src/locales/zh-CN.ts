@@ -4,6 +4,7 @@ export default {
     system: { version: { success: '版本信息获取成功' } }
   },
   common: {
+    allPoc: '全部 POC',
     newTag: '+ 新标签',
     changeLanguageMessage:
       '切换语言会重置当前页面及未保存的输入。已发送的请求仍可能完成。是否继续？',
