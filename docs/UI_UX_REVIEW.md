@@ -35,7 +35,28 @@
 
 当前结果：页面横向溢出 0、按钮越界 0、可见输入框挤压 0。
 
-## 待办（按优先级）
+
+## 后续轮次（v2.0.13 → v2.0.20）
+
+| 版本 | 内容 |
+| --- | --- |
+| v2.0.13 | 搜索行统一 flex + wrap（12 页），去掉 label 的 `top:8px;left:30%` 对齐 hack |
+| v2.0.14 | 弹窗/抽屉尺寸 `max-width:94vw` + 最小宽夹取；新增 DEPLOY_NOTES |
+| v2.0.15 | 搜索按钮 `height:100%` 塌成 16px → 36px；20 处输入 38→36px；unknown 服务提示 |
+| v2.0.16 | 资产空状态码/unknown 服务解释 tooltip |
+| v2.0.17 | 暗色模式硬编码白底/浅边框改 token（DetailTemplate / Csearch / AssetInfo2） |
+| v2.0.18 | 标签页 `flex:0 0 auto`（不再被压到 55px 截字）；暗色表格/body 兜底 |
+| v2.0.19 | 17 处 `window.confirm` → Element Plus `confirmDialog`（13 文件）；IP 红图标改中性色 |
+| v2.0.20 | 首页仪表盘 126px → 56px；标签栏工具按钮 aria-label + Enter 键 |
+
+## 待办（更新）
+
+1. 表格密度与空态继续统一（行高、操作列按钮尺寸、空态插画）。
+2. 剩余无 aria-label 的图标按钮（Icon 组件的 `cursor-pointer` 用法、表格内 icon-only 按钮）。
+3. 首页「系统版本信息」表 0 行，需确认版本接口返回。
+4. 扫描节点侧：PortFingerprint 不走代理导致 service=unknown，AssetMapping 跳过——需要节点逻辑支持未知服务端口也做 HTTP 探测。
+
+## 历史待办（按优先级）
 
 1. **`fixed: 'right'` 复核**：8 处（Task / Node / IcpTask / ScanPolicy / ScopeTable / ServerPlugin / AssetInfo2 / ApiKey）。需逐个确认列宽总和与常见视口宽度，避免再次出现覆盖。
 2. **搜索行响应式**：`.locale-search-row`（19 处）+ 各页 `ElRow :gutter` 固定 span 组合，窄屏（<1100px）会挤压输入框，计划统一改成 flex + wrap。
