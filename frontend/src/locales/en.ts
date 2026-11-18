@@ -4,6 +4,7 @@ export default {
     system: { version: { success: 'Version information retrieved' } }
   },
   common: {
+    selectPoc: 'Select POC',
     allPoc: 'All POCs',
     newTag: '+ New Tag',
     changeLanguageMessage:
