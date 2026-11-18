@@ -63,17 +63,19 @@ const taskColums = reactive<TableColumn[]>([
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: '15'
+    width: 56
   },
   {
     field: 'selection',
     type: 'selection',
-    minWidth: 55,
+    width: 48,
     selectable: (row) => !row.isSystem
   },
   {
     field: 'name',
     label: t('plugin.name'),
+    minWidth: 190,
+    showOverflowTooltip: true,
     formatter: (row, __: TableColumn, value: string) => {
       return (
         <a
@@ -89,6 +91,8 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'module',
     label: t('plugin.module'),
+    /* 模块是定长枚举（PortFingerprint 最长 15 字符），给固定宽度，避免被挤成 “PortFingerpr…” */
+    width: 156,
     formatter: (_, __: TableColumn, value: string) => {
       const color = moduleColorMap[value] || '#FFFFFF' // 默认白色
       return <ElTag style={{ backgroundColor: color, color: '#000' }}>{value}</ElTag>
@@ -97,11 +101,13 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'version',
     label: t('plugin.version'),
-    minWidth: 100
+    width: 84
   },
   {
     field: 'parameter',
     label: t('plugin.parameter'),
+    minWidth: 220,
+    showOverflowTooltip: true,
     formatter: (row, __: TableColumn, value: string) => {
       return (
         <ElTooltip content={row.help} placement="top" effect="light">
@@ -113,12 +119,15 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'introduction',
     label: t('plugin.introduction'),
-    minWidth: 200
+    minWidth: 180,
+    showOverflowTooltip: true
   },
   {
     field: 'action',
     label: t('tableDemo.action'),
-    width: 450,
+    /* 按内容收口：操作下拉 + 日志/清除日志/编辑/删除 共 5 个控件，320 足够，
+       之前 450 会留出一条空白把表格撑宽 */
+    width: 320,
     fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
@@ -166,20 +175,12 @@ const taskColums = reactive<TableColumn[]>([
         }
       )
       return (
-        <>
+        <div style="display: flex; align-items: center; gap: 6px">
           {retestAndDeleteDropdown}
-          <BaseButton
-            type="warning"
-            style={{ marginLeft: '10px' }}
-            onClick={() => openLogDialogVisible(row)}
-          >
+          <BaseButton type="warning" onClick={() => openLogDialogVisible(row)}>
             {t('common.log')}
           </BaseButton>
-          <BaseButton
-            type="info"
-            style={{ marginLeft: '10px' }}
-            onClick={() => confirmCleanLog(row.hash, row.module)}
-          >
+          <BaseButton type="info" onClick={() => confirmCleanLog(row.hash, row.module)}>
             {t('common.cleanLog')}
           </BaseButton>
           <BaseButton type="success" onClick={() => editPlugin(row.id)}>
@@ -192,7 +193,7 @@ const taskColums = reactive<TableColumn[]>([
           >
             {t('common.delete')}
           </BaseButton>
-        </>
+        </div>
       )
     }
   }

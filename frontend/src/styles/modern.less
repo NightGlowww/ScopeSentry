@@ -880,3 +880,29 @@ html .el-badge__content.is-fixed {
   top: 4px;
   right: 10px;
 }
+
+
+/* ===========================================================================
+ * 18. 工具条按钮列：老页面用「一个 ElCol :span="1" 包一个按钮」的老写法，
+ *     列宽只有 1/24，按钮内容溢出后互相贴身（新建/开启/关闭/删除 挤成一排）。
+ *     统一改成内容自适应宽度，间距交给 margin，最后一项不留尾距。
+ * ========================================================================= */
+html .el-row > .el-col:has(> .el-button),
+html .el-row > .el-col:has(> div > .el-button) {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+html .el-row > .el-col:has(> .el-button) > .el-button,
+html .el-row > .el-col:has(> div > .el-button) > div > .el-button {
+  margin-right: 10px;
+}
+
+html .el-row > .el-col:has(> .el-button) > .el-button:last-child,
+html .el-row > .el-col:has(> div > .el-button) > div > .el-button:last-child {
+  margin-right: 0;
+}
+
