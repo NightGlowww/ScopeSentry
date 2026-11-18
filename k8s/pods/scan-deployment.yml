@@ -19,6 +19,14 @@ spec:
       containers:
         - name: scan
           image: autumn27/scopesentry-scan:1.9.1
+          # 扫描容器限载：nuclei/httpx 会瞬时吃满 CPU，无限载时能拖垮整节点
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
 
           env:
             - name: TIMEZONE

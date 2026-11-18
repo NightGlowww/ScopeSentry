@@ -210,5 +210,18 @@ type ConsoleInfo struct {
 	TaskRunning   int64             `json:"taskRunning"`
 	Mongo         ConsoleDependency `json:"mongo"`
 	Redis         ConsoleDependency `json:"redis"`
-	CollectedAt   string            `json:"collectedAt"`
+	// HostStats 主机资源快照（磁盘/负载/内存），由 console handler 填充
+	HostStats    *HostStats `json:"hostStats,omitempty"`
+	HostWarnings []string   `json:"hostWarnings,omitempty"`
+	CollectedAt  string     `json:"collectedAt"`
+}
+
+// HostStats 主机资源快照（与 utils/hoststat.Stats 字段一致，models 不反向依赖 utils）。
+type HostStats struct {
+	CPUs                int     `json:"cpus"`
+	Load1               float64 `json:"load1"`
+	DiskFreeBytes       uint64  `json:"diskFreeBytes"`
+	DiskTotalBytes      uint64  `json:"diskTotalBytes"`
+	DiskFreePercent     float64 `json:"diskFreePercent"`
+	MemAvailablePercent float64 `json:"memAvailablePercent"`
 }

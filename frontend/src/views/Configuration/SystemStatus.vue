@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { ElButton, ElCard, ElCol, ElRow, ElTag, ElDescriptions, ElDescriptionsItem } from 'element-plus'
+import { ElAlert, ElButton, ElCard, ElCol, ElRow, ElTag, ElDescriptions, ElDescriptionsItem } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { getConsoleInfoApi, type ConsoleInfo } from '@/api/dashboard'
 
@@ -76,6 +76,42 @@ onBeforeUnmount(() => {
       </ElCol>
     </ElRow>
 
+    <ElRow :gutter="12" class="mb-12px" v-if="info && info.hostStats">
+      <ElCol :span="8">
+        <ElCard shadow="never">
+          <div class="stat-label">磁盘可用</div>
+          <div class="stat-value">{{ info.hostStats.diskFreePercent.toFixed(1) }}%</div>
+          <div class="hint">
+            {{ (info.hostStats.diskFreeBytes / 1024 / 1024 / 1024).toFixed(1) }} GB /
+            {{ (info.hostStats.diskTotalBytes / 1024 / 1024 / 1024).toFixed(1) }} GB
+          </div>
+        </ElCard>
+      </ElCol>
+      <ElCol :span="8">
+        <ElCard shadow="never">
+          <div class="stat-label">1 分钟负载</div>
+          <div class="stat-value">{{ info.hostStats.load1 >= 0 ? info.hostStats.load1.toFixed(2) : '-' }}</div>
+          <div class="hint">CPU {{ info.hostStats.cpus }} 核</div>
+        </ElCard>
+      </ElCol>
+      <ElCol :span="8">
+        <ElCard shadow="never">
+          <div class="stat-label">可用内存</div>
+          <div class="stat-value">
+            {{ info.hostStats.memAvailablePercent >= 0 ? info.hostStats.memAvailablePercent.toFixed(1) + '%' : '-' }}
+          </div>
+          <div class="hint">低于 10% 会告警</div>
+        </ElCard>
+      </ElCol>
+    </ElRow>
+    <ElAlert
+      v-if="info && info.hostWarnings && info.hostWarnings.length"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="mb-12px"
+      :title="'主机告警：' + info.hostWarnings.join(', ')"
+    />
     <ElCard shadow="never">
       <template #header><span>运行信息</span></template>
       <ElDescriptions :column="2" border>

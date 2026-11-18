@@ -2,7 +2,9 @@ package console
 
 import (
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
+	"github.com/Autumn-27/ScopeSentry/internal/models"
 	dashboardservice "github.com/Autumn-27/ScopeSentry/internal/services/dashboard"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/hoststat"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,5 +34,16 @@ func Info(c *gin.Context) {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
+	// 主机资源：磁盘/负载/内存，前端系统状态页直接展示
+	h := hoststat.Stat("/")
+	result.HostStats = &models.HostStats{
+		CPUs:                h.CPUs,
+		Load1:               h.Load1,
+		DiskFreeBytes:       h.DiskFreeBytes,
+		DiskTotalBytes:      h.DiskTotalBytes,
+		DiskFreePercent:     h.DiskFreePercent,
+		MemAvailablePercent: h.MemAvailablePercent,
+	}
+	result.HostWarnings = hoststat.Warnings(h)
 	response.Success(c, result, "api.success")
 }

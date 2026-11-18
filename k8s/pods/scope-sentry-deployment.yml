@@ -21,6 +21,13 @@ spec:
       containers:
         - name: webserver
           image: autumn27/scopesentry:1.9.4
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
 
           ports:
             - containerPort: 8082
