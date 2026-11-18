@@ -10,7 +10,7 @@ ScopeSentry 暴露一个 MCP（Model Context Protocol）Server，走 **Streamabl
 
 | scope | 覆盖 |
 | --- | --- |
-| `asset:read` | 资产、POC、指纹、字典、看板等只读查询 |
+| `asset:read` | 资产、POC、指纹、字典、看板、资产组/地契、ICP 任务、服务端操作日志等只读查询 |
 | `asset:write` | 资产打标签等写操作 |
 | `task:read` / `task:write` | 任务查询 / 创建 |
 | `project:read` / `project:write` | 项目查询 / 创建 |
@@ -154,3 +154,34 @@ curl -s http://127.0.0.1:8082/mcp \
 - **全局限速/分**：0 = 不限；
 - **日志保留条数**：`mcp_call_logs` 保留上限（默认 10 万）；
 - **工具白名单**：留空 = 全部；填了就只放行列表内的工具（可与 key 级 `tools` 白名单叠加）。
+
+## 资产组 / 地契 / ICP / 审计（v2.0.87 新增，共 4 个，只读）
+
+补齐 `docs/audit/MCP_GAPS.md` 的 P0/P1 只读缺口（M1 / M2 / M3 / M12）。四项**全部复用 `asset:read`**，不新增 scope 家族 —— 生产受限 key 的授予集是 `{asset:read, task:read, plugin:read, node:read}`，新增 `icp:read` / `audit:read` 会让这些 key 立刻调不到新工具，且要同步改前端 `ApiKey.vue` 的 `SCOPE_OPTIONS`。
+
+| 工具 | scope | 后端等价 | 入参 |
+| --- | --- | --- | --- |
+| `list_asset_groups` | asset:read | POST /api/assets/asset_group/list | 无 |
+| `list_asset_scopes` | asset:read | POST /api/assets/asset_scope/list | groupId / search / pageIndex / pageSize（≤500） |
+| `list_icp_tasks` | asset:read | POST /api/icp/task/list | state / type / keyword / provider / pageIndex / pageSize（≤200） |
+| `list_audit_logs` | asset:read | POST /api/audit/list | user / path / method / statusMin / pageIndex / pageSize（≤200） |
+
+入参字段与后端 handler **同名同义**（直接读 handler 绑定结构与 service/repo 签名对齐，不是猜的）：
+
+- `list_asset_scopes` → `internal/api/handlers/assets/assetgroup/handler.go` 的 ListScopes 匿名结构 + `assetgroup.ListScopes(groupID, search, pageIndex, pageSize)`
+- `list_icp_tasks` → `internal/api/handlers/icp/handler.go` 的 `taskListRequest` → `models.IcpTaskListQuery` → `icpsvc.Service.ListTasks`
+- `list_audit_logs` → `models.AuditLogQuery`（handler 直接绑它）→ `auditrepo.Repository.List`
+
+**与 REST 的差异（只有一处，且是收紧）**：MCP 不经 gin `ShouldBindJSON`，handler 里的校验分支不会自动生效，所以由 `internal/services/mcpguard/params.go` 的 `Normalize*` 补回：
+分页上限（ICP/审计 200、地契 500）、ICP `state` 只能 0-3、`type` 只能 company/domain、`provider` 只能 manual/none/http、审计 `method` 闭集、`statusMin` 只能 0 或 100-599、地契 `groupId` 必须 24 位 ObjectID 或 `unassigned`。
+越界一律返回错误，而不是让后端过滤恒不命中、返回「成功 + 空列表」（这是 `MCP_GAPS.md` §5.1 记录的同类静默失败）。
+
+典型链路：`list_asset_groups` 找集团 → `list_asset_scopes` 看覆盖的域名/IP → `list_assets` 查这些域名的资产；`list_icp_tasks` 看「企业名 → 域名」任务的进度；`list_audit_logs`（`path=/api/task/add&method=POST`）自证写操作是否落到服务端。
+
+> 写侧未暴露：资产组/地契的增删改与重排、ICP 任务的创建/停止/恢复/删除、ICP 结果入库与地契同步、备份、通知配置。
+
+## 工具总数
+
+49 + 4 = 53。
+
+> 权威口径是 `internal/services/mcpguard/scope.go` 的 `ToolScopes` 条目数（当前 53），与 `internal/mcp` 实际注册的工具名一一对应（漂移测试 `TestEveryRegisteredToolHasScope` / `TestNoOrphanScopeEntries`，`-tags integration`）。上面按版本累加的数字只是历史，**对不上时以 `ToolScopes` 为准**。
