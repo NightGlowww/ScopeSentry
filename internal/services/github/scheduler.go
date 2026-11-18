@@ -48,7 +48,6 @@ type Scheduler struct {
 	svc      *Service
 	once     sync.Once
 	stop     chan struct{}
-	mu       sync.Mutex
 	stopOnce sync.Once
 }
 
