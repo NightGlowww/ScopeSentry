@@ -217,12 +217,16 @@ const updateState = async (state) => {
       </ElCol>
       <ElCol :span="1">
         <div class="mb-10px">
-          <ElButton type="success" @click="updateState(true)">{{ t('common.on') }}</ElButton>
+          <ElButton type="success" :disabled="tableSelectedCount === 0" @click="updateState(true)">
+            {{ t('common.on') }}
+          </ElButton>
         </div>
       </ElCol>
       <ElCol :span="1">
         <div class="mb-10px">
-          <ElButton type="danger" @click="updateState(false)">{{ t('common.off') }}</ElButton>
+          <ElButton type="danger" :disabled="tableSelectedCount === 0" @click="updateState(false)">
+            {{ t('common.off') }}
+          </ElButton>
         </div>
       </ElCol>
       <ElCol :span="1">

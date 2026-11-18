@@ -564,13 +564,28 @@ const setMaxHeight = () => {
       >
             {{ t('task.delTask') }}
           </BaseButton>
-          <BaseButton type="warning" :loading="delLoading" @click="confirmStopSelect">
+          <BaseButton
+            type="warning"
+            :loading="delLoading"
+            :disabled="tableSelectedCount === 0"
+            @click="confirmStopSelect"
+          >
             {{ t('task.stop') }}
           </BaseButton>
-          <BaseButton type="success" :loading="delLoading" @click="confirmStartSelect">
+          <BaseButton
+            type="success"
+            :loading="delLoading"
+            :disabled="tableSelectedCount === 0"
+            @click="confirmStartSelect"
+          >
             {{ t('task.start') }}
           </BaseButton>
-          <BaseButton type="info" :loading="delLoading" @click="confirmSyncToProjectSelect">
+          <BaseButton
+            type="info"
+            :loading="delLoading"
+            :disabled="tableSelectedCount === 0"
+            @click="confirmSyncToProjectSelect"
+          >
             {{ t('task.syncToProject') }}
           </BaseButton>
         </div>
