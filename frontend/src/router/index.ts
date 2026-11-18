@@ -531,6 +531,27 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
     ]
   },
   {
+    path: '/github',
+    component: Layout,
+    name: 'github',
+    meta: {
+      title: t('router.githubMonitor'),
+      icon: 'mdi:github'
+    },
+    children: [
+      {
+        path: 'index',
+        component: () => import('@/views/GitHub/index.vue'),
+        name: 'github monitor',
+        meta: {
+          title: t('router.githubMonitor'),
+          icon: 'mdi:github',
+          noCache: true
+        }
+      }
+    ]
+  },
+  {
     path: '/about',
     component: Layout,
     name: 'About',
