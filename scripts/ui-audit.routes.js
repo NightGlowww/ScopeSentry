@@ -29,8 +29,6 @@ module.exports = [
   '#/fingerprint-management/index',
   '#/sensitive-information-rules/index',
   '#/dictionary-management/manage',
-  '#/dictionary-management/subdomain',
-  '#/dictionary-management/dir',
   '#/dictionary-management/port',
   '#/configuration/system',
   '#/configuration/subfinder',
