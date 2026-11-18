@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "generator": "tools/assetpack/import.py",
+  "source": {},
+  "packs": [
+    {
+      "kind": "brute",
+      "name": "pass-middleware",
+      "description": "中间件/运维平台默认口令（WebLogic/Tomcat/CAS/RabbitMQ/Zabbix/phpMyAdmin/Druid 等）",
+      "embedded": true,
+      "lines": 306,
+      "bytes": 2970,
+      "sha256": "253d611a97a10c31a7f0672f71bd7406d6f059dd91840832ceaa70a8c4428182"
+    },
+    {
+      "kind": "brute",
+      "name": "pass-top",
+      "description": "口令 top 榜单：top1000 / top20000 + 后台专项口令",
+      "embedded": true,
+      "lines": 20536,
+      "bytes": 178012,
+      "sha256": "d1815ae117332aa17c5590363ba7e58112b5c3a61a6ee7e11c551e60545726cf"
+    },
+    {
+      "kind": "brute",
+      "name": "user-cn",
+      "description": "中文用户名：拼音全名/姓/名/首字母/点分隔 + 常见 CN 邮箱与手机号形态",
+      "embedded": true,
+      "lines": 29404,
+      "bytes": 236281,
+      "sha256": "27bce31009d38f2153352a3abef8c29d986b3793cd33d09ee8b4086cbad17252"
+    },
+    {
+      "kind": "brute",
+      "name": "user-common",
+      "description": "通用用户名 top10000 + 西文常见用户名",
+      "embedded": true,
+      "lines": 10159,
+      "bytes": 72698,
+      "sha256": "e7b0426328a96f8190bb61a3446956776fe186fb1358d2184d3b104356132a40"
+    },
+    {
+      "kind": "dir",
+      "name": "backup-paths",
+      "description": "备份/敏感文件路径：.bak/.old/压缩包/源码泄露文件名与目录",
+      "embedded": true,
+      "lines": 55267,
+      "bytes": 602337,
+      "sha256": "9efebb662658c799b563d23cef4992f596510df4beb782f9985e6e0974dc24db"
+    },
+    {
+      "kind": "dir",
+      "name": "web-core",
+      "description": "Web 高信号路径：通用/后台/登录/API/支付回调 + 分语言 top100 + CMS/服务组件路径",
+      "embedded": true,
+      "lines": 10046,
+      "bytes": 151639,
+      "sha256": "b4ea76f9697b26f96733b7b2fcf08980e34b58c775e6fbacc943b2b3c9046430"
+    },
+    {
+      "kind": "dir",
+      "name": "web-full",
+      "description": "Web 全量路径（main.txt + asp/aspx/jsp/php 语言路径集），体量大，按需导入",
+      "embedded": false,
+      "lines": 289627,
+      "bytes": 3929319,
+      "sha256": "306c7c667039010e3712ac4977e0ac20c6a3f7a36d32d2d8cdaa877e0fdde5e3"
+    },
+    {
+      "kind": "dir",
+      "name": "webshell-paths",
+      "description": "WebShell 落地目录与常见文件名（自查/防守测绘用）",
+      "embedded": true,
+      "lines": 52412,
+      "bytes": 763249,
+      "sha256": "f58704f2d95de6e3be3ef537ee51708c456f39f35086f680cd31ce11db477748"
+    },
+    {
+      "kind": "other",
+      "name": "cn-regions",
+      "description": "行政区划地名（省/市/区县名，用于中文站点地名目录与拼音前缀推理）",
+      "embedded": true,
+      "lines": 2957,
+      "bytes": 34838,
+      "sha256": "a1f87dc00736e1fd394fb75ec7deee04d841230514d804c1c7f3a5682df1fa3c"
+    },
+    {
+      "kind": "other",
+      "name": "cred-pairs",
+      "description": "user:pass 凭据对（人工/插件复用，非单列爆破）",
+      "embedded": true,
+      "lines": 722,
+      "bytes": 10482,
+      "sha256": "3df066fa3f73f12bce49fc271da183e1f4d73eb3772098cdaf542a6d9f7e630d"
+    },
+    {
+      "kind": "other",
+      "name": "http-headers",
+      "description": "HTTP 头指纹/伪造字典：UA、认证头、IP 伪造头、MIME、方法、会话头",
+      "embedded": true,
+      "lines": 2750,
+      "bytes": 89439,
+      "sha256": "450497078715b0289de9689a6076c75ae5c0c017d7ff5e9edf73b94691f67bc4"
+    },
+    {
+      "kind": "other",
+      "name": "param-names",
+      "description": "接口参数名 Fuzz 字典（按漏洞类型分桶：sqli/xss/ssrf/lfi/rce/redirect/login/register）",
+      "embedded": true,
+      "lines": 393,
+      "bytes": 3625,
+      "sha256": "e4f220bf1d4bf5c1e21bdde95828e694929b27bfd87a09f8819cbc4fa415f6ea"
+    },
+    {
+      "kind": "other",
+      "name": "shiro-keys",
+      "description": "Shiro rememberMe 常见硬编码 AES 密钥（检测/自查用，单行一个 key）",
+      "embedded": false,
+      "lines": 101148,
+      "bytes": 2528680,
+      "sha256": "04732e61d3cd58ea690659bdc5df47d021c9e550078af7b40dfdf4c30c596447"
+    },
+    {
+      "kind": "other",
+      "name": "upload-bypass",
+      "description": "上传绕过字典：后缀变形、Content-Type、.htaccess、语言可执行后缀",
+      "embedded": true,
+      "lines": 408,
+      "bytes": 6105,
+      "sha256": "1d87113decbede9eb83fce624542933e8c2d2d77b9c7b17b3b554cf857210acf"
+    },
+    {
+      "kind": "subdomain",
+      "name": "subdomain-ext",
+      "description": "主机名前缀扩展集（业务、区域、环境、云厂商前缀）",
+      "embedded": true,
+      "lines": 151395,
+      "bytes": 1234519,
+      "sha256": "f7b993ce578e8a00b20d72718980a76c09537ffeab61e83afee594b5c8d3ba65"
+    }
+  ]
+}

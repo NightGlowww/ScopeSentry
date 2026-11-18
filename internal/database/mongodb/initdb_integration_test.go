@@ -19,7 +19,7 @@ func TestLargeResultCollectionsHaveTimeIndex(t *testing.T) {
 		t.Fatalf("createIndexes: %v", err)
 	}
 
-	collections := []string{"UrlScan", "crawler", "SensitiveResult", "DirScanResult", "vulnerability", "PageMonitoring"}
+	collections := []string{"UrlScan", "crawler", "SensitiveResult", "DirScanResult", "vulnerability", "PageMonitoring", "PocList"}
 	for _, name := range collections {
 		t.Run(name, func(t *testing.T) {
 			cursor, err := DB.Collection(name).Indexes().List(context.Background())

@@ -1,0 +1,31 @@
+id: scopesentry-weaver-dbconfigreader-disclosure
+
+info:
+  name: Weaver E-Cology DBconfigReader.jsp Database Credential Disclosure
+  author: scopesentry
+  severity: high
+  description: |
+    泛微 E-Cology /DBconfigReader.jsp 未授权返回数据库连接信息。
+    判据：同一响应同时出现连接串特征（jdbc:/driverClassName/dbUrl）与口令字段，才算泄露；单 200 不算。
+  tags: weaver,e-cology,disclosure
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/DBconfigReader.jsp'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)(jdbc:[a-z0-9]+://|driverClassName|dbUrl|数据库连接)'
+      - type: regex
+        part: body
+        regex:
+          - '(?i)(password|passwd|pwd)s*[=:]'
+      - type: status
+        status:
+          - 200
