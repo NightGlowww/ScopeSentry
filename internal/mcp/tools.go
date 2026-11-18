@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -41,6 +42,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
 
@@ -778,7 +780,7 @@ type listAssetsInput struct {
 	PageIndex        int                 `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
 	PageSize         int                 `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20"`
 	SearchExpression string              `json:"search,omitempty" jsonschema:"搜索表达式，非 SQL，语法详见工具 description"`
-	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，与 search 可组合。filter.project 为项目 ObjectID（list_projects 获取，非项目名）；filter.task 为任务名称。详见工具 description"`
+	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，与 search 可组合。filter.project 为项目 ObjectID（list_projects 获取）；filter.task 为任务名称；statuscode/port/length 可传数字或数字字符串"`
 	Sort             map[string]string   `json:"sort,omitempty" jsonschema:"排序。仅 UrlScan/DirScanResult 支持 length：ascending 升序，其他值降序"`
 	Sid              string              `json:"sid,omitempty" jsonschema:"敏感信息规则名称，仅 asset_type 为 SensitiveResult 时有效"`
 }
@@ -802,15 +804,7 @@ func countAssets(ctx context.Context, _ *mcp.CallToolRequest, input countAssetsI
 		Sid:              input.Sid,
 	}
 	if len(input.Filter) > 0 {
-		filter := make(map[string][]interface{}, len(input.Filter))
-		for k, vals := range input.Filter {
-			items := make([]interface{}, len(vals))
-			for i, v := range vals {
-				items[i] = v
-			}
-			filter[k] = items
-		}
-		query.Filter = filter
+		query.Filter = mcpFilterValues(input.Filter)
 	}
 
 	total, err := d.commonService.TotalData(ctx, &query)
@@ -841,15 +835,7 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 		Sid:              input.Sid,
 	}
 	if len(input.Filter) > 0 {
-		filter := make(map[string][]interface{}, len(input.Filter))
-		for k, vals := range input.Filter {
-			items := make([]interface{}, len(vals))
-			for i, v := range vals {
-				items[i] = v
-			}
-			filter[k] = items
-		}
-		query.Filter = filter
+		query.Filter = mcpFilterValues(input.Filter)
 	}
 
 	c := ginContext(ctx)
@@ -858,6 +844,60 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 		return errorResult("查询资产失败", err)
 	}
 	return jsonToolResult(data)
+}
+
+// numericFilterKeys 这些字段在 Mongo 里是数字；JSON 里传成字符串会让等值匹配恒为空，
+// 表现为「过滤后 0 条」的静默错误（实测 filter.statuscode:"200" → 0，200 → 4）。
+var numericFilterKeys = map[string]struct{}{
+	"statuscode": {},
+	"port":       {},
+	"length":     {},
+}
+
+// mcpFilterValues 把 MCP 的 []string 过滤值转成 []interface{}，并对数值字段做类型归一。
+func mcpFilterValues(filter map[string][]string) map[string][]interface{} {
+	out := make(map[string][]interface{}, len(filter))
+	for k, vals := range filter {
+		_, numeric := numericFilterKeys[strings.ToLower(strings.TrimSpace(k))]
+		items := make([]interface{}, 0, len(vals))
+		for _, v := range vals {
+			if numeric {
+				if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+					items = append(items, n)
+					continue
+				}
+			}
+			items = append(items, v)
+		}
+		out[k] = items
+	}
+	return out
+}
+
+// resolveProjectID 允许传项目名或 ObjectID：资产里的 project 存的是 ID，
+// 直接拿名字去等值匹配会永远得到 0（get_dashboard_stats 的老问题）。
+func resolveProjectID(c *gin.Context, project string) (string, error) {
+	project = strings.TrimSpace(project)
+	if project == "" {
+		return "", nil
+	}
+	if len(project) == 24 {
+		if _, err := primitive.ObjectIDFromHex(project); err == nil {
+			return project, nil
+		}
+	}
+	res, err := d.projectService.GetProjectsData(c, project, 1, 200)
+	if err != nil {
+		return "", err
+	}
+	for _, list := range res.Result {
+		for _, p := range list {
+			if strings.EqualFold(strings.TrimSpace(p.Name), project) {
+				return p.ID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("项目不存在: %s", project)
 }
 
 type getAssetDetailInput struct {
@@ -1253,7 +1293,11 @@ type getDashboardStatsInput struct {
 }
 
 func getDashboardStats(ctx context.Context, _ *mcp.CallToolRequest, input getDashboardStatsInput) (*mcp.CallToolResult, any, error) {
-	res, err := d.dashboardService.Stats(ctx, models.DashboardStatsRequest{Project: input.Project})
+	projectID, err := resolveProjectID(ginContext(ctx), input.Project)
+	if err != nil {
+		return errorResult("解析项目失败", err)
+	}
+	res, err := d.dashboardService.Stats(ctx, models.DashboardStatsRequest{Project: projectID})
 	if err != nil {
 		return errorResult("获取看板统计失败", err)
 	}
