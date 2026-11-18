@@ -18,6 +18,7 @@ func RegisterFofaRoutes(api *gin.RouterGroup) {
 			{Method: "POST", Path: "/search", Handler: fofahandler.Search, Middlewares: common.WithAuth()},
 			{Method: "POST", Path: "/task", Handler: fofahandler.CreateTasks, Middlewares: common.WithAuth()},
 			{Method: "POST", Path: "/task/list", Handler: fofahandler.ListImports, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/config", Handler: fofahandler.SaveConfig, Middlewares: common.WithAuth()},
 		},
 	}
 	common.RegisterRouteGroup(api, routes)

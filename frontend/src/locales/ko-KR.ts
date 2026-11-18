@@ -743,6 +743,15 @@ export default {
     pickFailed: '정책 병합 미리보기에 실패했습니다'
   },
   fofa: {
+    keyLabel: "FOFA Key",
+    keyPlaceholderSet: "설정됨 — 새 키를 입력하면 교체됩니다",
+    keyPlaceholderEmpty: "32자리 FOFA API Key 입력",
+    keySave: "키 저장",
+    keyClear: "키 삭제",
+    keyHint: "저장 즉시 적용됩니다(config.fofa.key, 재시작 불필요). 비우면 쿼터 소모가 멈춥니다",
+    keyRequired: "FOFA Key를 입력하세요",
+    keySaved: "FOFA Key 저장됨",
+    keyCleared: "FOFA Key 삭제됨",
     title: 'FOFA 작업 생성',
     desc: 'FOFA 쿼리로 host를 가져온 뒤 per-host / single 두 방식으로 작업을 일괄 생성합니다. 같은 query에서 이미 가져온 host는 건너뜁니다',
     statusTitle: '데이터 소스',

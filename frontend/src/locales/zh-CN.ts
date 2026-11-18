@@ -726,6 +726,15 @@ export default {
     pickFailed: '策略合并预览失败'
   },
   fofa: {
+    keyLabel: "FOFA Key",
+    keyPlaceholderSet: "已配置，输入新 Key 可覆盖",
+    keyPlaceholderEmpty: "粘贴 FOFA API Key（32 位）",
+    keySave: "保存 Key",
+    keyClear: "清除 Key",
+    keyHint: "保存后立即生效（写入 config.fofa.key，无需重启）；留空清除即停止消耗额度",
+    keyRequired: "请先填写 FOFA Key",
+    keySaved: "FOFA Key 已保存",
+    keyCleared: "FOFA Key 已清除",
     title: 'FOFA 建任务',
     desc: '用 FOFA 查询语句拉 host，再按 per-host / single 两种模式批量建任务；同一 query 已建过的 host 会跳过',
     statusTitle: '数据来源',

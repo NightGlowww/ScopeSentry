@@ -750,6 +750,15 @@ export default {
     pickFailed: 'Policy merge preview failed'
   },
   fofa: {
+    keyLabel: "FOFA Key",
+    keyPlaceholderSet: "Configured — paste a new key to replace",
+    keyPlaceholderEmpty: "Paste your 32-char FOFA API key",
+    keySave: "Save key",
+    keyClear: "Clear key",
+    keyHint: "Takes effect immediately (stored in config.fofa.key, no restart). Clear it to stop consuming quota",
+    keyRequired: "Enter a FOFA key first",
+    keySaved: "FOFA key saved",
+    keyCleared: "FOFA key cleared",
     title: 'FOFA tasks',
     desc: 'Pull hosts with a FOFA query, then create tasks in bulk either per-host or single; hosts already imported for the same query are skipped',
     statusTitle: 'Data source',

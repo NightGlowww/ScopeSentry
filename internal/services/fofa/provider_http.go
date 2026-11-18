@@ -68,7 +68,7 @@ func (p *httpProvider) Status(ctx context.Context) ProviderStatus {
 	}
 	if p.key == "" {
 		status.KeySource = "none"
-		status.Reason = "未配置 fofa.key（在系统配置里写入 FOFA API Key，或设置环境变量 FOFA_KEY 后自动启用 http provider）"
+		status.Reason = "未配置 fofa.key（可直接在本页下方填写 FOFA Key，或在系统配置/环境变量 FOFA_KEY 中设置）"
 		return status
 	}
 	balance, err := p.fetchBalance(ctx)
