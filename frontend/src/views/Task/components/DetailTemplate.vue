@@ -546,6 +546,16 @@ const openPocList = async () => {
   dialogVisible.value = true
 }
 
+// 一键清空已选 POC（树勾选 + v-model 值）
+const clearPocSelection = () => {
+  vulList.value = []
+  try {
+    ;(treeRef.value as any)?.setCheckedKeys?.([])
+  } catch {
+    // 忽略：不同 Element Plus 版本方法名可能不同，值已清空即可
+  }
+}
+
 // 参数配置抽屉
 const parameterDrawerVisible = ref(false)
 const currentPluginModule = ref('')
@@ -800,6 +810,9 @@ const handleCheckChange = (data, checked) => {
       @check-change="handleCheckChange"
     />
     <template #footer>
+      <ElButton @click="clearPocSelection">
+        {{ t('common.clearAll') }}
+      </ElButton>
       <ElButton type="primary" @click="dialogVisible = false">
         {{ t('common.ok') }}
       </ElButton>
