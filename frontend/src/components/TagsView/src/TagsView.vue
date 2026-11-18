@@ -137,7 +137,7 @@ const moveToCurrentTag = async () => {
 const tagLinksRefs = useTemplateRefsList<RouterLinkProps>()
 
 const moveToTarget = (currentTag: RouteLocationNormalizedLoaded) => {
-  const wrap$ = unref(scrollbarRef)?.wrapRef
+  const wrap$ = getWrap()
   let firstTag: Nullable<RouterLinkProps> = null
   let lastTag: Nullable<RouterLinkProps> = null
 
@@ -206,21 +206,26 @@ const scroll = ({ scrollLeft }) => {
   scrollLeftNumber.value = scrollLeft as number
 }
 
-// 滚动到指定位置（原生 scrollTo，别依赖 useScrollTo 对 wrapRef 的假设）
-const scrollWrapTo = (left: number) => {
-  const wrap$ = unref(scrollbarRef)?.wrapRef
-  if (!wrap$) return
-  const max = wrap$.scrollWidth - wrap$.clientWidth
-  const next = Math.min(max, Math.max(0, left))
-  // 之前用 behavior:'smooth'，在这个环境里 scrollTo/scrollBy 的平滑滚动不生效
-  // （实测 scrollLeft 赋值可以、smooth 不动），这里直接赋值保证可用
-  wrap$.scrollLeft = next
+// ElScrollbar 暴露的 wrapRef 是 Ref，不是元素本身；直接当元素用会拿到
+// scrollWidth=undefined，箭头点了完全没反应。这里统一解包成 HTMLElement。
+const getWrap = (): HTMLElement | undefined => {
+  const inst: any = unref(scrollbarRef)
+  const w: any = inst?.wrapRef
+  const el = w?.value ?? w
+  return el instanceof HTMLElement ? el : undefined
 }
 
-// 左右箭头：在当前基础上滚动一段；之前用 useScrollTo 时 wrapRef 取不到，
-// 点一下只挪 1px，标签多的时候根本滚不动
+// 滚动到指定位置：该环境里 scrollTo/scrollBy 的 smooth 不生效，直接赋值
+const scrollWrapTo = (left: number) => {
+  const wrap$ = getWrap()
+  if (!wrap$) return
+  const max = wrap$.scrollWidth - wrap$.clientWidth
+  wrap$.scrollLeft = Math.min(max, Math.max(0, left))
+}
+
+// 左右箭头：在当前基础上滚动一段
 const move = (to: number) => {
-  const wrap$ = unref(scrollbarRef)?.wrapRef
+  const wrap$ = getWrap()
   if (!wrap$) return
   scrollWrapTo(wrap$.scrollLeft + to)
 }
