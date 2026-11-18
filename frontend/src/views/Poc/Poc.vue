@@ -20,6 +20,7 @@ import {
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { Icon } from '@/components/Icon'
+import { Upload } from '@element-plus/icons-vue'
 import { useIcon } from '@/hooks/web/useIcon'
 import { BaseButton } from '@/components/Button'
 import { getPocDataApi, getPocContentApi, deletePocDataApi, getPocDetailApi } from '@/api/poc'
@@ -332,9 +333,6 @@ const filterChange = async (newFilters: any) => {
         placement="top-start"
         popper-class="poc-upload-tip"
       >
-        <!-- <ElUpload class="upload-demo" action="/api/poc/data/import" :headers="uploadHeaders">
-            <ElButton :icon="uploadicon">{{ t('common.import') }}</ElButton>
-          </ElUpload> -->
         <ElUpload
           ref="upload"
           class="flex items-center"
@@ -346,13 +344,11 @@ const filterChange = async (newFilters: any) => {
           :auto-upload="false"
           @change="handleFileChange"
         >
+          <!-- 2026-11-18：这里原来用 BaseButton + #icon 插槽包文字，线上出现过整块空白按钮。
+               换成标准 ElButton（图标走 :icon、文字走默认插槽），样式与同一行的「新建」一致，
+               也不可能再渲染成一个没有内容的空盒子。 -->
           <template #trigger>
-            <BaseButton>
-              <template #icon>
-                <Icon icon="iconoir:upload" />
-              </template>
-              {{ t('plugin.import') }}
-            </BaseButton>
+            <ElButton :icon="Upload">{{ t('plugin.import') }}</ElButton>
           </template>
         </ElUpload>
       </ElTooltip>
