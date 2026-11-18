@@ -509,6 +509,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'audit',
+        component: () => import('@/views/Configuration/AuditLog.vue'),
+        name: 'audit log',
+        meta: {
+          title: t('router.auditLog'),
+          icon: 'mdi:clipboard-list-outline',
+          noCache: true
+        }
+      },
+      {
         path: 'status',
         component: () => import('@/views/Configuration/SystemStatus.vue'),
         name: 'system status',

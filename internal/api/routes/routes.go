@@ -29,6 +29,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apikeyRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/apikey"
+	auditRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/audit"
 	fofaRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/fofa"
 	githubRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/github"
 	icpRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/icp"
@@ -92,6 +93,8 @@ func SetupRouter() *gin.Engine {
 
 	// 注册API路由
 	api := router.Group("/api")
+	// 服务端操作日志：只记写请求，异步落 audit_logs，不阻塞业务
+	api.Use(middleware.AuditLog())
 	{
 		// 注册用户路由
 		user.RegisterUserRoutes(api)
@@ -153,6 +156,7 @@ func SetupRouter() *gin.Engine {
 
 		// 注册扫描策略路由（对标 ARL-Next policy.py 的可复用扫描参数）
 		policyRoutes.RegisterPolicyRoutes(api)
+		auditRoutes.RegisterAuditRoutes(api)
 	}
 
 	return router

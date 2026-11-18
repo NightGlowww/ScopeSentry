@@ -803,6 +803,7 @@ export default {
     taskNameRequired: '请填写任务名（或先填查询语句自动生成）'
   },
   router: {
+    auditLog: '操作日志',
     systemStatus: '系统状态',
     githubMonitor: 'GitHub 泄露监控',
     backup: '备份恢复',

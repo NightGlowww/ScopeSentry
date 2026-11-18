@@ -826,6 +826,7 @@ export default {
     taskNameRequired: '작업 이름을 입력하세요 (또는 쿼리를 먼저 입력해 자동 생성)'
   },
   router: {
+    auditLog: '작업 로그',
     systemStatus: '시스템 상태',
     githubMonitor: 'GitHub 유출 모니터',
     backup: '백업 및 복구',
