@@ -11,13 +11,21 @@ import {
   ElFormItem,
   ElAlert,
   ElTag,
-  ElMessageBox
+  ElMessageBox,
+  ElCheckboxGroup,
+  ElCheckbox,
+  ElInputNumber
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { Dialog } from '@/components/Dialog'
 import { useTable } from '@/hooks/web/useTable'
 import { BaseButton } from '@/components/Button'
-import { createApiKeyApi, deleteApiKeyApi, getApiKeyListApi } from '@/api/apikey'
+import {
+  createMcpKeyApi,
+  deleteMcpKeyApi,
+  getMcpKeysApi,
+  setMcpKeyStatusApi
+} from '@/api/apikey'
 import { useClipboard } from '@/hooks/web/useClipboard'
 import { formatTime } from '@/utils'
 
@@ -35,6 +43,23 @@ const mcpConfigExample = `{
   }
 }`
 
+// 与后端 mcpguard 的 scope 常量一一对应
+const SCOPE_OPTIONS = [
+  { value: 'asset:read', label: 'asset:read（资产/POC/指纹/字典/看板 只读）' },
+  { value: 'asset:write', label: 'asset:write（打标签/导出/规则启停/字典维护）' },
+  { value: 'task:read', label: 'task:read（任务、扫描策略查询）' },
+  { value: 'task:write', label: 'task:write（任务启停删、策略增删）' },
+  { value: 'project:read', label: 'project:read' },
+  { value: 'project:write', label: 'project:write' },
+  { value: 'template:read', label: 'template:read' },
+  { value: 'template:write', label: 'template:write' },
+  { value: 'plugin:read', label: 'plugin:read' },
+  { value: 'plugin:write', label: 'plugin:write（插件安装/重检/卸载）' },
+  { value: 'node:read', label: 'node:read' },
+  { value: 'node:write', label: 'node:write（节点重启/删除）' },
+  { value: '*', label: '*' }
+]
+
 const formatDateTime = (value?: string) => {
   if (!value) return '-'
   return formatTime(value, 'yyyy-MM-dd HH:mm:ss')
@@ -50,6 +75,27 @@ const columns = reactive<TableColumn[]>([
     field: 'keyPrefix',
     label: t('apiKey.keyPrefix'),
     minWidth: 140
+  },
+  {
+    field: 'scope',
+    label: 'Scope',
+    minWidth: 200,
+    formatter: (_row, __: TableColumn, value: string[]) => {
+      if (!value || value.length === 0) return '*（历史 key）'
+      return value.join(', ')
+    }
+  },
+  {
+    field: 'rateLimitPerMin',
+    label: '限速/分',
+    width: 90,
+    formatter: (_row, __: TableColumn, value: number) => (value ? String(value) : '不限')
+  },
+  {
+    field: 'expiresAt',
+    label: '过期',
+    minWidth: 160,
+    formatter: (_row, __: TableColumn, value?: string) => (value ? formatDateTime(value) : '长期')
   },
   {
     field: 'createdBy',
@@ -81,18 +127,23 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    width: 120,
+    width: 190,
     formatter: (row) => (
-      <BaseButton type="danger" onClick={() => handleDelete(row)}>
-        {t('common.delete')}
-      </BaseButton>
+      <div class="flex items-center" style={'gap:6px'}>
+        <BaseButton type={row.enabled ? 'warning' : 'success'} onClick={() => handleToggle(row)}>
+          {row.enabled ? '禁用' : '启用'}
+        </BaseButton>
+        <BaseButton type="danger" onClick={() => handleDelete(row)}>
+          {t('common.delete')}
+        </BaseButton>
+      </div>
     )
   }
 ])
 
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
-    const res = await getApiKeyListApi()
+    const res = await getMcpKeysApi({ pageIndex: 1, pageSize: 200 })
     return {
       list: res.data.list || []
     }
@@ -109,11 +160,13 @@ function tableHeaderColor() {
 const createDialogVisible = ref(false)
 const keyDialogVisible = ref(false)
 const createLoading = ref(false)
-const form = ref({ name: '' })
+const form = ref({ name: '', scope: ['asset:read'], rateLimitPerMin: 0 })
 const createdKey = ref('')
 
 const openCreateDialog = () => {
   form.value.name = ''
+  form.value.scope = ['asset:read']
+  form.value.rateLimitPerMin = 0
   createDialogVisible.value = true
 }
 
@@ -124,7 +177,11 @@ const handleCreate = async () => {
   }
   createLoading.value = true
   try {
-    const res = await createApiKeyApi(name)
+    const res = await createMcpKeyApi({
+      name,
+      scope: form.value.scope.length ? form.value.scope : ['*'],
+      rateLimitPerMin: form.value.rateLimitPerMin || 0
+    })
     createDialogVisible.value = false
     createdKey.value = res.data.key
     keyDialogVisible.value = true
@@ -144,7 +201,12 @@ const handleDelete = async (row: { id: string; name: string }) => {
     cancelButtonText: t('common.cancel'),
     type: 'warning'
   })
-  await deleteApiKeyApi(row.id)
+  await deleteMcpKeyApi(row.id)
+  getList()
+}
+
+const handleToggle = async (row: { id: string; name: string; enabled: boolean }) => {
+  await setMcpKeyStatusApi(row.id, !row.enabled)
   getList()
 }
 
@@ -194,7 +256,7 @@ const closeKeyDialog = () => {
     :title="t('apiKey.createTitle')"
     center
     style="border-radius: 15px; box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3)"
-    :maxHeight="280"
+    :maxHeight="520"
   >
     <ElForm :model="form" label-width="80px" @submit.prevent>
       <ElFormItem :label="t('common.name')" required>
@@ -204,6 +266,17 @@ const closeKeyDialog = () => {
           maxlength="64"
           show-word-limit
         />
+      </ElFormItem>
+      <ElFormItem label="Scope">
+        <ElCheckboxGroup v-model="form.scope">
+          <ElCheckbox v-for="opt in SCOPE_OPTIONS" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </ElCheckbox>
+        </ElCheckboxGroup>
+      </ElFormItem>
+      <ElFormItem label="限速/分">
+        <ElInputNumber v-model="form.rateLimitPerMin" :min="0" :max="100000" />
+        <span class="hint-text">0 = 跟随全局配置</span>
       </ElFormItem>
       <ElFormItem>
         <ElButton type="primary" :loading="createLoading" @click="handleCreate">
@@ -261,6 +334,12 @@ const closeKeyDialog = () => {
   word-break: break-all;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.hint-text {
+  margin-left: 8px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 .dialog-footer {

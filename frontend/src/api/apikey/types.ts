@@ -6,6 +6,10 @@ export type ApiKeyData = {
   createdBy: string
   createdAt: string
   lastUsedAt?: string
+  scope?: string[]
+  tools?: string[]
+  rateLimitPerMin?: number
+  expiresAt?: string
 }
 
 export type CreateApiKeyResponse = {
