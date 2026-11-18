@@ -55,6 +55,16 @@ var ToolScopes = map[string]string{
 	"get_asset_detail":     ScopeAssetRead,
 	"add_asset_tag":        ScopeAssetWrite,
 	"list_nodes":           ScopeNodeRead,
+	// 只读扩展：POC / 指纹 / 字典 / 看板，统一复用 asset:read，
+	// 避免为了新增只读工具再改前端 scope 选择项
+	"list_pocs":               ScopeAssetRead,
+	"get_poc":                 ScopeAssetRead,
+	"list_fingerprints":       ScopeAssetRead,
+	"list_dictionaries":       ScopeAssetRead,
+	"preview_dictionary":      ScopeAssetRead,
+	"search_dictionary_lines": ScopeAssetRead,
+	"get_dashboard_stats":     ScopeAssetRead,
+	"get_console_info":        ScopeAssetRead,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）

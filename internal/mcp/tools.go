@@ -23,9 +23,13 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/subdomain"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/url"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/vulnerability"
+	"github.com/Autumn-27/ScopeSentry/internal/services/dashboard"
+	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
+	"github.com/Autumn-27/ScopeSentry/internal/services/fingerprint"
 	"github.com/Autumn-27/ScopeSentry/internal/services/mcpguard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
+	"github.com/Autumn-27/ScopeSentry/internal/services/poc"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
 	taskCommon "github.com/Autumn-27/ScopeSentry/internal/services/task/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
@@ -36,47 +40,55 @@ import (
 )
 
 type deps struct {
-	projectService    project.Service
-	taskService       task.Service
-	taskCommonService taskCommon.Service
-	templateService   template.Service
-	assetService      asset.Service
-	rootDomainService root_domain.Service
-	subdomainService  subdomain.Service
-	appService        app.Service
-	mpService         mp.Service
-	urlService        url.Service
-	sensitiveService  sensitive.Service
-	dirscanService    dirscan.Service
-	crawlerService    crawler.Service
-	vulnService       vulnerability.Service
-	ipService         ip.Service
-	pageMonService    page_monitoring.Service
-	commonService     assetCommon.Service
-	nodeService       node.Service
-	pluginService     plugin.Service
+	projectService     project.Service
+	taskService        task.Service
+	taskCommonService  taskCommon.Service
+	templateService    template.Service
+	assetService       asset.Service
+	rootDomainService  root_domain.Service
+	subdomainService   subdomain.Service
+	appService         app.Service
+	mpService          mp.Service
+	urlService         url.Service
+	sensitiveService   sensitive.Service
+	dirscanService     dirscan.Service
+	crawlerService     crawler.Service
+	vulnService        vulnerability.Service
+	ipService          ip.Service
+	pageMonService     page_monitoring.Service
+	commonService      assetCommon.Service
+	nodeService        node.Service
+	pluginService      plugin.Service
+	pocService         poc.Service
+	fingerprintService fingerprint.Service
+	dictService        dictionary.ManageService
+	dashboardService   dashboard.Service
 }
 
 var d = &deps{
-	projectService:    project.NewService(),
-	taskService:       task.NewService(),
-	taskCommonService: taskCommon.NewService(),
-	templateService:   template.NewService(),
-	assetService:      asset.NewService(),
-	rootDomainService: root_domain.NewService(),
-	subdomainService:  subdomain.NewService(),
-	appService:        app.NewService(),
-	mpService:         mp.NewService(),
-	urlService:        url.NewService(),
-	sensitiveService:  sensitive.NewService(),
-	dirscanService:    dirscan.NewService(),
-	crawlerService:    crawler.NewService(),
-	vulnService:       vulnerability.NewService(),
-	ipService:         ip.NewService(),
-	pageMonService:    page_monitoring.NewService(),
-	commonService:     assetCommon.NewService(),
-	nodeService:       node.NewService(),
-	pluginService:     plugin.NewService(),
+	projectService:     project.NewService(),
+	taskService:        task.NewService(),
+	taskCommonService:  taskCommon.NewService(),
+	templateService:    template.NewService(),
+	assetService:       asset.NewService(),
+	rootDomainService:  root_domain.NewService(),
+	subdomainService:   subdomain.NewService(),
+	appService:         app.NewService(),
+	mpService:          mp.NewService(),
+	urlService:         url.NewService(),
+	sensitiveService:   sensitive.NewService(),
+	dirscanService:     dirscan.NewService(),
+	crawlerService:     crawler.NewService(),
+	vulnService:        vulnerability.NewService(),
+	ipService:          ip.NewService(),
+	pageMonService:     page_monitoring.NewService(),
+	commonService:      assetCommon.NewService(),
+	nodeService:        node.NewService(),
+	pluginService:      plugin.NewService(),
+	pocService:         poc.NewService(),
+	fingerprintService: fingerprint.NewService(),
+	dictService:        dictionary.NewManageService(),
+	dashboardService:   dashboard.NewService(),
 }
 
 func registerTools(server *mcp.Server, allowedTools map[string]bool) {
@@ -166,6 +178,48 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "list_nodes",
 		Description: "获取扫描节点列表，online_only=true 时仅返回在线节点",
 	}, listNodes)
+
+	// ---- 只读扩展：POC / 指纹 / 字典 / 看板 ----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_pocs",
+		Description: "分页查询 POC 列表，可按名称搜索、按危险等级过滤",
+	}, listPocs)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_poc",
+		Description: "按 POC ID 获取单个 POC 的完整内容",
+	}, getPoc)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_fingerprints",
+		Description: "分页查询 Web 指纹规则",
+	}, listFingerprints)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_dictionaries",
+		Description: "按类型（port/subdomain/dir/brute）分页列出字典",
+	}, listDictionaries)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "preview_dictionary",
+		Description: "预览某个字典的前 N 行（上限 200）",
+	}, previewDictionary)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "search_dictionary_lines",
+		Description: "在某个字典内按关键字搜行",
+	}, searchDictionaryLines)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_dashboard_stats",
+		Description: "看板统计：七类资产总量 + 节点/任务数量，可按项目过滤",
+	}, getDashboardStats)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_console_info",
+		Description: "控制台信息：版本、uptime、节点与任务数量、依赖状态",
+	}, getConsoleInfo)
+
 	recordToolNames(names)
 	warnUnregisteredTools(names)
 }
@@ -901,3 +955,180 @@ func normalizeAssetIndex(assetType string) (string, error) {
 }
 
 type ginH map[string]any
+
+// ---------------------------------------------------------------------------
+// 只读扩展工具
+// ---------------------------------------------------------------------------
+
+type listPocsInput struct {
+	Search    string   `json:"search,omitempty" jsonschema:"POC 名称或模板 ID 模糊搜索"`
+	Level     []string `json:"level,omitempty" jsonschema:"危险等级过滤：critical/high/medium/low/info"`
+	PageIndex int      `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
+	PageSize  int      `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listPocs(ctx context.Context, _ *mcp.CallToolRequest, input listPocsInput) (*mcp.CallToolResult, any, error) {
+	if input.PageIndex <= 0 {
+		input.PageIndex = 1
+	}
+	if input.PageSize <= 0 {
+		input.PageSize = 20
+	}
+	if input.PageSize > 200 {
+		input.PageSize = 200
+	}
+	req := &models.PocListRequest{
+		Search:    input.Search,
+		PageIndex: input.PageIndex,
+		PageSize:  input.PageSize,
+	}
+	req.Filter.Level = input.Level
+	res, err := d.pocService.GetPocList(ginContext(ctx), req)
+	if err != nil {
+		return errorResult("获取 POC 列表失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type getPocInput struct {
+	ID string `json:"id" jsonschema:"POC 的 MongoDB ObjectID"`
+}
+
+func getPoc(ctx context.Context, _ *mcp.CallToolRequest, input getPocInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.ID) == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	res, err := d.pocService.GetPocDetail(ginContext(ctx), &models.PocDetailRequest{ID: input.ID})
+	if err != nil {
+		return errorResult("获取 POC 详情失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type listFingerprintsInput struct {
+	Search    string `json:"search,omitempty" jsonschema:"指纹名称/关键字模糊搜索"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listFingerprints(ctx context.Context, _ *mcp.CallToolRequest, input listFingerprintsInput) (*mcp.CallToolResult, any, error) {
+	if input.PageIndex <= 0 {
+		input.PageIndex = 1
+	}
+	if input.PageSize <= 0 {
+		input.PageSize = 20
+	}
+	if input.PageSize > 200 {
+		input.PageSize = 200
+	}
+	list, total, err := d.fingerprintService.List(ctx, input.Search, input.PageIndex, input.PageSize)
+	if err != nil {
+		return errorResult("获取指纹列表失败", err)
+	}
+	return jsonToolResult(ginH{"list": list, "total": total})
+}
+
+type listDictionariesInput struct {
+	Kind      string `json:"kind,omitempty" jsonschema:"字典类型：port/subdomain/dir/brute，默认 port"`
+	Search    string `json:"search,omitempty" jsonschema:"字典名称模糊搜索"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listDictionaries(ctx context.Context, _ *mcp.CallToolRequest, input listDictionariesInput) (*mcp.CallToolResult, any, error) {
+	kind := input.Kind
+	if strings.TrimSpace(kind) == "" {
+		kind = "port"
+	}
+	if input.PageIndex <= 0 {
+		input.PageIndex = 1
+	}
+	if input.PageSize <= 0 {
+		input.PageSize = 20
+	}
+	if input.PageSize > 200 {
+		input.PageSize = 200
+	}
+	res, err := d.dictService.ListPaged(ctx, kind, input.Search, input.PageIndex, input.PageSize)
+	if err != nil {
+		return errorResult("获取字典列表失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type previewDictionaryInput struct {
+	Kind  string `json:"kind,omitempty" jsonschema:"字典类型，默认 port"`
+	Name  string `json:"name" jsonschema:"字典名称"`
+	Limit int    `json:"limit,omitempty" jsonschema:"预览行数，默认 50，上限 200"`
+}
+
+func previewDictionary(ctx context.Context, _ *mcp.CallToolRequest, input previewDictionaryInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.Name) == "" {
+		return errorResult("name 不能为空", nil)
+	}
+	kind := input.Kind
+	if strings.TrimSpace(kind) == "" {
+		kind = "port"
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	res, err := d.dictService.Preview(ctx, kind, input.Name, limit)
+	if err != nil {
+		return errorResult("预览字典失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type searchDictionaryLinesInput struct {
+	Kind    string `json:"kind,omitempty" jsonschema:"字典类型，默认 port"`
+	Name    string `json:"name" jsonschema:"字典名称"`
+	Keyword string `json:"keyword" jsonschema:"行内关键字"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"返回行数上限，默认 50，最大 200"`
+}
+
+func searchDictionaryLines(ctx context.Context, _ *mcp.CallToolRequest, input searchDictionaryLinesInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.Name) == "" || strings.TrimSpace(input.Keyword) == "" {
+		return errorResult("name 和 keyword 不能为空", nil)
+	}
+	kind := input.Kind
+	if strings.TrimSpace(kind) == "" {
+		kind = "port"
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	res, err := d.dictService.SearchLines(ctx, kind, input.Name, input.Keyword, limit)
+	if err != nil {
+		return errorResult("搜索字典内容失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type getDashboardStatsInput struct {
+	Project string `json:"project,omitempty" jsonschema:"可选的项目名，空表示全部项目"`
+}
+
+func getDashboardStats(ctx context.Context, _ *mcp.CallToolRequest, input getDashboardStatsInput) (*mcp.CallToolResult, any, error) {
+	res, err := d.dashboardService.Stats(ctx, models.DashboardStatsRequest{Project: input.Project})
+	if err != nil {
+		return errorResult("获取看板统计失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+func getConsoleInfo(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	res, err := d.dashboardService.ConsoleInfo(ctx)
+	if err != nil {
+		return errorResult("获取控制台信息失败", err)
+	}
+	return jsonToolResult(res)
+}
