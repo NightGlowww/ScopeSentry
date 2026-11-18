@@ -105,3 +105,6 @@
 | 图标可访问名称 | 资产侧 9 个复制图标 | `aria-label` + `role=button` + Enter 可触发 |
 | 长文本单元格 | URL / 敏感信息 URL | 链接省略号，复制图标不裁切 |
 | 数字人性化 | URL / 目录扫描长度列 | B/KB/MB/GB，原始值在 title |
+## 审计脚本
+
+`scripts/ui-audit.browser.js` 提供 `uiAudit(routes)`，在已登录页面里通过 Agent Bridge `eval` 执行，返回每页的 pageOverflow / tables / rows / pagination / emptyState / paginationWithoutRows / destructiveEnabledWithoutSelection / unnamedIconControls / skeletonVisible。除 skeletonVisible（加载瞬间可为 1）外都应为 0。基线见 `docs/ui-audit-baseline.json`。

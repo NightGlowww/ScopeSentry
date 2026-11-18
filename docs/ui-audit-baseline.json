@@ -1,0 +1,115 @@
+{
+  "version": "2.0.69",
+  "generatedAt": "2026-11-18T10:51:30.776Z",
+  "note": "scripts/ui-audit.browser.js 执行结果；除 skeletonVisible 外所有字段应为 0",
+  "results": [
+    {
+      "route": "#/plugin-management/index",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 16,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/sensitive-information-rules/index",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 20,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/fingerprint-management/index",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 20,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/poc-management/index",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 20,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/node-management/index",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 2,
+      "pagination": 0,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/dictionary-management/port",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 3,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/asset-information/index",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 20,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/task-management/ScanTask",
+      "pageOverflow": 0,
+      "tables": 1,
+      "rows": 5,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    },
+    {
+      "route": "#/project-management/index",
+      "pageOverflow": 0,
+      "tables": 0,
+      "rows": 0,
+      "pagination": 1,
+      "emptyState": 0,
+      "paginationWithoutRows": 0,
+      "destructiveEnabledWithoutSelection": 0,
+      "unnamedIconControls": 0,
+      "skeletonVisible": 0
+    }
+  ]
+}
