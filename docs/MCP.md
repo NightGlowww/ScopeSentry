@@ -208,9 +208,9 @@ curl -s http://127.0.0.1:8082/mcp \
 
 ## 工具总数
 
-53 + 5 = 58。
+53 + 5 = 58；系统状态工具 +1 = 59。
 
-> 权威口径是 `internal/services/mcpguard/scope.go` 的 `ToolScopes` 条目数（当前 58），与 `internal/mcp` 实际注册的工具名一一对应（漂移测试 `TestEveryRegisteredToolHasScope` / `TestNoOrphanScopeEntries`，`-tags integration`）。上面按版本累加的数字只是历史，**对不上时以 `ToolScopes` 为准**。
+> 权威口径是 `internal/services/mcpguard/scope.go` 的 `ToolScopes` 条目数（当前 59），与 `internal/mcp` 实际注册的工具名一一对应（漂移测试 `TestEveryRegisteredToolHasScope` / `TestNoOrphanScopeEntries`，`-tags integration`）。上面按版本累加的数字只是历史，**对不上时以 `ToolScopes` 为准**。
 ## 权限语义（v2.0.127 起）
 
 - **空 scope 的历史 key 只保留读权限**（`*:read`）。过去空 scope 等同 `*`，会让治理字段上线前创建的 key 静默获得新增写工具（例如 `delete_asset_groups`）。写权限必须在 key 上显式授予 `asset:write` / `icp:write`。
@@ -229,3 +229,10 @@ curl -s http://127.0.0.1:8082/mcp \
 
 - 单个工具 schema 非法不会拖垮端点：注册失败的工具被跳过并记 ERROR（v2.0.127 起），发布脚本另有静态门禁。
 - `tools/list` 只列出当前 key scope 覆盖到的工具，受限 key 看不到写工具。
+
+## 系统状态工具
+
+| 工具 | scope | 说明 |
+| --- | --- | --- |
+| `get_system_info` | node:read | 版本/启动时间/运行时长/节点在线数/任务数/Mongo+Redis 连接状态，外加 `hostStats`（cpus、load1、磁盘可用字节与占比、可用内存占比）与 `hostWarnings`（disk_free_low / load_high / mem_low）。排障与主机水位检查用 |
+

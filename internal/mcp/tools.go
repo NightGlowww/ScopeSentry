@@ -42,6 +42,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/template"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/hoststat"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -419,6 +420,11 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "stop_icp_tasks",
 		Description: stopICPTasksToolDesc,
 	}, stopICPTasks)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_system_info",
+		Description: "系统运行状态：版本、启动时间、运行时长、节点在线数、任务数、Mongo/Redis 连接状态，以及主机磁盘/负载/内存（hostStats/hostWarnings）。用于排障与健康检查。",
+	}, getSystemInfo)
 
 	recordToolNames(names)
 	warnUnregisteredTools(names)
@@ -2297,4 +2303,22 @@ func stopICPTasks(ctx context.Context, _ *mcp.CallToolRequest, input stopICPTask
 	// updated 是 ModifiedCount：已完成(3) 或已暂停(2) 的任务不会被改，
 	// 所以 updated < len(ids) 是正常结果，不是失败。
 	return jsonToolResult(ginH{"ok": true, "updated": updated, "ids": ids})
+}
+
+func getSystemInfo(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	res, err := d.dashboardService.ConsoleInfo(ctx)
+	if err != nil {
+		return errorResult("获取系统状态失败", err)
+	}
+	h := hoststat.Stat("/")
+	res.HostStats = &models.HostStats{
+		CPUs:                h.CPUs,
+		Load1:               h.Load1,
+		DiskFreeBytes:       h.DiskFreeBytes,
+		DiskTotalBytes:      h.DiskTotalBytes,
+		DiskFreePercent:     h.DiskFreePercent,
+		MemAvailablePercent: h.MemAvailablePercent,
+	}
+	res.HostWarnings = hoststat.Warnings(h)
+	return jsonToolResult(res)
 }
