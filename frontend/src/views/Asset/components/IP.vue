@@ -3,7 +3,9 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { h, nextTick, reactive, Ref, ref } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
-import { ElCard, ElPagination, ElRow, ElCol, ElTag } from 'element-plus'
+import { ElCard, ElPagination, ElRow, ElCol, ElTag, ElTooltip } from 'element-plus'
+import { Icon } from '@/components/Icon'
+import { copyText } from '@/utils/clipboard'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getIPAssetApi } from '@/api/asset'
@@ -84,7 +86,21 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'ip',
     label: t('asset.IP'),
-    minWidth: 120
+    minWidth: 140,
+    formatter: (_: Recordable, __: TableColumn, ip: string) => (
+      <div class="flex items-center">
+        <span>{ip}</span>
+        <ElTooltip content="复制 IP" placement="top">
+          <Icon
+            icon="ep:copy-document"
+            size={13}
+            color="var(--el-text-color-placeholder)"
+            class="ml-4px cursor-pointer"
+            onClick={() => copyText(ip)}
+          />
+        </ElTooltip>
+      </div>
+    )
   },
   {
     field: 'port',
