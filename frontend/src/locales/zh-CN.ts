@@ -4,6 +4,7 @@ export default {
     system: { version: { success: '版本信息获取成功' } }
   },
   common: {
+    selectPoc: '选择 POC',
     allPoc: '全部 POC',
     newTag: '+ 新标签',
     changeLanguageMessage:

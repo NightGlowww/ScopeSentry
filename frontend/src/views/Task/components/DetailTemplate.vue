@@ -748,7 +748,7 @@ const handleCheckChange = (data, checked) => {
                   :max-collapse-tags="3"
                 />
                 <ElButton type="primary" @click="openPocList" :loading="saveLoading">
-                  {{ t('common.selectCategory') }}
+                  {{ t('common.selectPoc') }}
                 </ElButton>
               </ElFormItem>
               <!-- 参数预览和配置按钮 -->

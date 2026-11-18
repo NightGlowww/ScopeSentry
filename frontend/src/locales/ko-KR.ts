@@ -4,6 +4,7 @@ export default {
     system: { version: { success: '버전 정보를 조회했습니다.' } }
   },
   common: {
+    selectPoc: 'POC 선택',
     allPoc: '전체 POC',
     newTag: '+ 새 태그',
     changeLanguageMessage:
