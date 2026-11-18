@@ -140,8 +140,8 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 260,
-    fixed: 'right',
+    /* 按钮实际 ~176px；不再固定，避免脱离文档流压住上一列 */
+    width: 220,
     formatter: (row, __: TableColumn, _: number) => {
       console.log(row)
       return (

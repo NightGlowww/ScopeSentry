@@ -156,8 +156,7 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'actions',
     label: t('icpTask.actions'),
-    width: 260,
-    fixed: 'right',
+    width: 240,
     formatter: (row: IcpTask) => (
       <span class="row-actions">
         <ElButton link type="primary" size="small" onClick={() => restartTask(row)}>

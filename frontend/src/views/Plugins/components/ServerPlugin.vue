@@ -153,7 +153,6 @@ const taskColums = reactive<TableColumn[]>([
     field: 'action',
     label: t('tableDemo.action'),
     width: 300,
-    fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
         switch (command) {
