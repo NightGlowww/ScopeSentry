@@ -20,6 +20,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/plugin"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/poc"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/project"
+	projectAggregationRoutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/project_aggregation"
 	sroutes "github.com/Autumn-27/ScopeSentry/internal/api/routes/sensitive_rule"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/system"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes/task"
@@ -120,6 +121,9 @@ func SetupRouter() *gin.Engine {
 		task.RegisterTaskRoutes(api)
 
 		project.RegisterProjectRoutes(api)
+
+		// 注册项目详情页聚合路由（Overview / 子域名 / 端口 / 服务）
+		projectAggregationRoutes.RegisterProjectAggregationRoutes(api)
 
 		poc.RegisterPocRoutes(api)
 

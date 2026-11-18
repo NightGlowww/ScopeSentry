@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, Ref, ref, watch } from 'vue'
+import { reactive, Ref, ref } from 'vue'
 import { Echart } from '@/components/Echart'
 import {
   ElRow,
@@ -18,8 +18,7 @@ import {
   ElTableColumn,
   ElText,
   ElSpace,
-  ElCollapseItem,
-  ElCollapse
+  ElAlert
 } from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useIcon } from '@/hooks/web/useIcon'
@@ -53,30 +52,38 @@ let projectAssetCount = reactive({
   vulCount: 0
 })
 const projectInfoLoading = ref(false)
+// 接口失败标记：用于页内提示（axios 拦截器只会弹一次 toast，用户翻页后看不到原因）
+const overviewError = ref(false)
+
 const getProjectInfo = async () => {
-  try {
-    projectInfoLoading.value = true
+  projectInfoLoading.value = true
+  // 两个接口互不依赖：一个失败不应该把另一个的已有数据清空
+  const [infoRes, countRes] = await Promise.allSettled([
+    getProjectInfoApi(query.id as string),
+    getProjectAssetCountApi(query.id as string)
+  ])
 
-    const [res1, res2] = await Promise.all([
-      getProjectInfoApi(query.id as string),
-      getProjectAssetCountApi(query.id as string)
-    ])
-
-    projectInfo.name = res1.data.name
-    projectInfo.tag = res1.data.tag
-    projectInfo.scheduledTasks = res1.data.scheduledTasks
-    projectInfo.hour = res1.data.hour
-    projectInfo.AssetCount = res1.data.AssetCount
-    projectInfo.domain = res1.data.root_domains
-    projectInfo.nextTime = res1.data.next_time
-
-    projectAssetCount.subdomainCount = res2.data.subdomainCount
-    projectAssetCount.vulCount = res2.data.vulCount
-  } catch (error) {
-    console.error('Error fetching project info:', error)
-  } finally {
-    projectInfoLoading.value = false
+  if (infoRes.status === 'fulfilled' && infoRes.value?.data) {
+    const data = infoRes.value.data
+    projectInfo.name = data.name || ''
+    projectInfo.tag = data.tag || ''
+    projectInfo.scheduledTasks = !!data.scheduledTasks
+    projectInfo.hour = data.hour || 0
+    projectInfo.AssetCount = data.AssetCount || 0
+    projectInfo.domain = data.root_domains || []
+    projectInfo.nextTime = data.next_time || ''
+  } else {
+    overviewError.value = true
   }
+
+  if (countRes.status === 'fulfilled' && countRes.value?.data) {
+    projectAssetCount.subdomainCount = countRes.value.data.subdomainCount || 0
+    projectAssetCount.vulCount = countRes.value.data.vulCount || 0
+  } else {
+    overviewError.value = true
+  }
+
+  projectInfoLoading.value = false
 }
 
 const projectNameIcon = useIcon({ icon: 'icon-park:edit-name' })
@@ -112,30 +119,38 @@ const getVulTagType = (level) => {
   }
 }
 const getVulLevelName = (level) => {
-  return levelMap[level].flag
+  // 后端理论只会返回 6 个已知等级；未知值兜底成 raw level，避免整块表格渲染崩掉
+  return levelMap[level]?.flag ?? level ?? ''
 }
 const vulLevelloading = ref(false)
-let chartData: any[] = []
+const vulLevelEmpty = ref(true)
 const getProjectVulLevelInfo = async () => {
   vulLevelloading.value = true
-  const res = await getProjectVulLevelCountApi(query.id as string)
-  if (Array.isArray(res.data)) {
-    chartData = res.data
+  try {
+    const res = await getProjectVulLevelCountApi(query.id as string)
+    const list = Array.isArray(res.data) ? res.data : []
+    const chartData = list
       .map((item) => {
         if (item._id && item.count && levelMap[item._id]) {
           const { color, flag } = levelMap[item._id]
           return {
             value: item.count,
-            name: item._id,
+            name: flag,
             itemStyle: { color }
           }
         }
         return null
       })
       .filter(Boolean)
+    chartOptions.series![0].data = chartData
+    vulLevelEmpty.value = chartData.length === 0
+  } catch (error) {
+    chartOptions.series![0].data = []
+    vulLevelEmpty.value = true
+    overviewError.value = true
+  } finally {
+    vulLevelloading.value = false
   }
-  chartOptions.series![0].data = chartData
-  vulLevelloading.value = false
 }
 const chartOptions: EChartsOption = reactive({
   tooltip: {
@@ -188,15 +203,19 @@ interface VulData {
   matched: string
 }
 const projectVulDataLoading = ref(false)
-let vulTableData = reactive<VulData[]>([])
+// 必须用 ref：reactive 数组整体重新赋值不会丢响应性
+const vulTableData = ref<VulData[]>([])
 const getProjectVulData = async () => {
   projectVulDataLoading.value = true
-  const res = await getProjectVulDataApi(query.id as string)
-  if (Array.isArray(res.data.list)) {
-    // 更新 vulTableData 的值，使用 .value 属性访问 ref 的值
-    vulTableData = res.data.list
+  try {
+    const res = await getProjectVulDataApi(query.id as string, { pageIndex: 1, pageSize: 50 })
+    vulTableData.value = Array.isArray(res.data?.list) ? res.data.list : []
+  } catch (error) {
+    vulTableData.value = []
+    overviewError.value = true
+  } finally {
+    projectVulDataLoading.value = false
   }
-  projectVulDataLoading.value = false
 }
 
 let AssetstatisticsData: Ref<{
@@ -222,22 +241,28 @@ const getAssetstatistics = async () => {
   AssetstatisticsData.value.Product = []
   AssetstatisticsData.value.Icon = []
   AssetstatisticsData.value.Title = []
-  const [portRes, serviceRes, productRes, titleRes] = await Promise.all([
+  // 四个统计接口互不依赖：用 allSettled，单个 404/失败不影响其它卡片
+  const [portRes, serviceRes, productRes, titleRes] = await Promise.allSettled([
     getAssetStatisticsPortApi('', filter),
     getAssetStatisticsTypeApi('', filter),
     getAssetStatisticsappApi('', filter),
     getAssetStatisticsTitleApi('', filter)
   ])
 
-  AssetstatisticsData.value.Port = portRes.data.Port
-  AssetstatisticsData.value.Service = serviceRes.data.Service
-  AssetstatisticsData.value.Product = productRes.data.Product
-  AssetstatisticsData.value.Title = titleRes.data.Title
+  const pick = (res: any, key: string) =>
+    res.status === 'fulfilled' && Array.isArray(res.value?.data?.[key]) ? res.value.data[key] : []
+
+  AssetstatisticsData.value.Port = pick(portRes, 'Port')
+  AssetstatisticsData.value.Service = pick(serviceRes, 'Service')
+  AssetstatisticsData.value.Product = pick(productRes, 'Product')
+  // POST /api/asset/statistics/title 目前后端未注册（ISLANDS P2-1），这里按空数组处理
+  AssetstatisticsData.value.Title = pick(titleRes, 'Title')
   projectStatisLoading.value = false
 }
 
 const getAllApi = async () => {
-  await Promise.all([
+  // 每个子请求内部已自行兜底错误，这里只保证四块都会被执行
+  await Promise.allSettled([
     getProjectInfo(),
     getProjectVulLevelInfo(),
     getProjectVulData(),
@@ -248,6 +273,14 @@ getAllApi()
 </script>
 
 <template>
+  <ElAlert
+    v-if="overviewError"
+    class="mb-10px"
+    type="error"
+    :title="t('localization.requestFailed')"
+    :closable="false"
+    show-icon
+  />
   <ElRow :gutter="20">
     <ElCol :xl="8" :lg="8" :md="8" :sm="8" :xs="8">
       <ElCard shadow="hover" class="mb-20px">
@@ -287,8 +320,8 @@ getAllApi()
                     </div>
                   </template>
                   <ElScrollbar max-height="50px" always>
-                    <template v-for="(o, index) in projectInfo.domain" :key="index">
-                      <div class="text item">{{ o }}</div>
+                    <template v-for="domain in projectInfo.domain" :key="domain">
+                      <div class="text item">{{ domain }}</div>
                     </template>
                   </ElScrollbar>
                 </ElDescriptionsItem>
@@ -371,7 +404,10 @@ getAllApi()
         <ElRow>
           <ElCol :span="5">
             <ElSkeleton :loading="vulLevelloading" animated>
-              <Echart :options="chartOptions" :height="353" :width="250" />
+              <Echart v-if="!vulLevelEmpty" :options="chartOptions" :height="353" :width="250" />
+              <div v-else class="empty-block" style="height: 353px">
+                <ElText type="info">{{ t('common.noData') }}</ElText>
+              </div>
             </ElSkeleton>
           </ElCol>
 
@@ -384,6 +420,7 @@ getAllApi()
                 :scrollbarAlwaysOn="true"
                 :fit="true"
                 :max-height="353"
+                :empty-text="t('common.noData')"
               >
                 <ElTableColumn minWidth="50">
                   <template #default="scope">
@@ -421,6 +458,11 @@ getAllApi()
           <template #header>
             <ElText tag="b">{{ t('asset.port') }}</ElText>
           </template>
+          <ElRow v-if="AssetstatisticsData.Port.length === 0">
+            <ElCol :span="24">
+              <ElText type="info" size="small">{{ t('common.noData') }}</ElText>
+            </ElCol>
+          </ElRow>
           <ElRow v-for="portItem in AssetstatisticsData.Port" :key="portItem.value">
             <ElCol :span="12">
               <ElTag effect="light" round size="small">
@@ -438,6 +480,11 @@ getAllApi()
           <template #header>
             <ElText tag="b">{{ t('asset.service') }}</ElText>
           </template>
+          <ElRow v-if="AssetstatisticsData.Service.length === 0">
+            <ElCol :span="24">
+              <ElText type="info" size="small">{{ t('common.noData') }}</ElText>
+            </ElCol>
+          </ElRow>
           <ElRow v-for="serviceItem in AssetstatisticsData.Service" :key="serviceItem.value">
             <ElCol :span="12">
               <ElTag effect="light" round size="small">
@@ -455,6 +502,11 @@ getAllApi()
           <template #header>
             <ElText tag="b">{{ t('asset.products') }}</ElText>
           </template>
+          <ElRow v-if="AssetstatisticsData.Product.length === 0">
+            <ElCol :span="24">
+              <ElText type="info" size="small">{{ t('common.noData') }}</ElText>
+            </ElCol>
+          </ElRow>
           <ElRow v-for="productItem in AssetstatisticsData.Product" :key="productItem.value">
             <ElCol :span="12">
               <ElTag effect="light" round size="small">
@@ -472,6 +524,11 @@ getAllApi()
           <template #header>
             <ElText tag="b">{{ t('asset.title') }}</ElText>
           </template>
+          <ElRow v-if="AssetstatisticsData.Title.length === 0">
+            <ElCol :span="24">
+              <ElText type="info" size="small">{{ t('common.noData') }}</ElText>
+            </ElCol>
+          </ElRow>
           <ElRow v-for="titleItem in AssetstatisticsData.Title" :key="titleItem.value">
             <ElCol :span="18">
               <ElTag effect="light" round size="small">
@@ -488,6 +545,11 @@ getAllApi()
   </ElRow>
 </template>
 <style scoped>
+.empty-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 :deep(.projectinfoclass) {
   background: transparent !important;
   color: var(--el-text-color-primary) !important;

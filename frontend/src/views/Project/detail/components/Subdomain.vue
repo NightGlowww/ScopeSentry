@@ -11,7 +11,8 @@ import {
   ElMessageBox,
   ElMessage,
   ElButton,
-  ElDivider,
+  ElDatePicker,
+  ElAlert,
   ElText
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
@@ -33,11 +34,11 @@ const setMaxHeight = () => {
   maxHeight.value = screenHeight * 0.8
 }
 
-const searchParams = ref('')
-const handleSearch = (data: any) => {
-  searchParams.value = data
-  getList()
-}
+// 时间范围（可选）：后端按 time 字符串边界过滤，空值表示不限
+const timeRange = ref<[string, string] | null>(null)
+// 接口失败状态：接口 4xx/5xx 时不再只是"空表格"，而是明确提示
+const loadError = ref(false)
+
 const filter = reactive<{ [key: string]: any }>({})
 filter.project = [query.id as string]
 const filterChange = async (newFilters: any) => {
@@ -98,16 +99,18 @@ const crudSchemas = reactive<CrudSchema[]>([
       { text: 'NS', value: 'NS' },
       { text: 'CNAME', value: 'CNAME' },
       { text: 'PTR', value: 'PTR' },
-      { text: 'TXT', value: 'TXT' }
+      { text: 'TXT', value: 'TXT' },
+      { text: 'SOA', value: 'SOA' }
     ]
   },
   {
     field: 'value',
     label: t('subdomain.recordValue'),
     minWidth: 250,
+    // 后端保证 value / ip 恒为数组（null 已归一成 []），这里再做一层兜底
     formatter: (_: Recordable, __: TableColumn, RecordValue: string[]) => {
       let content = ''
-      RecordValue.forEach((item, _) => {
+      ;(RecordValue || []).forEach((item) => {
         content += `${item}\r\n`
       })
       return content
@@ -135,7 +138,7 @@ const crudSchemas = reactive<CrudSchema[]>([
     minWidth: 150,
     formatter: (_: Recordable, __: TableColumn, IPValue: string[]) => {
       let content = ''
-      IPValue.forEach((item, _) => {
+      ;(IPValue || []).forEach((item) => {
         content += `${item}\r\n`
       })
       return content
@@ -167,14 +170,28 @@ const crudSchemas = reactive<CrudSchema[]>([
 const { allSchemas } = useCrudSchemas(crudSchemas)
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
-    const res = await getProjectSubdomainDataApi('', filter, fq)
-    return {
-      list: res.data.list
+    try {
+      const res = await getProjectSubdomainDataApi('', filter, fq, {
+        pageIndex: tableState.currentPage.value,
+        pageSize: tableState.pageSize.value,
+        startTime: timeRange.value?.[0],
+        endTime: timeRange.value?.[1]
+      })
+      loadError.value = false
+      return {
+        list: res.data?.list || [],
+        total: res.data?.total || 0
+      }
+    } catch (error) {
+      // axios 拦截器已弹过一次后端错误文案，这里补一个页内可重试的空态
+      loadError.value = true
+      ElMessage.error(t('localization.requestFailed'))
+      return { list: [], total: 0 }
     }
   },
   immediate: true
 })
-const { loading, dataList } = tableState
+const { loading, dataList, currentPage, pageSize, total } = tableState
 const { getList, getElTableExpose } = tableMethods
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
@@ -198,9 +215,13 @@ const filterSearchChange = async (type: string) => {
   fq[type] = value
   getList()
 }
+const search = () => {
+  // 表头搜索/时间范围改动后回到第一页，避免停留在不存在的页码上
+  currentPage.value = 1
+  getList()
+}
 const ids = ref<string[]>([])
 const delSelect = async () => {
-  console.log('dwa')
   ElMessageBox.confirm(t('common.delMessage'), t('common.delWarning'), {
     confirmButtonText: 'OK',
     cancelButtonText: 'Cancel',
@@ -237,16 +258,40 @@ const changeDeleteDisplay = async () => {
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">
-        <ElButton v-if="deleteDisplay" @click="delSelect" type="danger" size="small">{{
-          t('common.delete')
-        }}</ElButton>
+        <div class="aggregation-toolbar">
+          <ElDatePicker
+            v-model="timeRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            :start-placeholder="t('export.timeRangeStart')"
+            :end-placeholder="t('export.timeRangeEnd')"
+            clearable
+            @change="search"
+          />
+          <ElButton size="small" @click="search">{{ t('common.refresh') }}</ElButton>
+          <ElButton v-if="deleteDisplay" @click="delSelect" type="danger" size="small">{{
+            t('common.delete')
+          }}</ElButton>
+        </div>
+        <ElAlert
+          v-if="loadError"
+          class="mb-10px"
+          type="error"
+          :title="t('localization.requestFailed')"
+          :closable="false"
+          show-icon
+        />
         <Table
+          v-model:currentPage="currentPage"
+          v-model:pageSize="pageSize"
           :columns="allSchemas.tableColumns"
           :data="dataList"
           stripe
           :max-height="maxHeight"
           :border="true"
           :loading="loading"
+          :empty-text="t('common.noData')"
+          :pagination="{ total, pageSizes: [20, 50, 100] }"
           @selection-change="changeDeleteDisplay"
           rowKey="id"
           :resizable="true"
@@ -266,6 +311,16 @@ const changeDeleteDisplay = async () => {
 <style lang="less" scoped>
 .el-button {
   margin-top: 10px;
+}
+.aggregation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.aggregation-toolbar .el-button {
+  margin-top: 0;
 }
 :deep(.el-table .cell.el-tooltip) {
   white-space: pre-line;

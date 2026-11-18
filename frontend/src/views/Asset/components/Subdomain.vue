@@ -20,7 +20,9 @@ import { addTagApi, deleteTagApi, getSubdomainApi, totalDataApi } from '@/api/as
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
 import { Icon } from '@/components/Icon'
+import { HostValueCell } from '@/components/HostValueCell'
 import { copyText } from '@/utils/clipboard'
+import { resolveSubdomainHref, splitHostValues } from '@/utils/hostLink'
 const { t } = useI18n()
 interface Project {
   value: string
@@ -91,20 +93,19 @@ const crudSchemas = reactive<CrudSchema[]>([
     field: 'host',
     label: t('subdomain.subdomainName'),
     minWidth: 200,
-    formatter: (_: Recordable, __: TableColumn, host: string) => (
-      <div class="flex items-center">
-        <span>{host}</span>
-        <ElTooltip content="复制子域名" placement="top">
-          <Icon aria-label="复制子域名" role="button" tabindex="0"
-            icon="ep:copy-document"
-            size={13}
-            color="var(--el-text-color-placeholder)"
-            class="ml-4px cursor-pointer"
-            onClick={() => copyText(host)}
-          />
-        </ElTooltip>
-      </div>
-    )
+    formatter: (row: Recordable, __: TableColumn, host: string | string[]) => {
+      // 只有 A/AAAA/CNAME 指向真实主机时才按 https 优先补链接；
+      // TXT/NS/MX/PTR 与非法值一律纯文本。多值走「首值 + N」，超宽由 CSS 截断。
+      const values = splitHostValues(host)
+      return (
+        <HostValueCell
+          value={values}
+          href={resolveSubdomainHref(row, values[0])}
+          policy="assume-https"
+          copyLabel="复制子域名"
+        />
+      )
+    }
   },
   {
     field: 'type',
