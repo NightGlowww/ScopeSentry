@@ -91,8 +91,8 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'module',
     label: t('plugin.module'),
-    /* 模块是定长枚举（PortFingerprint 最长 15 字符），给固定宽度，避免被挤成 “PortFingerpr…” */
-    width: 140,
+    /* 模块是定长枚举（PortScanPreparation 最长 19 字符），按最长值给宽度，避免出现省略号 */
+    width: 172,
     formatter: (_, __: TableColumn, value: string) => {
       const color = moduleColorMap[value] || '#FFFFFF' // 默认白色
       return <ElTag style={{ backgroundColor: color, color: '#000' }}>{value}</ElTag>
