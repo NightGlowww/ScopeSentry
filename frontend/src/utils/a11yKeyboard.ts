@@ -3,7 +3,6 @@
  * 复制图标这类 role="button" 的元素（Icon 组件渲染成 <i>）不是原生按钮，
  * 聚焦后按 Enter 不会触发 click。这里做一次全局委托，让键盘用户也能复制。
  */
-const COPY_LABEL_PREFIX = '复制'
 
 export const setupKeyboardActivation = () => {
   const flag = '__ssKeyboardActivationBound'
@@ -16,9 +15,8 @@ export const setupKeyboardActivation = () => {
       if (e.key !== 'Enter' || e.isComposing) return
       const el = document.activeElement as HTMLElement | null
       if (!el) return
-      const label = el.getAttribute('aria-label') || ''
       if (el.getAttribute('role') !== 'button') return
-      if (!label.startsWith(COPY_LABEL_PREFIX)) return
+      if (!el.getAttribute('aria-label')) return
       e.preventDefault()
       el.click()
     },
