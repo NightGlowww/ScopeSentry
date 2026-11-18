@@ -90,7 +90,7 @@ const crudSchemas = reactive<CrudSchema[]>([
             {url}
           </ElLink>
           <ElTooltip content="复制 URL" placement="top">
-            <Icon aria-label="复制 URL"
+            <Icon aria-label="复制 URL" role="button" tabindex="0"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"
