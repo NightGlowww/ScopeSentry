@@ -197,20 +197,33 @@ const handleExport = async () => {
       <template #header>
         <span>全局配置</span>
       </template>
-      <ElRow :gutter="12" align="middle">
-        <ElCol :span="4">
+      <div class="cfg-grid">
+        <div class="cfg-field">
           <span class="cfg-label">启用 MCP</span>
           <ElSwitch v-model="cfg.enabled" />
-        </ElCol>
-        <ElCol :span="4">
+        </div>
+        <div class="cfg-field">
           <span class="cfg-label">全局限速/分</span>
-          <ElInputNumber v-model="cfg.rateLimitPerMin" :min="0" :max="100000" />
-        </ElCol>
-        <ElCol :span="4">
+          <ElInputNumber
+            v-model="cfg.rateLimitPerMin"
+            :min="0"
+            :max="100000"
+            controls-position="right"
+            class="cfg-number"
+          />
+        </div>
+        <div class="cfg-field">
           <span class="cfg-label">日志保留条数</span>
-          <ElInputNumber v-model="cfg.logRetention" :min="1000" :max="1000000" :step="10000" />
-        </ElCol>
-        <ElCol :span="8">
+          <ElInputNumber
+            v-model="cfg.logRetention"
+            :min="1000"
+            :max="1000000"
+            :step="10000"
+            controls-position="right"
+            class="cfg-number"
+          />
+        </div>
+        <div class="cfg-field cfg-field-wide">
           <span class="cfg-label">工具白名单</span>
           <ElSelect
             v-model="cfg.allowedTools"
@@ -221,41 +234,33 @@ const handleExport = async () => {
             placeholder="留空 = 全部工具"
             style="width: 100%"
           />
-        </ElCol>
-        <ElCol :span="4">
+        </div>
+        <div class="cfg-field cfg-actions">
           <ElButton type="primary" :loading="cfgSaving" @click="saveConfig">保存配置</ElButton>
-        </ElCol>
-      </ElRow>
+        </div>
+      </div>
     </ElCard>
 
-    <ElRow :gutter="12" class="mb-10px">
-      <ElCol :span="5">
-        <ElInput v-model="filters.keyId" placeholder="Key ID" clearable />
-      </ElCol>
-      <ElCol :span="5">
-        <ElInput v-model="filters.tool" placeholder="工具名，如 list_assets" clearable />
-      </ElCol>
-      <ElCol :span="4">
-        <ElSelect v-model="filters.status" placeholder="状态" clearable style="width: 100%">
-          <ElOption v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </ElSelect>
-      </ElCol>
-      <ElCol :span="6">
-        <ElDatePicker
-          v-model="filters.range"
-          type="daterange"
-          value-format="YYYY-MM-DD"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          style="width: 100%"
-        />
-      </ElCol>
-      <ElCol :span="4">
+    <div class="filter-grid">
+      <ElInput v-model="filters.keyId" placeholder="Key ID" clearable />
+      <ElInput v-model="filters.tool" placeholder="工具名，如 list_assets" clearable />
+      <ElSelect v-model="filters.status" placeholder="状态" clearable>
+        <ElOption v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+      </ElSelect>
+      <ElDatePicker
+        v-model="filters.range"
+        type="daterange"
+        value-format="YYYY-MM-DD"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        class="filter-date"
+      />
+      <div class="filter-actions">
         <ElButton type="primary" @click="handleSearch">查询</ElButton>
         <ElButton @click="handleReset">重置</ElButton>
         <ElButton type="success" @click="handleExport">导出</ElButton>
-      </ElCol>
-    </ElRow>
+      </div>
+    </div>
 
     <Table
       v-model:pageSize="pageSize"
@@ -278,6 +283,86 @@ const handleExport = async () => {
 
 .mb-12px {
   margin-bottom: 12px;
+}
+
+/* 全局配置：标签在上、控件在下，等宽栅格，避免行内混排挤成一团 */
+.cfg-grid {
+  display: grid;
+  grid-template-columns: 140px 160px 180px minmax(240px, 1fr) auto;
+  gap: 16px 20px;
+  align-items: end;
+}
+
+.cfg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cfg-field-wide {
+  min-width: 0;
+}
+
+.cfg-label {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--el-text-color-secondary);
+}
+
+.cfg-number {
+  width: 100%;
+}
+
+.cfg-actions {
+  justify-content: flex-end;
+}
+
+/* 日志筛选：控件等宽排布，按钮单独一组，不再和日期选择器重叠 */
+.filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.filter-grid > * {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.filter-grid > :deep(.el-select) {
+  width: 100%;
+}
+
+.filter-date {
+  flex: 1 1 320px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+.filter-actions :deep(.el-button) {
+  margin-left: 0;
+}
+
+@media (max-width: 1400px) {
+  .cfg-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+  .cfg-actions {
+    justify-content: flex-start;
+  }
+  .filter-grid > * {
+    flex: 1 1 100%;
+  }
 }
 
 .cfg-label {
