@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, watch, nextTick } from 'vue'
+import { ref, reactive, watch, nextTick, computed } from 'vue'
 import {
   ElMessage,
   ElTooltip,
@@ -16,7 +16,8 @@ import {
   ElTreeV2,
   ElSelect,
   ElOption,
-  ElDrawer
+  ElDrawer,
+  ElAlert
 } from 'element-plus'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { Dialog } from '@/components/Dialog'
@@ -283,6 +284,8 @@ const initPlugins = async () => {
 }
 
 const vulList = ref<string[]>([])
+// 节点内置 nuclei 目前只接受单文件 -t；选「全部 POC」会在节点侧静默 0 命中。
+const allPocSelected = computed(() => vulList.value.includes('All Poc'))
 // 根据 ID 加载模板数据
 const loadTemplate = async (id: string) => {
   const template = await getTemplateDetailApi(id) // 调用实际接口获取已有数据
@@ -800,6 +803,14 @@ const handleCheckChange = (data, checked) => {
     fullscreen
     style="border-radius: 15px; box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3)"
   >
+    <ElAlert
+      v-if="allPocSelected"
+      class="mb-10px"
+      type="warning"
+      :closable="false"
+      show-icon
+      :title="t('task.allPocNucleiWarning')"
+    />
     <ElTreeV2
       ref="treeRef"
       style="max-width: 100%"
@@ -1029,6 +1040,10 @@ const handleCheckChange = (data, checked) => {
 </template>
 
 <style scoped>
+.mb-10px {
+  margin-bottom: 10px;
+}
+
 /* 样式部分 */
 .ElFormItem {
   margin-bottom: 20px;
