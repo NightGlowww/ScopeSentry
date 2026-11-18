@@ -49,3 +49,10 @@ export const setMcpKeyStatusApi = (
 export const deleteMcpKeyApi = (id: string): Promise<IResponse<commonRespData>> => {
   return request.delete({ url: '/api/mcp/keys/' + id })
 }
+
+export const updateMcpKeyApi = (
+  id: string,
+  data: McpKeyPayload
+): Promise<IResponse<ApiKeyData>> => {
+  return request.post({ url: '/api/mcp/keys/' + id, data })
+}

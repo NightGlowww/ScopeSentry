@@ -509,6 +509,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'backup',
+        component: () => import('@/views/Configuration/Backup.vue'),
+        name: 'backup configuration',
+        meta: {
+          title: t('router.backup'),
+          icon: 'mdi:backup-restore',
+          noCache: true
+        }
+      },
+      {
         path: 'syslog',
         component: () => import('@/views/Configuration/Syslog.vue'),
         name: 'syslog configuration',
