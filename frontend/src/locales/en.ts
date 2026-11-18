@@ -118,7 +118,10 @@ export default {
     copy: 'Copy',
     copySuccess: 'Copy Success',
     copyFailed: 'Copy Failed',
-    success: 'Success'
+    success: 'Success',
+    more: 'More',
+    disabledNeedTask: 'Select at least one task first',
+    disabledNeedScope: 'Select at least one record first'
   },
   export: {
     timeRange: 'Time range',
@@ -347,7 +350,7 @@ export default {
     statusPending: 'Pending',
     statusRunning: 'Parsing',
     statusDone: 'Finished',
-    statusFailed: 'Failed'
+    statusFailed: 'Failed',
   },
   statFinger: {
     title: 'Fingerprint statistics',
@@ -921,6 +924,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    failed: 'Failed',
     syncToProjectHint:
       'Sync selected task assets into a project; existing assets are not duplicated.',
     confirmStopSelected: 'Pause the selected tasks? You can resume later.',

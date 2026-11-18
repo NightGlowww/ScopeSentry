@@ -118,7 +118,10 @@ export default {
     copy: '복사',
     copySuccess: '복사했습니다.',
     copyFailed: '복사에 실패했습니다.',
-    success: '성공'
+    success: '성공',
+    more: '더보기',
+    disabledNeedTask: '먼저 작업을 하나 이상 선택하세요',
+    disabledNeedScope: '먼저 레코드를 하나 이상 선택하세요'
   },
   export: {
     timeRange: '시간 범위',
@@ -344,7 +347,7 @@ export default {
     statusPending: '대기 중',
     statusRunning: '처리 중',
     statusDone: '완료',
-    statusFailed: '실패'
+    statusFailed: '실패',
   },
   statFinger: {
     title: '핑거프린트 통계',
@@ -913,6 +916,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    failed: '실패',
     syncToProjectHint: '선택한 작업의 자산을 프로젝트로 동기화합니다. 이미 있는 자산은 중복되지 않습니다.',
     confirmStopSelected: '선택한 작업을 일시중지할까요? 나중에 재개할 수 있습니다.',
     confirmStartSelected: '선택한 작업을 계속할까요? 중지된 지점부터 이어집니다.',

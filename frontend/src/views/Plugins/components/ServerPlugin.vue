@@ -152,7 +152,9 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    width: 300,
+    /* 与客户端插件页同一套收口：操作 / 日志 / 编辑 / 更多，260 足够；
+       之前 5 个控件 + 每个 10px margin 共 310px，超出单元格被裁。 */
+    width: 260,
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
         switch (command) {
@@ -162,72 +164,60 @@ const taskColums = reactive<TableColumn[]>([
           case 'runOnce':
             confirmRunPluginOnce(row.hash)
             break
-          // case 'recheck':
-          //   reCheckPluginApi('all', row.hash, row.module)
-          //   break
-          // case 'uninstall':
-          //   uninstallPluginApi('all', row.hash, row.module)
-          //   break
         }
       }
-      const retestAndDeleteDropdown = h(
-        ElDropdown,
-        {
-          onCommand: handleCommand
-        },
-        {
-          default: () =>
-            h(
-              ElButton,
-              {
-                style: { outline: 'none', boxShadow: 'none' }
-              },
-              () => [
-                t('common.operation'), // 下拉菜单触发按钮文字
-                h(
-                  ElIcon,
-                  {},
-                  () => h(ArrowDown) // 向下箭头图标
-                )
-              ]
-            ),
-          dropdown: () =>
-            h(ElDropdownMenu, null, () => {
-              return [
-                h(ElDropdownItem, { command: 'reinstall' }, () => t('plugin.reInstall')),
-                h(ElDropdownItem, { command: 'runOnce' }, () => t('plugin.runOnce'))
-              ]
-            })
+      const handleMoreCommand = (command) => {
+        switch (command) {
+          case 'cleanLog':
+            confirmCleanLog(row.hash, row.module)
+            break
+          case 'delete':
+            // 系统插件不可删，菜单项已置灰，这里再兜一层
+            if (!row.isSystem) confirmDelete(row.hash, row.module)
+            break
         }
-      )
+      }
+      const renderDropdown = (label: string, items, onCommand: (cmd: string) => void) =>
+        h(
+          ElDropdown,
+          { onCommand },
+          {
+            default: () =>
+              h(
+                ElButton,
+                { style: { outline: 'none', boxShadow: 'none' } },
+                () => [label, h(ElIcon, {}, () => h(ArrowDown))]
+              ),
+            dropdown: () => h(ElDropdownMenu, null, () => items)
+          }
+        )
       return (
-        <>
-          {retestAndDeleteDropdown}
-          <BaseButton
-            type="warning"
-            style={{ marginLeft: '10px' }}
-            onClick={() => openLogDialogVisible(row)}
-          >
-            {t('common.log')}
-          </BaseButton>
-          <BaseButton
-            type="info"
-            style={{ marginLeft: '10px' }}
-            onClick={() => confirmCleanLog(row.hash, row.module)}
-          >
-            {t('common.cleanLog')}
-          </BaseButton>
-          <BaseButton type="success" onClick={() => editPlugin(row.id, row.hash)}>
+        <div style="display: flex; align-items: center; gap: 6px">
+          {renderDropdown(
+            t('common.operation'),
+            [
+              h(ElDropdownItem, { command: 'reinstall' }, () => t('plugin.reInstall')),
+              h(ElDropdownItem, { command: 'runOnce' }, () => t('plugin.runOnce'))
+            ],
+            handleCommand
+          )}
+          <BaseButton onClick={() => openLogDialogVisible(row)}>{t('common.log')}</BaseButton>
+          <BaseButton type="primary" onClick={() => editPlugin(row.id, row.hash)}>
             {t('common.edit')}
           </BaseButton>
-          <BaseButton
-            type="danger"
-            onClick={() => confirmDelete(row.hash, row.module)}
-            disabled={row.isSystem}
-          >
-            {t('common.delete')}
-          </BaseButton>
-        </>
+          {renderDropdown(
+            t('common.more'),
+            [
+              h(ElDropdownItem, { command: 'cleanLog' }, () => t('common.cleanLog')),
+              h(
+                ElDropdownItem,
+                { command: 'delete', disabled: row.isSystem, divided: true },
+                () => t('common.delete')
+              )
+            ],
+            handleMoreCommand
+          )}
+        </div>
       )
     }
   }
