@@ -1040,6 +1040,7 @@ export default {
     PassiveScan: '패시브 스캔'
   },
   asset: {
+    noProducerHint: '이 자산 유형은 아직 기록 주체가 없어(노드 측 미구현) 목록이 항상 비어 있습니다. 사용하려면 먼저 생산자를 추가하세요.',
     assetName: '자산',
     deleteFiltered: '현재 필터 전체 삭제',
     deleteFilteredConfirm: '현재 필터에 해당하는 {count}개 항목을 삭제합니다. 되돌릴 수 없습니다.',

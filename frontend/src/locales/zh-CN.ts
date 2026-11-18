@@ -1015,6 +1015,7 @@ export default {
     PassiveScan: '被动扫描'
   },
   asset: {
+    noProducerHint: '该资产类型当前没有写入方（节点侧未实现），页面数据会始终为空；如需启用请先补生产者。',
     assetName: '资产',
     deleteFiltered: '删除全部（当前筛选）',
     deleteFilteredConfirm: '将按当前筛选删除 {count} 条数据，删除后不可恢复。',
