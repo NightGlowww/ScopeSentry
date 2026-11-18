@@ -71,6 +71,8 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         meta: {
           title: t('router.dashboard'),
           icon: 'ant-design:dashboard-filled',
+          // 首页固定在标签栏，不允许关闭（affix 会在 TagsView 初始化时自动注入）
+          affix: true,
           noCache: true
         }
       }
