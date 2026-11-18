@@ -340,3 +340,8 @@ curl -s -X POST http://127.0.0.1:18082/api/task/scheduled/pagemonit/update \
 # 3) 看节点是否真的做了事（旧代码：0 秒 begin/end；新代码：body 出现）
 ssh prod-tx-sh-app-02 "docker exec scopesentry-redis redis-cli -a $REDIS_PW --no-auth-warning LRANGE log:node-tx-sh-02 -6 -1"
 ```
+## 实测补充（v2.0.127）
+
+- 启动期 `EnsurePageMonitoringJob` 生效：`scheduled` 里出现 `6afaa875… page_monitoring 0 0-23/24 * * *`，next run 次日 00:00。
+- 无人值守验证：把 job 的 `schedule` 临时改成 `* * * * *` 并重启，25 秒内 `PageMonitoringBody` 从 0 → 1（节点抓取 + 落库全线自动，无手工触发）。测毕已恢复 daily 并重启。
+- 注意：**改 `scheduled` 里的 schedule 需要重启进程才生效**（AddJob 对已存在 job 直接早退，loadJobs 只在启动时读）。修改 ScheduledTasks 的 hour/minute 也要同步改 `scheduled` 并重启。
