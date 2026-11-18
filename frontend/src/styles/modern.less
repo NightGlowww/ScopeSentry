@@ -927,3 +927,41 @@ html .el-row:has(> .el-col > div > .el-button) {
   margin-right: 0 !important;
 }
 
+
+/* ===========================================================================
+ * 19. 搜索行：label + 输入 + 按钮
+ *     老页面用 ElRow + 固定 span（1/5/5）排版，窄屏一律挤压；label 还靠
+ *     style="position:relative;top:8px;left:30%" 这种土办法对齐。
+ *     统一改成 flex + wrap，输入框定宽，label 归位。
+ * ========================================================================= */
+html .el-row:has(> .el-col .mx-1) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+
+  > .el-col {
+    flex: 0 0 auto;
+    width: auto !important;
+    max-width: none;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .mx-1 {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    margin: 0 !important;
+    white-space: nowrap;
+  }
+
+  .el-input,
+  .el-select,
+  .el-date-editor {
+    width: 260px;
+  }
+}
+
