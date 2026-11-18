@@ -702,14 +702,52 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			}
 		}
 	} else {
-		// Redis键不存在，将进度设为0
-		update := bson.M{
-			"$set": bson.M{
-				"progress": 0,
-			},
+		// 没有 tmp 集合时不要直接把进度归零：节点实际把进度写在
+		// TaskInfo:progress:<taskId>:<target> 的 hash 里（各模块 _start/_end 时间戳）。
+		// 之前只认 tmp 集合，导致真实扫描跑完进度仍显示 0%。
+		targets, doneModules, totalModules, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, taskID)
+		if perr != nil {
+			logger.Error(fmt.Sprintf("failed to summarise progress for task %s: %v", taskID, perr))
 		}
-		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
-			return fmt.Errorf("failed to reset task progress: %w", err)
+		if targets > 0 && totalModules > 0 {
+			// 细粒度：已结束的模块数 / 已开始的模块数（同一目标内按模块推进），
+			// 多目标时再按目标平均，避免单目标任务长时间卡在 0%。
+			progress := doneModules * 100 / totalModules
+			if progress > 100 {
+				progress = 100
+			}
+			completed := 0
+			if doneModules >= totalModules {
+				completed = targets
+			}
+			denom := task.TaskNum
+			if denom <= 0 {
+				denom = targets
+			}
+			status := constants.TaskStatusRunning
+			update := bson.M{"$set": bson.M{"progress": progress, "status": status}}
+			if completed >= denom {
+				status = constants.TaskStatusFinished
+				if lastEnd == "" {
+					lastEnd = helper.GetNowTimeString()
+				}
+				update = bson.M{"$set": bson.M{
+					"progress": 100,
+					"status":   status,
+					"endTime":  lastEnd,
+				}}
+				s.snapshotTaskProgress(ctx, taskID)
+				go func() { _ = s.pluginService.RunTaskEnd(task) }()
+			}
+			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
+				return fmt.Errorf("failed to update task progress from redis hashes: %w", err)
+			}
+		} else {
+			// 完全没有进度数据：保持 0，交给 SweepStaleTasks 处理僵尸任务
+			update := bson.M{"$set": bson.M{"progress": 0}}
+			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
+				return fmt.Errorf("failed to reset task progress: %w", err)
+			}
 		}
 	}
 

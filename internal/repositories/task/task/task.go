@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
@@ -54,6 +55,10 @@ type Repository interface {
 	GetProgressFromRedis(ctx *gin.Context, key string) (map[string]string, error)
 	// 新增Redis操作方法
 	Exists(ctx context.Context, key string) (bool, error)
+	// ProgressSummary 汇总节点写入的逐目标进度 hash：
+	// key 形如 TaskInfo:progress:<taskId>:<target>，hash 内是各模块的 <Module>_start/_end 时间戳。
+	// 返回目标总数、已完成目标数、以及最晚的 end 时间（用于 task.endTime）。
+	ProgressSummary(ctx context.Context, taskID string) (targets int, doneModules int, totalModules int, lastEnd string, err error)
 	SCard(ctx context.Context, key string) (int64, error)
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, keys ...string) error
@@ -311,4 +316,36 @@ func (r *repository) Del(ctx context.Context, keys ...string) error {
 		return fmt.Errorf("failed to delete keys: %w", err)
 	}
 	return nil
+}
+
+// ProgressSummary 见接口注释。节点从不写 TaskInfo:tmp:<id>，真正的进度在逐目标 hash 里，
+// 之前服务端只认 tmp 集合，导致任务进度永远是 0。
+func (r *repository) ProgressSummary(ctx context.Context, taskID string) (int, int, int, string, error) {
+	keys, err := r.redisClient.Keys(ctx, fmt.Sprintf("TaskInfo:progress:%s:*", taskID)).Result()
+	if err != nil {
+		return 0, 0, 0, "", fmt.Errorf("failed to list progress keys: %w", err)
+	}
+	targets := len(keys)
+	doneModules, totalModules := 0, 0
+	lastEnd := ""
+	for _, key := range keys {
+		fields, err := r.redisClient.HGetAll(ctx, key).Result()
+		if err != nil {
+			continue
+		}
+		for name, ts := range fields {
+			if name == "node" || ts == "" {
+				continue
+			}
+			if strings.HasSuffix(name, "_start") {
+				totalModules++
+			} else if strings.HasSuffix(name, "_end") {
+				doneModules++
+				if ts > lastEnd {
+					lastEnd = ts
+				}
+			}
+		}
+	}
+	return targets, doneModules, totalModules, lastEnd, nil
 }
