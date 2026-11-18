@@ -1,6 +1,6 @@
 import request from '@/axios'
 import axios from 'axios'
-import type { LogRespData, pluginData, RemotePluginResponse } from './types'
+import type { LogRespData, pluginData } from './types'
 import { commonRespData } from '../scommon/types'
 
 interface pluginDataResponse {
