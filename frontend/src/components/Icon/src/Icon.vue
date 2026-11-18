@@ -35,7 +35,8 @@ const getIconifyStyle = computed(() => {
 </script>
 
 <template>
-  <ElIcon :class="prefixCls" :size="size" :color="color">
+  <!-- 显式透传 attrs：aria-label / role / tabindex 等需要落到真正的 <i> 上 -->
+  <ElIcon :class="prefixCls" :size="size" :color="color" v-bind="$attrs">
     <svg v-if="isLocal" aria-hidden="true">
       <use :xlink:href="symbolId" />
     </svg>
