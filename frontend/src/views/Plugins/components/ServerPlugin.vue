@@ -650,7 +650,7 @@ const handleFileChange = (_file, fileList) => {
         <ElText class="mx-1">{{ t('plugin.name') }}:</ElText>
       </ElCol>
       <ElCol :span="5">
-        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 38px" />
+        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
       </ElCol>
       <ElCol :span="5">
         <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
@@ -664,7 +664,7 @@ const handleFileChange = (_file, fileList) => {
         <ElInput
           v-model="pluginKey"
           :placeholder="t('plugin.key')"
-          style="height: 38px"
+          style="height: 36px"
           @blur="handlePluginKeyChange"
         >
           <template #append>

@@ -161,10 +161,10 @@ const editTemplate = async (data) => {
         </ElText>
       </ElCol>
       <ElCol :span="5">
-        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 38px" />
+        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
       </ElCol>
       <ElCol :span="5" style="position: relative; left: 16px">
-        <ElButton type="primary" :icon="searchicon" style="height: 100%" @click="handleSearch">{{
+        <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
           t('common.search')
         }}</ElButton>
       </ElCol>

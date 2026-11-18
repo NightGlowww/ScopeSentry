@@ -135,10 +135,10 @@ const confirmDelete = async () => {
         <ElText class="mx-1" style="position: relative; top: 8px">Search :</ElText>
       </ElCol>
       <ElCol :span="5">
-        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 38px" />
+        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
       </ElCol>
       <ElCol :span="5">
-        <ElButton type="primary" :icon="searchicon" style="height: 38px" @click="handleSearch">{{
+        <ElButton type="primary" :icon="searchicon" style="height: 36px" @click="handleSearch">{{
           t('common.search')
         }}</ElButton>
       </ElCol>

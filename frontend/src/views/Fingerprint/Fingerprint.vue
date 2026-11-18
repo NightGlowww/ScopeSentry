@@ -218,9 +218,9 @@ const handleUpdate = async () => {
         v-model="search"
         :placeholder="t('common.inputText')"
         class="fp-toolbar__input"
-        style="height: 38px"
+        style="height: 36px"
       />
-      <ElButton type="primary" :icon="searchicon" style="height: 38px" @click="handleSearch">{{
+      <ElButton type="primary" :icon="searchicon" style="height: 36px" @click="handleSearch">{{
         t('common.search')
       }}</ElButton>
     </div>
