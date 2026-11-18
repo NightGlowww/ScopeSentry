@@ -64,11 +64,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -89,11 +89,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -114,11 +114,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -139,11 +139,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -164,11 +164,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -189,11 +189,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -214,11 +214,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -239,11 +239,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -264,11 +264,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -289,11 +289,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -314,11 +314,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -339,11 +339,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -364,11 +364,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }
@@ -389,11 +389,11 @@ const progressColums = reactive<TableColumn[]>([
       cont += `<div>End:${cellValue[1]}</div>`
       if (cellValue[0] != '' && cellValue[1] != '') {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => 'Done')
+          h(ElTag, { type: 'success' }, () => t('task.done'))
         )
       } else {
         return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => 'Running')
+          h(ElTag, { type: 'primary' }, () => t('task.running'))
         )
       }
     }

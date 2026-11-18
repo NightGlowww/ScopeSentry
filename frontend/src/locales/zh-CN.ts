@@ -876,6 +876,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    done: '完成',
     taskName: '任务名称',
     taskCount: '任务数量',
     taskProgress: '任务进度',
