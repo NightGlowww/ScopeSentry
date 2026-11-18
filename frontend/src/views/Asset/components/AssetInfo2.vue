@@ -557,9 +557,16 @@ let crudSchemas = reactive<CrudSchema[]>([
               <ElCol span={24} key={product}>
                 <div
                   onClick={() => changeTags('app', product)}
-                  style={'display: inline-block; cursor: pointer'}
+                  style={'display: inline-block; cursor: pointer; max-width: 100%'}
                 >
-                  <ElTag type={'success'}>{product}</ElTag>
+                  <ElTooltip content={product} placement="top">
+                    <ElTag
+                      type={'success'}
+                      style={{ maxWidth: '96px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    >
+                      {product}
+                    </ElTag>
+                  </ElTooltip>
                 </div>
               </ElCol>
             ))}
