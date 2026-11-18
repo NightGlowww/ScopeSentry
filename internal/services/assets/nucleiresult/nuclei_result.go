@@ -102,6 +102,9 @@ func BuildListFilter(req models.NucleiResultListRequest) bson.M {
 		conds = append(conds, bson.M{"$or": bson.A{
 			bson.M{"url": pattern},
 			bson.M{"vulnname": pattern},
+			// 扫描侧落库是 "rootdomain"（Go 字段名小写），老数据是 "rootDomain"，
+			// 关键词搜索两种拼写都要覆盖，否则按根域名搜不到新数据。
+			bson.M{"rootdomain": pattern},
 			bson.M{"rootDomain": pattern},
 		}})
 	}
