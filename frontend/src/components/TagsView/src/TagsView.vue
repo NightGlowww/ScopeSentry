@@ -212,7 +212,9 @@ const scrollWrapTo = (left: number) => {
   if (!wrap$) return
   const max = wrap$.scrollWidth - wrap$.clientWidth
   const next = Math.min(max, Math.max(0, left))
-  wrap$.scrollTo({ left: next, behavior: 'smooth' })
+  // 之前用 behavior:'smooth'，在这个环境里 scrollTo/scrollBy 的平滑滚动不生效
+  // （实测 scrollLeft 赋值可以、smooth 不动），这里直接赋值保证可用
+  wrap$.scrollLeft = next
 }
 
 // 左右箭头：在当前基础上滚动一段；之前用 useScrollTo 时 wrapRef 取不到，
