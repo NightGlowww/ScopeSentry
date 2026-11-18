@@ -64,3 +64,13 @@ vulnerability(canary) = 0
 对照：同一 canary 用显式单文件 `-t /apps/poc/zz-canary-….yaml` 执行 —— `run time: 957.86ms`，命中并落库 2 条。
 
 结论：`-t *` **会跑满 5 分钟但不会执行 /apps/poc 下的用户 POC**（canary 一次都没被请求）；「全部 POC」在当前节点上等价于空跑。单文件是唯一可用形态。
+## -t 形态完整矩阵（2026-11-19 04:18–04:58，全模块模板 + canary）
+
+| 形态 | 节点日志 | 结论 |
+| --- | --- | --- |
+| `-t *`（All Poc） | `run time: 4m59.29s`，无 error | 跑的是 nuclei 自带默认模板；/apps/poc 下的 canary **0 请求** |
+| `-t /apps/poc/a.yaml,/apps/poc/b.yaml` | `error: "No templates available"`，`run time: 32.4ms` | 逗号分隔不支持 |
+| `-t /apps/poc/a.yaml -t /apps/poc/b.yaml` | `error: "No templates available"`，`run time: 27.4ms` | 重复 -t 不支持（只认单个路径） |
+| `-t /apps/poc/zz-canary.yaml`（单文件） | `run time: 957.86ms`，落库 2+2 条 | **唯一可用形态** |
+
+结论：服务端无法在现有节点上绕开该限制（14319 个 POC 不可能逐个当成 14319 次扫描），必须由节点侧把目录/列表展开成文件后再交给 nuclei。
