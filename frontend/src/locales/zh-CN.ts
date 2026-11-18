@@ -118,7 +118,10 @@ export default {
     copy: '复制',
     copySuccess: '复制成功',
     copyFailed: '复制失败',
-    success: '成功'
+    success: '成功',
+    more: '更多',
+    disabledNeedTask: '请先勾选任务后再操作',
+    disabledNeedScope: '请先勾选记录后再操作'
   },
   export: {
     timeRange: '时间范围',
@@ -338,7 +341,7 @@ export default {
     statusPending: '等待中',
     statusRunning: '解析中',
     statusDone: '已完成',
-    statusFailed: '失败'
+    statusFailed: '失败',
   },
   statFinger: {
     title: '指纹统计',
@@ -890,6 +893,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    failed: '失败',
     syncToProjectHint: '把选中任务的资产同步到项目，已存在的资产不会重复导入。',
     confirmStopSelected: '暂停选中的任务？暂停后可以继续，未完成的查询会保留。',
     confirmStartSelected: '继续选中的任务？会从上次暂停的位置接着查。',

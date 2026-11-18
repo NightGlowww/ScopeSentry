@@ -18,6 +18,7 @@ import { AssetGroup, AssetScope, AssetScopeType } from '@/api/assetGroup/types'
 import ScopeFormDialog from './ScopeFormDialog.vue'
 import MoveScopeDialog from './MoveScopeDialog.vue'
 import BindEnterpriseDialog from './BindEnterpriseDialog.vue'
+import { DisableHint } from '@/components/DisableHint'
 
 const props = defineProps<{
   groupId: string
@@ -35,6 +36,8 @@ const searchIcon = useIcon({ icon: 'iconoir:search' })
 const search = ref('')
 const selectedRows = ref<AssetScope[]>([])
 const selectedIds = computed(() => selectedRows.value.map((row) => row.id))
+// 四个批量按钮共用一条禁用条件，避免各写一份 !selectedRows.length
+const noScopeSelected = computed(() => selectedRows.value.length === 0)
 
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
@@ -326,18 +329,43 @@ onUnmounted(() => {
       <span v-if="selectedRows.length" class="scope-toolbar__selected">
         {{ t('assetGroup.selected', { count: selectedRows.length }) }}
       </span>
-      <ElButton :disabled="!selectedRows.length" @click="moveDialogVisible = true">
-        {{ t('assetGroup.batchMove') }}
-      </ElButton>
-      <ElButton :disabled="!selectedRows.length" @click="bindDialogVisible = true">
-        {{ t('assetGroup.bindEnterprise') }}
-      </ElButton>
-      <ElButton :disabled="!selectedRows.length" @click="handleClearUpdateError">
-        {{ t('assetGroup.clearUpdateError') }}
-      </ElButton>
-      <ElButton type="danger" :disabled="!selectedRows.length" @click="handleBatchDelete">
-        {{ t('common.delete') }}
-      </ElButton>
+      <DisableHint :disabled="noScopeSelected" :reason="t('common.disabledNeedScope')">
+        <ElButton
+          :disabled="noScopeSelected"
+          :title="noScopeSelected ? t('common.disabledNeedScope') : undefined"
+          @click="moveDialogVisible = true"
+        >
+          {{ t('assetGroup.batchMove') }}
+        </ElButton>
+      </DisableHint>
+      <DisableHint :disabled="noScopeSelected" :reason="t('common.disabledNeedScope')">
+        <ElButton
+          :disabled="noScopeSelected"
+          :title="noScopeSelected ? t('common.disabledNeedScope') : undefined"
+          @click="bindDialogVisible = true"
+        >
+          {{ t('assetGroup.bindEnterprise') }}
+        </ElButton>
+      </DisableHint>
+      <DisableHint :disabled="noScopeSelected" :reason="t('common.disabledNeedScope')">
+        <ElButton
+          :disabled="noScopeSelected"
+          :title="noScopeSelected ? t('common.disabledNeedScope') : undefined"
+          @click="handleClearUpdateError"
+        >
+          {{ t('assetGroup.clearUpdateError') }}
+        </ElButton>
+      </DisableHint>
+      <DisableHint :disabled="noScopeSelected" :reason="t('common.disabledNeedScope')">
+        <ElButton
+          type="danger"
+          :disabled="noScopeSelected"
+          :title="noScopeSelected ? t('common.disabledNeedScope') : undefined"
+          @click="handleBatchDelete"
+        >
+          {{ t('common.delete') }}
+        </ElButton>
+      </DisableHint>
     </div>
 
     <Table
@@ -401,6 +429,12 @@ onUnmounted(() => {
 
 .scope-toolbar__spacer {
   flex: 1;
+}
+
+/* 禁用按钮外面多了 DisableHint 包裹层，.el-button + .el-button 不再相邻，
+   间距统一交给上面的 flex gap，避免和 margin-left 叠加成 20px */
+.scope-toolbar :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .scope-toolbar__selected {

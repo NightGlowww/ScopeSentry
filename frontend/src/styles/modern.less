@@ -231,6 +231,32 @@ html .el-select__wrapper{
     background-color 0.18s ease;
 }
 
+/* el-input-number：全局把输入框撑到 36px，但 EP 的加减按钮高度是按「标称」尺寸算的
+   （controls-right 下 height = (标称高 - 2) / 2，small 只有 11px），容器再高按钮也只有 11px，
+   上下各贴 1px、中间留一条点不到的死区。这里把容器高度钉死，并让按钮高度跟容器走。 */
+html .el-input-number{
+  height: 36px;
+}
+
+html .el-input-number .el-input{
+  height: 100%;
+}
+
+html .el-input-number .el-input__wrapper{
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* 注意：EP 把 --el-input-number-controls-height 直接声明在按钮上
+   （default 15px / small 11px），只改容器的变量会被按钮自身的声明盖掉，
+   所以这里带 [class] 提高选择器权重（0,4,1 > EP 的 0,4,0）并同时写死 height。 */
+html .el-input-number.is-controls-right[class] .el-input-number__increase,
+html .el-input-number.is-controls-right[class] .el-input-number__decrease{
+  --el-input-number-controls-height: calc(50% - 1px);
+  height: calc(50% - 1px);
+  line-height: normal;
+}
+
 html .el-input__wrapper:hover,
 html .el-select__wrapper:hover{
   box-shadow: 0 0 0 1px var(--app-border-strong) inset;

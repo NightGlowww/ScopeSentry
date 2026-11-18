@@ -106,9 +106,11 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    /* 按内容收口：操作下拉 + 日志/清除日志/编辑/删除 共 5 个控件，320 足够，
-       之前 450 会留出一条空白把表格撑宽 */
-    width: 300,
+    /* 按内容收口：操作 / 日志 / 编辑 / 更多 四个控件。
+       实测 56 + 44 + 44 + 44 + 3×6(gap) = 206，加 24 单元格内边距 = 230 < 260，留 30px 余量；
+       之前是「操作 + 日志 + 清除日志 + 编辑 + 删除」5 个控件共 304px，挤出单元格 6px 被裁。
+       「清除日志 / 删除」收进「更多」下拉，不再占行内宽度。 */
+    width: 260,
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
         switch (command) {
@@ -123,56 +125,58 @@ const taskColums = reactive<TableColumn[]>([
             break
         }
       }
-      const retestAndDeleteDropdown = h(
-        ElDropdown,
-        {
-          onCommand: handleCommand
-        },
-        {
-          default: () =>
-            h(
-              ElButton,
-              {
-                style: { outline: 'none', boxShadow: 'none' }
-              },
-              () => [
-                t('common.operation'), // 下拉菜单触发按钮文字
-                h(
-                  ElIcon,
-                  {},
-                  () => h(ArrowDown) // 向下箭头图标
-                )
-              ]
-            ),
-          dropdown: () =>
-            h(ElDropdownMenu, null, () => {
-              return [
-                h(ElDropdownItem, { command: 'reinstall' }, () => t('plugin.reInstall')),
-                h(ElDropdownItem, { command: 'recheck' }, () => t('plugin.reCheck')),
-                h(ElDropdownItem, { command: 'uninstall' }, () => t('plugin.uninstall'))
-              ]
-            })
+      const handleMoreCommand = (command) => {
+        switch (command) {
+          case 'cleanLog':
+            confirmCleanLog(row.hash, row.module)
+            break
+          case 'delete':
+            // 系统插件不可删，菜单项已置灰，这里再兜一层
+            if (!row.isSystem) confirmDelete(row.hash, row.module)
+            break
         }
-      )
+      }
+      const renderDropdown = (label: string, items, onCommand: (cmd: string) => void) =>
+        h(
+          ElDropdown,
+          { onCommand },
+          {
+            default: () =>
+              h(
+                ElButton,
+                { style: { outline: 'none', boxShadow: 'none' } },
+                () => [label, h(ElIcon, {}, () => h(ArrowDown))]
+              ),
+            dropdown: () => h(ElDropdownMenu, null, () => items)
+          }
+        )
       return (
         <div style="display: flex; align-items: center; gap: 6px">
-          {retestAndDeleteDropdown}
-          {/* 行内操作统一成：次要动作用默认灰、编辑用主色、删除用危险色，
-              避免一行里出现 橙/灰/绿/红 四种彩色文字按钮 */}
+          {renderDropdown(
+            t('common.operation'),
+            [
+              h(ElDropdownItem, { command: 'reinstall' }, () => t('plugin.reInstall')),
+              h(ElDropdownItem, { command: 'recheck' }, () => t('plugin.reCheck')),
+              h(ElDropdownItem, { command: 'uninstall' }, () => t('plugin.uninstall'))
+            ],
+            handleCommand
+          )}
           <BaseButton onClick={() => openLogDialogVisible(row)}>{t('common.log')}</BaseButton>
-          <BaseButton onClick={() => confirmCleanLog(row.hash, row.module)}>
-            {t('common.cleanLog')}
-          </BaseButton>
           <BaseButton type="primary" onClick={() => editPlugin(row.id)}>
             {t('common.edit')}
           </BaseButton>
-          <BaseButton
-            type="danger"
-            onClick={() => confirmDelete(row.hash, row.module)}
-            disabled={row.isSystem}
-          >
-            {t('common.delete')}
-          </BaseButton>
+          {renderDropdown(
+            t('common.more'),
+            [
+              h(ElDropdownItem, { command: 'cleanLog' }, () => t('common.cleanLog')),
+              h(
+                ElDropdownItem,
+                { command: 'delete', disabled: row.isSystem, divided: true },
+                () => t('common.delete')
+              )
+            ],
+            handleMoreCommand
+          )}
         </div>
       )
     }

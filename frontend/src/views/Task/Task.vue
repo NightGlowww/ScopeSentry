@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h, onMounted, resolveComponent } from 'vue'
+import { ref, reactive, h, onMounted, resolveComponent, computed } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import {
   ElButton,
@@ -37,6 +37,7 @@ import {
 } from '@/api/task'
 import { Dialog } from '@/components/Dialog'
 import { BaseButton } from '@/components/Button'
+import { DisableHint } from '@/components/DisableHint'
 import AddTask from './components/AddTask.vue'
 import ProgressInfo from './components/ProgressInfo.vue'
 import { useRouter } from 'vue-router'
@@ -92,7 +93,7 @@ const taskColums = reactive<TableColumn[]>([
     label: t('common.state'),
     width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
-      // 0 待开始，1 为运行中，2 为暂停，3 为运行完成
+      // 0 待开始，1 运行中，2 暂停，3 运行完成，4 失败
       let tagType, tagText
       switch (cellValue) {
         case 0:
@@ -110,6 +111,10 @@ const taskColums = reactive<TableColumn[]>([
         case 3:
           tagType = 'success'
           tagText = t('task.finish') // 运行完成
+          break
+        case 4:
+          tagType = 'danger'
+          tagText = t('task.failed') // 失败（节点长期无进度，后台巡检判定）
           break
         default:
           tagType = 'default'
@@ -503,6 +508,8 @@ const tableSelectedCount = ref(0)
 const handleTableSelectionChange = (rows: unknown[]) => {
   tableSelectedCount.value = rows?.length ?? 0
 }
+// 工具条四个批量按钮共用一条禁用条件，文案也共用一条
+const noTaskSelected = computed(() => tableSelectedCount.value === 0)
 const del = async (data, delA) => {
   delLoading.value = true
   try {
@@ -577,40 +584,52 @@ const setMaxHeight = () => {
     </ElRow>
     <ElRow>
       <ElCol style="position: relative; top: 16px">
-        <div class="mb-10px">
+        <div class="mb-10px task-toolbar">
           <BaseButton type="primary" @click="addTask">{{ t('task.addTask') }}</BaseButton>
-          <BaseButton
-        type="danger"
-        :loading="delLoading"
-        :disabled="tableSelectedCount === 0"
-        @click="confirmDeleteSelect"
-      >
-            {{ t('task.delTask') }}
-          </BaseButton>
-          <BaseButton
-            type="warning"
-            :loading="delLoading"
-            :disabled="tableSelectedCount === 0"
-            @click="confirmStopSelect"
-          >
-            {{ t('task.stop') }}
-          </BaseButton>
-          <BaseButton
-            type="success"
-            :loading="delLoading"
-            :disabled="tableSelectedCount === 0"
-            @click="confirmStartSelect"
-          >
-            {{ t('task.start') }}
-          </BaseButton>
-          <BaseButton
-            type="info"
-            :loading="delLoading"
-            :disabled="tableSelectedCount === 0"
-            @click="confirmSyncToProjectSelect"
-          >
-            {{ t('task.syncToProject') }}
-          </BaseButton>
+          <DisableHint :disabled="noTaskSelected" :reason="t('common.disabledNeedTask')">
+            <BaseButton
+              type="danger"
+              :loading="delLoading"
+              :disabled="noTaskSelected"
+              :title="noTaskSelected ? t('common.disabledNeedTask') : undefined"
+              @click="confirmDeleteSelect"
+            >
+              {{ t('task.delTask') }}
+            </BaseButton>
+          </DisableHint>
+          <DisableHint :disabled="noTaskSelected" :reason="t('common.disabledNeedTask')">
+            <BaseButton
+              type="warning"
+              :loading="delLoading"
+              :disabled="noTaskSelected"
+              :title="noTaskSelected ? t('common.disabledNeedTask') : undefined"
+              @click="confirmStopSelect"
+            >
+              {{ t('task.stop') }}
+            </BaseButton>
+          </DisableHint>
+          <DisableHint :disabled="noTaskSelected" :reason="t('common.disabledNeedTask')">
+            <BaseButton
+              type="success"
+              :loading="delLoading"
+              :disabled="noTaskSelected"
+              :title="noTaskSelected ? t('common.disabledNeedTask') : undefined"
+              @click="confirmStartSelect"
+            >
+              {{ t('task.start') }}
+            </BaseButton>
+          </DisableHint>
+          <DisableHint :disabled="noTaskSelected" :reason="t('common.disabledNeedTask')">
+            <BaseButton
+              type="info"
+              :loading="delLoading"
+              :disabled="noTaskSelected"
+              :title="noTaskSelected ? t('common.disabledNeedTask') : undefined"
+              @click="confirmSyncToProjectSelect"
+            >
+              {{ t('task.syncToProject') }}
+            </BaseButton>
+          </DisableHint>
         </div>
       </ElCol>
     </ElRow>
@@ -684,6 +703,19 @@ const setMaxHeight = () => {
 </template>
 
 <style scoped>
+/* 禁用按钮外面多了一层 DisableHint 包裹，原来的 .el-button + .el-button 相邻选择器失效，
+   这里改用 flex gap 统一间距，避免按钮粘在一起 */
+.task-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-toolbar :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
 .locale-search-row {
   align-items: center;
   gap: 12px;
