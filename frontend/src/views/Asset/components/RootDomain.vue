@@ -11,13 +11,16 @@ import {
   InputInstance,
   ElTag,
   ElInput,
-  ElButton
+  ElButton,
+  ElTooltip
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getRootDomainApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
+import { Icon } from '@/components/Icon'
+import { copyText } from '@/utils/clipboard'
 const { t } = useI18n()
 interface Project {
   value: string
@@ -82,7 +85,21 @@ const crudSchemas = reactive<CrudSchema[]>([
   {
     field: 'domain',
     label: t('rootDomain.rootDomainName'),
-    minWidth: 200
+    minWidth: 220,
+    formatter: (_: Recordable, __: TableColumn, domain: string) => (
+      <div class="flex items-center">
+        <span>{domain}</span>
+        <ElTooltip content="复制根域名" placement="top">
+          <Icon
+            icon="ep:copy-document"
+            size={13}
+            color="var(--el-text-color-placeholder)"
+            class="ml-4px cursor-pointer"
+            onClick={() => copyText(domain)}
+          />
+        </ElTooltip>
+      </div>
+    )
   },
   {
     field: 'icp',
