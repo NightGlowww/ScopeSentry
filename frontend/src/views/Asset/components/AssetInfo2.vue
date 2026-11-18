@@ -51,6 +51,17 @@ import AssetDetail2 from '../detail/AssetDetail2.vue'
 import { url } from 'inspector'
 const { push } = useRouter()
 const { t } = useI18n()
+
+// 资产列表里频繁要复制域名/IP，逐个手选太麻烦，给单元格加个复制按钮
+const copyToClipboard = async (text?: string) => {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success(t('common.copySuccess') || '已复制')
+  } catch {
+    ElMessage.error(t('common.copyFailed') || '复制失败')
+  }
+}
 interface Project {
   value: string
   label: string
@@ -214,6 +225,15 @@ let crudSchemas = reactive<CrudSchema[]>([
           >
             {domainValue}
           </ElLink>
+          <ElTooltip content="复制域名" placement="top">
+            <Icon
+              icon="ep:copy-document"
+              size={13}
+              color="var(--el-text-color-placeholder)"
+              class="ml-4px cursor-pointer"
+              onClick={() => copyToClipboard(domainValue)}
+            />
+          </ElTooltip>
         </div>
       )
     }
@@ -234,6 +254,15 @@ let crudSchemas = reactive<CrudSchema[]>([
           <ElLink href={row.url} underline={false}>
             {ipValue}
           </ElLink>
+          <ElTooltip content="复制 IP" placement="top">
+            <Icon
+              icon="ep:copy-document"
+              size={13}
+              color="var(--el-text-color-placeholder)"
+              class="ml-4px cursor-pointer"
+              onClick={() => copyToClipboard(ipValue)}
+            />
+          </ElTooltip>
         </div>
       )
     }
