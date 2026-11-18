@@ -11,7 +11,6 @@ import { ContextMenu, ContextMenuExpose } from '@/components/ContextMenu'
 import { useDesign } from '@/hooks/web/useDesign'
 import { useTemplateRefsList } from '@vueuse/core'
 import { ElScrollbar } from 'element-plus'
-import { useScrollTo } from '@/hooks/event/useScrollTo'
 import { useTagsView } from '@/hooks/web/useTagsView'
 import { cloneDeep } from 'lodash-es'
 
@@ -148,24 +147,11 @@ const moveToTarget = (currentTag: RouteLocationNormalizedLoaded) => {
     firstTag = tagList[0]
     lastTag = tagList[tagList.length - 1]
   }
+  if (!wrap$) return
   if ((firstTag?.to as RouteLocationNormalizedLoaded).fullPath === currentTag.fullPath) {
-    // 直接滚动到0的位置
-    const { start } = useScrollTo({
-      el: wrap$!,
-      position: 'scrollLeft',
-      to: 0,
-      duration: 500
-    })
-    start()
+    scrollWrapTo(0)
   } else if ((lastTag?.to as RouteLocationNormalizedLoaded).fullPath === currentTag.fullPath) {
-    // 滚动到最后的位置
-    const { start } = useScrollTo({
-      el: wrap$!,
-      position: 'scrollLeft',
-      to: wrap$!.scrollWidth - wrap$!.offsetWidth,
-      duration: 500
-    })
-    start()
+    scrollWrapTo(wrap$.scrollWidth)
   } else {
     // find preTag and nextTag
     const currentIndex: number = tagList.findIndex(
@@ -182,22 +168,10 @@ const moveToTarget = (currentTag: RouteLocationNormalizedLoaded) => {
     // the tag's offsetLeft before of prevTag
     const beforePrevTagOffsetLeft = prevTag.offsetLeft - 4
 
-    if (afterNextTagOffsetLeft > unref(scrollLeftNumber) + wrap$!.offsetWidth) {
-      const { start } = useScrollTo({
-        el: wrap$!,
-        position: 'scrollLeft',
-        to: afterNextTagOffsetLeft - wrap$!.offsetWidth,
-        duration: 500
-      })
-      start()
-    } else if (beforePrevTagOffsetLeft < unref(scrollLeftNumber)) {
-      const { start } = useScrollTo({
-        el: wrap$!,
-        position: 'scrollLeft',
-        to: beforePrevTagOffsetLeft,
-        duration: 500
-      })
-      start()
+    if (nextTag && afterNextTagOffsetLeft > wrap$.scrollLeft + wrap$.clientWidth) {
+      scrollWrapTo(afterNextTagOffsetLeft - wrap$.clientWidth)
+    } else if (prevTag && beforePrevTagOffsetLeft < wrap$.scrollLeft) {
+      scrollWrapTo(beforePrevTagOffsetLeft)
     }
   }
 }
@@ -232,16 +206,21 @@ const scroll = ({ scrollLeft }) => {
   scrollLeftNumber.value = scrollLeft as number
 }
 
-// 移动到某个位置
+// 滚动到指定位置（原生 scrollTo，别依赖 useScrollTo 对 wrapRef 的假设）
+const scrollWrapTo = (left: number) => {
+  const wrap$ = unref(scrollbarRef)?.wrapRef
+  if (!wrap$) return
+  const max = wrap$.scrollWidth - wrap$.clientWidth
+  const next = Math.min(max, Math.max(0, left))
+  wrap$.scrollTo({ left: next, behavior: 'smooth' })
+}
+
+// 左右箭头：在当前基础上滚动一段；之前用 useScrollTo 时 wrapRef 取不到，
+// 点一下只挪 1px，标签多的时候根本滚不动
 const move = (to: number) => {
   const wrap$ = unref(scrollbarRef)?.wrapRef
-  const { start } = useScrollTo({
-    el: wrap$!,
-    position: 'scrollLeft',
-    to: unref(scrollLeftNumber) + to,
-    duration: 500
-  })
-  start()
+  if (!wrap$) return
+  scrollWrapTo(wrap$.scrollLeft + to)
 }
 
 onMounted(() => {
