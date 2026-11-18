@@ -224,4 +224,4 @@
 | `PageMonitoring` / `PageMonitoringBody` | 已闭环：三处断点修复 + 启动期自动注册；实测 cron 每分钟触发，25s 内 body 0→1 |
 | `app` / `mp` / `cip` / `fileleak` / `npoc_service` | 已标注：页面顶部说明「无写入方」 |
 | `github_result` / `github_task` / `github_threat_history` | 未启用属预期：采集开关默认 false 且需 GitHub Token；缺 token 时 Threat 页显示 token=missing |
-| `icon` | 待删（C 类）：v18 后改存 asset.iconcontent，无写入方，worker 仍在读 |
+| `icon` | worker 已删（v2.0.131 代码层）：v18 后改存 asset.iconcontent，无写入方；集合本身待主机恢复后 `db.icon.drop()` |
