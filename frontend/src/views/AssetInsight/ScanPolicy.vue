@@ -174,8 +174,7 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'actions',
     label: t('policy.colActions'),
-    width: 250,
-    fixed: 'right',
+    width: 240,
     formatter: (row: ScanPolicy) => (
       <span class="row-actions">
         <ElButton link type="primary" size="small" onClick={() => openEdit(row)}>

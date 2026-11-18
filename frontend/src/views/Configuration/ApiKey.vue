@@ -81,8 +81,7 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 100,
-    fixed: 'right',
+    width: 120,
     formatter: (row) => (
       <BaseButton type="danger" onClick={() => handleDelete(row)}>
         {t('common.delete')}

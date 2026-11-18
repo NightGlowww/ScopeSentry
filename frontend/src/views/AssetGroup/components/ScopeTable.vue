@@ -267,8 +267,7 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 140,
-    fixed: 'right',
+    width: 140,
     formatter: (row: AssetScope) => (
       <div>
         <ElButton type="primary" link onClick={() => openEdit(row)}>
