@@ -56,12 +56,12 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'name',
     label: t('task.taskName'),
-    minWidth: 100
+    minWidth: 180
   },
   {
     field: 'taskNum',
     label: t('task.taskCount'),
-    minWidth: 70,
+    width: 90,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(
         ElTag,
@@ -75,7 +75,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'progress',
     label: t('task.taskProgress'),
-    minWidth: 200,
+    minWidth: 260,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(ElProgress, {
         percentage: cellValue,
@@ -89,7 +89,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'status',
     label: t('common.state'),
-    minWidth: 200,
+    width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       // 0 待开始，1 为运行中，2 为暂停，3 为运行完成
       let tagType, tagText
@@ -119,13 +119,13 @@ const taskColums = reactive<TableColumn[]>([
   },
   {
     field: 'creatTime',
-    minWidth: 200,
+    width: 170,
     label: t('task.createTime')
   },
   {
     field: 'endTime',
     label: t('task.endTime'),
-    minWidth: 200,
+    width: 170,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       if (cellValue == '') {
         return '-'

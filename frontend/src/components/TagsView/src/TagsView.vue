@@ -567,7 +567,8 @@ watch(
   top: 0;
   height: 30px;
   margin: 6px 4px 0 0;
-  padding: 0 12px;
+  /* 右侧给关闭按钮留位置，避免“资产信息×”文字和图标叠在一起 */
+  padding: 0 22px 0 12px;
   overflow: hidden;
   font-size: 12px;
   font-weight: 500;
@@ -583,7 +584,11 @@ watch(
     box-shadow 0.16s ease;
 
   &--close {
-    right: 4px;
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    color: var(--el-text-color-secondary);
   }
 }
 

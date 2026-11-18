@@ -67,8 +67,8 @@ export default defineComponent({
     },
     height: propTypes.oneOfType([Number, String]),
     maxHeight: propTypes.oneOfType([Number, String]),
-    // 未显式给 height 时，是否让表格撑满视口剩余高度（滚动区在表格内部，表头吸顶）
-    fillHeight: propTypes.bool.def(true),
+    // 是否让表格撑满视口剩余高度（需页面显式开启；默认内容高度）
+    fillHeight: propTypes.bool.def(false),
     stripe: propTypes.bool.def(false),
     border: propTypes.bool.def(true),
     size: {
@@ -186,10 +186,11 @@ export default defineComponent({
       type: Object as PropType<{ hasChildren?: string; children?: string; label?: string }>,
       default: () => ({ hasChildren: 'hasChildren', children: 'children', label: 'label' })
     },
-    // 列宽策略：默认 auto，按内容自适应（XLSX 那种感觉）；需要固定列宽时页面显式传 fixed
+    // 列宽策略：默认 fixed（EP 标准行为，按列 width/minWidth 分配）；
+    // auto 会让窄列被压扁、宽列被无限拉伸，不要作为默认。
     tableLayout: {
       type: String as PropType<'auto' | 'fixed'>,
-      default: 'auto'
+      default: 'fixed'
     },
     scrollbarAlwaysOn: propTypes.bool.def(false),
     flexible: propTypes.bool.def(false),
@@ -336,10 +337,11 @@ export default defineComponent({
     // 表格高度：页面显式传 height 就用；否则有分页时默认撑满视口剩余区域，
     // 让长表格在内部滚动、表头吸顶，而不是整页越拉越长。
     const computedHeight = computed(() => {
-      const { height: h, maxHeight: mh, pagination: pg, fillHeight: fill } = unref(getProps)
+      const { height: h, maxHeight: mh, fillHeight: fill } = unref(getProps)
       if (h) return h
       if (mh || !fill) return undefined
-      return pg ? 'calc(100vh - 280px)' : undefined
+      // 只有页面显式要求 fillHeight 时才撑满；默认保持内容高度，避免短表出现大片空白。
+      return undefined
     })
 
     const getBindValue = computed(() => {
