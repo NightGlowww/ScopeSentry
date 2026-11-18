@@ -105,7 +105,7 @@ const crudSchemas = reactive<CrudSchema[]>([
     label: t('dashboard.URL'),
     minWidth: 220,
     formatter: (_: Recordable, __: TableColumn, url: string) => (
-      <div class="flex items-center">
+      <div class="url-cell">
         <ElLink href={url} underline={false} target="_blank">
           {url}
         </ElLink>
@@ -721,6 +721,25 @@ const drawerAggregationData = computed<SensitiveAggregation[]>(() => {
 <style lang="less" scoped>
 .el-button {
   margin-top: 10px;
+}
+
+/* 长 URL 时复制图标会被单元格裁掉，链接负责省略号、图标不收缩 */
+.url-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.url-cell :deep(.el-link) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-cell :deep(.el-icon) {
+  flex: 0 0 auto;
 }
 
 ::v-deep(.colored-select .el-select__selected-item) {
