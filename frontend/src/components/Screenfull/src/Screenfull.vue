@@ -20,7 +20,14 @@ const toggleFullscreen = () => {
 </script>
 
 <template>
-  <div :class="prefixCls" @click="toggleFullscreen">
+  <div
+    :class="prefixCls"
+    role="button"
+    tabindex="0"
+    aria-label="切换全屏"
+    @click="toggleFullscreen"
+    @keydown.enter="toggleFullscreen"
+  >
     <Icon
       :size="18"
       :icon="isFullscreen ? 'zmdi:fullscreen-exit' : 'zmdi:fullscreen'"
