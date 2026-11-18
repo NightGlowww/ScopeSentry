@@ -91,7 +91,7 @@ const crudSchemas = reactive<CrudSchema[]>([
       <div class="flex items-center">
         <span>{ip}</span>
         <ElTooltip content="复制 IP" placement="top">
-          <Icon
+          <Icon aria-label="复制 IP"
             icon="ep:copy-document"
             size={13}
             color="var(--el-text-color-placeholder)"
