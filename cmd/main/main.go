@@ -52,6 +52,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes"
 	scopesentrymcp "github.com/Autumn-27/ScopeSentry/internal/mcp"
+	dictionarysvc "github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	redisLogSubscriber "github.com/Autumn-27/ScopeSentry/internal/services/redis_log_subscriber"
 
@@ -95,6 +96,20 @@ func main() {
 	githubScheduler := githubsvc.DefaultScheduler()
 	githubScheduler.Start()
 	defer githubScheduler.Stop()
+
+	// 字典行索引补建：老字典只有文件、没有行索引，列表 lineCount 会一直是 0
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		n, err := dictionarysvc.NewManageService().BackfillEntryIndex(ctx)
+		if err != nil {
+			logger.Warn("dictionary: backfill entry index failed", zap.Error(err))
+			return
+		}
+		if n > 0 {
+			logger.Info("dictionary: backfilled entry index", zap.Int("count", n))
+		}
+	}()
 
 	// 启动 Redis 日志订阅服务（在后台运行）
 	go redisLogSubscriber.SubscribeLogChannel()
