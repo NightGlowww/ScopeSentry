@@ -51,6 +51,10 @@ type Task struct {
 	// PolicyID 建任务时选中的扫描策略（scan_policy._id）；空 = 不套用策略。
 	// 只作「选哪个策略」的引用，参数消费在 services/task/taskpolicy（见 docs/audit/SCAN_POLICY.md）。
 	PolicyID string `bson:"policyId,omitempty" json:"policyId,omitempty"`
+
+	// PolicyWarnings 策略套用过程中的提示（策略不存在/已停用、模板冲突、插件未命中、
+	// 速率/超时/字典等无承载字段）。落库是为了让前端能展示，而不是只留在服务端日志里。
+	PolicyWarnings []string `bson:"policyWarnings,omitempty" json:"policyWarnings,omitempty"`
 }
 
 // TaskProgress 任务进度模型

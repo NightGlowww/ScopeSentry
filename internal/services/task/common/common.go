@@ -296,12 +296,19 @@ func (s *service) GetScanTemplate(ctx context.Context, task *models.Task) (*mode
 // 策略读不到只记日志并返回：建任务不能因为策略被删掉而失败。
 func (s *service) applyTaskPolicy(ctx context.Context, task *models.Task) {
 	cfg, err := s.taskPolicyConfig(ctx, task)
-	if err != nil || cfg == nil {
+	if err != nil {
+		// 策略被删除/停用：任务按模板默认值继续，但必须留下可见提示
+		task.PolicyWarnings = append(task.PolicyWarnings,
+			"policy_unavailable: 策略不存在或已停用，本次任务按模板默认值执行")
+		return
+	}
+	if cfg == nil {
 		return
 	}
 	applied, warnings := taskpolicy.ApplyToTask(task, *cfg)
 	for _, w := range warnings {
 		logger.Warn(fmt.Sprintf("task policy %s: %s (%s)", task.PolicyID, w.Message, w.Code))
+		task.PolicyWarnings = append(task.PolicyWarnings, w.Code+": "+w.Message)
 	}
 	if len(applied) > 0 {
 		logger.Info(fmt.Sprintf("task policy %s applied on task %s: %v", task.PolicyID, task.Name, applied))

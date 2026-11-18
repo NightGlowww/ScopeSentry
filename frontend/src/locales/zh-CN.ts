@@ -729,6 +729,8 @@ export default {
     pickConflictTitle: '策略与表单已填内容冲突（保留表单值）',
     pickConflict: '{field}：表单是 {current}，策略是 {next}',
     pickAppliedEmpty: '这条策略没有给任何字段',
+    pickEffectHint:
+      '执行期真正生效的只有「扫描模板」（任务没填模板时兜底）和「插件清单」（把各阶段收窄到策略点名的插件）；并发 / 速率 / 超时 / 字典 / 附加参数随策略保存，但扫描载荷里没有对应字段，只做记录',
     pickFailed: '策略合并预览失败'
   },
   fofa: {
@@ -896,6 +898,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    policyWarnings: '策略提示',
     allPocNucleiWarning: '当前扫描节点的 nuclei 只接受单文件 -t，选择「全部 POC」会被静默忽略（0 命中）。请改选具体 POC，或先升级节点侧 nuclei 参数解析。',
     failed: '失败',
     syncToProjectHint: '把选中任务的资产同步到项目，已存在的资产不会重复导入。',

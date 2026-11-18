@@ -746,6 +746,8 @@ export default {
     pickConflictTitle: '정책과 이미 입력한 값이 충돌합니다 (입력값 유지)',
     pickConflict: '{field}: 입력값 {current}, 정책 {next}',
     pickAppliedEmpty: '이 정책은 어떤 필드도 제공하지 않습니다',
+    pickEffectHint:
+      '실행 시 실제로 적용되는 것은 스캔 템플릿(작업에 템플릿이 없을 때 대체)과 플러그인 목록(각 단계를 정책이 지정한 플러그인으로 축소)뿐입니다. 동시성 / 속도 / 타임아웃 / 사전 / 추가 옵션은 정책에 저장되지만 스캔 페이로드에 해당 필드가 없어 기록만 됩니다',
     pickFailed: '정책 병합 미리보기에 실패했습니다'
   },
   fofa: {
@@ -919,6 +921,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    policyWarnings: '정책 알림',
     allPocNucleiWarning: '현재 스캔 노드의 nuclei는 단일 파일 -t만 지원합니다. All POC를 선택하면 조용히 무시되어 0건이 됩니다. 개별 POC를 선택하거나 노드 측 파라미터 처리를 먼저 업그레이드하세요.',
     failed: '실패',
     syncToProjectHint: '선택한 작업의 자산을 프로젝트로 동기화합니다. 이미 있는 자산은 중복되지 않습니다.',

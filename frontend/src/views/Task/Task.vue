@@ -22,7 +22,8 @@ import {
   ElRadioButton,
   ElSelect,
   ElOption,
-  ElTreeSelect
+  ElTreeSelect,
+  ElTooltip
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -121,6 +122,20 @@ const taskColums = reactive<TableColumn[]>([
           tagText = '' // 未知状态
       }
       return h(ElTag, { type: tagType }, () => tagText)
+    }
+  },
+  {
+    field: 'policyWarnings',
+    label: t('task.policyWarnings'),
+    width: 110,
+    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
+      const list = Array.isArray(cellValue) ? cellValue : []
+      if (!list.length) return h('span', '-')
+      return h(
+        ElTooltip,
+        { effect: 'dark', placement: 'top', content: list.join(' / ') },
+        () => h(ElTag, { type: 'warning', size: 'small' }, () => list.length + ' 条')
+      )
     }
   },
   {

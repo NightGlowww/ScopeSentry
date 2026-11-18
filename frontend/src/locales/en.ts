@@ -753,6 +753,8 @@ export default {
       'The policy conflicts with values already in the form (form values are kept)',
     pickConflict: '{field}: form has {current}, policy has {next}',
     pickAppliedEmpty: 'This policy does not provide any field',
+    pickEffectHint:
+      'Only the scan template (used when the task has none) and the plugin list (each phase narrowed to the plugins the policy names) take effect at execution time; concurrency / rate / timeout / dictionaries / extra options are stored with the policy but have no field in the scan payload, so they are recorded only',
     pickFailed: 'Policy merge preview failed'
   },
   fofa: {
@@ -927,6 +929,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    policyWarnings: 'Policy notes',
     allPocNucleiWarning: 'The scan node currently accepts only a single-file -t; choosing All POC is silently ignored (0 hits). Pick explicit POCs, or upgrade the node-side nuclei argument handling first.',
     failed: 'Failed',
     syncToProjectHint:
