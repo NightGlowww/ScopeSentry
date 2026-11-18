@@ -1026,3 +1026,28 @@ html .el-input__wrapper:focus-within {
   outline-offset: 1px;
 }
 
+
+/* ===========================================================================
+ * 23. 带复制按钮的单元格
+ *     URL/域名很长时，单元格的 overflow 会把复制图标一起裁掉。
+ *     链接负责省略号，图标固定不收缩。放在全局是因为这些单元格由 TSX 渲染，
+ *     scoped 样式不一定能命中。
+ * ========================================================================= */
+html .url-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+html .url-cell > .el-link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html .url-cell > .el-icon {
+  flex: 0 0 auto;
+}
+
