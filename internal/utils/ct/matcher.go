@@ -318,9 +318,9 @@ func (dm *DomainMatcher) normalizeDomain(domain string) string {
 // addToTrie 添加到Trie树
 func (dm *DomainMatcher) addToTrie(domain string, domainObj *models.Domain) {
 	node := dm.trieRoot
-	runes := []rune(domain)
 
-	for _, r := range runes {
+	// 直接 range string：Go 按 rune 迭代且不额外分配（SA6003）
+	for _, r := range domain {
 		if node.Children[r] == nil {
 			node.Children[r] = models.NewDomainTrieNode()
 		}
@@ -380,9 +380,9 @@ func (dm *DomainMatcher) matchInTrie(rootDomain string) *models.DomainMatch {
 // searchTrie 在Trie树中搜索
 func (dm *DomainMatcher) searchTrie(domain string) *models.DomainTrieNode {
 	node := dm.trieRoot
-	runes := []rune(domain)
 
-	for _, r := range runes {
+	// 直接 range string：Go 按 rune 迭代且不额外分配（SA6003）
+	for _, r := range domain {
 		if node.Children[r] == nil {
 			return nil
 		}
