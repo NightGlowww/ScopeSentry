@@ -25,6 +25,10 @@
 | v2.0.12 | 表格列总宽超出容器时，固定列盖住中间列且看不到滚动条 | 固定列浮动在滚动层之上，容器无可见滚动条提示 | 共享 Table 组件统一 `scrollbar-always-on` |
 | v2.0.1–v2.0.9 | 标签栏视觉、插件列表列宽/固定列覆盖、导入按钮白底白字、节点插件弹窗列宽、工具条间距被 `:last-child` 清空 | 见对应 PR | — |
 
+
+| v2.0.13 | 搜索行在窄屏挤压、label 靠 `top:8px;left:30%` 硬凑 | `ElRow + span 1/5/5` 固定比例 | 统一 flex + wrap，输入 260px，label 归位（12 页共用规则） |
+| v2.0.14 | 弹窗/抽屉 30%~80% 在 1280 / 2K 屏上过窄或过宽 | 模板写死百分比 | `max-width:94vw` + `min-width:min(420px,94vw)`（抽屉）/ `min(360px,94vw)`（弹窗） |
+
 ## 路由覆盖
 
 已逐页跑过：dashboard、asset-information(14)、task-management(3)、plugin/node/project/poc/fingerprint/sensitive、dictionary-management(4)、configuration(5)、about、project-detail。
