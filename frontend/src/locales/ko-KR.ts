@@ -899,6 +899,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    confirmStopSelected: '선택한 작업을 일시중지할까요? 나중에 재개할 수 있습니다.',
+    confirmStartSelected: '선택한 작업을 계속할까요? 중지된 지점부터 이어집니다.',
     done: '완료',
     taskName: '작업 이름',
     taskCount: '작업 수',
