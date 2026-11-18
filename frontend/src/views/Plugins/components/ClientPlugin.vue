@@ -157,13 +157,13 @@ const taskColums = reactive<TableColumn[]>([
       return (
         <div style="display: flex; align-items: center; gap: 6px">
           {retestAndDeleteDropdown}
-          <BaseButton type="warning" onClick={() => openLogDialogVisible(row)}>
-            {t('common.log')}
-          </BaseButton>
-          <BaseButton type="info" onClick={() => confirmCleanLog(row.hash, row.module)}>
+          {/* 行内操作统一成：次要动作用默认灰、编辑用主色、删除用危险色，
+              避免一行里出现 橙/灰/绿/红 四种彩色文字按钮 */}
+          <BaseButton onClick={() => openLogDialogVisible(row)}>{t('common.log')}</BaseButton>
+          <BaseButton onClick={() => confirmCleanLog(row.hash, row.module)}>
             {t('common.cleanLog')}
           </BaseButton>
-          <BaseButton type="success" onClick={() => editPlugin(row.id)}>
+          <BaseButton type="primary" onClick={() => editPlugin(row.id)}>
             {t('common.edit')}
           </BaseButton>
           <BaseButton
