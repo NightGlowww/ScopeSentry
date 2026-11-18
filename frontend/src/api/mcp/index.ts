@@ -35,3 +35,20 @@ export const exportMcpLogsApi = (params: McpLogQuery): string => {
   })
   return '/api/mcp/logs/export?' + qs.toString()
 }
+
+export interface McpConfig {
+  enabled: boolean
+  allowedTools: string[] | null
+  rateLimitPerMin: number
+  logRetention: number
+  updatedAt?: string
+  updatedBy?: string
+}
+
+export const getMcpConfigApi = (): Promise<IResponse<McpConfig>> => {
+  return request.get({ url: '/api/mcp/config' })
+}
+
+export const updateMcpConfigApi = (data: Partial<McpConfig>): Promise<IResponse<McpConfig>> => {
+  return request.post({ url: '/api/mcp/config', data })
+}
