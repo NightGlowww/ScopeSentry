@@ -2114,7 +2114,7 @@ func createAssetGroup(ctx context.Context, _ *mcp.CallToolRequest, input createA
 type deleteAssetGroupsInput struct {
 	IDs           []string `json:"ids" jsonschema:"要删除的集团 ObjectID 列表，必填；去重后 1-20 个（list_asset_groups 的 id）"`
 	Action        string   `json:"action,omitempty" jsonschema:"删除策略：dissolve（默认，该集团下的地契移入未分组）/ transfer（先划转到 targetGroupId 再删集团）"`
-	TargetGroupID string   `json:"targetGroupId,omitempty" jsonschema:"action=transfer 时必填：接收地契的集团 ObjectID，不能是本批被删的集团之一"`
+	TargetGroupID string   `json:"targetGroupId,omitempty" jsonschema:"当 action 为 transfer 时必填：接收地契的集团 ObjectID，不能是本批被删的集团之一"`
 	Confirm       bool     `json:"confirm,omitempty" jsonschema:"必填 true。本操作不可逆（集团记录物理删除，无回滚接口），缺省/传 false 直接报错"`
 }
 
