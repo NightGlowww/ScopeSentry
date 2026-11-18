@@ -49,3 +49,37 @@ type FieldRespData = {
 export const getFieldApi = (index: string): Promise<IResponse<FieldRespData>> => {
   return request.post({ url: '/api/export/fields', data: { index } })
 }
+
+export interface BatchExportPayload {
+  type: string
+  project?: string
+  taskName?: string
+  startTime?: string
+  endTime?: string
+  fields?: string[]
+}
+
+export interface BatchPreviewResult {
+  type: string
+  collection: string
+  fields: string[]
+  availableFields: string[]
+  rows: string[][]
+  total: number
+  limit: number
+}
+
+export const previewBatchExportApi = (
+  data: BatchExportPayload
+): Promise<IResponse<BatchPreviewResult>> => {
+  return request.post({ url: '/api/export/preview', data })
+}
+
+export const batchExportCsvApi = async (data: BatchExportPayload): Promise<Blob> => {
+  const res = await request.post({
+    url: '/api/export/batch',
+    data,
+    responseType: 'blob'
+  })
+  return res.data as unknown as Blob
+}

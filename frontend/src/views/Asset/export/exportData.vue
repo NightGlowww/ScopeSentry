@@ -18,6 +18,7 @@ import {
   ElDatePicker
 } from 'element-plus'
 import { onMounted, reactive, Ref, ref } from 'vue'
+import BatchExportTab from './BatchExportTab.vue'
 import {
   exportApi,
   getExportRecordApi,
@@ -305,6 +306,9 @@ const filetype = ref('xlsx')
           width: '100%'
         }"
       />
+    </ElTabPane>
+    <ElTabPane label="批量导出" name="batchExport">
+      <BatchExportTab />
     </ElTabPane>
   </ElTabs>
 </template>

@@ -338,6 +338,9 @@ func (p *ExportPlan) query(limit int64) exportrepo.BatchQuery {
 		return q
 	}
 	q.Mode = exportrepo.ModeFind
+	if limit > 0 {
+		q.Limit = limit
+	}
 	q.Sort = p.spec.Sort
 	q.Projection = projectStage(p.Fields)
 	return q
