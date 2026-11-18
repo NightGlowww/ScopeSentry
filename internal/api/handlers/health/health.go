@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/constants"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/hoststat"
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,6 +45,16 @@ func Handler(mongoPing, redisPing PingFunc) gin.HandlerFunc {
 			code = http.StatusServiceUnavailable
 		}
 
+		// 主机资源快照：磁盘/负载/内存不足时主动告警，并把磁盘极低视为不健康。
+		// 2026-11-19 生产主机失联（sshd 无 banner、HTTP 无响应）就是资源/磁盘层面的问题，
+		// 从这里能提前看到，而不是等整机卡死。
+		host := hoststat.Stat("/")
+		hostWarn := hoststat.Warnings(host)
+		if host.DiskTotalBytes > 0 && host.DiskFreePercent < 5 {
+			status = "degraded"
+			code = http.StatusServiceUnavailable
+		}
+
 		c.JSON(code, gin.H{
 			"status":  status,
 			"version": constants.Version,
@@ -52,6 +63,8 @@ func Handler(mongoPing, redisPing PingFunc) gin.HandlerFunc {
 				"mongo": mongo,
 				"redis": redis,
 			},
+			"host":     host,
+			"warnings": hostWarn,
 		})
 	}
 }
