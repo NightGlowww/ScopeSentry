@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h, onMounted, resolveComponent, computed } from 'vue'
+import { ref, reactive, h, onMounted, computed } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import {
   ElButton,
@@ -20,8 +20,8 @@ import {
   ElIcon,
   ElRadioGroup,
   ElRadioButton,
-  ElSelect,
-  ElOption,
+
+
   ElTreeSelect,
   ElTooltip
 } from 'element-plus'

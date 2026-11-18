@@ -18,16 +18,16 @@ import {
   FormInstance,
   ElSelect,
   ElMessage,
-  ElInputNumber,
+
   CheckboxValueType,
-  ElText,
+
   ElTreeSelect,
   ElDrawer,
   ElAlert,
   ElTag
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
-import { computed, onMounted, reactive, ref, toRefs, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { getNodeDataOnlineApi } from '@/api/node'
 import {
   addScheduledTaskApi,
@@ -207,7 +207,8 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             taskData.minute,
             taskData.week,
             taskData.bindProject,
-            taskData.cycleType
+            taskData.cycleType,
+            policyId.value
           )
         } else {
           res = await addTaskApi(
@@ -231,7 +232,9 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             taskData.minute,
             taskData.week,
             taskData.bindProject,
-            taskData.cycleType
+            taskData.cycleType,
+            // 选中的扫描策略随任务一起提交：后端据此在生成扫描载荷时收窄插件清单
+            policyId.value
           )
         }
       }
@@ -334,6 +337,8 @@ const loadTaskData = async (id) => {
   taskData.hour = res.data.hour
   taskData.duplicates = res.data.duplicates
   taskData.template = res.data.template
+  // 任务上挂过策略时回显选择（后端 task.policyId，空 = 没套用策略）
+  policyId.value = res.data.policyId || ''
   taskData.day = res.data.day
   taskData.minute = res.data.minute
   taskData.week = res.data.week
@@ -357,7 +362,13 @@ const loadScheduleData = async (id) => {
   taskData.minute = res.data.minute
   taskData.week = res.data.week
   taskData.cycleType = res.data.cycleType
+  // 计划任务文档里同样存了 policyId（ScheduledTasks 存的就是 models.Task），一并回显
+  policyId.value = res.data.policyId || ''
 }
+
+// 扫描策略选择。声明必须在下面这个 immediate watch 之前：taskid 存在时会同步走
+// loadTaskData() 回显 policyId，晚声明会命中 TDZ（Cannot access before initialization）。
+const policyId = ref('')
 
 watch(
   () => props.taskid, // 监听 props.taskid 的变化
@@ -429,7 +440,7 @@ getProjectList()
 // ---- 扫描策略（建任务弹窗内的「一键套用」入口） ----
 // 下拉只列 enabled=true 的策略；选中后调 apply 把策略覆盖模板默认后的 merged config 带回来。
 // 规则：只填表单里还空着的字段（目前是扫描模板），已填的一律不覆盖，冲突用 warning 提示。
-const policyId = ref('')
+// policyId 本身声明在上面（immediate watch 需要先有它）。
 const policyOptions = ref<{ id: string; name: string }[]>([])
 const policyApplied = ref<ScanPolicyApplyResult | null>(null)
 const policyConflicts = ref<PolicyConflict[]>([])
@@ -756,6 +767,7 @@ loadPolicies()
         </div>
         <div v-else class="policy-hint">{{ t('policy.pickAppliedEmpty') }}</div>
         <div class="policy-hint">{{ t('policy.pickSummaryHint') }}</div>
+        <div class="policy-hint">{{ t('policy.pickEffectHint') }}</div>
       </div>
     </ElFormItem>
     <ElAlert

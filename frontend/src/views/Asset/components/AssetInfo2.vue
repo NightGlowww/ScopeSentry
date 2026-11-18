@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
-import { Ref, computed, h, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { Ref, computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 import { useWindowSize } from '@vueuse/core'
 import { useTable } from '@/hooks/web/useTable'
 import { Dialog } from '@/components/Dialog'

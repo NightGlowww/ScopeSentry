@@ -3,12 +3,12 @@ import { useI18n } from '@/hooks/web/useI18n'
 const { t } = useI18n()
 import {
   InfoFilled,
-  Platform,
-  Document,
-  Monitor,
-  Coffee,
+
+
+
+
   Money,
-  Check
+
 } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 // 导入图片

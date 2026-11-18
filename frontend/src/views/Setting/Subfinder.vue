@@ -1,8 +1,8 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h } from 'vue'
-import { ElButton, ElCol, ElInput, ElRow, ElText, ElTag } from 'element-plus'
+import { ref, reactive } from 'vue'
+import { ElButton, ElCol, ElInput, ElRow, ElText } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { useIcon } from '@/hooks/web/useIcon'

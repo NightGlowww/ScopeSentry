@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
-import { h, nextTick, reactive, Ref, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
 import { ElCard, ElPagination, ElRow, ElCol, ElTag, ElTooltip } from 'element-plus'
@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon'
 import { copyText } from '@/utils/clipboard'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
-import { addTagApi, deleteTagApi, getIPAssetApi } from '@/api/asset'
+import { getIPAssetApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
 const { t } = useI18n()
 interface Project {
