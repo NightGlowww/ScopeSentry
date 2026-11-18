@@ -94,3 +94,12 @@ assetpack-zip: ## 打包 POC 模板为 dist/poc-pack.zip（供「POC 管理」�
 
 clean: ## 清理构建产物
 	rm -rf dist frontend/dist-pro
+
+preflight: ## 离线预检：build / vet / 单测 / UI 审计 / 前端构建（不需要生产）
+	bash scripts/preflight.sh --with-frontend
+
+health: ## 生产自检：SSH / 容器 / healthz / 磁盘 / 节点
+	bash scripts/healthcheck.sh
+
+recover: ## 主机恢复后一键收尾（自检 -> 部署 -> scan 限载重建 -> 复检）
+	bash scripts/recover.sh
