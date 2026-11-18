@@ -34,3 +34,23 @@ scripts/recover.sh 2.0.131     # 自检 → 部署 → 重建 scopesentry-scan�
 - 漏洞链路：节点 nuclei 只接受单文件 `-t`，需节点仓库修复（issue 草稿见 `docs/audit/NODE_NUCLEI_ISSUE.md`）；
 - `icon` 集合本身待 `db.icon.drop()`；
 - `app/mp/cip/fileleak/npoc` 无生产者，已在页面标注。
+## 追加（第 23–30 轮，主机仍失联期间）
+
+| 内容 | 验收 |
+| --- | --- |
+| Mongo 未就绪时 repository 构造不再 panic（CollectionOrNil，8 个 repo） | Mongo 慢启动时不再 crash loop；go test ./internal/... 全绿 |
+| project_aggregation 路由内联 common.WithAuth() | go test ./internal/api/routes/audit/ 通过 |
+| 调度器 jobs 映射加锁（concurrent map writes） | 并发增删计划任务不 panic；集成用例 -tags integration |
+| staticcheck SA 修复（plugins 符号注册 err 被吞、tar.TypeReg、rand.Seed、nil ctx） | preflight 第 5 步输出减少 |
+| 前端未使用 import 清理 + tsconfig 声明 vue/jsx | pnpm ts:check 191 → 78；build:pro 通过 |
+| ct 域名匹配器去分配（SA6003×3）+ matcher 单测 | go test ./internal/utils/ct/ 通过 |
+| scripts/preflight.sh（build/vet/单测/UI 审计/staticcheck） | bash scripts/preflight.sh --with-frontend 全绿 |
+
+## 恢复执行顺序（更新）
+
+```bash
+scripts/preflight.sh --with-frontend   # 确认积压改动一致
+scripts/recover.sh 2.0.131             # 自检 → 部署 → scan 限载重建 → 复检
+```
+
+> 截至本轮，main 上共 17 项未上线改动；生产仍是 v2.0.128。
