@@ -907,6 +907,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    done: 'Done',
     pageMonitoring: 'Monitor page changes',
     taskName: 'Task Name',
     taskCount: 'Task Count',
