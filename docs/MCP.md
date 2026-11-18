@@ -113,3 +113,15 @@ curl -s http://127.0.0.1:8082/mcp \
 ## 工具总数
 
 42 + 4 = 46。
+
+## 插件安装 / 重检 / 卸载（v2.0.83 新增，共 3 个，`plugin:write`）
+
+`reinstall_plugin` 在节点上重新安装插件
+`recheck_plugin` 让节点重新检查插件可用性（不动文件，最安全的验证手段）
+`uninstall_plugin` 从节点卸载插件
+
+入参统一：`node` + `hash` + `module`（`recheck/uninstall` 三个都必填，`reinstall` 的 module 可空）。
+
+## 工具总数
+
+46 + 3 = 49。

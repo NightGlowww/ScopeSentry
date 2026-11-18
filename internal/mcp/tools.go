@@ -339,6 +339,22 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: "删除导出的文件与记录",
 	}, deleteExportFiles)
 
+	// ---- 插件安装 / 重检 / 卸载 ----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "reinstall_plugin",
+		Description: "在指定节点上重新安装插件",
+	}, reinstallPlugin)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "recheck_plugin",
+		Description: "让指定节点重新检查插件可用性（不改文件）",
+	}, recheckPlugin)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "uninstall_plugin",
+		Description: "从指定节点卸载插件",
+	}, uninstallPlugin)
+
 	recordToolNames(names)
 	warnUnregisteredTools(names)
 }
@@ -1729,4 +1745,59 @@ func deleteExportFiles(ctx context.Context, _ *mcp.CallToolRequest, input delete
 		return errorResult("删除导出文件失败", err)
 	}
 	return jsonToolResult(ginH{"ok": true, "deleted": len(names)})
+}
+
+// ---------------------------------------------------------------------------
+// 插件安装 / 重检 / 卸载
+// ---------------------------------------------------------------------------
+
+type pluginNodeInput struct {
+	Node   string `json:"node" jsonschema:"节点名称"`
+	Hash   string `json:"hash" jsonschema:"插件 hash（可用 list_plugins 查）"`
+	Module string `json:"module" jsonschema:"插件所属模块，如 AssetMapping / PortScan"`
+}
+
+func reinstallPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNodeInput) (*mcp.CallToolResult, any, error) {
+	if d.pluginService == nil {
+		return errorResult("插件服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Node) == "" || strings.TrimSpace(input.Hash) == "" {
+		return errorResult("node 与 hash 不能为空", nil)
+	}
+	if err := d.pluginService.Reinstall(ginContext(ctx), &models.PluginReinstallRequest{
+		Node: input.Node, Hash: input.Hash, Module: input.Module,
+	}); err != nil {
+		return errorResult("重新安装插件失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "node": input.Node, "hash": input.Hash, "action": "reinstall"})
+}
+
+func recheckPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNodeInput) (*mcp.CallToolResult, any, error) {
+	if d.pluginService == nil {
+		return errorResult("插件服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Node) == "" || strings.TrimSpace(input.Hash) == "" || strings.TrimSpace(input.Module) == "" {
+		return errorResult("node / hash / module 都不能为空", nil)
+	}
+	if err := d.pluginService.Recheck(ginContext(ctx), &models.PluginRecheckRequest{
+		Node: input.Node, Hash: input.Hash, Module: input.Module,
+	}); err != nil {
+		return errorResult("重新检查插件失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "node": input.Node, "hash": input.Hash, "action": "recheck"})
+}
+
+func uninstallPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNodeInput) (*mcp.CallToolResult, any, error) {
+	if d.pluginService == nil {
+		return errorResult("插件服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Node) == "" || strings.TrimSpace(input.Hash) == "" || strings.TrimSpace(input.Module) == "" {
+		return errorResult("node / hash / module 都不能为空", nil)
+	}
+	if err := d.pluginService.Uninstall(ginContext(ctx), &models.PluginUninstallRequest{
+		Node: input.Node, Hash: input.Hash, Module: input.Module,
+	}); err != nil {
+		return errorResult("卸载插件失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "node": input.Node, "hash": input.Hash, "action": "uninstall"})
 }
