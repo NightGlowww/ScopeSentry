@@ -172,6 +172,14 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Not found"})
 			return
 		}
+		// 先看内嵌静态目录里有没有这个文件（logo.png / robots.txt 等根文件以前会掉到
+		// SPA 兜底里，浏览器拿到的是 text/html，<img> 解码失败显示成裂图）。
+		if rel := strings.TrimPrefix(path, "/"); rel != "" {
+			if info, err := fs.Stat(frontendFS, rel); err == nil && !info.IsDir() {
+				c.FileFromFS(rel, http.FS(frontendFS))
+				return
+			}
+		}
 		// 如果请求的是静态资源但未找到，返回404而不是首页
 		if strings.HasPrefix(path, "/assets") || strings.HasPrefix(path, "/uploads") ||
 			strings.HasPrefix(path, "/css") || strings.HasPrefix(path, "/draco") ||

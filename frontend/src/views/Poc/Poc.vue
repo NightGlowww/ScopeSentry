@@ -310,60 +310,53 @@ const filterChange = async (newFilters: any) => {
 
 <template>
   <ContentWrap>
-    <ElRow :gutter="20" style="margin-bottom: 15px">
-      <ElCol :span="1.5">
-        <ElText class="mx-1" style="position: relative; top: 8px">{{ t('poc.pocName') }}:</ElText>
-      </ElCol>
-      <ElCol :span="5">
-        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 38px" />
-      </ElCol>
-      <ElCol :span="5" style="position: relative; left: 16px">
-        <ElButton type="primary" :icon="searchicon" style="height: 100%" @click="handleSearch">{{
-          t('common.search')
-        }}</ElButton>
-      </ElCol>
-    </ElRow>
-    <ElRow :gutter="60">
-      <ElCol :span="1">
-        <div class="mb-10px">
-          <ElButton type="primary" @click="addPoc">{{ t('common.new') }}</ElButton>
-        </div>
-      </ElCol>
-      <ElCol :span="1">
-        <div class="mb-10px">
-          <BaseButton type="danger" :loading="delLoading" @click="confirmDelete">
-            {{ t('common.delete') }}
-          </BaseButton>
-        </div>
-      </ElCol>
-      <ElCol :span="3">
-        <ElTooltip :content="t('common.uploadMsg')" placement="top">
-          <!-- <ElUpload class="upload-demo" action="/api/poc/data/import" :headers="uploadHeaders">
+    <div class="poc-toolbar">
+      <span class="poc-toolbar__label">{{ t('poc.pocName') }}</span>
+      <ElInput
+        v-model="search"
+        :placeholder="t('common.inputText')"
+        class="poc-toolbar__input"
+        style="height: 38px"
+      />
+      <ElButton type="primary" :icon="searchicon" style="height: 38px" @click="handleSearch">{{
+        t('common.search')
+      }}</ElButton>
+    </div>
+    <div class="poc-actions">
+      <ElButton type="primary" @click="addPoc">{{ t('common.new') }}</ElButton>
+      <BaseButton type="danger" :loading="delLoading" @click="confirmDelete">
+        {{ t('common.delete') }}
+      </BaseButton>
+      <ElTooltip
+        :content="t('common.uploadMsg')"
+        placement="top-start"
+        popper-class="poc-upload-tip"
+      >
+        <!-- <ElUpload class="upload-demo" action="/api/poc/data/import" :headers="uploadHeaders">
             <ElButton :icon="uploadicon">{{ t('common.import') }}</ElButton>
           </ElUpload> -->
-          <ElUpload
-            ref="upload"
-            class="flex items-center"
-            action="/api/poc/data/import"
-            :headers="uploadHeaders"
-            :on-success="handleUploadSuccess"
-            :limit="1"
-            :on-exceed="handleExceed"
-            :auto-upload="false"
-            @change="handleFileChange"
-          >
-            <template #trigger>
-              <BaseButton>
-                <template #icon>
-                  <Icon icon="iconoir:upload" />
-                </template>
-                {{ t('plugin.import') }}
-              </BaseButton>
-            </template>
-          </ElUpload>
-        </ElTooltip>
-      </ElCol>
-    </ElRow>
+        <ElUpload
+          ref="upload"
+          class="flex items-center"
+          action="/api/poc/data/import"
+          :headers="uploadHeaders"
+          :on-success="handleUploadSuccess"
+          :limit="1"
+          :on-exceed="handleExceed"
+          :auto-upload="false"
+          @change="handleFileChange"
+        >
+          <template #trigger>
+            <BaseButton>
+              <template #icon>
+                <Icon icon="iconoir:upload" />
+              </template>
+              {{ t('plugin.import') }}
+            </BaseButton>
+          </template>
+        </ElUpload>
+      </ElTooltip>
+    </div>
     <Table
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
@@ -396,3 +389,34 @@ const filterChange = async (newFilters: any) => {
     <Detail :closeDialog="closeDialog" :pocForm="pocForm" :getList="getList" />
   </Dialog>
 </template>
+
+<style scoped>
+.poc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+.poc-toolbar__label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  color: var(--el-text-color-regular);
+}
+.poc-toolbar__input {
+  width: 320px;
+}
+.poc-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+</style>
+
+<style>
+.poc-upload-tip.el-popper {
+  max-width: 360px;
+  line-height: 1.6;
+  white-space: normal;
+}
+</style>
