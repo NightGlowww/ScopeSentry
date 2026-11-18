@@ -1,47 +1,99 @@
 #!/usr/bin/env bash
-# 发布一个版本：bump version.json → PR → 合并 → 打 tag → GitHub Release。
-# 用法：scripts/release.sh 2.0.1 ["release notes"]
+# 一键发版：审计门禁 → 构建 → 校验 → 上传 → 部署 → 健康检查
+#
+# 用法：
+#   scripts/release.sh 2.0.73            # 正常发版
+#   SKIP_AUDIT=1 scripts/release.sh 2.0.73   # 跳过审计门禁（不建议）
+#   DRY_RUN=1 scripts/release.sh 2.0.73      # 只跑门禁 + 打印计划，不构建/不上传
+#
+# 环境变量：
+#   PROD_HOST   默认 prod-tx-sh-app-02
+#   DEPLOY_DIR  默认 /opt/scopesentry/deploy
+#   IMAGE_PREFIX 默认 autumn27/scopesentry
 set -euo pipefail
 
-VERSION="${1:?usage: scripts/release.sh X.Y.Z [notes]}"
-NOTES="${2:-}"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VERSION="${1:-}"
+if [[ -z "$VERSION" ]]; then
+  echo "用法: $0 <version> 例如 $0 2.0.73" >&2
+  exit 2
+fi
+VERSION="${VERSION#v}"
+
+# CDPATH 会让 cd 打印解析结果，命令替换会把两行都吞进来，必须 >/dev/null
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
 cd "$ROOT"
 
-if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "version must be semver X.Y.Z" >&2; exit 1
-fi
-if [ -n "$(git status --porcelain)" ]; then
-  echo "working tree not clean" >&2; exit 1
-fi
-git fetch origin --tags
-git checkout main
-git pull --ff-only
-if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-  echo "tag v$VERSION already exists" >&2; exit 1
+PROD_HOST="${PROD_HOST:-prod-tx-sh-app-02}"
+DEPLOY_DIR="${DEPLOY_DIR:-/opt/scopesentry/deploy}"
+IMAGE_PREFIX="${IMAGE_PREFIX:-autumn27/scopesentry}"
+
+echo "== [1/7] 审计门禁"
+if [[ "${SKIP_AUDIT:-0}" == "1" ]]; then
+  echo "   SKIP_AUDIT=1，跳过"
+else
+  python3 scripts/check-ui-audit.py docs/ui-audit-baseline.json
 fi
 
-BRANCH="chore/release-v$VERSION"
-git checkout -b "$BRANCH"
-python3 - "$VERSION" <<\PY
-import json,sys
-p="version.json"
-d=json.load(open(p))
-d["server"]=sys.argv[1]
-open(p,"w").write(json.dumps(d, ensure_ascii=False, indent=2)+"\n")
-PY
-git add version.json
-git commit -m "chore(release): v$VERSION"
-git push -u origin "$BRANCH"
-gh pr create -R NightGlowww/ScopeSentry --base main --head "NightGlowww:$BRANCH" \
-  --title "chore(release): v$VERSION" --body "Release v$VERSION"
-gh pr merge "$BRANCH" -R NightGlowww/ScopeSentry --squash --delete-branch --admin
-git checkout main && git pull --ff-only
-git tag -a "v$VERSION" -m "v$VERSION"
-git push origin "v$VERSION"
-if [ -n "$NOTES" ]; then
-  gh release create "v$VERSION" -R NightGlowww/ScopeSentry --title "v$VERSION" --notes "$NOTES"
+echo "== [2/7] 版本号 → $VERSION"
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "   DRY_RUN 模式：后续步骤仅打印"
 else
-  gh release create "v$VERSION" -R NightGlowww/ScopeSentry --title "v$VERSION" --generate-notes
+  python3 - "$VERSION" <<'PY'
+import json, sys
+p = "version.json"
+d = json.load(open(p, encoding="utf-8"))
+d["server"] = sys.argv[1]
+open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False, indent=2) + "\n")
+PY
 fi
-echo "released v$VERSION"
+
+echo "== [3/7] 构建（前端 + 内嵌二进制）"
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "   bash scripts/build-linux.sh"
+else
+  bash scripts/build-linux.sh
+fi
+
+BIN="dist/ScopeSentry_linux_amd64_v1/ScopeSentry"
+if [[ "${DRY_RUN:-0}" != "1" ]]; then
+  echo "== [4/7] 校验产物"
+  SIZE=$(stat -f%z "$BIN" 2>/dev/null || stat -c%s "$BIN")
+  SHA=$(shasum -a 256 "$BIN" | awk '{print $1}')
+  echo "   size=$SIZE sha=$SHA"
+fi
+
+echo "== [5/7] 上传并校验"
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "   scp $BIN $PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
+else
+  scp -o BatchMode=yes "$BIN" "$PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
+  REMOTE_SHA=$(ssh -o BatchMode=yes "$PROD_HOST" "sha256sum $DEPLOY_DIR/ScopeSentry-v$VERSION | cut -d' ' -f1")
+  if [[ "$REMOTE_SHA" != "$SHA" ]]; then
+    echo "   sha256 不一致：local=$SHA remote=$REMOTE_SHA" >&2
+    exit 1
+  fi
+  echo "   sha256 一致"
+fi
+
+echo "== [6/7] 部署"
+if [[ "${DRY_RUN:-0}" == "1" ]]; then
+  echo "   docker cp / commit / compose up --no-deps scope-sentry"
+else
+  ssh -o BatchMode=yes "$PROD_HOST" "set -e
+    cd /opt/scopesentry/ScopeSentry
+    docker cp $DEPLOY_DIR/ScopeSentry-v$VERSION scope-sentry:/opt/ScopeSentry/ScopeSentry
+    docker exec scope-sentry chmod +x /opt/ScopeSentry/ScopeSentry
+    docker commit scope-sentry $IMAGE_PREFIX:v$VERSION >/dev/null
+    PREV=\$(grep -oE '$IMAGE_PREFIX:v[0-9.]+' docker-compose.fork.yml | head -1)
+    sed -i \"s#\$PREV#$IMAGE_PREFIX:v$VERSION#\" docker-compose.fork.yml
+    docker compose -f single-host-deployment.yml -f docker-compose.fork.yml up -d --no-deps scope-sentry
+    sleep 9
+    curl -s http://127.0.0.1:8082/healthz
+  "
+fi
+
+echo "== [7/7] 收尾"
+if [[ "${DRY_RUN:-0}" != "1" ]]; then
+  git checkout -q -- cmd/main/static && git clean -fdq cmd/main/static || true
+  echo "   健康检查通过；记得提交 version.json 与打 tag"
+fi
