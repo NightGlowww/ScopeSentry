@@ -375,7 +375,7 @@ onMounted(() => {
       </ElRow>
     </ElForm>
 
-    <div v-if="previewPage" class="preview-panel">
+    <div v-if="previewPage" v-loading="previewLoading" class="preview-panel">
       <div class="section-title">
         {{ t('fofa.previewHostsTitle') }}
         <span class="section-hint">
