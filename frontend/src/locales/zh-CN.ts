@@ -803,6 +803,7 @@ export default {
     taskNameRequired: '请填写任务名（或先填查询语句自动生成）'
   },
   router: {
+    mcpAudit: 'MCP 调用日志',
     assetinfo: '资产信息',
     assetManagement: '资产管理',
     assetGroup: '资产组地契',

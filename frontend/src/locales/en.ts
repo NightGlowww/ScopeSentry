@@ -834,6 +834,7 @@ export default {
     taskNameRequired: 'Please fill in a task name (or fill the query to generate one)'
   },
   router: {
+    mcpAudit: 'MCP Call Logs',
     assetinfo: 'Asset Information',
     assetManagement: 'Assets',
     assetGroup: 'Asset groups',
