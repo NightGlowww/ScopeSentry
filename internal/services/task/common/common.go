@@ -23,6 +23,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskpolicy"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/diskguard"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"regexp"
@@ -179,6 +180,10 @@ func (s *service) Insert(ctx context.Context, task *models.Task) (string, error)
 
 func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id string, stopToStart bool) (int64, error) {
 	logger.Info(fmt.Sprintf("CreateTaskScan task:%v %v", id, task.Name))
+	if err := diskguard.Check("/"); err != nil {
+		logger.Warn(fmt.Sprintf("CreateTaskScan rejected task %s: %v", id, err))
+		return 0, err
+	}
 	task.ID, _ = primitive.ObjectIDFromHex(id)
 	task.IsStart = stopToStart
 	if task.AllNode {
