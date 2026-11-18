@@ -1018,8 +1018,8 @@ const handleCheckChange = (data, checked) => {
 .module-card {
   margin-bottom: 24px;
   border-radius: 4px;
-  border: 1px solid #ebeef5;
-  background: #ffffff;
+  border: 1px solid var(--el-border-color-light);
+  background: var(--app-surface);
   box-shadow: none;
 }
 
@@ -1035,8 +1035,8 @@ const handleCheckChange = (data, checked) => {
 
 .plugin-card {
   border-radius: 4px;
-  border: 1px solid #e4e7ed;
-  background-color: #ffffff;
+  border: 1px solid var(--el-border-color);
+  background-color: var(--app-surface);
   transition: all 0.2s ease-in-out;
   position: relative;
   border-left: 4px solid var(--card-accent-color, #409eff);
@@ -1049,13 +1049,13 @@ const handleCheckChange = (data, checked) => {
 }
 
 .plugin-card-enabled {
-  background: #fcfcfc;
+  background: var(--el-fill-color-lighter);
 }
 
 .plugin-card-header {
   padding: 12px 16px;
-  border-bottom: 1px solid #f2f6fc;
-  background: #fff;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--app-surface);
   border-radius: 4px 4px 0 0;
 }
 
@@ -1099,7 +1099,7 @@ const handleCheckChange = (data, checked) => {
 
 .plugin-card-body {
   padding: 16px;
-  background-color: #ffffff;
+  background-color: var(--app-surface);
   flex: 1;
   display: flex;
   flex-direction: column;

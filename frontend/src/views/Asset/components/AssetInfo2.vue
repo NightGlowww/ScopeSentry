@@ -1336,7 +1336,7 @@ const confirmSelectedIcons = () => {
   bottom: 100%; // 下边界紧贴icon块上边界
   margin-bottom: 4px; // 微小间隔
   z-index: 220;
-  background: #fff;
+  background: var(--app-surface);
   border-radius: 10px;
   box-shadow: 0 2px 8px #aaa;
   padding: 8px 14px 10px 14px;
@@ -1357,7 +1357,7 @@ const confirmSelectedIcons = () => {
   right: 8px;
   top: 2px;
   z-index: 100;
-  background: #fff;
+  background: var(--app-surface);
   border-radius: 10px;
   box-shadow: 0 2px 8px #aaa;
   padding: 8px 14px 10px 14px;
