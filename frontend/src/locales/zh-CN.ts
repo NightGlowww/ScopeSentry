@@ -1614,7 +1614,7 @@ export default {
     loading: '加载中...',
     noMore: '没有更多了',
     projectIntro: '项目介绍',
-    websites: '## 网址',
+    websites: '网址',
     officialDocs: '官网&安装&文档：',
     scannerSource: '扫描端源码：',
     pluginMarket: '插件市场：',
