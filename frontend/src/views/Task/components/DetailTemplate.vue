@@ -801,7 +801,7 @@ const handleCheckChange = (data, checked) => {
     />
     <template #footer>
       <ElButton type="primary" @click="dialogVisible = false">
-        {{ t('common.confirm') }}
+        {{ t('common.ok') }}
       </ElButton>
     </template>
   </Dialog>
