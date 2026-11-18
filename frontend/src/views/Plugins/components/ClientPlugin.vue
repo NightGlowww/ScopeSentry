@@ -109,7 +109,6 @@ const taskColums = reactive<TableColumn[]>([
     /* 按内容收口：操作下拉 + 日志/清除日志/编辑/删除 共 5 个控件，320 足够，
        之前 450 会留出一条空白把表格撑宽 */
     width: 300,
-    fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
         switch (command) {
