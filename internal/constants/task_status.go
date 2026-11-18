@@ -10,4 +10,5 @@ const (
 	TaskStatusRunning  = 1 // 运行中：已有扫描进度（或手动恢复/重测）
 	TaskStatusPaused   = 2 // 暂停：被用户手动停止
 	TaskStatusFinished = 3 // 运行完成：进度达到 100%
+	TaskStatusFailed   = 4 // 失败：节点长期无进度/心跳，由后台巡检判定（不是用户暂停）
 )
