@@ -499,6 +499,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'mcp-audit',
+        component: () => import('@/views/Configuration/McpAudit.vue'),
+        name: 'mcp audit',
+        meta: {
+          title: t('router.mcpAudit'),
+          icon: 'mdi:clipboard-text-clock-outline',
+          noCache: true
+        }
+      },
+      {
         path: 'syslog',
         component: () => import('@/views/Configuration/Syslog.vue'),
         name: 'syslog configuration',

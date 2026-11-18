@@ -135,3 +135,13 @@ curl -s http://127.0.0.1:8082/mcp \
 - 明文 key 仍然只在创建后显示一次；列表只存 `keyPrefix` 与哈希。
 
 > 旧的 `/api/apikey/create` 仍然存在但固定 `scope = *`，需要用 scope 控制权限时请走新接口/新 UI。
+
+## 调用日志页面（v2.0.85）
+
+「配置 → MCP 调用日志」（`#/configuration/mcp-audit`）：
+
+- 列：时间 / 工具 / 状态(success·denied·error) / 耗时(ms) / Key 前缀 / 客户端 IP / 错误；
+- 筛选：Key ID、工具名、状态、日期范围；
+- 导出：`GET /api/mcp/logs/export`，CSV 流式输出（上限 10 万行）。
+
+数据来自 `mcp_call_logs`，由 `apikey` 中间件异步批量写入，主请求不等 Mongo。
