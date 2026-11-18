@@ -13,13 +13,15 @@ import {
   ElInput,
   ElTag,
   InputInstance,
-  ElLink
+  ElLink,
+  ElTooltip
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getURLApi, totalDataApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
 import { Icon } from '@/components/Icon'
+import { copyText } from '@/utils/clipboard'
 import { RowState } from '@/api/asset/types'
 const { t } = useI18n()
 interface Project {
@@ -82,9 +84,20 @@ const crudSchemas = reactive<CrudSchema[]>([
     minWidth: 250,
     formatter: (_, __: TableColumn, url: string) => {
       return (
-        <ElLink href={url} underline={false} target="_blank">
-          {url}
-        </ElLink>
+        <div class="flex items-center">
+          <ElLink href={url} underline={false} target="_blank">
+            {url}
+          </ElLink>
+          <ElTooltip content="复制 URL" placement="top">
+            <Icon
+              icon="ep:copy-document"
+              size={13}
+              color="var(--el-text-color-placeholder)"
+              class="ml-4px cursor-pointer"
+              onClick={() => copyText(url)}
+            />
+          </ElTooltip>
+        </div>
       )
     }
   },
