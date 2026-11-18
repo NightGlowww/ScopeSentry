@@ -64,3 +64,17 @@
 4. **对话框宽度**：多处 `width="50%"`/`30%` 在 1280 以下过窄或过宽，改成 `min(px, 92vw)` 策略。
 5. **表格密度与空态**：统一行高、操作列按钮尺寸、空数据文案与插画。
 6. **可访问性**：给纯图标按钮补 `aria-label`；表格操作按钮补 `title`。
+## 回归基线（v2.0.23，27 条路由全量）
+
+每轮发布前跑同一套可见元素检查，当前结果：
+
+| 指标 | 结果 |
+| --- | --- |
+| 页面横向溢出 `scrollWidth - innerWidth` | 27/27 为 0 |
+| 按钮越出视口（排除表格/滚动容器内） | 0 |
+| 工具条相邻按钮间距 < 2px | 0 |
+| 面包屑空条目 | 0 |
+| 表格内零宽列 | 0（列宽全部数值化） |
+| 暗色模式大面积浅色面板（>4000px²） | 0（抽查 7 页） |
+
+覆盖路由：dashboard、asset-information 14 个子页、task-management 3 个、plugin、node、project(+detail)、poc、fingerprint、sensitive、dictionary 4 个、configuration 5 个、about。
