@@ -1,7 +1,9 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -16,6 +18,9 @@ type Repository interface {
 	Count(ctx *gin.Context, filter interface{}) (int64, error)
 	Find(ctx *gin.Context, filter interface{}, opts *options.FindOptions) ([]models.Task, error)
 	FindOne(ctx *gin.Context, filter interface{}) (*models.Task, error)
+	// FindPageMonitoringScheduled 读 ScheduledTasks 里 id=page_monitoring 的文档，
+	// 同时返回 state（models.Task 没有该字段）。
+	FindPageMonitoringScheduled(ctx context.Context) (*models.Task, bool, error)
 	Insert(ctx *gin.Context, task *models.Task) error
 	UpdateOne(ctx *gin.Context, filter interface{}, update interface{}) error
 	DeleteMany(ctx *gin.Context, filter interface{}) error
@@ -61,6 +66,35 @@ func (r *repository) Find(ctx *gin.Context, filter interface{}, opts *options.Fi
 }
 
 // FindOne 查询单个文档
+func (r *repository) FindPageMonitoringScheduled(ctx context.Context) (*models.Task, bool, error) {
+	var doc struct {
+		ID        primitive.ObjectID `bson:"_id"`
+		Name      string             `bson:"name"`
+		Hour      int                `bson:"hour"`
+		Minute    int                `bson:"minute"`
+		CycleType string             `bson:"cycleType"`
+		State     bool               `bson:"state"`
+		Node      []string           `bson:"node"`
+		AllNode   bool               `bson:"allNode"`
+		Type      string             `bson:"type"`
+	}
+	err := r.collection.FindOne(ctx, bson.M{"id": "page_monitoring"}).Decode(&doc)
+	if err != nil {
+		return nil, false, err
+	}
+	task := &models.Task{
+		ID:        doc.ID,
+		Name:      doc.Name,
+		Hour:      doc.Hour,
+		Minute:    doc.Minute,
+		CycleType: doc.CycleType,
+		Node:      doc.Node,
+		AllNode:   doc.AllNode,
+		Type:      doc.Type,
+	}
+	return task, doc.State, nil
+}
+
 func (r *repository) FindOne(ctx *gin.Context, filter interface{}) (*models.Task, error) {
 	var result models.Task
 	err := r.collection.FindOne(ctx, filter).Decode(&result)
