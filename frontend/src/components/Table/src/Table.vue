@@ -575,6 +575,7 @@ export default defineComponent({
                 {...unref(getBindValue)}
                 height={unref(computedHeight)}
                 table-layout={unref(getProps).tableLayout}
+                scrollbar-always-on
               >
                 {{
                   default: () => renderTableColumn(),
