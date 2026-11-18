@@ -199,3 +199,16 @@ func FindPage(
 
 	return cursor.All(ctx, result)
 }
+
+// CollectionOrNil 返回集合句柄；DB 尚未初始化时返回 nil。
+//
+// 背景：连接是在本包的 init() 里做的，失败只记日志并返回，此时 DB 为 nil。
+// 而不少 repository 的构造函数（甚至包级 var）会在各自的 init 阶段取集合，
+// 直接调 DB.Collection 会 nil panic —— 表现为「Mongo 尚未就绪时进程启动即崩」。
+// 构造函数里用本函数取句柄，把崩溃推迟到真正的请求路径（那时 DB 必然已就绪或更早暴露）。
+func CollectionOrNil(name string) *mongo.Collection {
+	if DB == nil {
+		return nil
+	}
+	return DB.Collection(name)
+}

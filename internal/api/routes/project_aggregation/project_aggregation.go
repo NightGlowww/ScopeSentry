@@ -14,17 +14,16 @@ import (
 
 // RegisterProjectAggregationRoutes 注册 /api/project_aggregation 路由组
 func RegisterProjectAggregationRoutes(api *gin.RouterGroup) {
-	auth := common.WithAuth()
 	group := models.RouteGroup{
 		Path: "/project_aggregation",
 		Routes: []models.Route{
-			{Method: "POST", Path: "/project/info", Handler: handler.GetProjectInfo, Middlewares: auth},
-			{Method: "POST", Path: "/project/asset/count", Handler: handler.GetProjectAssetCount, Middlewares: auth},
-			{Method: "POST", Path: "/project/vul/statistics", Handler: handler.GetProjectVulStatistics, Middlewares: auth},
-			{Method: "POST", Path: "/project/vul/data", Handler: handler.GetProjectVulData, Middlewares: auth},
-			{Method: "POST", Path: "/project/subdomain/data", Handler: handler.GetProjectSubdomainData, Middlewares: auth},
-			{Method: "POST", Path: "/project/port/data", Handler: handler.GetProjectPortData, Middlewares: auth},
-			{Method: "POST", Path: "/project/service/data", Handler: handler.GetProjectServiceData, Middlewares: auth},
+			{Method: "POST", Path: "/project/info", Handler: handler.GetProjectInfo, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/project/asset/count", Handler: handler.GetProjectAssetCount, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/project/vul/statistics", Handler: handler.GetProjectVulStatistics, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/project/vul/data", Handler: handler.GetProjectVulData, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/project/subdomain/data", Handler: handler.GetProjectSubdomainData, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/project/port/data", Handler: handler.GetProjectPortData, Middlewares: common.WithAuth()},
+			{Method: "POST", Path: "/project/service/data", Handler: handler.GetProjectServiceData, Middlewares: common.WithAuth()},
 		},
 	}
 	common.RegisterRouteGroup(api, group)

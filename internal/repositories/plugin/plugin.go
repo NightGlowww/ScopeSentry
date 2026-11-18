@@ -53,7 +53,7 @@ type repository struct {
 // NewRepository 创建新的插件仓库实例
 func NewRepository() Repository {
 	return &repository{
-		collection:  mongodb.DB.Collection("plugins"),
+		collection:  mongodb.CollectionOrNil("plugins"),
 		redisClient: redis.Client,
 	}
 }

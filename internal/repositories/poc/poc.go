@@ -8,6 +8,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -24,6 +25,9 @@ type Repository interface {
 	GetAllPocData(ctx context.Context) ([]models.Poc, error)
 	GetAllTemplateId(ctx context.Context) ([]string, error)
 	TemplateIdExists(ctx context.Context, templateId string) (bool, error)
+	// GetTemplateIndex 返回 template id -> {_id, content_hash} 的索引，
+	// 导入时用它判断「同 id 是否真的变了」，不必把全量模板内容读进内存。
+	GetTemplateIndex(ctx context.Context) (map[string]models.PocIndexEntry, error)
 }
 
 type repository struct {
@@ -33,7 +37,7 @@ type repository struct {
 // NewRepository 创建新的POC仓库实例
 func NewRepository() Repository {
 	return &repository{
-		collection: mongodb.DB.Collection("PocList"),
+		collection: mongodb.CollectionOrNil("PocList"),
 	}
 }
 
@@ -139,6 +143,39 @@ func (r *repository) GetAllTemplateId(ctx context.Context) ([]string, error) {
 	}
 
 	return hashes, nil
+}
+
+// GetTemplateIndex 建立 template id -> 内容指纹的索引。
+// 历史文档没有 content_hash 字段时返回空字符串，由调用方按需补算。
+func (r *repository) GetTemplateIndex(ctx context.Context) (map[string]models.PocIndexEntry, error) {
+	opts := options.Find().SetProjection(bson.M{"_id": 1, "id": 1, "content_hash": 1})
+	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build template index: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	type row struct {
+		ID          primitive.ObjectID `bson:"_id"`
+		TemplateID  string             `bson:"id"`
+		ContentHash string             `bson:"content_hash"`
+	}
+
+	index := make(map[string]models.PocIndexEntry)
+	for cursor.Next(ctx) {
+		var item row
+		if err := cursor.Decode(&item); err != nil {
+			return nil, fmt.Errorf("failed to decode template index row: %w", err)
+		}
+		if item.TemplateID == "" {
+			continue
+		}
+		index[item.TemplateID] = models.PocIndexEntry{ID: item.ID, ContentHash: item.ContentHash}
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate template index: %w", err)
+	}
+	return index, nil
 }
 
 // TemplateIdExists 高性能检查TemplateId是否存在

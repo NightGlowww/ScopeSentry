@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -40,6 +41,11 @@ func NewRepository() Repository {
 
 // GetAllNodes 获取所有节点
 func (r *repository) GetAllNodes(ctx context.Context) ([]models.NodeData, error) {
+	// Redis 未初始化（降级启动/单元测试）时返回错误而不是 nil deref：
+	// 调用方 RefreshConfig 只记日志，不能让进程崩在后台 goroutine 里。
+	if r.redisClient == nil {
+		return nil, fmt.Errorf("redis client is not initialized")
+	}
 	// 获取所有以 node: 开头的键
 	keys, err := r.redisClient.Keys(ctx, "node:*").Result()
 	if err != nil {

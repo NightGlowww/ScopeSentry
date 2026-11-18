@@ -47,7 +47,7 @@ type repository struct {
 
 func NewRepository() Repository {
 	return &repository{
-		collection: mongodb.DB.Collection(collectionName),
+		collection: mongodb.CollectionOrNil(collectionName),
 	}
 }
 

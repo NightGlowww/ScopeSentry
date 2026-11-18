@@ -33,7 +33,7 @@ type repository struct {
 
 func NewRepository() Repository {
 	return &repository{
-		RuleCollection: mongodb.DB.Collection("SensitiveRule"),
+		RuleCollection: mongodb.CollectionOrNil("SensitiveRule"),
 	}
 }
 
