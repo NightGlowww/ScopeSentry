@@ -113,6 +113,12 @@ else
   "
 fi
 
+echo "== [6.5/7] 清理历史产物（保留最近 3 个）"
+if [[ "${DRY_RUN:-0}" != "1" ]]; then
+  # 每次发布留一份 ~100MB 二进制；不清理会把系统盘写满（2026-11-19 事故）
+  ssh -o BatchMode=yes "$PROD_HOST" "ls -t $DEPLOY_DIR/ScopeSentry-v* 2>/dev/null | tail -n +4 | xargs -r rm -f" || true
+fi
+
 echo "== [7/7] 收尾"
 if [[ "${DRY_RUN:-0}" != "1" ]]; then
   git checkout -q -- cmd/main/static && git clean -fdq cmd/main/static || true

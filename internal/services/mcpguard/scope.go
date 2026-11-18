@@ -114,6 +114,7 @@ var ToolScopes = map[string]string{
 	"list_asset_scopes": ScopeAssetRead,
 	"list_icp_tasks":    ScopeAssetRead,
 	"list_audit_logs":   ScopeAssetRead,
+	"get_system_info":   ScopeNodeRead,
 
 	// 写侧第一批（v2.0.88）：只做 5 个，其余写操作（资产组编辑/重排、地契改删移动、
 	// ICP 重启/恢复/删除、结果入库与地契同步）仍需人工走 Web 端。
