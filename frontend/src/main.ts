@@ -28,6 +28,9 @@ import { setupRouter } from './router'
 // 权限
 import { setupPermission } from './directives'
 
+// 列表页搜索框回车即搜索
+import { setupEnterToSearch } from '@/utils/enterSearch'
+
 import { createApp } from 'vue'
 
 import App from './App.vue'
@@ -36,6 +39,7 @@ import './permission'
 
 // 创建实例
 const setupAll = async () => {
+  setupEnterToSearch()
   const app = createApp(App)
 
   await setupI18n(app)
