@@ -6,7 +6,8 @@
 # 线上访问 /map 就会 500「Failed to read map.html」。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# CDPATH 会让 cd 打印解析结果，命令替换会把两行都吞进来，必须 >/dev/null
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
 cd "$ROOT"
 
 echo "[build] frontend"
