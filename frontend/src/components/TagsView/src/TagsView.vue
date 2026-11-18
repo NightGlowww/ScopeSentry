@@ -553,9 +553,10 @@ watch(
  * Modern 覆盖：标签页改成 pill，浅色/深色统一走 token
  * （放在 scoped 块末尾，顺序在旧的 .dark 规则之后）
  * ------------------------------------------------------------------------- */
-/* 标签栏：浅色底 + 无边框纸片式标签；选中态用阴影浮起，不再描边 */
+/* 标签栏：一条连续的浅色条；标签同一行等高档位，选中态用「主色 + 内描边」明确唯一 */
 #v-tags-view {
   background-color: var(--app-surface-2);
+  border-bottom: 1px solid var(--app-border);
 }
 
 .@{prefix-cls}__tool::before,
@@ -565,8 +566,11 @@ watch(
 
 .@{prefix-cls}__item {
   top: 0;
-  height: 30px;
-  margin: 6px 4px 0 0;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  /* 7 + 28 + 7 = --tags-view-height(42px)，上下留白对称 */
+  margin: 7px 6px 7px 0;
   /* 右侧给关闭按钮留位置，避免“资产信息×”文字和图标叠在一起 */
   padding: 0 22px 0 12px;
   overflow: hidden;
@@ -583,13 +587,29 @@ watch(
     background-color 0.16s ease,
     box-shadow 0.16s ease;
 
+  /* 关闭图标常驻（低透明度），hover 提亮；不再靠 display 抖动 */
   &--close {
     position: absolute;
     top: 50%;
     right: 6px;
+    display: block;
+    color: inherit;
+    opacity: 0.45;
     transform: translateY(-50%);
-    color: var(--el-text-color-secondary);
+    transition: opacity 0.16s ease;
   }
+
+  &--affix {
+    padding-right: 12px;
+
+    .@{prefix-cls}__item--close {
+      display: none;
+    }
+  }
+}
+
+.@{prefix-cls}__item:hover .@{prefix-cls}__item--close {
+  opacity: 1;
 }
 
 .@{prefix-cls}__item:not(.is-active):hover {
@@ -598,10 +618,12 @@ watch(
 }
 
 .@{prefix-cls}__item.is-active {
-  color: var(--el-text-color-primary);
+  color: var(--el-color-primary);
+  font-weight: 500;
   background: var(--app-surface);
-  box-shadow: var(--app-shadow-xs);
-  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 1px var(--el-color-primary),
+    var(--app-shadow-xs);
 }
 
 /* 彻底去掉旧规则残留的 1px 边框与点击后的焦点环 */
