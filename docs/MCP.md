@@ -211,3 +211,21 @@ curl -s http://127.0.0.1:8082/mcp \
 53 + 5 = 58。
 
 > 权威口径是 `internal/services/mcpguard/scope.go` 的 `ToolScopes` 条目数（当前 58），与 `internal/mcp` 实际注册的工具名一一对应（漂移测试 `TestEveryRegisteredToolHasScope` / `TestNoOrphanScopeEntries`，`-tags integration`）。上面按版本累加的数字只是历史，**对不上时以 `ToolScopes` 为准**。
+## 权限语义（v2.0.127 起）
+
+- **空 scope 的历史 key 只保留读权限**（`*:read`）。过去空 scope 等同 `*`，会让治理字段上线前创建的 key 静默获得新增写工具（例如 `delete_asset_groups`）。写权限必须在 key 上显式授予 `asset:write` / `icp:write`。
+- 写工具不挂 `asset:read`：只读 key 无法通过新增工具升级为可写。
+- `delete_asset_groups` 不可逆，必须显式传 `"confirm": true`，否则返回 `isError` 拒绝执行；单次最多 20 个 ID。
+
+## 写工具示例
+
+```jsonc
+{"name":"create_asset_group","arguments":{"name":"prod-web","description":"生产 Web"}}
+{"name":"delete_asset_groups","arguments":{"ids":["<OBJECT_ID>"],"confirm":true}}
+{"name":"create_icp_task","arguments":{"name":"icp-batch-1","type":"domain","queries":["example.com"]}}
+```
+
+## 已知限制
+
+- 单个工具 schema 非法不会拖垮端点：注册失败的工具被跳过并记 ERROR（v2.0.127 起），发布脚本另有静态门禁。
+- `tools/list` 只列出当前 key scope 覆盖到的工具，受限 key 看不到写工具。
