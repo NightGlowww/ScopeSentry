@@ -899,6 +899,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    syncToProjectHint: '선택한 작업의 자산을 프로젝트로 동기화합니다. 이미 있는 자산은 중복되지 않습니다.',
     confirmStopSelected: '선택한 작업을 일시중지할까요? 나중에 재개할 수 있습니다.',
     confirmStartSelected: '선택한 작업을 계속할까요? 중지된 지점부터 이어집니다.',
     done: '완료',

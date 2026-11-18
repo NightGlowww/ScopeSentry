@@ -394,6 +394,17 @@ const confirmSyncToProjectSelect = async () => {
     draggable: true,
     message: () =>
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } }, [
+        h(
+          'p',
+          {
+            style: {
+              margin: '0',
+              fontSize: '12px',
+              color: 'var(--el-text-color-secondary)'
+            }
+          },
+          t('task.syncToProjectHint')
+        ),
         // 选择类型
         h('div', [
           h('label', { style: { marginRight: '8px' } }),
