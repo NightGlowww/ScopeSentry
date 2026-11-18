@@ -81,6 +81,9 @@ const closeDialog = () => {
 }
 const confirmDeleteSelect = async () => {
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
+    message: t('common.delMessage'),
     title: t('common.delete'),
     draggable: true
   }).then(async () => {
@@ -90,6 +93,9 @@ const confirmDeleteSelect = async () => {
 
 const confirmDelete = async (data) => {
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
+    message: t('common.delMessage'),
     title: t('common.delete'),
     draggable: true
   }).then(async () => {

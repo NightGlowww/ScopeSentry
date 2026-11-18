@@ -292,6 +292,8 @@ const getTaskContent = async (data) => {
 const confirmDeleteSelect = async () => {
   const deleteAssetS = ref<boolean | string | number>(false)
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
     title: t('common.delete'),
     draggable: true,
     // Should pass a function if VNode contains dynamic props
@@ -386,6 +388,8 @@ const confirmSyncToProjectSelect = async () => {
   const newProjectTag = ref('')
   await getProjectList()
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
     title: t('task.syncToProject'),
     draggable: true,
     message: () =>
@@ -463,6 +467,8 @@ const confirmSyncToProjectSelect = async () => {
 const confirmDelete = async (data) => {
   const deleteAsset = ref<boolean | string | number>(false)
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
     title: t('common.delete'),
     draggable: true,
     // Should pass a function if VNode contains dynamic props

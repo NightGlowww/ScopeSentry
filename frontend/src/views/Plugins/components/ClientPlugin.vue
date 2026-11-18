@@ -223,6 +223,9 @@ const closeDialog = () => {
 
 const confirmDeleteSelect = async () => {
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
+    message: t('common.delMessage'),
     title: t('common.delete'),
     draggable: true
   }).then(async () => {
@@ -232,7 +235,10 @@ const confirmDeleteSelect = async () => {
 
 const confirmDelete = async (hash: string, module: string) => {
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
     title: t('common.delete'),
+    message: t('common.delMessage'),
     draggable: true
   }).then(async () => {
     await del(hash, module)
@@ -241,6 +247,8 @@ const confirmDelete = async (hash: string, module: string) => {
 
 const confirmCleanLog = async (hash: string, module: string) => {
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
     title: t('common.cleanLog'),
     message: t('localization.cleanLogsConfirm'),
     draggable: true
@@ -251,6 +259,8 @@ const confirmCleanLog = async (hash: string, module: string) => {
 
 const confirmCleanAllLog = async () => {
   ElMessageBox({
+    showCancelButton: true,
+    cancelButtonText: t('common.cancel'),
     title: t('common.cleanAllLog'),
     message: t('localization.cleanAllLogsConfirm'),
     draggable: true
