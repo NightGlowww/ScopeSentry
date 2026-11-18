@@ -1009,3 +1009,20 @@ html.dark body {
   color: var(--el-text-color-primary);
 }
 
+
+/* ===========================================================================
+ * 22. 键盘焦点可见性
+ *     全局没有统一的 :focus-visible 样式，键盘 Tab 时几乎看不出焦点在哪。
+ *     只对键盘焦点生效，不影响鼠标点击。
+ * ========================================================================= */
+html :focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+  border-radius: var(--app-radius-xs);
+}
+
+html .el-button:focus-visible,
+html .el-input__wrapper:focus-within {
+  outline-offset: 1px;
+}
+
