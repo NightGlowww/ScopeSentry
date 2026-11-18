@@ -35,6 +35,17 @@ PROD_HOST="${PROD_HOST:-prod-tx-sh-app-02}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/scopesentry/deploy}"
 IMAGE_PREFIX="${IMAGE_PREFIX:-autumn27/scopesentry}"
 
+echo "== [0/7] 生产探活"
+if [[ "${DRY_RUN:-0}" != "1" ]]; then
+  # 主机不可用时直接失败：历史上 sshd 无响应时仍继续构建+上传，留下半截二进制且白等 5 分钟
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$PROD_HOST" \
+      'curl -fsS -m 6 http://127.0.0.1:8082/healthz >/dev/null' 2>/dev/null; then
+    echo "✗ 生产不可达：$PROD_HOST 的 /healthz 无响应，终止发布" >&2
+    exit 1
+  fi
+  echo "   生产健康"
+fi
+
 echo "== [1/7] 审计门禁"
 if [[ "${SKIP_AUDIT:-0}" == "1" ]]; then
   echo "   SKIP_AUDIT=1，跳过"
@@ -76,6 +87,8 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
 else
   scp -o BatchMode=yes "$BIN" "$PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
   REMOTE_SHA=$(ssh -o BatchMode=yes "$PROD_HOST" "sha256sum $DEPLOY_DIR/ScopeSentry-v$VERSION | cut -d' ' -f1")
+  # 清理半截上传，避免 DEPLOY_DIR 堆垃圾（磁盘满会把整机拖死）
+    ssh -o BatchMode=yes "$PROD_HOST" "rm -f $DEPLOY_DIR/ScopeSentry-v$VERSION" 2>/dev/null || true
   if [[ "$REMOTE_SHA" != "$SHA" ]]; then
     echo "   sha256 不一致：local=$SHA remote=$REMOTE_SHA" >&2
     exit 1

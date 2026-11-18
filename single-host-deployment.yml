@@ -83,6 +83,10 @@ services:
     image: autumn27/scopesentry-scan:latest
     network_mode: host
     container_name: scopesentry-scan
+    # 扫描容器限载：nuclei/httpx 等工具会瞬时吃满 CPU，历史上曾把整机拖到 sshd 无法响应
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 4096
     restart: always
     ulimits:
       core:
