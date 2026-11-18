@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -284,7 +285,7 @@ func TestDashboardLocationDefaultsToShanghai(t *testing.T) {
 // 趋势窗口只接受 7 / 30
 func TestTrendRejectsOtherWindows(t *testing.T) {
 	svc := NewService()
-	if _, err := svc.Trend(nil, models.DashboardTrendRequest{Days: 5}); err != ErrInvalidDays {
+	if _, err := svc.Trend(context.TODO(), models.DashboardTrendRequest{Days: 5}); err != ErrInvalidDays {
 		t.Fatalf("Trend(days=5) err = %v, want ErrInvalidDays", err)
 	}
 }

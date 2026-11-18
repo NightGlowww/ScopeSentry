@@ -43,6 +43,9 @@ func LoadPlugin(code string, plgHash string) (interfaces.Plugin, error) {
 	err = interp.Use(map[string]map[string]reflect.Value{
 		"os/exec": stdlib.Symbols["os/exec"],
 	})
+	if err != nil {
+		return nil, err
+	}
 	err = interp.Use(map[string]map[string]reflect.Value{
 		"gopkg.in/yaml.v3": {
 			"Marshal":   reflect.ValueOf(yaml.Marshal),
