@@ -484,6 +484,7 @@ export default {
       '服务来自资产端口识别与指纹探测：先跑一个带端口扫描的扫描任务，识别出的服务会按服务名汇总到这里'
   },
   fileLeak: {
+    noSourceHint: "文件泄露结果依赖节点写入 asset_fileleak 集合，该写入方尚未实现，页面会始终为空。",
     url: 'URL',
     site: '站点',
     title: '标题',
@@ -500,6 +501,7 @@ export default {
       '数据来自扫描端的文件泄露检测：节点跑完文件泄露模块后，命中结果才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
   },
   npocService: {
+    noSourceHint: "NPoC 服务结果依赖节点写入 asset_npoc_service 集合，该写入方尚未实现，页面会始终为空。",
     scheme: '协议',
     host: '主机',
     port: '端口',
@@ -514,6 +516,7 @@ export default {
       '数据来自扫描端的 NPoC 服务识别：节点跑完 NPoC 模块后，识别出的服务才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
   },
   cip: {
+    noSourceHint: "备案信息读模型依赖 RootDomain 的 icp/company 字段，当前没有写入方，页面会始终为空。",
     company: '主体名称',
     companyUnknown: '未知主体',
     companyPlaceholder: '按主体名精确过滤',

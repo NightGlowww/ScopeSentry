@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { computed, reactive, ref } from 'vue'
-import { ElButton, ElCol, ElInput, ElMessage, ElMessageBox, ElRow } from 'element-plus'
+import { ElAlert, ElButton, ElCol, ElInput, ElMessage, ElMessageBox, ElRow } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -162,6 +162,13 @@ const handleDelete = async () => {
 
 <template>
   <ContentWrap>
+    <ElAlert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+      :title="t('npocService.noSourceHint')"
+    />
     <ElRow :gutter="12" class="filter-row">
       <ElCol :span="5">
         <ElInput

@@ -496,6 +496,7 @@ export default {
       'Services come from port identification and fingerprint probing. Run a scan task with port scanning enabled and detected services are aggregated here by service name.'
   },
   fileLeak: {
+    noSourceHint: "File-leak results require the node to write asset_fileleak; that writer is not implemented, so this page stays empty.",
     url: 'URL',
     site: 'Site',
     title: 'Title',
@@ -512,6 +513,7 @@ export default {
       'Data comes from file leak detection on the scanner side: records appear only after a node has run the file leak module. If the list is empty, check that the node is upgraded and has run that module.'
   },
   npocService: {
+    noSourceHint: "NPoC service results require the node to write asset_npoc_service; that writer is not implemented, so this page stays empty.",
     scheme: 'Scheme',
     host: 'Host',
     port: 'Port',
@@ -526,6 +528,7 @@ export default {
       'Data comes from NPoC service identification on the scanner side: services appear only after a node has run the NPoC module. If the list is empty, check that the node is upgraded and has run that module.'
   },
   cip: {
+    noSourceHint: "ICP data is a read model over RootDomain.icp/company and has no writer yet, so this page stays empty.",
     company: 'Entity',
     companyUnknown: 'Unknown entity',
     companyPlaceholder: 'Exact entity name',
