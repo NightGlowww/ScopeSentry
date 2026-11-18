@@ -47,6 +47,10 @@ type Task struct {
 	LastTime       string                   `bson:"lastTime"  json:"lastTime"`
 	NextTime       string                   `bson:"nextTime" json:"nextTime"`
 	Cycle          string                   `bson:"-" json:"cycle"` // 周期描述（计算字段）
+
+	// PolicyID 建任务时选中的扫描策略（scan_policy._id）；空 = 不套用策略。
+	// 只作「选哪个策略」的引用，参数消费在 services/task/taskpolicy（见 docs/audit/SCAN_POLICY.md）。
+	PolicyID string `bson:"policyId,omitempty" json:"policyId,omitempty"`
 }
 
 // TaskProgress 任务进度模型

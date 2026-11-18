@@ -33,6 +33,8 @@ export type TaskDetail = {
   week: number
   bindProject: string | null
   cycleType: string
+  // 建任务时选中的扫描策略 id（空 = 没套用策略）；写入方是 /api/task/add 的 policyId
+  policyId?: string
 }
 
 export type TaskProgessInfo = {
