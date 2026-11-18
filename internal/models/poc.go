@@ -13,6 +13,15 @@ type Poc struct {
 	Level      string             `bson:"level" json:"level"`
 	Tags       []string           `bson:"tags" json:"tags"`
 	Time       string             `bson:"time" json:"time"`
+	// ContentHash 归一化内容的 sha256，用来判断同 id 模板是否真的变了。
+	// 历史文档没有该字段，读取时按需补齐（见 services/poc）。
+	ContentHash string `bson:"content_hash,omitempty" json:"-"`
+}
+
+// PocIndexEntry 导入/更新时的轻量索引：只带 _id 与内容指纹，避免把全量模板内容读进内存。
+type PocIndexEntry struct {
+	ID          primitive.ObjectID
+	ContentHash string
 }
 
 // PocListRequest 表示获取POC列表的请求参数
@@ -77,6 +86,7 @@ type PocImportRequest struct {
 // PocImportResponse 表示POC导入的响应
 type PocImportResponse struct {
 	SuccessNum int    `json:"success_num"`
+	UpdateNum  int    `json:"update_num"`
 	ErrorNum   int    `json:"error_num"`
 	RepeatNum  int    `json:"repeat_num"`
 	Message    string `json:"message"`

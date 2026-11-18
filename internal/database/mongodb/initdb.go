@@ -355,6 +355,12 @@ func CreateDatabase() error {
 		}
 	}
 
+	// 资产包播种（内嵌字典 / nuclei POC）：可升级路径，靠内容指纹做幂等。
+	// 失败只记日志，不能因为一个坏包把启动流程卡死。
+	if err := SeedAssetPacks(db); err != nil {
+		logger.Error(fmt.Sprintf("failed to seed asset packs: %v", err))
+	}
+
 	return nil
 }
 
@@ -432,6 +438,26 @@ func createIndexes(db *mongo.Database) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create PageMonitoringBody index: %v", err)
+	}
+
+	// POC 索引：导入/同步按 template id 做「存在则比内容」，列表按 time 倒序分页。
+	// 唯一索引在历史脏数据（重复 id）下会建不起来，退化为普通索引，业务侧仍按 id 比对更新。
+	pocList := db.Collection("PocList")
+	if _, err := pocList.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "id", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}); err != nil {
+		if _, fallbackErr := pocList.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+			Keys: bson.D{{Key: "id", Value: 1}},
+		}); fallbackErr != nil {
+			return fmt.Errorf("failed to create PocList id index: %v", fallbackErr)
+		}
+		logger.Warn(fmt.Sprintf("PocList unique id index unavailable, fallback to plain index: %v", err))
+	}
+	if _, err := pocList.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys: bson.D{{Key: "time", Value: -1}},
+	}); err != nil {
+		return fmt.Errorf("failed to create PocList time index: %v", err)
 	}
 
 	// 指纹规则索引：一键更新要按 fingerprint_id 判重，同名判重要按 name 查
@@ -671,6 +697,9 @@ func createIndexes(db *mongo.Database) error {
 		{Keys: bson.D{{Key: "project", Value: 1}}},
 		{Keys: bson.D{{Key: "taskName", Value: 1}}},
 		{Keys: bson.D{{Key: "rootDomain", Value: 1}}},
+		// 扫描侧 bson 编码落的是小写 rootdomain（types.VulnResult 只打了 yaml tag），
+		// 按根域名过滤/导出要能吃到新数据，索引得建在实际写入的键上。
+		{Keys: bson.D{{Key: "rootdomain", Value: 1}}},
 		{Keys: bson.D{{Key: "hash", Value: 1}}},
 		// 列表按 time 倒序分页：实测 20 万条从 29ms 降到 3ms，且避免大集合的 blocking sort
 		{Keys: bson.D{{Key: "time", Value: -1}}},

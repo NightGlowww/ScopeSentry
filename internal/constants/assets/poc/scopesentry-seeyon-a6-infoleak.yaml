@@ -1,0 +1,41 @@
+id: scopesentry-seeyon-a6-infoleak
+
+info:
+  name: Seeyon OA A6 Session and DB Config Disclosure
+  author: scopesentry
+  severity: high
+  description: |
+    致远 OA A6 的 /yyoa/ext/https/getSessionList.jsp 与 /yyoa/createMysql.jsp 未授权。
+    判据：getSessionList 返回 session id 列表（sessionid/JSESSIONID 字样），或 createMysql 返回 jdbc/数据库连接串。
+    两路独立，任一成立即确认；只有 200 而无上述字段视为未命中。
+  tags: seeyon,oa,disclosure
+  metadata:
+    verified: false
+    max-request: 2
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/yyoa/ext/https/getSessionList.jsp?cmd=getAll'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)(sessionid|jsessionid)'
+      - type: status
+        status:
+          - 200
+
+  - method: GET
+    path:
+      - '{{BaseURL}}/yyoa/createMysql.jsp'
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)(jdbc:|dbname|mysql://|password)'
+      - type: status
+        status:
+          - 200

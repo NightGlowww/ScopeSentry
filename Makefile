@@ -20,9 +20,10 @@ HERMETIC_PKGS := \
 	./internal/utils/redislist/ \
 	./internal/services/export/exportfilter/ \
 	./internal/utils/tagpalette/ \
-	./internal/utils/mongouri/
+	./internal/utils/mongouri/ \
+	./internal/constants/
 
-.PHONY: help build binary binary-linux run test-hermetic test-integration vet fmt fmt-check mod-check \
+.PHONY: help build binary binary-linux run test-hermetic test-integration vet fmt fmt-check mod-check assetpack-check assetpack-zip \
 	frontend-install frontend-build frontend-test frontend-lint frontend-check compose-check ci clean
 
 help: ## 列出所有目标
@@ -83,6 +84,13 @@ compose-check: ## 校验单机部署 compose（含国内镜像覆盖）与 deplo
 	docker compose -f single-host-deployment.yml -f single-host-deployment.cn.yml config -q
 
 ci: fmt-check mod-check build vet test-hermetic frontend-check ## 本地复现 CI 的全部阻塞门禁
+
+assetpack-check: ## 校验内嵌资产包：清单/sha256/行数 + nuclei 模板（不落盘，CI 可跑）
+	go test ./internal/constants/ -count=1
+	nuclei -validate -t internal/constants/assets/poc/ -duc=false
+
+assetpack-zip: ## 打包 POC 模板为 dist/poc-pack.zip（供「POC 管理」手工导入）
+	python3 tools/assetpack/package.py
 
 clean: ## 清理构建产物
 	rm -rf dist frontend/dist-pro

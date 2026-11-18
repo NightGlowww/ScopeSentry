@@ -207,9 +207,15 @@ func ImportPoc(c *gin.Context) {
 		return
 	}
 
+	// overwrite 默认 true：导入即同步（同 id 内容变化会更新，保留 _id）
+	overwrite := true
+	if v := strings.TrimSpace(c.PostForm("overwrite")); v != "" {
+		overwrite = v != "false" && v != "0"
+	}
+
 	// 异步处理导入
 	go func() {
-		result, err := pocService.ImportPoc(c, filePath)
+		result, err := pocService.ImportPocWithOptions(c, filePath, overwrite)
 		if err != nil {
 			logger.Error(fmt.Sprintf("ImportPoc process error %v", err))
 		} else {

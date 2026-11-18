@@ -1,0 +1,26 @@
+id: scopesentry-shiro-rememberme-detect
+
+info:
+  name: Apache Shiro rememberMe Cookie Detection
+  author: scopesentry
+  severity: info
+  description: |
+    Shiro 的 CookieRememberMeManager 收到 rememberMe cookie 后会回写 Set-Cookie: rememberMe=deleteMe。
+    判据：响应头出现 rememberMe=deleteMe —— 证明 Shiro 过滤器链路存在且处理了该 cookie。
+    只做技术指纹，不代表密钥可解；密钥字典见 about-shiro-keys（dist 可选包），利用见 RUOYI-SHIRO-DESER 文档。
+  tags: shiro,detect,tech
+  metadata:
+    verified: false
+    max-request: 1
+
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}/'
+    headers:
+      Cookie: rememberMe=deleteMe
+    matchers:
+      - type: regex
+        part: header
+        regex:
+          - '(?i)rememberme=deleteme'

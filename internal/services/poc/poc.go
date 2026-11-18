@@ -2,6 +2,9 @@ package poc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -22,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -34,6 +38,8 @@ type Service interface {
 	DeletePoc(ctx *gin.Context, req *models.PocDeleteRequest) error
 	GetAllPocData(ctx context.Context) ([]models.Poc, error)
 	ImportPoc(ctx context.Context, filePath string) (*models.PocImportResponse, error)
+	ImportPocWithOptions(ctx context.Context, filePath string, overwrite bool) (*models.PocImportResponse, error)
+	UpsertPoc(ctx context.Context, content string) (pocID string, action string, err error)
 	TemplateIdExists(ctx context.Context, templateId string) (bool, error)
 }
 
@@ -216,57 +222,51 @@ func (s *service) GetAllPocData(ctx context.Context) ([]models.Poc, error) {
 	return result, nil
 }
 
-// ImportPoc 导入POC文件
+// ImportPoc 导入 POC 文件。
+// 默认 overwrite=true：同 template id 内容变化时更新，保留 _id，扫描模板的 VulList 引用不会断。
 func (s *service) ImportPoc(ctx context.Context, filePath string) (*models.PocImportResponse, error) {
+	return s.ImportPocWithOptions(ctx, filePath, true)
+}
+
+// ImportPocWithOptions overwrite=false 时保持旧行为：同 id 已存在即计入 repeat，不更新内容。
+func (s *service) ImportPocWithOptions(ctx context.Context, filePath string, overwrite bool) (*models.PocImportResponse, error) {
 	logger.Info("POC导入开始")
 
-	// 生成随机文件名
-	fileName := random.GenerateString(11)
-
-	// 使用系统临时目录而不是相对路径
-	tempDir := os.TempDir()
-
-	// 解压路径也使用临时目录
-	unzipPath := filepath.Join(tempDir, fileName)
-	extractPath := unzipPath
-
-	// 确保目录存在
+	extractPath := filepath.Join(os.TempDir(), random.GenerateString(11))
 	if err := os.MkdirAll(extractPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create extract directory: %w", err)
 	}
 
-	// 解压ZIP文件
 	yamlFiles, err := s.extractZipFile(filePath, extractPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract zip file: %w", err)
 	}
+	defer s.cleanupTempFiles(filePath, extractPath)
 
-	// 获取现有POC的ID列表
-	templateIds, err := s.repo.GetAllTemplateId(ctx)
+	index, err := s.repo.GetTemplateIndex(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get existing poc hashes: %w", err)
+		return nil, fmt.Errorf("failed to load poc index: %w", err)
 	}
 
-	// 处理YAML文件
-	successNum := 0
-	errorNum := 0
-	repeatNum := 0
-	pocDataList := []models.Poc{}
+	var (
+		successNum, updateNum, repeatNum, errorNum int
+		newDocs                                    []models.Poc
+		changedIDs                                 []string
+	)
 
 	logger.Info(fmt.Sprintf("共%d个POC", len(yamlFiles)))
 
 	for _, yamlFile := range yamlFiles {
-
-		content, err := os.ReadFile(yamlFile)
-		if err != nil {
-			logger.Error(fmt.Sprintf("POC导入 读取文件失败: %s", yamlFile), zap.Error(err))
+		content, readErr := os.ReadFile(yamlFile)
+		if readErr != nil {
+			logger.Error(fmt.Sprintf("POC导入 读取文件失败: %s", yamlFile), zap.Error(readErr))
 			errorNum++
 			continue
 		}
-		// 解析YAML
+
 		var pt models.PocTemplate
-		if err := yaml.Unmarshal(content, &pt); err != nil {
-			logger.Error(fmt.Sprintf("POC导入 解析YAML失败: %s", yamlFile), zap.Error(err))
+		if unmarshalErr := yaml.Unmarshal(content, &pt); unmarshalErr != nil {
+			logger.Error(fmt.Sprintf("POC导入 解析YAML失败: %s", yamlFile), zap.Error(unmarshalErr))
 			errorNum++
 			continue
 		}
@@ -274,83 +274,192 @@ func (s *service) ImportPoc(ctx context.Context, filePath string) (*models.PocIm
 			errorNum++
 			continue
 		}
-		// 检查是否重复
-		if helper.StringInSlice(pt.ID, templateIds) {
-			repeatNum++
+
+		raw := string(content)
+		hash := pocContentHash(raw)
+
+		if entry, exists := index[pt.ID]; exists {
+			existingHash := entry.ContentHash
+			if existingHash == "" {
+				// 历史文档没有 content_hash：只为冲突的这一条补算，不读全量
+				if existing, findErr := s.repo.FindOne(ctx, bson.M{"id": pt.ID}); findErr == nil && existing != nil {
+					existingHash = pocContentHash(existing.Content)
+					index[pt.ID] = models.PocIndexEntry{ID: entry.ID, ContentHash: existingHash}
+				}
+			}
+			if existingHash == hash || !overwrite {
+				repeatNum++
+				continue
+			}
+			update := bson.M{"$set": bson.M{
+				"name":         pt.Info.Name,
+				"content":      raw,
+				"level":        pocLevel(pt.Info.Severity),
+				"tags":         pocTags(pt.Info.Tags),
+				"content_hash": hash,
+			}}
+			if _, updateErr := s.repo.UpdateOne(ctx, bson.M{"_id": entry.ID}, update); updateErr != nil {
+				logger.Error(fmt.Sprintf("POC导入 更新失败: %s", pt.ID), zap.Error(updateErr))
+				errorNum++
+				continue
+			}
+			updateNum++
+			changedIDs = append(changedIDs, entry.ID.Hex())
 			continue
 		}
-		templateIds = append(templateIds, pt.ID)
-		// 获取严重程度
-		severity := "unknown"
-		if pt.Info.Severity != "" {
-			severity = strings.ToLower(pt.Info.Severity)
-		}
 
-		// 处理标签
-		tags := []string{}
-		if pt.Info.Tags != "" {
-			tagList := strings.Split(pt.Info.Tags, ",")
-			for _, tag := range tagList {
-				tag = strings.TrimSpace(tag)
-				if tag != "" {
-					tags = append(tags, tag)
+		newDocs = append(newDocs, models.Poc{
+			Name:        pt.Info.Name,
+			Content:     raw,
+			TemplateId:  pt.ID,
+			Level:       pocLevel(pt.Info.Severity),
+			Tags:        pocTags(pt.Info.Tags),
+			Time:        helper.GetNowTimeString(),
+			ContentHash: hash,
+		})
+	}
+
+	if len(newDocs) > 0 {
+		result, insertErr := s.repo.InsertMany(ctx, newDocs)
+		if insertErr != nil {
+			return nil, fmt.Errorf("failed to insert poc data: %w", insertErr)
+		}
+		if result.InsertedIDs != nil {
+			successNum = len(result.InsertedIDs)
+			for _, id := range result.InsertedIDs {
+				if oid, ok := id.(primitive.ObjectID); ok {
+					changedIDs = append(changedIDs, oid.Hex())
 				}
 			}
 		}
-		pocData := models.Poc{
-			Name:       pt.Info.Name,
-			Content:    string(content),
-			TemplateId: pt.ID,
-			Level:      severity,
-			Time:       helper.GetNowTimeString(),
-			Tags:       tags,
-		}
-
-		pocDataList = append(pocDataList, pocData)
 	}
 
-	// 批量插入POC数据
-	if len(pocDataList) > 0 {
-		result, err := s.repo.InsertMany(ctx, pocDataList)
-		if err != nil {
-			return nil, fmt.Errorf("failed to insert poc data: %w", err)
-		}
-
-		if result.InsertedIDs != nil {
-			successNum = len(result.InsertedIDs)
-
-			// 异步刷新配置
-			go func() {
-				insertedIDs := make([]string, len(result.InsertedIDs))
-				for i, id := range result.InsertedIDs {
-					insertedIDs[i] = id.(primitive.ObjectID).Hex()
-				}
-
-				msg := models.Message{
-					Name:    "all",
-					Type:    "poc",
-					Content: fmt.Sprintf("add:%s", strings.Join(insertedIDs, ",")),
-				}
-
-				if err := s.nodeService.RefreshConfig(ctx, msg); err != nil {
-					logger.Error("failed to refresh config", zap.Error(err))
-				}
-			}()
-		}
+	if len(changedIDs) > 0 {
+		s.notifyPocChanged(changedIDs)
 	}
 
-	// 清理临时文件
-	s.cleanupTempFiles(filePath, extractPath)
-
-	logger.Info(fmt.Sprintf("POC import completed: %d succeeded, %d duplicate, %d failed", successNum, repeatNum, errorNum))
-	logger.Info("POC import finished")
+	logger.Info(fmt.Sprintf("POC import completed: %d inserted, %d updated, %d unchanged, %d failed",
+		successNum, updateNum, repeatNum, errorNum))
 
 	return &models.PocImportResponse{
 		SuccessNum: successNum,
-		ErrorNum:   errorNum,
+		UpdateNum:  updateNum,
 		RepeatNum:  repeatNum,
+		ErrorNum:   errorNum,
 		Message:    "import success",
 	}, nil
+}
+
+// UpsertPoc 按 template id 落库：没有就建，内容变了就更新（保留 _id），没变就跳过。
+// 供 Nuclei Monitor 这类同步流程使用；action 取 created / updated / unchanged。
+func (s *service) UpsertPoc(ctx context.Context, content string) (string, string, error) {
+	var pt models.PocTemplate
+	if err := yaml.Unmarshal([]byte(content), &pt); err != nil {
+		return "", "", fmt.Errorf("failed to unmarshal poc template: %w", err)
+	}
+	if pt.ID == "" || pt.Info.Name == "" {
+		return "", "", fmt.Errorf("poc template missing id or info.name")
+	}
+
+	hash := pocContentHash(content)
+	existing, err := s.repo.FindOne(ctx, bson.M{"id": pt.ID})
+	if err != nil {
+		if !errors.Is(err, mongo.ErrNoDocuments) {
+			return "", "", fmt.Errorf("failed to find poc: %w", err)
+		}
+		res, insertErr := s.repo.InsertOne(ctx, models.Poc{
+			Name:        pt.Info.Name,
+			Content:     content,
+			TemplateId:  pt.ID,
+			Level:       pocLevel(pt.Info.Severity),
+			Tags:        pocTags(pt.Info.Tags),
+			Time:        helper.GetNowTimeString(),
+			ContentHash: hash,
+		})
+		if insertErr != nil {
+			return "", "", fmt.Errorf("failed to insert poc: %w", insertErr)
+		}
+		oid, _ := res.InsertedID.(primitive.ObjectID)
+		s.notifyPocChanged([]string{oid.Hex()})
+		return oid.Hex(), "created", nil
+	}
+
+	existingHash := existing.ContentHash
+	if existingHash == "" {
+		existingHash = pocContentHash(existing.Content)
+	}
+	if existingHash == hash {
+		return existing.ID.Hex(), "unchanged", nil
+	}
+
+	update := bson.M{"$set": bson.M{
+		"name":         pt.Info.Name,
+		"content":      content,
+		"level":        pocLevel(pt.Info.Severity),
+		"tags":         pocTags(pt.Info.Tags),
+		"content_hash": hash,
+	}}
+	if _, err := s.repo.UpdateOne(ctx, bson.M{"_id": existing.ID}, update); err != nil {
+		return "", "", fmt.Errorf("failed to update poc: %w", err)
+	}
+	s.notifyPocChanged([]string{existing.ID.Hex()})
+	return existing.ID.Hex(), "updated", nil
+}
+
+// notifyPocChanged 通知节点重新拉取这些 POC（add 对节点语义是「写入/覆盖该模板文件」）。
+func (s *service) notifyPocChanged(ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	content := "add:" + strings.Join(ids, ",")
+	go func() {
+		msg := models.Message{Name: "all", Type: "poc", Content: content}
+		if err := s.nodeService.RefreshConfig(context.Background(), msg); err != nil {
+			logger.Error("failed to refresh config", zap.Error(err))
+		}
+	}()
+}
+
+// pocLevel 统一 severity 取值（小写，缺省 unknown）
+func pocLevel(severity string) string {
+	level := strings.ToLower(strings.TrimSpace(severity))
+	if level == "" {
+		return "unknown"
+	}
+	return level
+}
+
+// pocTags 拆分并去重模板标签
+func pocTags(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return []string{}
+	}
+	parts := strings.Split(raw, ",")
+	tags := make([]string, 0, len(parts))
+	for _, tag := range parts {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			tags = append(tags, tag)
+		}
+	}
+	return helper.RemoveArrayDuplicates(tags)
+}
+
+// normalizePocContent 归一化后用于比较：统一换行、去行尾空白、去尾部空行。
+// 只影响「是否算变化」的判断，落库内容仍是上游原文。
+func normalizePocContent(raw string) string {
+	raw = strings.TrimPrefix(raw, "\ufeff")
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	lines := strings.Split(raw, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimRight(line, " \t")
+	}
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n")
+}
+
+// pocContentHash 内容指纹
+func pocContentHash(raw string) string {
+	sum := sha256.Sum256([]byte(normalizePocContent(raw)))
+	return hex.EncodeToString(sum[:])
 }
 
 // TemplateIdExists 高性能检查TemplateId是否存在

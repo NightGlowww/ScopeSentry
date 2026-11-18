@@ -152,28 +152,21 @@ func Execute(op options.PluginOption) error {
 			break
 		}
 
+		changedInPage := 0
 		// 遍历结果
 		for _, result := range results {
 			result.TemplateID = strings.Replace(result.TemplateID, "-draft", "", 1)
-			// 检查 template_id 是否存在
-			exists, err := op.PocService.TemplateIdExists(ctx, result.TemplateID)
-			if err != nil {
-				op.Log(fmt.Sprintf("检查 TemplateId 失败: %s, 错误: %s", result.TemplateID, err.Error()), "e")
+			// 已存在且内容变化时更新（保留 _id，扫描模板的 VulList 引用不会断）
+			pocID, action, upsertErr := op.PocService.UpsertPoc(ctx, result.Raw)
+			if upsertErr != nil {
+				op.Log(fmt.Sprintf("UpsertPoc error: %s", upsertErr.Error()), "e")
 				continue
 			}
-
-			if exists {
-				// 如果存在，说明所有 poc 已经更新完毕，退出遍历
-				op.Log("所有 poc 已更新完毕")
-				return nil
+			if action == "unchanged" {
+				continue
 			}
-
-			// 插入poc 获取pocid
-			pocID, err := op.PocService.AddPoc(context.Background(), &models.PocAddRequest{Content: result.Raw})
-			if err != nil {
-				op.Log(fmt.Sprintf("AddPoc error: %s", err.Error()), "e")
-				return err
-			}
+			changedInPage++
+			op.Log(fmt.Sprintf("POC %s: %s", action, result.TemplateID))
 			// 给扫描端更新poc的时间
 			time.Sleep(3 * time.Second)
 
@@ -265,6 +258,12 @@ func Execute(op options.PluginOption) error {
 			op.Log(fmt.Sprintf("发现新的 POC: TemplateID=%s, Name=%s, Severity=%s, OldSearch=%v, SaSSearch=%v,影响资产数量:%s,任务创建状态:%v", result.TemplateID, result.Name, severityFormatted, searchValueOld, customQuery, assetCountFormatted, scanStatus))
 			notificationMsg := fmt.Sprintf("发现新的 POC: \nTemplateID:%s\nName:%s\nSeverity:%s\nOldSearch:%v\nSaSSearch:%v\n影响资产数量:%v\n任务创建状态:%v", result.TemplateID, result.Name, result.Severity, searchValueOld, customQuery, affectedAssetCount, scanStatus)
 			op.Notification(notificationMsg)
+		}
+
+		// 整页没有任何新增/更新，说明已经和上游追平，停止翻页
+		if changedInPage == 0 {
+			op.Log("所有 poc 已是最新")
+			return nil
 		}
 
 		// 如果返回的结果数量小于 limit，说明已经是最后一页
