@@ -226,7 +226,7 @@ let crudSchemas = reactive<CrudSchema[]>([
             {domainValue}
           </ElLink>
           <ElTooltip content="复制域名" placement="top">
-            <Icon
+            <Icon aria-label="复制域名"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"
@@ -255,7 +255,7 @@ let crudSchemas = reactive<CrudSchema[]>([
             {ipValue}
           </ElLink>
           <ElTooltip content="复制 IP" placement="top">
-            <Icon
+            <Icon aria-label="复制 IP"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"

@@ -95,7 +95,7 @@ const crudSchemas = reactive<CrudSchema[]>([
       <div class="flex items-center">
         <span>{host}</span>
         <ElTooltip content="复制子域名" placement="top">
-          <Icon
+          <Icon aria-label="复制子域名"
             icon="ep:copy-document"
             size={13}
             color="var(--el-text-color-placeholder)"
@@ -130,7 +130,7 @@ const crudSchemas = reactive<CrudSchema[]>([
         <div class="flex items-center">
           <span style="white-space: pre-line">{text}</span>
           <ElTooltip content="复制记录值" placement="top">
-            <Icon
+            <Icon aria-label="复制记录值"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"
@@ -153,7 +153,7 @@ const crudSchemas = reactive<CrudSchema[]>([
         <div class="flex items-center">
           <span style="white-space: pre-line">{text}</span>
           <ElTooltip content="复制 IP" placement="top">
-            <Icon
+            <Icon aria-label="复制 IP"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"
