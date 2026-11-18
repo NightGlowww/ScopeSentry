@@ -834,6 +834,7 @@ export default {
     taskNameRequired: 'Please fill in a task name (or fill the query to generate one)'
   },
   router: {
+    systemStatus: 'System Status',
     githubMonitor: 'GitHub Leak Monitor',
     backup: 'Backup & Restore',
     mcpAudit: 'MCP Call Logs',
