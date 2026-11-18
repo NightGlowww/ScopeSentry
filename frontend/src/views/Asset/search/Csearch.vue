@@ -535,7 +535,12 @@ const openCreateTask = async () => {
         </template>
       </ElDropdown>
       <ElDropdown class="toolbar-dropdown">
-        <div class="custom-dropdown">
+        <div
+          class="custom-dropdown"
+          role="button"
+          tabindex="0"
+          :aria-label="t('common.columnSetting')"
+        >
           <Icon icon="ant-design:setting-outlined" class="cursor-pointer" />
         </div>
         <template #dropdown>
