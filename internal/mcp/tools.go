@@ -392,6 +392,34 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: listAuditLogsToolDesc,
 	}, listAuditLogs)
 
+	// ---- 写侧第一批（v2.0.88）：资产组 / 地契 / ICP 任务 ----
+	// 只做 5 个，其余写操作（集团编辑/重排、地契改删移动、ICP 重启/恢复/删除、
+	// 结果入库与地契同步）仍在 Web 端。删除类工具强制 confirm=true。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_asset_group",
+		Description: createAssetGroupToolDesc,
+	}, createAssetGroup)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_asset_groups",
+		Description: deleteAssetGroupsToolDesc,
+	}, deleteAssetGroups)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_asset_scope",
+		Description: createAssetScopeToolDesc,
+	}, createAssetScope)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_icp_task",
+		Description: createICPTaskToolDesc,
+	}, createICPTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "stop_icp_tasks",
+		Description: stopICPTasksToolDesc,
+	}, stopICPTasks)
+
 	recordToolNames(names)
 	warnUnregisteredTools(names)
 }
@@ -2044,4 +2072,220 @@ func listAuditLogs(ctx context.Context, _ *mcp.CallToolRequest, input listAuditL
 		"pageIndex": pageIndex,
 		"pageSize":  pageSize,
 	})
+}
+
+// ---------------------------------------------------------------------------
+// 写侧第一批（v2.0.88）：资产组 / 地契 / ICP 任务
+//
+// 与只读侧一致的约定：入参字段与后端 handler / models 结构逐字同名，
+// handler 里的 binding / 闭集 / 上限由 mcpguard.Normalize* 在调用服务前补回。
+// 与只读侧不同的约定：所有工具都**先校验再落库**，任何越界都是报错，不静默截断；
+// 删除类不可逆操作额外要求 confirm=true（见 mcpguard.RequireConfirm）。
+//
+// 为什么不在 internal/mcp 里做校验：本包 init 依赖真实 MongoDB，
+// 这里的逻辑无法在无库环境单测；mcpguard 是纯函数层，验证成本最低。
+// ---------------------------------------------------------------------------
+
+type createAssetGroupInput struct {
+	Name        string `json:"name" jsonschema:"集团名称，必填，1-64 个字符，全局唯一（重名报 asset group name already exists，不覆盖）"`
+	Description string `json:"description,omitempty" jsonschema:"集团说明，可选，会去首尾空白"`
+	SortOrder   int    `json:"sortOrder,omitempty" jsonschema:"排序值，可选，列表按它升序"`
+}
+
+func createAssetGroup(ctx context.Context, _ *mcp.CallToolRequest, input createAssetGroupInput) (*mcp.CallToolResult, any, error) {
+	if d.assetGroupService == nil {
+		return errorResult("资产组服务未初始化", nil)
+	}
+	name, err := mcpguard.NormalizeWriteName("name", input.Name, mcpguard.MaxAssetGroupNameRunes)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	id, err := d.assetGroupService.CreateGroup(ctx, &models.AssetGroupAddRequest{
+		Name:        name,
+		Description: strings.TrimSpace(input.Description),
+		SortOrder:   input.SortOrder,
+	})
+	if err != nil {
+		return errorResult("创建资产组失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "id": id, "name": name})
+}
+
+type deleteAssetGroupsInput struct {
+	IDs           []string `json:"ids" jsonschema:"要删除的集团 ObjectID 列表，必填；去重后 1-20 个（list_asset_groups 的 id）"`
+	Action        string   `json:"action,omitempty" jsonschema:"删除策略：dissolve（默认，该集团下的地契移入未分组）/ transfer（先划转到 targetGroupId 再删集团）"`
+	TargetGroupID string   `json:"targetGroupId,omitempty" jsonschema:"action=transfer 时必填：接收地契的集团 ObjectID，不能是本批被删的集团之一"`
+	Confirm       bool     `json:"confirm,omitempty" jsonschema:"必填 true。本操作不可逆（集团记录物理删除，无回滚接口），缺省/传 false 直接报错"`
+}
+
+// deleteAssetGroupFailure 单条删除失败记录（逐条记录，不中断整批）
+type deleteAssetGroupFailure struct {
+	ID    string `json:"id"`
+	Error string `json:"error"`
+}
+
+func deleteAssetGroups(ctx context.Context, _ *mcp.CallToolRequest, input deleteAssetGroupsInput) (*mcp.CallToolResult, any, error) {
+	if d.assetGroupService == nil {
+		return errorResult("资产组服务未初始化", nil)
+	}
+	// 顺序有意为之：confirm 在最前面判。参数错误（比如 ids 超限）不该让调用方
+	// 以为「差一点就删了」，而 confirm 缺失是唯一「什么都没发生」的确定性信号。
+	if err := mcpguard.RequireConfirm(input.Confirm, "delete_asset_groups"); err != nil {
+		return errorResult("拒绝执行", err)
+	}
+	ids, err := mcpguard.NormalizeDeleteAssetGroupIDs(input.IDs)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	action, targetGroupID, err := mcpguard.NormalizeAssetGroupAction(input.Action, input.TargetGroupID, ids)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+
+	deleted := make([]string, 0, len(ids))
+	failed := make([]deleteAssetGroupFailure, 0, len(ids))
+	for _, id := range ids {
+		// 逐个集团删除：service.DeleteGroup 没有批量接口，且每个集团都要先搬地契，
+		// 单条失败（如集团已被别的请求删掉）不应该让整批停在半路。
+		if delErr := d.assetGroupService.DeleteGroup(ctx, &models.AssetGroupDeleteRequest{
+			ID:            id,
+			Action:        action,
+			TargetGroupID: targetGroupID,
+		}); delErr != nil {
+			failed = append(failed, deleteAssetGroupFailure{ID: id, Error: delErr.Error()})
+			continue
+		}
+		deleted = append(deleted, id)
+	}
+
+	if len(deleted) == 0 {
+		parts := make([]string, 0, len(failed))
+		for _, f := range failed {
+			parts = append(parts, f.ID+": "+f.Error)
+		}
+		return errorResult(fmt.Sprintf("删除资产组全部失败（%d 个，action=%s）", len(failed), action),
+			fmt.Errorf("%s", strings.Join(parts, "; ")))
+	}
+	return jsonToolResult(ginH{
+		"ok":            len(failed) == 0,
+		"action":        action,
+		"targetGroupId": targetGroupID,
+		"deleted":       deleted,
+		"failed":        failed,
+		"total":         len(ids),
+	})
+}
+
+type createAssetScopeInput struct {
+	Name      string `json:"name" jsonschema:"地契名称，必填，1-128 个字符"`
+	Scope     string `json:"scope" jsonschema:"资产范围文本，必填；域名/IP 用逗号、分号、空格或换行分隔，每个条目必须是合法域名或 IP"`
+	ScopeType string `json:"scopeType,omitempty" jsonschema:"范围类型：domain / ip / mixed；留空由服务端按内容推断"`
+	GroupID   string `json:"groupId,omitempty" jsonschema:"归属集团 ObjectID（list_asset_groups 的 id）；留空表示未分组。不接受 unassigned / 0 这类只读过滤标记"`
+}
+
+func createAssetScope(ctx context.Context, _ *mcp.CallToolRequest, input createAssetScopeInput) (*mcp.CallToolResult, any, error) {
+	if d.assetGroupService == nil {
+		return errorResult("资产组服务未初始化", nil)
+	}
+	name, err := mcpguard.NormalizeWriteName("name", input.Name, mcpguard.MaxAssetScopeNameRunes)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	scopeText, err := mcpguard.NormalizeAssetScopeRange(input.Scope)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	scopeType, err := mcpguard.NormalizeAssetScopeType(input.ScopeType)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	groupID, err := mcpguard.NormalizeScopeOwnerGroupID(input.GroupID)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	id, err := d.assetGroupService.CreateScope(ctx, &models.AssetScopeAddRequest{
+		Name:      name,
+		Scope:     scopeText,
+		ScopeType: scopeType,
+		GroupID:   groupID,
+	})
+	if err != nil {
+		// 走到这里最常见的是「集团不存在」或「某个条目不是合法域名/IP」，
+		// 服务层错误里带具体条目与原因，原样透出比包装成「创建地契失败」更有用。
+		return errorResult("创建地契失败", err)
+	}
+	return jsonToolResult(ginH{
+		"ok":        true,
+		"id":        id,
+		"name":      name,
+		"scopeType": scopeType, // 空串表示由服务端按内容推断；要看推断结果请用 list_asset_scopes
+		"groupId":   groupID,
+	})
+}
+
+type createICPTaskInput struct {
+	Name     string   `json:"name,omitempty" jsonschema:"任务名，可选，≤128 字符；留空用第一个查询目标作为任务名"`
+	Type     string   `json:"type,omitempty" jsonschema:"任务类型：company（企业名查备案域名）/ domain（域名反查备案主体，默认）"`
+	Queries  []string `json:"queries,omitempty" jsonschema:"查询目标数组：type=company 填企业名，type=domain 填域名；会去空去重，domain 类型自动小写去尾点"`
+	Target   string   `json:"target,omitempty" jsonschema:"单值便捷字段，仅当 queries 为空时生效"`
+	Provider string   `json:"provider,omitempty" jsonschema:"数据来源：manual（本地回读）/ none（显式关闭）/ http（外部 ICP 服务）；留空按当前配置解析"`
+}
+
+func createICPTask(ctx context.Context, _ *mcp.CallToolRequest, input createICPTaskInput) (*mcp.CallToolResult, any, error) {
+	if d.icpService == nil {
+		return errorResult("ICP 服务未初始化", nil)
+	}
+	taskType, err := mcpguard.NormalizeICPTypeForCreate(input.Type)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	queries, err := mcpguard.NormalizeICPQueriesForCreate(taskType, input.Queries, input.Target)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	var name string
+	// 名称交给服务层回落（空 = 用 queries[0]），这里只在显式给了名字时校验长度，
+	// 避免把「留空」误判成「必填缺失」。
+	if strings.TrimSpace(input.Name) != "" {
+		if name, err = mcpguard.NormalizeWriteName("name", input.Name, mcpguard.MaxICPTaskNameRunes); err != nil {
+			return errorResult("参数不合法", err)
+		}
+	}
+	provider, err := mcpguard.NormalizeICPProvider(input.Provider)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	task, err := d.icpService.CreateTask(ctx, models.IcpTaskCreateRequest{
+		Name:     name,
+		Type:     taskType,
+		Queries:  queries,
+		Provider: provider,
+	})
+	if err != nil {
+		return errorResult("创建 ICP 任务失败", err)
+	}
+	// 与 REST handler 一致返回整条任务；CreateTask 内部已 Claim 并异步 launch，
+	// 所以 state 通常已经是 1（运行中），进度用 list_icp_tasks 轮询。
+	return jsonToolResult(ginH{"ok": true, "task": task})
+}
+
+type stopICPTasksInput struct {
+	IDs []string `json:"ids" jsonschema:"要停止（暂停）的任务 ObjectID 列表，必填；去重后 1-50 个（list_icp_tasks 的 id）"`
+}
+
+func stopICPTasks(ctx context.Context, _ *mcp.CallToolRequest, input stopICPTasksInput) (*mcp.CallToolResult, any, error) {
+	if d.icpService == nil {
+		return errorResult("ICP 服务未初始化", nil)
+	}
+	ids, err := mcpguard.NormalizeStopICPIDs(input.IDs)
+	if err != nil {
+		return errorResult("参数不合法", err)
+	}
+	updated, err := d.icpService.Stop(ctx, ids)
+	if err != nil {
+		return errorResult("停止 ICP 任务失败", err)
+	}
+	// updated 是 ModifiedCount：已完成(3) 或已暂停(2) 的任务不会被改，
+	// 所以 updated < len(ids) 是正常结果，不是失败。
+	return jsonToolResult(ginH{"ok": true, "updated": updated, "ids": ids})
 }

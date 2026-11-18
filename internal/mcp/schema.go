@@ -258,3 +258,132 @@ const listAuditLogsToolDesc = `服务端操作日志（audit_logs），对应 PO
 - 找失败请求: statusMin=400
 注意: 日志里能看到其他账号的路径与 IP，属运维敏感面；当前挂在 asset:read 下，
 若需要隔离请按 docs/audit/MCP_TOOLS_V2.md 的说明拆 audit:read。`
+
+// ---------------------------------------------------------------------------
+// 写侧工具说明（v2.0.88：资产组 / 地契 / ICP 任务）
+//
+// 写侧描述比只读侧多两件必须写清的事：
+//  1. 副作用范围（改了哪些集合、能不能撤回）——调用方是 Agent，没有 UI 二次确认；
+//  2. 与 REST 的差异（哪些 handler 校验由 MCP 侧补、哪些没补）。
+// ---------------------------------------------------------------------------
+
+// createAssetGroupToolDesc 新建资产组（集团）
+const createAssetGroupToolDesc = `新建资产组（集团），对应 POST /api/assets/asset_group/add（service.CreateGroup）。
+
+资产模型三层（ARL-Next 口径）:
+- asset_group: 企业/集团维度，一个集团下挂多个「地契」
+- asset_scope: 地契，一段资产范围（域名/IP 文本，解析成 domainArray / ipArray）
+- project: 扫描与资产归属的容器，与集团无关
+
+入参（逐字对齐 models.AssetGroupAddRequest）:
+- name: 必填，1-64 个字符（按 rune 计）；**全局唯一**，重名直接报错
+  （asset group name already exists），不会静默覆盖或改名
+- description: 可选，去首尾空白后落库
+- sortOrder: 可选，整数，列表按它排序（同值按创建时间）
+
+返回: {"ok": true, "id": "<ObjectID>", "name": "<落库名>"}
+id 可直接作为 create_asset_scope 的 groupId。
+
+scope: asset:write（只读 key 会被拒，这是有意设计：建集团会改变资产模型的归属结构）。
+同名判断是「先查再插」，并发下仍可能插入同名记录（repo 无唯一索引），需要幂等请先 list_asset_groups 查重。
+`
+
+// deleteAssetGroupsToolDesc 删除资产组（高危，需 confirm）
+const deleteAssetGroupsToolDesc = `【不可逆】删除资产组（集团），对应 POST /api/assets/asset_group/delete（按 id 逐个调用 service.DeleteGroup）。
+
+集团记录会被物理删除，没有回滚接口；恢复只能重新创建（id 会变，地契归属需要重新挂）。
+地契本身不删，按 action 决定它们的去向。
+
+**必须显式传 confirm: true 才会执行**；缺省或传 false 直接报错（ErrConfirmRequired），
+不会「默认执行」——MCP 调用方是 Agent，没有 Web 端那种二次确认弹窗。
+
+入参:
+- ids: 必填，1-20 个集团 ObjectID（list_asset_groups 的 id）。
+        MCP 侧去空白、转小写、去重后再判上限，超过 20 报错（不静默截断）
+- action: dissolve（默认）把该集团下的地契移入未分组；transfer 先划转到 targetGroupId 再删集团
+- targetGroupId: action=transfer 时必填，必须是 **本批被删集合之外** 的有效集团 ObjectID
+- confirm: 必填 true
+
+两处比 REST 更严:
+1. action=dissolve 时传了 targetGroupId 会报错（REST 会静默忽略，容易让人以为地契被划转了）；
+2. targetGroupId 不允许是本批要删的集团之一（REST 只挡「自己转自己」，挡不住同批互转后一起删）。
+
+返回: {"ok": bool, "action": "dissolve|transfer", "deleted": [...], "failed": [{id, error}], "total": n}
+逐个集团执行，单个失败不影响其它（避免半路中断后调用方完全不知道哪些成功了）。
+全部失败时返回 isError。
+
+scope: asset:write
+`
+
+// createAssetScopeToolDesc 新建地契
+const createAssetScopeToolDesc = `新建地契（asset_scope），对应 POST /api/assets/asset_scope/add（service.CreateScope）。
+
+地契 = 一个集团下的一段资产范围。scope 是原始文本，服务端按空白/逗号/分号/换行切分，
+解析后落成 scopeArray / domainArray / ipArray；资产匹配、ICP 回填、覆盖度统计都读解析后的数组。
+
+入参（逐字对齐 models.AssetScopeAddRequest）:
+- name: 必填，1-128 个字符
+- scope: 必填，范围文本，如 "example.com,example.org" 或每行一个域名/IP。
+         每个条目必须是合法域名或 IP，否则服务层报 "… is not a valid domain or ip"（带具体条目）
+- scopeType: 可选，domain / ip / mixed；留空按内容自动推断（只有域名=domain，只有 IP=ip，都有=mixed）
+- groupId: 可选，归属集团 ObjectID（list_asset_groups 的 id）；留空 = 未分组。
+           未分组标记 "unassigned" / "0" 在写侧不接受（那是只读过滤用的标记）
+
+本工具**没有 url 字段**：handler 的 AssetScopeAddRequest 只有 name/scope/scopeType/groupId，
+「一段范围」的载体就是 scope 文本；给单个 URL 时请传 URL 的 host（地契存的是域名/IP，不是 URL）。
+
+返回: {"ok": true, "id": "<ObjectID>", "name": "...", "scopeType": "...", "groupId": "...", "entries": n}
+
+与 REST 的差异（都是收紧）:
+- name / scope 为空或超长在 MCP 侧先报错，错误里带字段名（REST 由 binding:"required" 给 400）
+- groupId 必须是 24 位 ObjectID 或留空；集团不存在报 asset group not found（服务层 ensureGroup）
+
+scope: asset:write
+`
+
+// createICPTaskToolDesc 新建 ICP 任务
+const createICPTaskToolDesc = `新建 ICP 主体查询任务，对应 POST /api/icp/task/create（service.CreateTask）。
+
+数据链路: 企业名 → 备案域名（icp_result）→ 可用 create_asset_scope 落成地契。
+
+入参（逐字对齐 models.IcpTaskCreateRequest）:
+- type: company（企业名查域名，默认回落 domain）/ domain（域名反查主体）
+- queries: 查询目标数组（企业名或域名）；为空时可用 target 给单个值
+- target: 单值便捷字段，仅当 queries 为空时生效
+- name: 任务名，留空 = 用第一个查询目标；上限 128 字符
+- provider: manual / none / http；留空由服务端按当前配置解析（配置了 icp.provider_url 时是 http，
+           否则 manual 只回读本地已有记录）。provider 决定「能不能真的查到新数据」
+
+归一（mcpguard.Normalize* 补 handler 不做的事）:
+- type 大小写不敏感，闭集外报错；domain 类型下 queries 自动小写、去尾点、去重；企业名保持原样
+- queries 与 target 都为空直接报错（不静默建空任务）
+
+**副作用**: 创建后会立刻 Claim 并启动后台 goroutine 跑全流程（与 REST 一致），
+不在本请求里同步等待。进度用 list_icp_tasks 看 state/stats（0 待开始 / 1 运行中 / 2 暂停 / 3 完成）。
+对外部 ICP 源有真实调用，按 provider 会产生配额消耗。
+
+返回: {"ok": true, "task": {...icp_task 全字段...}}
+
+scope: icp:write
+`
+
+// stopICPTasksToolDesc 停止（暂停）ICP 任务
+const stopICPTasksToolDesc = `停止 ICP 任务（把 state 改成 2 已暂停），对应 POST /api/icp/task/stop（service.Stop）。
+
+语义是**暂停**而不是删除，可逆:
+- 任务、日志、已入库的 icp_result 全部保留
+- 已完成的查询不会被重跑，恢复用 REST POST /api/icp/task/resume（从 cursor 继续）
+- 只有 state ∈ {0 待开始, 1 运行中, 2 已暂停} 会被改；3 已完成不覆写
+
+因为可逆，本工具**不要求** confirm（对比 delete_asset_groups 那种不可逆操作）。
+
+入参:
+- ids: 必填，1-50 个任务 ObjectID（list_icp_tasks 的 id）。
+        MCP 侧去空白、转小写、去重后再判上限；非法 ObjectID 直接报错（不交给仓库层报 "invalid id"）
+
+返回: {"ok": true, "updated": n, "ids": [...]}
+updated 是**实际被修改**的文档数（ModifiedCount）：对已完成或已暂停的任务重复停止时 updated 会小于 len(ids)，
+这是正常的，不是失败。
+
+scope: icp:write
+`

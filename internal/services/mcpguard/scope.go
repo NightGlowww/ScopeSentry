@@ -31,6 +31,12 @@ const (
 	ScopePluginWrite   = "plugin:write"
 	ScopeNodeRead      = "node:read"
 	ScopeNodeWrite     = "node:write"
+	// ScopeICPWrite ICP 主体任务写操作（创建 / 停止）。
+	//
+	// 独立成家族而不是并进 asset:write 的理由：ICP 任务的副作用是「对外部 ICP 数据源
+	// 发起查询 + 落库 + 后台 goroutine 跑全流程」，与「给资产打标签」不在一个风险面；
+	// 只想给自动化开「资产写」的 key 不应该顺带获得对外查询能力。
+	ScopeICPWrite = "icp:write"
 )
 
 // ToolScopes 工具名 -> 所需 scope 的唯一真相源。
@@ -108,6 +114,18 @@ var ToolScopes = map[string]string{
 	"list_asset_scopes": ScopeAssetRead,
 	"list_icp_tasks":    ScopeAssetRead,
 	"list_audit_logs":   ScopeAssetRead,
+
+	// 写侧第一批（v2.0.88）：只做 5 个，其余写操作（资产组编辑/重排、地契改删移动、
+	// ICP 重启/恢复/删除、结果入库与地契同步）仍需人工走 Web 端。
+	//
+	// 与只读侧的差别：这里**不复用** asset:read，因为写操作的破坏面完全不同 ——
+	// 「只读 key」不该因为补了工具就意外获得删除能力（MCP_GAPS §9 记录过现网
+	// 只读 key 试图调 start_task 被 scope 拦下的案例，那次拦截是对的）。
+	"create_asset_group":  ScopeAssetWrite,
+	"delete_asset_groups": ScopeAssetWrite,
+	"create_asset_scope":  ScopeAssetWrite,
+	"create_icp_task":     ScopeICPWrite,
+	"stop_icp_tasks":      ScopeICPWrite,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）

@@ -45,8 +45,12 @@ const mcpConfigExample = `{
 
 // 与后端 mcpguard 的 scope 常量一一对应
 const SCOPE_OPTIONS = [
-  { value: 'asset:read', label: 'asset:read（资产/POC/指纹/字典/看板 只读）' },
-  { value: 'asset:write', label: 'asset:write（打标签/导出/规则启停/字典维护）' },
+  { value: 'asset:read', label: 'asset:read（资产/POC/指纹/字典/看板/资产组/地契/ICP/审计 只读）' },
+  {
+    value: 'asset:write',
+    label: 'asset:write（打标签/导出/规则启停/字典维护/建资产组/删资产组/建地契）'
+  },
+  { value: 'icp:write', label: 'icp:write（建 ICP 主体任务/停止 ICP 任务）' },
   { value: 'task:read', label: 'task:read（任务、扫描策略查询）' },
   { value: 'task:write', label: 'task:write（任务启停删、策略增删）' },
   { value: 'project:read', label: 'project:read' },

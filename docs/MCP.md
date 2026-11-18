@@ -11,17 +11,20 @@ ScopeSentry 暴露一个 MCP（Model Context Protocol）Server，走 **Streamabl
 | scope | 覆盖 |
 | --- | --- |
 | `asset:read` | 资产、POC、指纹、字典、看板、资产组/地契、ICP 任务、服务端操作日志等只读查询 |
-| `asset:write` | 资产打标签等写操作 |
+| `asset:write` | 资产打标签、导出、敏感规则启停、字典维护，以及**资产组/地契的写操作**（建组、删组、建地契） |
+| `icp:write` | ICP 主体任务写操作：创建任务（会对外部 ICP 源发起查询并后台跑）、停止任务（可暂停可恢复） |
 | `task:read` / `task:write` | 任务查询 / 创建 |
 | `project:read` / `project:write` | 项目查询 / 创建 |
 | `template:read` / `template:write` | 扫描模板查询 / 创建 |
-| `plugin:read` | 插件与模块查询 |
-| `node:read` | 节点查询 |
+| `plugin:read` / `plugin:write` | 插件与模块查询 / 节点上安装·重检·卸载 |
+| `node:read` / `node:write` | 节点查询 / 重启·删除节点 |
 | `*` | 全部 |
+
+> 共 13 个细分 scope + `*`，与 `internal/services/mcpguard/scope.go` 的常量、前端 `ApiKey.vue` 的 `SCOPE_OPTIONS` 三方一致（新增 scope 必须三处同改，否则 UI 里选不到）。
 
 工具名 → scope 的映射在 `internal/services/mcpguard/scope.go`，新增工具必须同步登记（有漂移测试守着）。
 
-## 工具清单（25）
+## 工具清单（只读面，按版本累加；总数以文末 `ToolScopes` 口径为准，当前 58）
 
 **项目**
 `list_projects` `list_projects_data` `get_project` `create_project`
@@ -131,7 +134,7 @@ curl -s http://127.0.0.1:8082/mcp \
 「配置 → API Key」页面已切到 MCP 治理接口（`/api/mcp/keys`）：
 
 - 列表新增 **Scope / 限速/分 / 过期** 三列，并支持启用/禁用；
-- 新建弹窗可选 13 个 scope（12 个细分 + `*`），并设置每分钟限速（0 = 跟随全局）；
+- 新建弹窗可选 14 个 scope（13 个细分 + `*`：asset/task/project/template/plugin/node 各 read·write，外加 icp:write），并设置每分钟限速（0 = 跟随全局）；
 - 明文 key 仍然只在创建后显示一次；列表只存 `keyPrefix` 与哈希。
 
 > 旧的 `/api/apikey/create` 仍然存在但固定 `scope = *`，需要用 scope 控制权限时请走新接口/新 UI。
@@ -178,10 +181,33 @@ curl -s http://127.0.0.1:8082/mcp \
 
 典型链路：`list_asset_groups` 找集团 → `list_asset_scopes` 看覆盖的域名/IP → `list_assets` 查这些域名的资产；`list_icp_tasks` 看「企业名 → 域名」任务的进度；`list_audit_logs`（`path=/api/task/add&method=POST`）自证写操作是否落到服务端。
 
-> 写侧未暴露：资产组/地契的增删改与重排、ICP 任务的创建/停止/恢复/删除、ICP 结果入库与地契同步、备份、通知配置。
+> 写侧第一批已补 5 个（见下节）；仍未暴露：资产组编辑/重排、地契编辑/删除/批量移动/绑定企业/清理同步错误、ICP 任务重启/恢复/删除、ICP 结果入库与地契同步（`/api/icp/{sync,backfill_details}`）、备份、通知配置。
+
+## 写侧第一批：资产组 / 地契 / ICP 任务（v2.0.88 新增，共 5 个）
+
+按 `docs/audit/MCP_GAPS.md` §3.1 的 M1/M2/M3 补写侧最小闭环，只做 5 个，其余写操作仍在 Web 端（见 `docs/audit/MCP_WRITE_TOOLS.md`）。
+
+| 工具 | scope | 后端等价 | 入参 |
+| --- | --- | --- | --- |
+| `create_asset_group` | asset:write | POST /api/assets/asset_group/add | name（1-64，全局唯一）/ description / sortOrder |
+| `delete_asset_groups` | asset:write | POST /api/assets/asset_group/delete（逐 id） | ids（1-20，**必填**）/ action（dissolve·transfer）/ targetGroupId / **confirm=true** |
+| `create_asset_scope` | asset:write | POST /api/assets/asset_scope/add | name（1-128）/ scope（域名·IP 文本）/ scopeType（domain·ip·mixed·留空推断）/ groupId |
+| `create_icp_task` | icp:write | POST /api/icp/task/create | type（company·domain，默认 domain）/ queries / target / name / provider（manual·none·http） |
+| `stop_icp_tasks` | icp:write | POST /api/icp/task/stop | ids（1-50） |
+
+**高风险防护（删除类）**：`delete_asset_groups` 是唯一不可逆工具（集团记录物理删除，无回滚接口），**必须显式传 `confirm: true`**，缺省或传 `false` 直接返回 `isError`（`confirm is required`），不会「默认执行」——MCP 调用方是 Agent，没有 Web 端那种二次确认弹窗。`stop_icp_tasks` 是把状态改成 2（已暂停）、可用 REST `resume` 续跑，因此不要求 confirm。
+
+**两处比 REST 更严**（MCP 侧收紧，都在 `mcpguard.Normalize*` 里）：
+
+- `action=dissolve` 时传 `targetGroupId` 直接报错（REST 静默忽略，容易让人以为地契被划转了）；
+- `targetGroupId` 不允许是本批要删的集团之一（REST 只挡 self-transfer，挡不住「A 转给同批的 B、B 转给 A」然后一起删）。
+
+**入参校验一律显式报错，不静默**：ids 去空白/转小写/去重后再判上限（20 / 50），非法 ObjectID 直接拒；名称按 rune 计长（中文按字符不按字节）；`create_icp_task` 的 `queries` 与 `target` 都为空时报错而不是建空任务；`create_asset_scope` 的 `groupId` 只接受 24 位 ObjectID 或留空（`unassigned` / `0` 是只读过滤标记，写不进去）。
+
+**典型闭环**：`create_icp_task`（企业名 → 备案域名）→ `list_icp_tasks` 轮询 state/stats → `create_asset_group` 建集团 → `create_asset_scope` 把域名落成地契 → `list_assets` 查覆盖资产。
 
 ## 工具总数
 
-49 + 4 = 53。
+53 + 5 = 58。
 
-> 权威口径是 `internal/services/mcpguard/scope.go` 的 `ToolScopes` 条目数（当前 53），与 `internal/mcp` 实际注册的工具名一一对应（漂移测试 `TestEveryRegisteredToolHasScope` / `TestNoOrphanScopeEntries`，`-tags integration`）。上面按版本累加的数字只是历史，**对不上时以 `ToolScopes` 为准**。
+> 权威口径是 `internal/services/mcpguard/scope.go` 的 `ToolScopes` 条目数（当前 58），与 `internal/mcp` 实际注册的工具名一一对应（漂移测试 `TestEveryRegisteredToolHasScope` / `TestNoOrphanScopeEntries`，`-tags integration`）。上面按版本累加的数字只是历史，**对不上时以 `ToolScopes` 为准**。

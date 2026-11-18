@@ -187,3 +187,261 @@ func NormalizeScopeGroupID(groupID string) (string, error) {
 	}
 	return v, nil
 }
+
+// ---------------------------------------------------------------------------
+// 写侧入参归一（v2.0.88：资产组 / 地契 / ICP 任务）
+//
+// 与只读侧同一套理由（见文件头）：MCP 不经 gin 的 ShouldBindJSON，handler 里的
+// binding:"required"、长度上限、闭集枚举都不会生效。写操作的「静默失败」比读更贵 ——
+// 少一个参数就建出一个空壳地契，ids 里混一个非法值就可能删错/半删。
+// 所以这一批一律「先归一再落库」，越界一律报错。
+// ---------------------------------------------------------------------------
+
+const (
+	// MaxDeleteAssetGroupIDs delete_asset_groups 单次删除的集团数上限。
+	// 删除是逐个集团调 service.DeleteGroup（该服务没有批量接口，每次都要搬地契），
+	// 批量放大后单次请求耗时线性上升，20 是「能用且不会挂住连接」的折中。
+	MaxDeleteAssetGroupIDs = 20
+	// MaxStopICPIDs stop_icp_tasks 单次停止的任务数上限（仓库层一条 UpdateMany，可放大）
+	MaxStopICPIDs = 50
+	// MaxAssetGroupNameRunes 集团名上限，对齐 assetgroup.CreateGroup 的 1-64
+	MaxAssetGroupNameRunes = 64
+	// MaxAssetScopeNameRunes 地契名上限，对齐 assetgroup.buildScope 的 1-128
+	MaxAssetScopeNameRunes = 128
+	// MaxICPTaskNameRunes ICP 任务名上限，对齐 icp.CreateTask 的 maxTaskNameRunes
+	MaxICPTaskNameRunes = 128
+)
+
+// 资产集团删除策略（对齐 assetgroup.DeleteGroup 的 action 取值）
+const (
+	// AssetGroupActionDissolve 地契移入未分组后再删集团（默认）
+	AssetGroupActionDissolve = "dissolve"
+	// AssetGroupActionTransfer 地契划转到 targetGroupId 后再删集团
+	AssetGroupActionTransfer = "transfer"
+)
+
+// 地契类型（对齐 assetgroup.ScopeType* 常量，service.buildScope 只认这三个字面量）
+const (
+	// AssetScopeTypeDomain 纯域名
+	AssetScopeTypeDomain = "domain"
+	// AssetScopeTypeIP 纯 IP
+	AssetScopeTypeIP = "ip"
+	// AssetScopeTypeMixed 域名 + IP 混合
+	AssetScopeTypeMixed = "mixed"
+)
+
+var (
+	// ErrConfirmRequired 高危工具缺少 confirm=true
+	ErrConfirmRequired = errors.New("confirm is required")
+	// ErrIDsRequired ids 缺失或全是空串
+	ErrIDsRequired = errors.New("ids is required")
+	// ErrTooManyIDs ids 超过单次上限
+	ErrTooManyIDs = errors.New("too many ids")
+	// ErrInvalidObjectID 不是 24 位十六进制 ObjectID
+	ErrInvalidObjectID = errors.New("invalid object id")
+	// ErrEmptyField 必填字段为空
+	ErrEmptyField = errors.New("required field is empty")
+	// ErrFieldTooLong 字段超长
+	ErrFieldTooLong = errors.New("field too long")
+	// ErrInvalidAction 删除策略非法
+	ErrInvalidAction = errors.New("invalid action")
+	// ErrTargetGroupRequired transfer 缺目标集团
+	ErrTargetGroupRequired = errors.New("targetGroupId is required")
+	// ErrEmptyQueries ICP 任务没有任何查询目标
+	ErrEmptyQueries = errors.New("queries is required")
+)
+
+// RequireConfirm 高危（不可逆）工具的确认闸。
+//
+// 只在 MCP 侧加，不改服务层：REST 有自己的前端二次确认（ElMessageBox），
+// MCP 的调用方是 Agent，没有 UI 兜底，必须由协议参数显式确认。
+// 缺 confirm 一律报错而不是「默认执行」—— 写错一次的代价由调用方承担，不是由数据承担。
+func RequireConfirm(confirm bool, tool string) error {
+	if confirm {
+		return nil
+	}
+	return fmt.Errorf("%w: %s 是不可逆操作，确认执行请在参数里显式传 \"confirm\": true", ErrConfirmRequired, tool)
+}
+
+// NormalizeBatchIDs 归一 ObjectID 批量入参：去空白 → 小写 → 去重（保序）→ 校验数量与格式。
+//
+// 顺序有意为之：先去重再判上限，这样「传了 21 个但其中 2 个重复」不会被误拒。
+func NormalizeBatchIDs(field string, ids []string, max int) ([]string, error) {
+	out := make([]string, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, raw := range ids {
+		id := strings.ToLower(strings.TrimSpace(raw))
+		if id == "" {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("%w: %s 至少给一个 ObjectID", ErrIDsRequired, field)
+	}
+	if max > 0 && len(out) > max {
+		return nil, fmt.Errorf("%w: %s 单次最多 %d 个（去重后收到 %d）", ErrTooManyIDs, field, max, len(out))
+	}
+	for _, id := range out {
+		if !objectIDPattern.MatchString(id) {
+			return nil, fmt.Errorf("%w: %s 里的 %q 不是 24 位 ObjectID", ErrInvalidObjectID, field, id)
+		}
+	}
+	return out, nil
+}
+
+// NormalizeDeleteAssetGroupIDs delete_asset_groups 的 ids 归一（上限 20）
+func NormalizeDeleteAssetGroupIDs(ids []string) ([]string, error) {
+	return NormalizeBatchIDs("ids", ids, MaxDeleteAssetGroupIDs)
+}
+
+// NormalizeStopICPIDs stop_icp_tasks 的 ids 归一（上限 50）
+func NormalizeStopICPIDs(ids []string) ([]string, error) {
+	return NormalizeBatchIDs("ids", ids, MaxStopICPIDs)
+}
+
+// NormalizeWriteName 写操作的名称字段归一：去空白、非空、长度上限（按 rune 计，与 service 一致）。
+//
+// 字符数用 rune 而不是 len()：中文集团名按字节算会被误判超长。
+func NormalizeWriteName(field, value string, maxRunes int) (string, error) {
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return "", fmt.Errorf("%w: %s 不能为空", ErrEmptyField, field)
+	}
+	if n := len([]rune(v)); maxRunes > 0 && n > maxRunes {
+		return "", fmt.Errorf("%w: %s 不能超过 %d 个字符（收到 %d）", ErrFieldTooLong, field, maxRunes, n)
+	}
+	return v, nil
+}
+
+// NormalizeAssetGroupAction 归一集团删除策略，返回 (action, targetGroupID, err)。
+//
+// 语义对齐 assetgroup.DeleteGroup：dissolve 把地契移入未分组，transfer 划转到目标集团。
+// 两处收紧：
+//  1. action 传空按 dissolve（与服务层一致），但显式传了 targetGroupId 又选 dissolve 时报错，
+//     避免调用方以为「指定了目标集团就不会丢归类」；
+//  2. transfer 的目标必须是被删集合之外的合法 ObjectID —— 服务层的检查是
+//     targetGroupID == req.ID，批量场景下只挡了「自己转自己」，挡不住「A 转给同批的 B、B 转给 A」。
+func NormalizeAssetGroupAction(action, targetGroupID string, ids []string) (string, string, error) {
+	v := strings.ToLower(strings.TrimSpace(action))
+	target := strings.ToLower(strings.TrimSpace(targetGroupID))
+	if v == "" {
+		v = AssetGroupActionDissolve
+	}
+	switch v {
+	case AssetGroupActionDissolve:
+		if target != "" {
+			return "", "", fmt.Errorf("%w: action=dissolve 不接受 targetGroupId（地契会移入未分组）；要划转请用 action=transfer", ErrInvalidAction)
+		}
+		return v, "", nil
+	case AssetGroupActionTransfer:
+		if target == "" {
+			return "", "", fmt.Errorf("%w: action=transfer 必须同时给 targetGroupId", ErrTargetGroupRequired)
+		}
+		if !objectIDPattern.MatchString(target) {
+			return "", "", fmt.Errorf("%w: targetGroupId %q 不是 24 位 ObjectID", ErrInvalidObjectID, targetGroupID)
+		}
+		for _, id := range ids {
+			if id == target {
+				return "", "", fmt.Errorf("%w: targetGroupId 不能是本批要删除的集团之一（%s）", ErrInvalidAction, target)
+			}
+		}
+		return v, target, nil
+	default:
+		return "", "", fmt.Errorf("%w: action 只能是 %s / %s，收到 %q",
+			ErrInvalidAction, AssetGroupActionDissolve, AssetGroupActionTransfer, action)
+	}
+}
+
+// NormalizeScopeOwnerGroupID 归一地契的归属集团（写侧）。
+//
+// 与只读侧 NormalizeScopeGroupID 的差别：写侧不接受 "0" / "unassigned" 这两个
+// 「未分组」标记 —— 它们在库里是历史数据形态，不是可以写进去的归属值；
+// 服务层 ensureGroup 会把它们当非法 ObjectID 拒掉，但那是在开建之后才报错。
+// 写侧约定：空字符串 = 不归属任何集团（未分组）。
+func NormalizeScopeOwnerGroupID(groupID string) (string, error) {
+	v := strings.ToLower(strings.TrimSpace(groupID))
+	if v == "" {
+		return "", nil
+	}
+	if _, ok := ungroupedMarkers[v]; ok {
+		return "", fmt.Errorf("%w: groupId 写侧只接受 24 位 ObjectID 或留空（未分组）；%q 是只读过滤用的标记", ErrInvalidGroupID, groupID)
+	}
+	if !objectIDPattern.MatchString(v) {
+		return "", fmt.Errorf("%w: groupId 需为 24 位 ObjectID，或留空表示未分组，收到 %q", ErrInvalidGroupID, groupID)
+	}
+	return v, nil
+}
+
+// NormalizeAssetScopeType 归一地契类型；空串表示让服务端按内容推断（domain / ip / mixed）。
+func NormalizeAssetScopeType(scopeType string) (string, error) {
+	v := strings.ToLower(strings.TrimSpace(scopeType))
+	switch v {
+	case "":
+		return "", nil
+	case AssetScopeTypeDomain, AssetScopeTypeIP, AssetScopeTypeMixed:
+		return v, nil
+	default:
+		return "", fmt.Errorf("%w: scopeType 只能是 %s / %s / %s，或留空自动推断，收到 %q",
+			ErrInvalidEnum, AssetScopeTypeDomain, AssetScopeTypeIP, AssetScopeTypeMixed, scopeType)
+	}
+}
+
+// NormalizeAssetScopeRange 归一地契范围文本。
+//
+// 只做「非空 + 至少一个条目」；域名/IP 的逐条校验留在 service.buildScope ——
+// 那里的报错带具体条目（"%q is not a valid domain or ip"），比在这层重写一遍更准。
+func NormalizeAssetScopeRange(scope string) (string, error) {
+	v := strings.TrimSpace(scope)
+	if v == "" {
+		return "", fmt.Errorf("%w: scope 不能为空，需给至少一个域名或 IP（逗号/换行/分号分隔）", ErrEmptyField)
+	}
+	fields := strings.FieldsFunc(v, func(r rune) bool {
+		switch r {
+		case '\n', '\r', '\t', ',', ';', ' ':
+			return true
+		}
+		return false
+	})
+	if len(fields) == 0 {
+		return "", fmt.Errorf("%w: scope 里没有可解析的条目（只有分隔符）", ErrEmptyField)
+	}
+	return v, nil
+}
+
+// NormalizeICPTypeForCreate 归一 ICP 任务类型（创建用）：空值按服务层语义回落 domain。
+func NormalizeICPTypeForCreate(taskType string) (string, error) {
+	v, err := NormalizeICPTaskType(taskType)
+	if err != nil {
+		return "", err
+	}
+	if v == "" {
+		return models.IcpTaskTypeDomain, nil
+	}
+	return v, nil
+}
+
+// NormalizeICPQueriesForCreate 归一 ICP 任务的查询目标。
+//
+// 完全复用 models.NormalizeIcpQueries（去空、去重、domain 类型小写去尾点），
+// 只在外面补两件服务层不会替调用方做的事：
+//  1. queries 为空且给了 target 时，用 target 当唯一查询（与 icp.CreateTask 同一规则）；
+//  2. 归一后为空直接报错 —— 否则会走到服务层 ErrEmptyQueries，错误信息里没有参数名，
+//     Agent 只能靠猜是 queries 还是 target 的问题。
+func NormalizeICPQueriesForCreate(taskType string, queries []string, target string) ([]string, error) {
+	raw := queries
+	if len(raw) == 0 {
+		if t := strings.TrimSpace(target); t != "" {
+			raw = []string{t}
+		}
+	}
+	out := models.NormalizeIcpQueries(taskType, raw)
+	if len(out) == 0 {
+		return nil, fmt.Errorf("%w: queries 或 target 至少给一个（type=company 填企业名，type=domain 填域名）", ErrEmptyQueries)
+	}
+	return out, nil
+}
