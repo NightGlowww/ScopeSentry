@@ -987,3 +987,25 @@ html .el-drawer:not(.is-fullscreen) {
   min-width: min(420px, 94vw);
 }
 
+
+/* ===========================================================================
+ * 21. 暗色兜底：表格与 body 必须跟随主题变量
+ *     EP 的 --el-table-bg-color 在暗色下已解析为深色，但仍有其它规则把
+ *     background 写回白色，导致夜间出现整块白表格；这里显式绑回变量。
+ * ========================================================================= */
+html .el-table,
+html .el-table tr,
+html .el-table td.el-table__cell,
+html .el-table th.el-table__cell {
+  background-color: var(--el-table-bg-color, var(--app-surface));
+}
+
+html .el-table th.el-table__cell {
+  background-color: var(--el-table-header-bg-color, var(--app-surface-2));
+}
+
+html.dark body {
+  background-color: var(--el-bg-color-page);
+  color: var(--el-text-color-primary);
+}
+
