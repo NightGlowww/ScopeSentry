@@ -263,7 +263,7 @@ let crudSchemas = reactive<CrudSchema[]>([
             <div>{statusValue}</div>
             {raw.service === 'unknown' ? (
               <ElTooltip
-                content="端口指纹未识别出服务：可能是该扫描节点缺少 fingerprintx 插件，或该端口不响应协议探测"
+                content="端口指纹未识别出服务：节点到该端口的协议探测没有回应（常见原因：网络出口被 RST、目标不响应探测，或节点缺少 fingerprintx）"
                 placement="top"
                 effect="light"
               >
@@ -283,11 +283,18 @@ let crudSchemas = reactive<CrudSchema[]>([
     minWidth: 85,
     columnKey: 'statuscode',
     formatter: (row: Recordable, __: TableColumn, statusValue: number) => {
-      if (row.type == 'other') {
-        return <div>-</div>
-      }
-      if (statusValue == null) {
-        return <div>-</div>
+      // 空值不是渲染问题：要么这条资产只有端口/指纹（type=other），要么 HTTP 探测没拿到响应。
+      // 给个解释，避免被误读成"状态码丢了"。
+      if (row.type == 'other' || statusValue == null) {
+        return (
+          <ElTooltip
+            content="没有 HTTP 探测结果：该资产只完成了端口/指纹识别，或节点到目标的 HTTP/TLS 请求没有响应（常见于出口被 RST、目标不响应）"
+            placement="top"
+            effect="light"
+          >
+            <span>-</span>
+          </ElTooltip>
+        )
       }
       let color = ''
       if (statusValue < 300) {
