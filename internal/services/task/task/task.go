@@ -307,8 +307,12 @@ func (s *service) StartTasks(ctx *gin.Context, ids []string) error {
 			// 已完成，不再启动
 			continue
 		}
+		// stopToStart 语义是「从暂停处继续，不重建目标缓存」。
+		// 新建任务（isStart=false）必须走 false，否则目标列表永远不生成，任务以 0 目标空跑。
+		resume := t.IsStart
 		t.IsStart = true
-		if _, err := s.commonService.CreateTaskScan(ctx, *t, id, true); err != nil {
+		if _, err := s.commonService.CreateTaskScan(ctx, *t, id, resume); err != nil {
+			logger.Error(fmt.Sprintf("StartTasks create scan failed task=%s resume=%v err=%v", id, resume, err))
 			continue
 		}
 		_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 1}})

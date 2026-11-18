@@ -8,17 +8,16 @@ import {
   ElRow,
   ElCol,
   ElInput,
-  ElMessageBox,
   ElMessage,
   ElButton,
-  ElDivider,
+  ElDatePicker,
+  ElAlert,
   ElText
 } from 'element-plus'
-import { Table, TableColumn } from '@/components/Table'
+import { Table } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { useRoute } from 'vue-router'
 import { getProjectServiceDataApi } from '@/api/ProjectAggregation'
-import { delDataApi } from '@/api/asset'
 const { t } = useI18n()
 const { query } = useRoute()
 onMounted(() => {
@@ -33,11 +32,10 @@ const setMaxHeight = () => {
   maxHeight.value = screenHeight * 0.8
 }
 
-const searchParams = ref('')
-const handleSearch = (data: any) => {
-  searchParams.value = data
-  getList()
-}
+// 时间范围（可选）：后端按 asset.time 字符串边界过滤
+const timeRange = ref<[string, string] | null>(null)
+const loadError = ref(false)
+
 const filter = reactive<{ [key: string]: any }>({})
 filter.project = [query.id as string]
 const filterChange = async (newFilters: any) => {
@@ -60,7 +58,8 @@ const crudSchemas = reactive<CrudSchema[]>([
     field: 'service',
     label: t('asset.service'),
     minWidth: 100,
-    formatter: (row, __: TableColumn, domainValue: string) => {
+    // 服务是聚合行：count = 该服务下资产数
+    formatter: (row, __: any, domainValue: string) => {
       if (!row.count) {
         return <ElText>{domainValue}</ElText>
       }
@@ -161,18 +160,32 @@ const crudSchemas = reactive<CrudSchema[]>([
 const { allSchemas } = useCrudSchemas(crudSchemas)
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
-    const res = await getProjectServiceDataApi('', filter, fq)
-    return {
-      list: res.data.list
+    try {
+      const res = await getProjectServiceDataApi('', filter, fq, {
+        pageIndex: tableState.currentPage.value,
+        pageSize: tableState.pageSize.value,
+        startTime: timeRange.value?.[0],
+        endTime: timeRange.value?.[1]
+      })
+      loadError.value = false
+      return {
+        list: res.data?.list || [],
+        total: res.data?.total || 0
+      }
+    } catch (error) {
+      loadError.value = true
+      ElMessage.error(t('localization.requestFailed'))
+      return { list: [], total: 0 }
     }
   },
   immediate: true
 })
-const { loading, dataList } = tableState
-const { getList, getElTableExpose } = tableMethods
+const { loading, dataList, currentPage, pageSize, total } = tableState
+const { getList } = tableMethods
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
+
 const portValue = ref('')
 const domainValue = ref('')
 const ipValue = ref('')
@@ -195,38 +208,9 @@ const filterSearchChange = async (type: string) => {
   fq[type] = value
   getList()
 }
-const ids = ref<string[]>([])
-const delSelect = async () => {
-  console.log('dwa')
-  ElMessageBox.confirm(t('common.delMessage'), t('common.delWarning'), {
-    confirmButtonText: 'OK',
-    cancelButtonText: 'Cancel',
-    type: 'warning'
-  })
-    .then(async () => {
-      const elTableExpose = await getElTableExpose()
-      const selectedRows = elTableExpose?.getSelectionRows() || []
-      ids.value = selectedRows.map((row) => row.id)
-      await delDataApi(ids.value, 'asset')
-      getList()
-    })
-    .catch(() => {
-      ElMessage({
-        type: 'info',
-        message: t('localization.deleteCanceled')
-      })
-    })
-}
-let deleteDisplay = ref(false)
-const changeDeleteDisplay = async () => {
-  const elTableExpose = await getElTableExpose()
-  const selectedRows = elTableExpose?.getSelectionRows() || []
-  ids.value = selectedRows.map((row) => row.id)
-  if (ids.value.length != 0) {
-    deleteDisplay.value = true
-  } else {
-    deleteDisplay.value = false
-  }
+const search = () => {
+  currentPage.value = 1
+  getList()
 }
 </script>
 
@@ -234,16 +218,36 @@ const changeDeleteDisplay = async () => {
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">
-        <ElButton v-if="deleteDisplay" @click="delSelect" type="danger" size="small">{{
-          t('common.delete')
-        }}</ElButton>
+        <div class="aggregation-toolbar">
+          <ElDatePicker
+            v-model="timeRange"
+            type="datetimerange"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            :start-placeholder="t('export.timeRangeStart')"
+            :end-placeholder="t('export.timeRangeEnd')"
+            clearable
+            @change="search"
+          />
+          <ElButton size="small" @click="search">{{ t('common.refresh') }}</ElButton>
+        </div>
+        <ElAlert
+          v-if="loadError"
+          class="mb-10px"
+          type="error"
+          :title="t('localization.requestFailed')"
+          :closable="false"
+          show-icon
+        />
         <Table
+          v-model:currentPage="currentPage"
+          v-model:pageSize="pageSize"
           :columns="allSchemas.tableColumns"
           :data="dataList"
           :max-height="maxHeight"
           :border="true"
           :loading="loading"
-          @selection-change="changeDeleteDisplay"
+          :empty-text="t('common.noData')"
+          :pagination="{ total, pageSizes: [20, 50, 100] }"
           rowKey="id"
           :resizable="true"
           @register="tableRegister"
@@ -262,6 +266,16 @@ const changeDeleteDisplay = async () => {
 <style lang="less" scoped>
 .el-button {
   margin-top: 10px;
+}
+.aggregation-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.aggregation-toolbar .el-button {
+  margin-top: 0;
 }
 :deep(.el-table .cell.el-tooltip) {
   white-space: pre-line;

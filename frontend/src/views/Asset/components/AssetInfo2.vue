@@ -15,7 +15,6 @@ import {
   ElCollapseItem,
   ElBadge,
   ElPagination,
-  ElLink,
   ElText,
   ElButton,
   InputInstance,
@@ -39,6 +38,7 @@ import {
   totalDataApi
 } from '@/api/asset'
 import { Icon } from '@/components/Icon'
+import { HostValueCell } from '@/components/HostValueCell'
 import { BaseButton } from '@/components/Button'
 import { useRouter } from 'vue-router'
 import { tagColorProps } from '@/utils/tagColor'
@@ -47,20 +47,21 @@ import TagColorSetting from './TagColorSetting.vue'
 import AssetAddDialog from './AssetAddDialog.vue'
 import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
+import { buildHref, normalizeHttpUrl, resolveAssetHref, splitHostValues } from '@/utils/hostLink'
 import AssetDetail2 from '../detail/AssetDetail2.vue'
 import { url } from 'inspector'
 const { push } = useRouter()
 const { t } = useI18n()
 
-// 资产列表里频繁要复制域名/IP，逐个手选太麻烦，给单元格加个复制按钮
-const copyToClipboard = async (text?: string) => {
-  if (!text) return
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success(t('common.copySuccess') || '已复制')
-  } catch {
-    ElMessage.error(t('common.copyFailed') || '复制失败')
-  }
+// 资产列表里频繁要复制域名/IP，逐个手选太麻烦，单元格的复制按钮由
+// HostValueCell 统一提供（多值时复制全量）。
+
+// 详情看板的站点卡片：旧实现把 site.host 直接当 href（相对路径，点了只会在
+// 当前页拼出 /asset-information/s3.etoro.com）。只有合法 http(s) 才给链接。
+const siteHref = (site: { type?: string; url?: string; host?: string }): string | null => {
+  const direct = normalizeHttpUrl(site?.url)
+  if (direct) return direct
+  return site?.type === 'http' ? buildHref(site?.host) : null
 }
 interface Project {
   value: string
@@ -210,32 +211,19 @@ let crudSchemas = reactive<CrudSchema[]>([
     field: 'domain',
     label: t('asset.domain'),
     minWidth: 200,
-    formatter: (row, __: TableColumn, domainValue: string) => {
+    formatter: (row, __: TableColumn, domainValue: string | string[]) => {
+      // 只有数据能证明协议（row.url 或 service=http/https）才给链接；
+      // service=unknown 的历史脏值（unknown://host）改为纯文本，不做协议猜测。
+      const values = splitHostValues(domainValue)
       return (
-        <div class="flex">
-          <Icon
-            icon="material-symbols-light:bring-your-own-ip"
-            style={'transform: translateY(35%)'}
-            size={16}
-            color="#409eff"
-          />
-          <ElLink
-            href={row.type === 'http' ? row.url : `${row.service}://${domainValue}`}
-            underline={false}
-            target="_blank"
-          >
-            {domainValue}
-          </ElLink>
-          <ElTooltip content="复制域名" placement="top">
-            <Icon aria-label="复制域名" role="button" tabindex="0"
-              icon="ep:copy-document"
-              size={13}
-              color="var(--el-text-color-placeholder)"
-              class="ml-4px cursor-pointer"
-              onClick={() => copyToClipboard(domainValue)}
-            />
-          </ElTooltip>
-        </div>
+        <HostValueCell
+          value={values}
+          href={resolveAssetHref(row, values)}
+          icon="material-symbols-light:bring-your-own-ip"
+          iconColor="#409eff"
+          iconSize={16}
+          copyLabel="复制域名"
+        />
       )
     }
   },
@@ -243,28 +231,18 @@ let crudSchemas = reactive<CrudSchema[]>([
     field: 'ip',
     label: t('asset.IP'),
     minWidth: 130,
-    formatter: (row, __: TableColumn, ipValue: string) => {
+    formatter: (row, __: TableColumn, ipValue: string | string[]) => {
+      // 旧实现把 row.url 直接当 href，url 为空时渲染 href=""（点击等于刷新当前页）；
+      // 这里只认合法的 http(s) url，其余渲染纯文本。
       return (
-        <div class="flex">
-          <Icon
-            icon="arcticons:ip-tools"
-            style={'transform: translateY(30%)'}
-            size={14}
-            color="var(--el-text-color-secondary)"
-          />
-          <ElLink href={row.url} underline={false}>
-            {ipValue}
-          </ElLink>
-          <ElTooltip content="复制 IP" placement="top">
-            <Icon aria-label="复制 IP" role="button" tabindex="0"
-              icon="ep:copy-document"
-              size={13}
-              color="var(--el-text-color-placeholder)"
-              class="ml-4px cursor-pointer"
-              onClick={() => copyToClipboard(ipValue)}
-            />
-          </ElTooltip>
-        </div>
+        <HostValueCell
+          value={ipValue}
+          href={normalizeHttpUrl(row.url)}
+          icon="arcticons:ip-tools"
+          iconColor="var(--el-text-color-secondary)"
+          iconSize={14}
+          copyLabel="复制 IP"
+        />
       )
     }
   },
@@ -1311,11 +1289,12 @@ const confirmSelectedIcons = () => {
                 :span="20"
                 style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
               >
-                <ElLink
-                  :underline="false"
+                <a
+                  v-if="siteHref(site)"
+                  :href="siteHref(site) || undefined"
                   target="_blank"
-                  :href="site.type == 'http' ? site.url : site.host"
-                  style="font-weight: bold; color: #60a0ef"
+                  rel="noopener noreferrer"
+                  class="site-link"
                 >
                   <Icon
                     icon="carbon:link"
@@ -1324,7 +1303,10 @@ const confirmSelectedIcons = () => {
                     v-if="site.type == 'http'"
                   />
                   {{ site.type == 'http' ? site.url : site.host }}
-                </ElLink>
+                </a>
+                <ElText v-else style="font-weight: bold">
+                  {{ site.type == 'http' ? site.url : site.host }}
+                </ElText>
               </ElCol>
               <ElCol :span="4">
                 <ElTag>{{ site.port }}</ElTag>
@@ -1366,6 +1348,14 @@ const confirmSelectedIcons = () => {
 }
 </style>
 <style lang="less" scoped>
+.site-link {
+  font-weight: bold;
+  color: #60a0ef;
+  text-decoration: none;
+}
+.site-link:hover {
+  text-decoration: underline;
+}
 .icon-selection-float-abs {
   left: 0; // 靠左对齐icon块
   bottom: 100%; // 下边界紧贴icon块上边界
