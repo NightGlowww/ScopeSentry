@@ -7,7 +7,8 @@ import {
   ElTooltipProps,
   ElImage,
   ElEmpty,
-  ElCard
+  ElCard,
+  ElSkeleton
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { defineComponent, PropType, ref, computed, unref, watch, onMounted } from 'vue'
@@ -577,19 +578,26 @@ export default defineComponent({
                   onRefresh={refresh}
                 />
               ) : null}
-              <ElTable
-                ref={elTableRef}
-                data={unref(getProps).data}
-                {...unref(getBindValue)}
-                height={unref(computedHeight)}
-                table-layout={unref(getProps).tableLayout}
-                scrollbar-always-on
-              >
-                {{
-                  default: () => renderTableColumn(),
-                  ...tableSlots
-                }}
-              </ElTable>
+              {unref(getProps).loading && !(unref(getProps).data || []).length ? (
+                /* 首次加载且还没有数据时用骨架屏，避免整块卡片先白一下 */
+                <div class="px-4 py-6">
+                  <ElSkeleton rows={6} animated />
+                </div>
+              ) : (
+                <ElTable
+                  ref={elTableRef}
+                  data={unref(getProps).data}
+                  {...unref(getBindValue)}
+                  height={unref(computedHeight)}
+                  table-layout={unref(getProps).tableLayout}
+                  scrollbar-always-on
+                >
+                  {{
+                    default: () => renderTableColumn(),
+                    ...tableSlots
+                  }}
+                </ElTable>
+              )}
             </>
           )}
           {unref(getProps).pagination ? (
