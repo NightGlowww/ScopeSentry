@@ -203,7 +203,8 @@ let crudSchemas = reactive<CrudSchema[]>([
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    minWidth: 15
+    minWidth: 60,
+    align: 'center'
   },
   {
     field: 'domain',
@@ -547,19 +548,20 @@ let crudSchemas = reactive<CrudSchema[]>([
     label: t('asset.banner'),
     fit: 'true',
     formatter: (row: Recordable, __: TableColumn, bannerValue: string) => {
-      if (row.type == 'other') {
-        return (
-          <ElScrollbar>
-            <div class="scrollbar-demo-item">{row.metadata}</div>
-          </ElScrollbar>
-        )
-      }
-      const lines = bannerValue.split('\n')
-      const elements = lines.map((line, index) => <div key={index}>{line}</div>)
+      // 之前用 150px 的 ElScrollbar，每行都被撑到 150px+，整张表又高又乱。
+      // 改成 3 行截断 + tooltip 看全文。
+      const content = row.type == 'other' ? row.metadata : bannerValue
+      if (!content) return '-'
+      const text = String(content).trim()
+      if (!text) return '-'
       return (
-        <ElScrollbar height="150px">
-          <div class="scrollbar-demo-item">{elements}</div>
-        </ElScrollbar>
+        <ElTooltip
+          placement="top-start"
+          rawContent
+          content={<pre class="banner-tooltip">{text}</pre>}
+        >
+          <div class="banner-clamp">{text}</div>
+        </ElTooltip>
       )
     },
     minWidth: 190
@@ -644,10 +646,14 @@ let crudSchemas = reactive<CrudSchema[]>([
             key={`${row.id}-${row.ResponseBodyHash}`}
             src={imageSrc}
             alt="screenshot"
+            /* 缩略图：固定高度，避免整行被撑到 150px+ */
             style={{
-              width: '100%',
-              height: 'auto',
-              maxHeight: '250px'
+              height: '48px',
+              width: 'auto',
+              maxWidth: '120px',
+              objectFit: 'cover',
+              borderRadius: '4px',
+              cursor: 'zoom-in'
             }}
             onError={(e) => {
               // 404 或其他错误时，隐藏图片（不显示裂开的图片）
