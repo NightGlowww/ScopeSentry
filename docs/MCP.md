@@ -99,3 +99,17 @@ curl -s http://127.0.0.1:8082/mcp \
 ## 工具总数
 
 34 + 8 = 42。
+
+## 数据导出（v2.0.82 新增，共 4 个）
+
+`list_export_records`（asset:read）历史导出记录：文件名、类型、状态、大小
+`get_export_fields`（asset:read）某类数据可导出的字段列表
+`create_export_task`（asset:write）异步创建导出任务，返回 `fileName`
+`delete_export_files`（asset:write）删除导出文件与记录
+
+> `fileType` 只支持 `xlsx` / `json`：导出文件名校验（`IsValidFileName`）不接受 `csv`，传 csv 会在删除阶段被拒。
+> `quantity` 是导出条数上限（`SetLimit`），默认 1000，最大 200000；`fields` 必填，可先用 `get_export_fields` 查。
+
+## 工具总数
+
+42 + 4 = 46。

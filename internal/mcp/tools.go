@@ -25,6 +25,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/vulnerability"
 	"github.com/Autumn-27/ScopeSentry/internal/services/dashboard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
+	"github.com/Autumn-27/ScopeSentry/internal/services/export"
 	"github.com/Autumn-27/ScopeSentry/internal/services/fingerprint"
 	"github.com/Autumn-27/ScopeSentry/internal/services/mcpguard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
@@ -36,7 +37,9 @@ import (
 	taskCommon "github.com/Autumn-27/ScopeSentry/internal/services/task/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/template"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.uber.org/zap"
 )
@@ -67,6 +70,7 @@ type deps struct {
 	dashboardService     dashboard.Service
 	policyService        *policy.Service
 	sensitiveRuleService sensitive_rule.Service
+	exportService        export.Service
 }
 
 var d = &deps{
@@ -95,6 +99,7 @@ var d = &deps{
 	dashboardService:     dashboard.NewService(),
 	policyService:        policy.NewService(),
 	sensitiveRuleService: sensitive_rule.NewService(),
+	exportService:        export.NewService(),
 }
 
 func registerTools(server *mcp.Server, allowedTools map[string]bool) {
@@ -312,6 +317,27 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "delete_dictionary_entries",
 		Description: "删除字典中的指定行",
 	}, deleteDictionaryEntries)
+
+	// ---- 数据导出 ----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_export_records",
+		Description: "列出历史导出记录（文件名、类型、状态、大小）",
+	}, listExportRecords)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_export_fields",
+		Description: "查询某类数据可导出的字段列表",
+	}, getExportFields)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_export_task",
+		Description: "创建数据导出任务（异步生成文件），返回文件名用于后续下载/删除",
+	}, createExportTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_export_files",
+		Description: "删除导出的文件与记录",
+	}, deleteExportFiles)
 
 	recordToolNames(names)
 	warnUnregisteredTools(names)
@@ -1581,4 +1607,126 @@ func deleteDictionaryEntries(ctx context.Context, _ *mcp.CallToolRequest, input 
 		return errorResult("删除字典行失败", err)
 	}
 	return jsonToolResult(res)
+}
+
+// ---------------------------------------------------------------------------
+// 数据导出
+// ---------------------------------------------------------------------------
+
+func listExportRecords(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	if d.exportService == nil {
+		return errorResult("导出服务未初始化", nil)
+	}
+	records, err := d.exportService.GetExportRecords(ctx)
+	if err != nil {
+		return errorResult("获取导出记录失败", err)
+	}
+	return jsonToolResult(ginH{"list": records})
+}
+
+type getExportFieldsInput struct {
+	Index string `json:"index" jsonschema:"数据类型，如 asset/subdomain/url/ip/poc/vulnerability"`
+}
+
+func getExportFields(ctx context.Context, _ *mcp.CallToolRequest, input getExportFieldsInput) (*mcp.CallToolResult, any, error) {
+	if d.exportService == nil {
+		return errorResult("导出服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Index) == "" {
+		return errorResult("index 不能为空", nil)
+	}
+	fields, err := d.exportService.GetExportFields(ctx, input.Index)
+	if err != nil {
+		return errorResult("获取导出字段失败", err)
+	}
+	return jsonToolResult(ginH{"index": input.Index, "fields": fields})
+}
+
+type createExportTaskInput struct {
+	Index            string                   `json:"index" jsonschema:"数据类型，如 asset/subdomain/url/ip"`
+	Fields           []string                 `json:"fields" jsonschema:"要导出的字段列表，可先用 get_export_fields 查询"`
+	FileType         string                   `json:"fileType,omitempty" jsonschema:"文件类型：xlsx/json，默认 xlsx（csv 会被导出文件名校验拒绝）"`
+	Quantity         int                      `json:"quantity,omitempty" jsonschema:"导出行数上限，默认 1000，最大 200000"`
+	SearchExpression string                   `json:"searchExpression,omitempty" jsonschema:"搜索表达式，语法同列表页搜索框"`
+	Filter           map[string][]interface{} `json:"filter,omitempty" jsonschema:"字段过滤条件"`
+}
+
+func createExportTask(ctx context.Context, _ *mcp.CallToolRequest, input createExportTaskInput) (*mcp.CallToolResult, any, error) {
+	if d.exportService == nil {
+		return errorResult("导出服务未初始化", nil)
+	}
+	if strings.TrimSpace(input.Index) == "" || len(input.Fields) == 0 {
+		return errorResult("index 与 fields 不能为空", nil)
+	}
+	fileType := input.FileType
+	if strings.TrimSpace(fileType) == "" {
+		fileType = "xlsx"
+	}
+	switch fileType {
+	case "xlsx", "json":
+	default:
+		return errorResult("fileType 只支持 xlsx/json", nil)
+	}
+	qty := input.Quantity
+	if qty <= 0 {
+		qty = 1000
+	}
+	if qty > 200000 {
+		qty = 200000
+	}
+	searchQuery, err := helper.GetSearchQuery(models.SearchRequest{
+		Index:            input.Index,
+		SearchExpression: input.SearchExpression,
+		Filter:           input.Filter,
+	})
+	if err != nil {
+		return errorResult("构建查询条件失败", err)
+	}
+	fileName := uuid.NewString() + "." + fileType
+	if err := d.exportService.CreateExportTask(ctx, &models.ExportTask{
+		FileName:   fileName,
+		CreateTime: helper.GetNowTimeString(),
+		Quantity:   qty,
+		DataType:   input.Index,
+		FileType:   fileType,
+		State:      0,
+	}); err != nil {
+		return errorResult("创建导出任务失败", err)
+	}
+	go d.exportService.ProcessExportTask(context.Background(), models.ExportRun{
+		Filter:   searchQuery,
+		FileName: fileName,
+		Index:    input.Index,
+		FileType: fileType,
+		Field:    input.Fields,
+		Quantity: qty,
+	})
+	return jsonToolResult(ginH{"ok": true, "fileName": fileName, "quantity": qty, "fileType": fileType})
+}
+
+type deleteExportFilesInput struct {
+	FileNames []string `json:"fileNames" jsonschema:"导出文件名列表（来自 list_export_records）"`
+}
+
+func deleteExportFiles(ctx context.Context, _ *mcp.CallToolRequest, input deleteExportFilesInput) (*mcp.CallToolResult, any, error) {
+	if d.exportService == nil {
+		return errorResult("导出服务未初始化", nil)
+	}
+	names := make([]string, 0, len(input.FileNames))
+	for _, n := range input.FileNames {
+		if strings.TrimSpace(n) == "" {
+			continue
+		}
+		if !d.exportService.IsValidFileName(n) {
+			return errorResult("非法文件名: "+n, nil)
+		}
+		names = append(names, n)
+	}
+	if len(names) == 0 {
+		return errorResult("fileNames 不能为空", nil)
+	}
+	if err := d.exportService.DeleteExportFiles(ctx, names); err != nil {
+		return errorResult("删除导出文件失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "deleted": len(names)})
 }

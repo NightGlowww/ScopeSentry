@@ -85,6 +85,10 @@ var ToolScopes = map[string]string{
 	"append_dictionary_lines":   ScopeAssetWrite,
 	"delete_dictionary":         ScopeAssetWrite,
 	"delete_dictionary_entries": ScopeAssetWrite,
+	"list_export_records":       ScopeAssetRead,
+	"get_export_fields":         ScopeAssetRead,
+	"create_export_task":        ScopeAssetWrite,
+	"delete_export_files":       ScopeAssetWrite,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）
