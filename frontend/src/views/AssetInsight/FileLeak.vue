@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { computed, reactive, ref } from 'vue'
 import {
+  ElAlert,
   ElButton,
   ElCol,
   ElInput,
@@ -200,6 +201,13 @@ const handleDelete = async () => {
 
 <template>
   <ContentWrap>
+    <ElAlert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+      :title="t('fileLeak.noSourceHint')"
+    />
     <ElRow :gutter="12" class="filter-row">
       <ElCol :span="5">
         <ElInput

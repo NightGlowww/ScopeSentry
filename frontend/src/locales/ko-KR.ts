@@ -493,6 +493,7 @@ export default {
       '서비스는 자산 포트 식별과 핑거프린트 탐지에서 나옵니다. 포트 스캔이 포함된 스캔 작업을 실행하면 탐지된 서비스가 서비스 이름별로 이곳에 집계됩니다.'
   },
   fileLeak: {
+    noSourceHint: "파일 유출 결과는 노드가 asset_fileleak에 기록해야 하지만 아직 구현되지 않아 항상 비어 있습니다.",
     url: 'URL',
     site: '사이트',
     title: '제목',
@@ -509,6 +510,7 @@ export default {
       '데이터는 스캐너 측 파일 유출 탐지에서 나옵니다. 노드가 파일 유출 모듈을 실행한 뒤에야 해당 기록이 이곳에 나타납니다. 목록이 비어 있다면 해당 노드가 업그레이드되었는지, 모듈을 실행했는지 확인하세요.'
   },
   npocService: {
+    noSourceHint: "NPoC 서비스 결과는 노드가 asset_npoc_service에 기록해야 하지만 아직 구현되지 않아 항상 비어 있습니다.",
     scheme: '스킴',
     host: '호스트',
     port: '포트',
@@ -523,6 +525,7 @@ export default {
       '데이터는 스캐너 측 NPoC 서비스 식별에서 나옵니다. 노드가 NPoC 모듈을 실행한 뒤에야 식별된 서비스가 이곳에 나타납니다. 목록이 비어 있다면 해당 노드가 업그레이드되었는지, 모듈을 실행했는지 확인하세요.'
   },
   cip: {
+    noSourceHint: "ICP 정보는 RootDomain.icp/company 기반 읽기 모델이며 기록 주체가 없어 항상 비어 있습니다.",
     company: '기관명',
     companyUnknown: '알 수 없는 기관',
     companyPlaceholder: '기관명 정확히 입력',

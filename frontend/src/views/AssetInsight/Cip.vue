@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { reactive, ref } from 'vue'
 import {
+  ElAlert,
   ElButton,
   ElCol,
   ElDescriptions,
@@ -167,6 +168,13 @@ const onDomainSizeChange = (size: number) => {
 
 <template>
   <ContentWrap>
+    <ElAlert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+      :title="t('cip.noSourceHint')"
+    />
     <ElRow :gutter="12" class="filter-row">
       <ElCol :span="5">
         <ElInput
