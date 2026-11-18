@@ -85,7 +85,7 @@ const crudSchemas = reactive<CrudSchema[]>([
     minWidth: 250,
     formatter: (_, __: TableColumn, url: string) => {
       return (
-        <div class="flex items-center">
+        <div class="url-cell">
           <ElLink href={url} underline={false} target="_blank">
             {url}
           </ElLink>
@@ -476,5 +476,25 @@ const getFilter = () => {
 <style lang="less" scoped>
 .el-button {
   margin-top: 10px;
+}
+
+/* URL 很长时，复制图标会被单元格式的 overflow 裁掉；
+   让链接负责省略号，图标固定不收缩 */
+.url-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.url-cell :deep(.el-link) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-cell :deep(.el-icon) {
+  flex: 0 0 auto;
 }
 </style>
