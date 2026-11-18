@@ -600,7 +600,7 @@ export default defineComponent({
               )}
             </>
           )}
-          {unref(getProps).pagination ? (
+          {unref(getProps).pagination && (unref(pagination).total ?? 0) > 0 ? (
             <ElPagination
               v-model:pageSize={pageSizeRef.value}
               v-model:currentPage={currentPageRef.value}
