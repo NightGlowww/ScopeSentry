@@ -198,6 +198,11 @@ const confirmDelete = async (data) => {
   }
 }
 const delLoading = ref(false)
+// 未勾选计划任务时，批量删除禁用
+const tableSelectedCount = ref(0)
+const handleTableSelectionChange = (rows: unknown[]) => {
+  tableSelectedCount.value = rows?.length ?? 0
+}
 const del = async (data) => {
   delLoading.value = true
   try {
@@ -326,7 +331,12 @@ const addTask = async () => {
       <ElCol style="position: relative; top: 16px">
         <div class="mb-10px">
           <BaseButton type="primary" @click="addTask">{{ t('task.addScheduled') }}</BaseButton>
-          <BaseButton type="danger" :loading="delLoading" @click="confirmDeleteSelect">
+          <BaseButton
+        type="danger"
+        :loading="delLoading"
+        :disabled="tableSelectedCount === 0"
+        @click="confirmDeleteSelect"
+      >
             {{ t('task.delTask') }}
           </BaseButton>
         </div>
@@ -359,6 +369,7 @@ const addTask = async () => {
           total: total,
           pageSizes: [20, 30, 50, 100, 200, 500, 1000]
         }"
+        @selection-change="handleTableSelectionChange"
         @register="tableRegister"
         :headerCellStyle="tableHeaderColor"
         :style="{

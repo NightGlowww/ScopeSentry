@@ -48,8 +48,12 @@ async function uiAudit(routes, opts) {
 
     const skeletonVisible = [...document.querySelectorAll('.el-skeleton')].filter(vis).length
 
+    // 路由不存在时会渲染 404 页，此时所有指标都是 0，容易误判为"干净"
+    const notFound = /页面不存在/.test(document.body.innerText || '')
+
     out.push({
       route,
+      notFound,
       pageOverflow: Math.max(0, document.documentElement.scrollWidth - vw),
       tables: tables.length,
       rows,
