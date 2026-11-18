@@ -22,12 +22,12 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'name',
     label: t('node.nodeName'),
-    minWidth: 20
+    minWidth: 180
   },
   {
     field: 'maxTaskNum',
     label: t('configuration.maxTaskNum'),
-    minWidth: 10,
+    width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(
         ElTag,
@@ -41,7 +41,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'running',
     label: t('node.taskCount'),
-    minWidth: 10,
+    width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(
         ElTag,
@@ -57,7 +57,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'finished',
     label: t('node.finished'),
-    minWidth: 10,
+    width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       return h(
         ElTag,
@@ -73,7 +73,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'cpuNum',
     label: t('node.nodeUsageCpu'),
-    minWidth: 20,
+    width: 100,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       let numericValue = parseFloat(cellValue)
       numericValue = parseFloat(numericValue.toFixed(2))
@@ -92,7 +92,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'memNum',
     label: t('node.nodeUsageMemory'),
-    minWidth: 20,
+    width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       let numericValue = parseFloat(cellValue)
       numericValue = parseFloat(numericValue.toFixed(2))
@@ -111,7 +111,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('node.nodeStatus'),
-    minWidth: 20,
+    width: 110,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       return h(
         ElTag,
@@ -132,14 +132,15 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'updateTime',
     label: t('node.updateTime'),
-    // 20px 的列宽装不下 "2026-11-18 12:52:34"，右侧永远被截成 "2026-11-18 12:5…"。
-    minWidth: 175,
+    // 时间戳需要约 175px，小于这个值右侧会被截断
+    width: 180,
     showOverflowTooltip: true
   },
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 30,
+    minWidth: 260,
+    fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       console.log(row)
       return (

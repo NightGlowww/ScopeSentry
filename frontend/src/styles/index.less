@@ -93,3 +93,13 @@ button:focus-visible,
 #v-tool-header .custom-hover:hover {
   background-color: var(--top-header-hover-color, var(--el-fill-color-light));
 }
+
+/* 搜索栏标签列：Element 的 span=1 只有 4% 宽，中文标签会被折成两行（如“模板名 / 称:”）。
+   统一让这类列按内容收缩、标签不换行，避免每个页面单独改布局。 */
+.el-row > .el-col:has(> .mx-1) {
+  flex: 0 0 auto !important;
+  max-width: none !important;
+}
+.el-row > .el-col > .mx-1 {
+  white-space: nowrap;
+}
