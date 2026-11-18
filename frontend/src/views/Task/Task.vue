@@ -312,7 +312,8 @@ const confirmDeleteSelect = async () => {
 
 const confirmStopSelect = async () => {
   ElMessageBox({
-    title: 'Stop Task',
+    title: t('task.stop'),
+    message: t('task.confirmStopSelected'),
     draggable: true
   }).then(async () => {
     await stopTaskSelect()
@@ -335,7 +336,8 @@ const stopTaskSelect = async () => {
 }
 const confirmStartSelect = async () => {
   ElMessageBox({
-    title: 'Start Task',
+    title: t('task.start'),
+    message: t('task.confirmStartSelected'),
     draggable: true
   }).then(async () => {
     await startTaskSelect()

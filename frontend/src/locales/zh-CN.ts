@@ -876,6 +876,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    confirmStopSelected: '暂停选中的任务？暂停后可以继续，未完成的查询会保留。',
+    confirmStartSelected: '继续选中的任务？会从上次暂停的位置接着查。',
     done: '完成',
     taskName: '任务名称',
     taskCount: '任务数量',

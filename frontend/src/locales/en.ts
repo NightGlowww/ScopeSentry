@@ -907,6 +907,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    confirmStopSelected: 'Pause the selected tasks? You can resume later.',
+    confirmStartSelected: 'Resume the selected tasks from where they stopped.',
     done: 'Done',
     pageMonitoring: 'Monitor page changes',
     taskName: 'Task Name',
