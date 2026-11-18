@@ -42,6 +42,8 @@ type Job struct {
 
 // Scheduler 表示计划任务调度器
 type Scheduler struct {
+	// started 标记 Start() 是否已执行；之后注册 handler 需要回头补排历史任务
+	started        bool
 	scheduler      *gocron.Scheduler
 	db             *mongo.Database
 	jobsCollection *mongo.Collection
@@ -54,6 +56,9 @@ var (
 	globalScheduler *Scheduler
 	once            sync.Once
 )
+
+// 启动后注册的 handler（例如 github intel 在调度器 Start 之后才注册）
+// 需要把库里已存在但当时被跳过的任务补排进来，否则它永远只在 DB 里躺着。
 
 // GetGlobalScheduler 获取全局调度器实例
 func GetGlobalScheduler() *Scheduler {
@@ -97,12 +102,41 @@ func NewScheduler() *Scheduler {
 func (s *Scheduler) RegisterHandler(name string, handler JobHandler) {
 	s.handlers[name] = handler
 	s.logger.Info("Registered job handler", zap.String("handler_name", name))
+	if s.started {
+		s.schedulePendingForHandler(name)
+	}
+}
+
+// schedulePendingForHandler 补排库里属于该 handler、但还没排进内存的任务。
+// 场景：调度器 Start() 先于某个模块的 RegisterHandler()，loadJobs 只能跳过。
+func (s *Scheduler) schedulePendingForHandler(name string) {
+	cursor, err := s.jobsCollection.Find(context.Background(), bson.M{"handler": name})
+	if err != nil {
+		s.logger.Error("Failed to load pending jobs", zap.String("handler", name), zap.Error(err))
+		return
+	}
+	defer cursor.Close(context.Background())
+	for cursor.Next(context.Background()) {
+		var job Job
+		if err := cursor.Decode(&job); err != nil {
+			continue
+		}
+		if _, exists := s.jobs[job.ID]; exists {
+			continue
+		}
+		if !s.scheduleJob(job) {
+			continue
+		}
+		s.logger.Info("Late-registered handler scheduled its job",
+			zap.String("job_id", job.ID), zap.String("handler", name))
+	}
 }
 
 // Start 启动调度器
 func (s *Scheduler) Start() {
 	s.scheduler.StartAsync()
 	s.loadJobs()
+	s.started = true
 }
 
 // Stop 停止调度器
@@ -237,22 +271,38 @@ func (s *Scheduler) loadJobs() {
 			continue
 		}
 
-		// 检查处理函数是否已注册
+		// 检查处理函数是否已注册：后注册的 handler 会在 RegisterHandler 里补排，
+		// 这里只提示，不当成错误（历史上每次启动都刷一条 ERROR）
 		if _, exists := s.handlers[job.Handler]; !exists {
-			s.logger.Error("Handler not registered for job",
+			s.logger.Warn("Job handler not registered yet, deferred until it registers",
 				zap.String("job_id", job.ID),
 				zap.String("handler", job.Handler),
 			)
 			continue
 		}
-
-		schedJob, err := s.scheduler.Cron(job.Schedule).Do(s.executeJob, &job)
-		if err != nil {
-			s.logger.Error("Failed to schedule job", zap.Error(err))
-			continue
-		}
-		s.jobs[job.ID] = schedJob
+		s.scheduleJob(job)
 	}
+}
+
+// scheduleJob 把一条 job 排进内存（cron / interval 两种周期）。成功返回 true。
+func (s *Scheduler) scheduleJob(job Job) bool {
+	// executeJob 收的是 *Job；这里必须传指针，传值会在 gocron 反射调用时 panic
+	jobCopy := job
+	var schedJob *gocron.Job
+	var err error
+	if job.CycleType == "interval" {
+		schedJob, err = s.scheduler.Every(job.Interval.Days).Days().
+			At(fmt.Sprintf("%02d:%02d", job.Interval.Hours, job.Interval.Minutes)).
+			Do(s.executeJob, &jobCopy)
+	} else {
+		schedJob, err = s.scheduler.Cron(job.Schedule).Do(s.executeJob, &jobCopy)
+	}
+	if err != nil {
+		s.logger.Error("Failed to schedule job", zap.String("job_id", job.ID), zap.Error(err))
+		return false
+	}
+	s.jobs[job.ID] = schedJob
+	return true
 }
 
 // executeJob 执行任务
