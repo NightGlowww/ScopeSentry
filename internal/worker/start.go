@@ -16,7 +16,6 @@ func Run() {
 	ctx, cancel := context.WithCancel(context.Background())
 	// 退出时释放，避免 context 泄漏
 	defer cancel()
-	go IconHandle(ctx)
 	go ScreenshotHandle(ctx)
 	go IPAssetHandle(ctx)
 	time.Sleep(3 * time.Second)
