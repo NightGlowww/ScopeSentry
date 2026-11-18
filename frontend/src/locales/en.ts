@@ -4,6 +4,7 @@ export default {
     system: { version: { success: 'Version information retrieved' } }
   },
   common: {
+    allPoc: 'All POCs',
     newTag: '+ New Tag',
     changeLanguageMessage:
       'Changing the language resets the current view and unsaved input. Requests already sent may still complete. Continue?',
