@@ -353,7 +353,9 @@ onUnmounted(() => {
       @selection-change="handleSelectionChange"
     />
 
+    <!-- 空数据时不渲染分页器（与共享 Table 的行为一致） -->
     <ElPagination
+      v-if="total > 0"
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
       class="mt-10px"
