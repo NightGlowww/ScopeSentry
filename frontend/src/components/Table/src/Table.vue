@@ -513,6 +513,14 @@ export default defineComponent({
       })
     }
 
+    // 有些页面把 ref 直接塞进 pagination 对象（total 是 Ref），
+    // 直接判断真值会把「共 0 条」也当成有数据，分页器就留在空表上
+    const paginationTotal = computed(() => {
+      const raw: any = unref(pagination).total
+      const v = raw && typeof raw === 'object' && 'value' in raw ? raw.value : raw
+      return Number(v ?? 0)
+    })
+
     return () => {
       const tableSlots = {}
       if (getSlot(slots, 'empty')) {
@@ -600,7 +608,7 @@ export default defineComponent({
               )}
             </>
           )}
-          {unref(getProps).pagination && (unref(pagination).total ?? 0) > 0 ? (
+          {unref(getProps).pagination && unref(paginationTotal) > 0 ? (
             <ElPagination
               v-model:pageSize={pageSizeRef.value}
               v-model:currentPage={currentPageRef.value}

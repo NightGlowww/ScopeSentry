@@ -200,6 +200,11 @@ const edit = (data) => {
   console.log(notificationId.value)
 }
 const delLoading = ref(false)
+// 通知配置的删除是批量操作，未勾选时禁用
+const tableSelectedCount = ref(0)
+const handleTableSelectionChange = (rows: unknown[]) => {
+  tableSelectedCount.value = rows?.length ?? 0
+}
 const del = async (data) => {
   delLoading.value = true
   try {
@@ -255,7 +260,12 @@ const delSelect = async () => {
           <BaseButton type="primary" @click="addNotification">{{
             t('configuration.newWebhookConfig')
           }}</BaseButton>
-          <BaseButton type="danger" :loading="delLoading" @click="confirmDelete">
+          <BaseButton
+        type="danger"
+        :loading="delLoading"
+        :disabled="tableSelectedCount === 0"
+        @click="confirmDelete"
+      >
             {{ t('common.delete') }}
           </BaseButton>
         </div>
@@ -263,6 +273,7 @@ const delSelect = async () => {
     </ElRow>
     <div style="position: relative; top: 12px">
       <Table
+      @selection-change="handleTableSelectionChange"
         :data="dataList"
         :columns="taskColums"
         stripe
