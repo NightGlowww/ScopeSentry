@@ -26,8 +26,11 @@ echo "[build] restore /map assets"
 if [ -n "$(ls -A "$tmp")" ]; then cp -a "$tmp/." cmd/main/static/; fi
 
 echo "[build] go build linux/amd64"
+VERSION="$(python3 -c 'import json;print(json.load(open("version.json"))["server"])')"
+echo "[build] version: $VERSION"
 mkdir -p dist/ScopeSentry_linux_amd64_v1
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" \
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+  -ldflags "-s -w -X github.com/Autumn-27/ScopeSentry/internal/constants.Version=${VERSION}" \
   -o dist/ScopeSentry_linux_amd64_v1/ScopeSentry ./cmd/main
 
 ls -lh dist/ScopeSentry_linux_amd64_v1/ScopeSentry
