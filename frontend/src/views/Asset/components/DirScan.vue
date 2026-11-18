@@ -20,6 +20,7 @@ import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getDirScanApi, totalDataApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
+import { formatBytes } from '@/utils/format'
 const { t } = useI18n()
 interface Project {
   value: string
@@ -142,7 +143,10 @@ const crudSchemas = reactive<CrudSchema[]>([
     field: 'length',
     label: t('dirScan.length'),
     minWidth: 120,
-    sortable: 'custom'
+    sortable: 'custom',
+    formatter: (_: Recordable, __: TableColumn, length: number) => (
+      <span title={String(length ?? '')}>{formatBytes(length)}</span>
+    )
   },
   {
     field: 'msg',
