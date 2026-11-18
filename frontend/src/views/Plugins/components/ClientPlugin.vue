@@ -63,18 +63,18 @@ const taskColums = reactive<TableColumn[]>([
     field: 'index',
     label: t('tableDemo.index'),
     type: 'index',
-    width: 56
+    width: 50
   },
   {
     field: 'selection',
     type: 'selection',
-    width: 48,
+    width: 44,
     selectable: (row) => !row.isSystem
   },
   {
     field: 'name',
     label: t('plugin.name'),
-    minWidth: 190,
+    minWidth: 170,
     showOverflowTooltip: true,
     formatter: (row, __: TableColumn, value: string) => {
       return (
@@ -92,7 +92,7 @@ const taskColums = reactive<TableColumn[]>([
     field: 'module',
     label: t('plugin.module'),
     /* 模块是定长枚举（PortFingerprint 最长 15 字符），给固定宽度，避免被挤成 “PortFingerpr…” */
-    width: 156,
+    width: 140,
     formatter: (_, __: TableColumn, value: string) => {
       const color = moduleColorMap[value] || '#FFFFFF' // 默认白色
       return <ElTag style={{ backgroundColor: color, color: '#000' }}>{value}</ElTag>
@@ -101,33 +101,14 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'version',
     label: t('plugin.version'),
-    width: 84
-  },
-  {
-    field: 'parameter',
-    label: t('plugin.parameter'),
-    minWidth: 220,
-    showOverflowTooltip: true,
-    formatter: (row, __: TableColumn, value: string) => {
-      return (
-        <ElTooltip content={row.help} placement="top" effect="light">
-          <span style="cursor: pointer;">{value}</span>
-        </ElTooltip>
-      )
-    }
-  },
-  {
-    field: 'introduction',
-    label: t('plugin.introduction'),
-    minWidth: 180,
-    showOverflowTooltip: true
+    width: 70
   },
   {
     field: 'action',
     label: t('tableDemo.action'),
     /* 按内容收口：操作下拉 + 日志/清除日志/编辑/删除 共 5 个控件，320 足够，
        之前 450 会留出一条空白把表格撑宽 */
-    width: 320,
+    width: 300,
     fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
@@ -564,6 +545,7 @@ defineExpose({
         :border="true"
         :loading="loading"
         :resizable="true"
+        scrollbar-always-on
         :pagination="{
           total: total,
           pageSizes: [20, 30, 50, 100, 200, 500, 1000]
