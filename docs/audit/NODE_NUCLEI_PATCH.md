@@ -51,3 +51,16 @@ YAML
 
 - 读模型 vulname/vulnname、rootdomain/rootDomain 双拼写解码 + keyword $or 分支（v2.0.118）；
 - 扫描模板页面将新增提示：-t 当前节点仅支持单文件，全量模板会被静默忽略。
+## 决定性实验（2026-11-19 04:18–04:24）
+
+用全模块模板（VulList=All Poc，服务端追加 `-t *`）+ 一个必然命中的 canary 模板（放在 /apps/poc/zz-canary-sst-1795.yaml）：
+
+```
+04:18:59  [Plugins nuclei] target [https://example.com] start
+04:23:58  [Plugins nuclei] target [https://example.com] run time: 4m59.29s
+vulnerability(canary) = 0
+```
+
+对照：同一 canary 用显式单文件 `-t /apps/poc/zz-canary-….yaml` 执行 —— `run time: 957.86ms`，命中并落库 2 条。
+
+结论：`-t *` **会跑满 5 分钟但不会执行 /apps/poc 下的用户 POC**（canary 一次都没被请求）；「全部 POC」在当前节点上等价于空跑。单文件是唯一可用形态。
