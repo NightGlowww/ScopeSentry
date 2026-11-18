@@ -22,6 +22,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskpolicy"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"regexp"
@@ -46,6 +47,8 @@ type service struct {
 	nodeService       node.Service
 	dictionaryService dictionary.ManageService
 	portsService      dictionary.PortService
+	// policyTasks 扫描策略消费端（docs/audit/SCAN_POLICY.md）：未选策略时整条链路不触达
+	policyTasks *taskpolicy.Service
 }
 
 // NewService 创建任务服务实例
@@ -60,6 +63,7 @@ func NewService() Service {
 		nodeService:       node.NewService(),
 		dictionaryService: dictionary.NewManageService(),
 		portsService:      dictionary.NewPortService(),
+		policyTasks:       taskpolicy.NewService(),
 	}
 }
 
@@ -153,6 +157,9 @@ func (s *service) Insert(ctx context.Context, task *models.Task) (string, error)
 	// 等节点产出进度后由 TaskProgress 转为运行中（1）。见 issue #288。
 	task.Status = constants.TaskStatusPending
 	task.Type = task.TargetSource
+	// 扫描策略接入：任务带了 policyId 才消费。任务没填模板时用策略的 templateId 兜底并随任务落库；
+	// 任务已填模板则以任务为准（用户选择优先）。策略缺失 / 停用只记日志、按模板默认值继续。
+	s.applyTaskPolicy(ctx, task)
 	insertId, err := s.taskRepo.Insert(ctx, task)
 	if err != nil {
 		return "", err
@@ -226,9 +233,32 @@ func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id strin
 }
 
 func (s *service) GetScanTemplate(ctx context.Context, task *models.Task) (*models.ScanTemplate, error) {
-	scanTemplate, err := s.taskRepo.FindTemplateByID(ctx, task.Template)
+	// 扫描策略消费端：策略的 plugins 收窄各阶段插件清单；任务没填模板时用策略模板兜底
+	// （任务已填模板则以任务为准，见 taskpolicy.ApplyToTask 的优先级说明）。
+	policyCfg, _ := s.taskPolicyConfig(ctx, task)
+	templateID := strings.TrimSpace(task.Template)
+	if templateID == "" && policyCfg != nil {
+		templateID = strings.TrimSpace(policyCfg.TemplateID)
+	}
+	if templateID == "" {
+		return &models.ScanTemplate{}, fmt.Errorf("task %s has no scan template", task.Name)
+	}
+	scanTemplate, err := s.taskRepo.FindTemplateByID(ctx, templateID)
 	if err != nil {
 		return &models.ScanTemplate{}, err
+	}
+	if scanTemplate == nil {
+		// FindTemplateByID 找不到时返回 (nil, nil)；原实现会紧接着解引用 panic，这里改成明确报错。
+		return &models.ScanTemplate{}, fmt.Errorf("scan template not found: %s", templateID)
+	}
+	if policyCfg != nil {
+		applied, warnings := taskpolicy.ApplyToTemplate(scanTemplate, *policyCfg)
+		for _, w := range warnings {
+			logger.Warn(fmt.Sprintf("task policy %s: %s (%s)", task.PolicyID, w.Message, w.Code))
+		}
+		if len(applied) > 0 {
+			logger.Info(fmt.Sprintf("task policy %s applied on template %s: %v", task.PolicyID, templateID, applied))
+		}
 	}
 	if len(scanTemplate.VulList) != 0 {
 		if helper.StringInSlice("ed93b8af6b72fe54a60efdb932cf6fbc", scanTemplate.VulnerabilityScan) {
@@ -260,6 +290,39 @@ func (s *service) GetScanTemplate(ctx context.Context, task *models.Task) (*mode
 	scanTemplate.IsStart = task.IsStart
 	scanTemplate.TaskName = task.Name
 	return scanTemplate, err
+}
+
+// applyTaskPolicy 把策略参数落到待入库的任务上（当前只有扫描模板会随任务持久化）。
+// 策略读不到只记日志并返回：建任务不能因为策略被删掉而失败。
+func (s *service) applyTaskPolicy(ctx context.Context, task *models.Task) {
+	cfg, err := s.taskPolicyConfig(ctx, task)
+	if err != nil || cfg == nil {
+		return
+	}
+	applied, warnings := taskpolicy.ApplyToTask(task, *cfg)
+	for _, w := range warnings {
+		logger.Warn(fmt.Sprintf("task policy %s: %s (%s)", task.PolicyID, w.Message, w.Code))
+	}
+	if len(applied) > 0 {
+		logger.Info(fmt.Sprintf("task policy %s applied on task %s: %v", task.PolicyID, task.Name, applied))
+	}
+}
+
+// taskPolicyConfig 读任务上挂的策略参数；未选策略返回 (nil, nil)，调用方按「无策略」处理。
+func (s *service) taskPolicyConfig(ctx context.Context, task *models.Task) (*models.ScanPolicyConfig, error) {
+	if task == nil || s.policyTasks == nil {
+		return nil, nil
+	}
+	id := strings.TrimSpace(task.PolicyID)
+	if id == "" {
+		return nil, nil
+	}
+	cfg, err := s.policyTasks.Config(ctx, id)
+	if err != nil {
+		logger.Warn(fmt.Sprintf("task policy %s ignored: %v", id, err))
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 var placeholderRegex = regexp.MustCompile(`\{(.*?)\}`)

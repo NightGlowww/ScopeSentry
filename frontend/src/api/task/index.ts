@@ -51,7 +51,10 @@ export const addTaskApi = (
   minute: number,
   week: number,
   bindProject: string | null,
-  cycleType: string
+  cycleType: string,
+  // 扫描策略：建任务时选中的策略 id（可空 = 不套用策略）。
+  // 后端把它存进 task.policyId，建扫描载荷时按策略的插件清单收窄模板（docs/audit/SCAN_POLICY.md）。
+  policyId?: string
 ): Promise<IResponse<taskRespData>> => {
   return request.post({
     url: '/api/task/add',
@@ -76,7 +79,8 @@ export const addTaskApi = (
       minute,
       week,
       bindProject,
-      cycleType
+      cycleType,
+      policyId: policyId || undefined
     }
   })
 }
@@ -102,7 +106,9 @@ export const addScheduledTaskApi = (
   minute: number,
   week: number,
   bindProject: string | null,
-  cycleType: string
+  cycleType: string,
+  // 计划任务同样存 policyId（ScheduledTasks 里存的就是 models.Task，定时轮次会原样回读）
+  policyId?: string
 ): Promise<IResponse<taskRespData>> => {
   return request.post({
     url: '/api/task/scheduled/add',
@@ -127,7 +133,8 @@ export const addScheduledTaskApi = (
       minute,
       week,
       bindProject,
-      cycleType
+      cycleType,
+      policyId: policyId || undefined
     }
   })
 }
