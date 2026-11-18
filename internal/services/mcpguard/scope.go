@@ -29,6 +29,7 @@ const (
 	ScopeTemplateWrite = "template:write"
 	ScopePluginRead    = "plugin:read"
 	ScopeNodeRead      = "node:read"
+	ScopeNodeWrite     = "node:write"
 )
 
 // ToolScopes 工具名 -> 所需 scope 的唯一真相源。
@@ -75,6 +76,15 @@ var ToolScopes = map[string]string{
 	"delete_scan_policies":     ScopeTaskWrite,
 	"list_sensitive_rules":     ScopeAssetRead,
 	"set_sensitive_rule_state": ScopeAssetWrite,
+	// 节点运维 + 字典维护
+	"list_node_plugins":         ScopeNodeRead,
+	"get_node_logs":             ScopeNodeRead,
+	"restart_node":              ScopeNodeWrite,
+	"delete_nodes":              ScopeNodeWrite,
+	"create_dictionary":         ScopeAssetWrite,
+	"append_dictionary_lines":   ScopeAssetWrite,
+	"delete_dictionary":         ScopeAssetWrite,
+	"delete_dictionary_entries": ScopeAssetWrite,
 }
 
 // ToolNames 返回登记过的全部工具名（供漂移测试与工具过滤使用）

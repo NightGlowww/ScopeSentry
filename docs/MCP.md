@@ -79,3 +79,23 @@ curl -s http://127.0.0.1:8082/mcp \
 ## 工具总数
 
 25（只读） + 9（写/控） = 34。
+
+## 节点运维 + 字典维护（v2.0.80 新增，共 8 个）
+
+**节点**（`node:read` / `node:write`）
+`list_node_plugins` 节点上各插件的 install/check 状态
+`get_node_logs` 节点日志
+`restart_node` 重启节点
+`delete_nodes` 批量删除节点记录
+
+**字典**（`asset:write`）
+`create_dictionary` 新建（重名报错），`content` 或 `lines` 二选一
+`append_dictionary_lines` 追加行（唯一索引去重）
+`delete_dictionary` 按 kind + name 删除整个字典
+`delete_dictionary_entries` 删除指定行
+
+> 字典 kind 取值：`subdomain` / `dir` / `brute` / `cdn` / `other`；`port` 属旧版字典接口，不走这套 parity API。默认 kind 为 `subdomain`。
+
+## 工具总数
+
+34 + 8 = 42。
