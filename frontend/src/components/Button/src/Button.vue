@@ -108,7 +108,7 @@ const style = computed(() => {
 
 <template>
   <ElButton
-    :class="`${prefixCls} color-#fff`"
+    :class="prefixCls"
     v-bind="{ ...props }"
     :color="color"
     :style="style"

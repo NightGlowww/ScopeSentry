@@ -526,10 +526,10 @@ defineExpose({
             @change="handleFileChange"
           >
             <template #trigger>
-              <BaseButton class="plugin-import-btn">
-                <Icon icon="ep:upload" :size="14" class="mr-1" />
+              <ElButton class="plugin-import-btn">
+                <Icon icon="ep:upload" :size="14" style="margin-right: 4px" />
                 {{ t('plugin.import') }}
-              </BaseButton>
+              </ElButton>
             </template>
           </ElUpload>
         </div>

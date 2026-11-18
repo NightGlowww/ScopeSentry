@@ -906,3 +906,10 @@ html .el-row > .el-col:has(> div > .el-button) > div > .el-button:last-child {
   margin-right: 0;
 }
 
+
+/* 按钮文字色：BaseButton/默认按钮此前会继承到白色（白底白字，看起来是"空白按钮"）。
+   显式绑定 Element Plus 的 --el-button-text-color，type 类会各自覆盖该变量。 */
+html .el-button {
+  color: var(--el-button-text-color, var(--el-text-color-regular));
+}
+
