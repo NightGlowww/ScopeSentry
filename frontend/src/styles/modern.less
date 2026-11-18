@@ -359,6 +359,11 @@ html .el-table__empty-text{
 
 html .el-table .cell{
   line-height: 1.4;
+  /* 行高被截图等大内容撑高时，让单元格内容整体垂直居中，
+     否则域名/IP/状态会各自贴在自己格子的顶部，看起来不在一条线上 */
+  display: inline-block;
+  vertical-align: middle;
+  width: 100%;
 }
 
 /* ===========================================================================
@@ -1051,3 +1056,27 @@ html .url-cell > .el-icon {
   flex: 0 0 auto;
 }
 
+
+/* Banner 列：最多 3 行 + 省略号，全文走 tooltip（原先整列 150px 滚动条把行高撑爆） */
+html .banner-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+html .banner-tooltip {
+  margin: 0;
+  max-width: 520px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  font-size: 12px;
+}
