@@ -116,7 +116,10 @@ const crudSchemas = reactive<CrudSchema[]>([
     label: t('PageMonitoring.similarity'),
     minWidth: 200,
     formatter: (_, __: TableColumn, value: number) => {
-      return `${value}%`
+      // 后端给的是浮点相似度，直接拼百分号会出现 92.34567%
+      const num = Number(value)
+      if (!Number.isFinite(num)) return '-'
+      return `${num.toFixed(1)}%`
     }
   },
   {
