@@ -246,18 +246,32 @@ let crudSchemas = reactive<CrudSchema[]>([
       if (raw.service == '') {
         return <div>{statusValue}</div>
       } else {
+        const tag = (
+          <ElTag
+            type="info"
+            effect="dark"
+            round
+            size="small"
+            style={'top: 2px; left:6px; position:relative'}
+          >
+            {raw.service}
+          </ElTag>
+        )
+        // unknown 不是"扫描失败"，而是端口指纹没识别出服务；给个解释，别让人误以为数据丢了
         return (
           <div class="flex">
             <div>{statusValue}</div>
-            <ElTag
-              type="info"
-              effect="dark"
-              round
-              size="small"
-              style={'top: 2px; left:6px; position:relative'}
-            >
-              {raw.service}
-            </ElTag>
+            {raw.service === 'unknown' ? (
+              <ElTooltip
+                content="端口指纹未识别出服务：可能是该扫描节点缺少 fingerprintx 插件，或该端口不响应协议探测"
+                placement="top"
+                effect="light"
+              >
+                {tag}
+              </ElTooltip>
+            ) : (
+              tag
+            )}
           </div>
         )
       }

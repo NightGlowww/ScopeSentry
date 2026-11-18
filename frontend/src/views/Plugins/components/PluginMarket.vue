@@ -206,7 +206,7 @@ const confirmTokenAndInstall = async () => {
             v-model="marketSearch"
             :placeholder="t('common.inputText')"
             clearable
-            style="height: 38px"
+            style="height: 36px"
           >
             <template #prefix>
               <Icon icon="iconoir:search" />
