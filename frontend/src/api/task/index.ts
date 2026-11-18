@@ -5,7 +5,7 @@ import type {
   TaskDetail,
   TaskProgessInfo,
   ScheduledTaskData,
-  TemplateData,
+
   TemplateDetail
 } from './types'
 import type { commonRespData } from '../scommon/types'
