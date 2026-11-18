@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, onMounted } from 'vue'
@@ -132,7 +133,7 @@ const delSelect = async () => {
   }
 }
 const confirmDelete = async () => {
-  const confirmed = window.confirm(t('common.delMessage'))
+  const confirmed = await confirmDialog(t('common.delMessage'))
   if (confirmed) {
     await delSelect()
   }

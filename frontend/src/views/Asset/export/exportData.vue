@@ -1,4 +1,5 @@
 <script setup lang="tsx">
+import { confirmDialog } from '@/utils/confirm'
 import { useI18n } from '@/hooks/web/useI18n'
 import {
   ElTabs,
@@ -162,7 +163,7 @@ const onClick = (name) => {
 }
 const delLoading = ref(false)
 const confirmDelete = async (data) => {
-  const confirmed = window.confirm(t('common.delMessage'))
+  const confirmed = await confirmDialog(t('common.delMessage'))
   if (confirmed) {
     await del(data)
   }
@@ -181,7 +182,7 @@ const del = async (data) => {
   }
 }
 const confirmDeleteSelect = async () => {
-  const confirmed = window.confirm(t('common.delMessage'))
+  const confirmed = await confirmDialog(t('common.delMessage'))
   if (confirmed) {
     await delSelect()
   }
