@@ -50,9 +50,9 @@ type repository struct {
 
 func NewRepository() Repository {
 	return &repository{
-		collection:       mongodb.DB.Collection("project"),
-		targetCollection: mongodb.DB.Collection("ProjectTargetData"),
-		scheduled:        mongodb.DB.Collection("ScheduledTasks"),
+		collection:       mongodb.CollectionOrNil("project"),
+		targetCollection: mongodb.CollectionOrNil("ProjectTargetData"),
+		scheduled:        mongodb.CollectionOrNil("ScheduledTasks"),
 	}
 }
 
@@ -188,7 +188,7 @@ func (r *repository) ListProjectsByTag(ctx context.Context, search, tag string, 
 	if len(items) == 0 {
 		return items, nil
 	}
-	assetCursor, err := mongodb.DB.Collection("asset").Aggregate(ctx, mongo.Pipeline{
+	assetCursor, err := mongodb.CollectionOrNil("asset").Aggregate(ctx, mongo.Pipeline{
 		bson.D{{Key: "$match", Value: bson.M{"project": bson.M{"$in": ids}}}},
 		bson.D{{Key: "$group", Value: bson.M{"_id": "$project", "count": bson.M{"$sum": 1}}}},
 	})
@@ -304,7 +304,7 @@ func (r *repository) UpdateProject(ctx context.Context, p *models.UpdateProject)
 
 func (r *repository) DeleteProjectAsset(ctx context.Context, ids []string) error {
 	for _, collectionName := range constants.AssetDBNames {
-		collection := mongodb.DB.Collection(collectionName)
+		collection := mongodb.CollectionOrNil(collectionName)
 		_, err := collection.DeleteMany(ctx, bson.M{"project": bson.M{"$in": ids}})
 		if err != nil {
 			logger.Error(err.Error())
@@ -324,7 +324,7 @@ func (r *repository) UnsetProjectAssets(ctx context.Context, ids []string) error
 	}
 	filter := bson.M{"project": bson.M{"$in": ids}}
 	for _, collectionName := range constants.AssetDBNames {
-		collection := mongodb.DB.Collection(collectionName)
+		collection := mongodb.CollectionOrNil(collectionName)
 		if _, err := collection.UpdateMany(ctx, filter, bson.M{"$set": bson.M{"project": ""}}); err != nil {
 			logger.Error(err.Error())
 			continue
@@ -356,7 +356,7 @@ func (r *repository) UpdateAssetsProject(ctx context.Context, rootDomains []stri
 
 // assetAddProject 添加资产到项目
 func (r *repository) assetAddProject(ctx context.Context, rootDomains []string, collectionName, projectID string) error {
-	collection := mongodb.DB.Collection(collectionName)
+	collection := mongodb.CollectionOrNil(collectionName)
 
 	var query bson.M
 
@@ -386,7 +386,7 @@ func (r *repository) assetAddProject(ctx context.Context, rootDomains []string, 
 
 // assetUpdateProject 更新资产项目关联
 func (r *repository) assetUpdateProject(ctx context.Context, rootDomains []string, collectionName, projectID string) error {
-	collection := mongodb.DB.Collection(collectionName)
+	collection := mongodb.CollectionOrNil(collectionName)
 
 	var query bson.M
 
@@ -425,7 +425,7 @@ func (r *repository) assetUpdateProject(ctx context.Context, rootDomains []strin
 func (r *repository) CountProjectAssets(ctx context.Context, projectID string) (int64, error) {
 	var total int64
 	for _, collectionName := range constants.AssetDBNames {
-		n, err := mongodb.DB.Collection(collectionName).CountDocuments(ctx, bson.M{"project": projectID})
+		n, err := mongodb.CollectionOrNil(collectionName).CountDocuments(ctx, bson.M{"project": projectID})
 		if err != nil {
 			return total, fmt.Errorf("failed to count assets for collection %s: %w", collectionName, err)
 		}

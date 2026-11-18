@@ -17,7 +17,7 @@ type Repository struct {
 
 func NewRepository() *Repository {
 	return &Repository{
-		collection: mongodb.DB.Collection("roles"),
+		collection: mongodb.CollectionOrNil("roles"),
 	}
 }
 

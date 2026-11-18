@@ -25,7 +25,7 @@ type repository struct {
 }
 
 func NewRepository() Repository {
-	return &repository{collection: mongodb.DB.Collection("FingerprintRules")}
+	return &repository{collection: mongodb.CollectionOrNil("FingerprintRules")}
 }
 
 func (r *repository) Count(ctx context.Context, filter bson.M) (int64, error) {
