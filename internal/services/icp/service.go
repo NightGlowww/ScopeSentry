@@ -271,7 +271,14 @@ func (s *Service) CreateTask(ctx context.Context, req models.IcpTaskCreateReques
 	}
 	s.appendLog(ctx, task.ID.Hex(), IcpLogLevelInfo, fmt.Sprintf(
 		"任务已创建：type=%s provider=%s 共 %d 个查询", task.Type, task.Provider, len(task.Queries)))
-	return task, nil
+
+	// 新建即开跑：此前只有 Restart/Resume 会 launch，创出来的任务永远停在 waiting(0)
+	if _, err := s.tasks.Claim(ctx, task.ID.Hex(), false); err != nil {
+		s.appendLog(ctx, task.ID.Hex(), IcpLogLevelError, "任务启动失败："+err.Error())
+		return task, nil
+	}
+	s.launch(task.ID.Hex())
+	return s.tasks.Get(ctx, task.ID.Hex())
 }
 
 // GetTask 取任务
