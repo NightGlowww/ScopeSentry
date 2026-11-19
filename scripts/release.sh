@@ -135,8 +135,19 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
   ssh -o BatchMode=yes "$PROD_HOST" "ls -t $DEPLOY_DIR/ScopeSentry-v* 2>/dev/null | tail -n +4 | xargs -r rm -f" || true
 fi
 
-echo "== [7/7] 收尾"
+echo "== [7/7] 收尾与版本断言"
 if [[ "${DRY_RUN:-0}" != "1" ]]; then
+  # 版本断言：健康检查通过不等于新版本生效。
+  # 2026-11-20 事故：compose 里镜像 tag 没跟着改，容器"Running"但版本还是旧的。
+  RUN_VER="$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$PROD_HOST" \
+    'curl -fsS -m 6 http://127.0.0.1:8082/healthz' 2>/dev/null \
+    | python3 -c 'import sys,json;print(json.load(sys.stdin).get("version",""))' 2>/dev/null || true)"
+  if [[ "$RUN_VER" != "$VERSION" ]]; then
+    echo "✗ 线上版本不符：期望 $VERSION，实际 ${RUN_VER:-未知}" >&2
+    echo "  检查 compose 里的 image tag 是否已更新、容器是否真的重建" >&2
+    exit 1
+  fi
+  echo "   ✓ 线上版本已生效：$RUN_VER"
   git checkout -q -- cmd/main/static && git clean -fdq cmd/main/static || true
   echo "   健康检查通过；记得提交 version.json 与打 tag"
 fi
