@@ -55,6 +55,14 @@ type Task struct {
 	// PolicyWarnings 策略套用过程中的提示（策略不存在/已停用、模板冲突、插件未命中、
 	// 速率/超时/字典等无承载字段）。落库是为了让前端能展示，而不是只留在服务端日志里。
 	PolicyWarnings []string `bson:"policyWarnings,omitempty" json:"policyWarnings,omitempty"`
+
+	// 当前活动（仅列表接口填充，不落库）：
+	// 让列表里的「运行中 8%」变成「正在目录扫描 xxx，已 7 分钟」。
+	CurrentModule string `bson:"-" json:"currentModule,omitempty"`
+	CurrentTarget string `bson:"-" json:"currentTarget,omitempty"`
+	CurrentSince  string `bson:"-" json:"currentSince,omitempty"`
+	// Queued 表示任务还在队列里等节点来取（尚未真正开跑）
+	Queued bool `bson:"-" json:"queued,omitempty"`
 }
 
 // TaskProgress 任务进度模型

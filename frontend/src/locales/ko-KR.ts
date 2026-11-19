@@ -921,6 +921,9 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    queuedHint: '대기 중(노드 여유 대기)',
+    moduleStalled: '정체 의심(>1시간)',
+    minutesShort: '분',
     emptyTitle: '스캔 작업이 없습니다',
     emptyDesc: '작업을 만들고 노드와 스캔 템플릿을 선택하세요',
 

@@ -115,6 +115,26 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int)
 		return nil, 0, err
 	}
 
+	// 只给运行中的任务补「当前正在做什么」：长任务（目录扫描 7 分钟/目标）
+	// 只显示百分比会像卡死。运行中任务通常 1-2 个，N+1 查询可接受。
+	for i := range tasks {
+		if tasks[i].Status != constants.TaskStatusRunning {
+			continue
+		}
+		id := tasks[i].ID.Hex()
+		mod, tgt, since := s.taskRepo.CurrentActivity(ctx, id)
+		tasks[i].CurrentModule = mod
+		tasks[i].CurrentTarget = tgt
+		tasks[i].CurrentSince = since
+		// 没有任何活动但还在队列里 = 排队中（节点一次只跑一个任务）。
+		// 这类任务此前一直显示「运行中 0%」，让人误以为卡死。
+		if mod == "" {
+			if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
+				tasks[i].Queued = true
+			}
+		}
+	}
+
 	return tasks, total, nil
 }
 
@@ -821,69 +841,44 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 	if err != nil {
 		return 0, fmt.Errorf("sweep stale tasks: %w", err)
 	}
+
 	now := time.Now()
-	// 节点仍在线时不要轻易判死：长任务可能几小时才产出第一份进度。
-	// 只有「任务节点全部离线」或「超过硬上限（6 小时）」才进入失败判定。
-	onlineNodes := map[string]struct{}{}
-	if nodeData, err := s.nodeService.GetNodeData(ctx, true); err == nil {
-		for _, n := range nodeData {
-			onlineNodes[n.Name] = struct{}{}
-		}
-	}
-	const hardLimit = 6 * time.Hour
 	swept := 0
 	for _, task := range tasks {
-		created, perr := time.ParseInLocation("2006-01-02 15:04:05", task.CreatTime, time.Local)
-		if perr != nil || now.Sub(created) < staleAfter {
-			continue
-		}
-		nodeAlive := false
-		for _, n := range task.Node {
-			if _, ok := onlineNodes[n]; ok {
-				nodeAlive = true
-				break
-			}
-		}
-		// 「有节点在线」不等于「这个任务在跑」：任务可能早就没被领取。
-		// 只要既没有进度 hash、又不在任何 NodeTask 队列里，就没有节点会再执行它，
-		// 此时继续显示「运行中 + 0%」是假状态（2026-11-19 实测 16 小时未变）。
-		if nodeAlive && now.Sub(created) < hardLimit {
-			id := task.ID.Hex()
-			hasProgress := false
-			if n, _, _, _, err := s.taskRepo.ProgressSummary(ctx, id); err == nil && n > 0 {
-				hasProgress = true
-			}
-			if !hasProgress {
-				if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && !queued {
-					task.Status = constants.TaskStatusFailed
-					s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": bson.M{
-						"status":  constants.TaskStatusFailed,
-						"endTime": helper.GetNowTimeString(),
-					}})
-					swept++
-					continue
-				}
-			}
-			continue
-		}
 		id := task.ID.Hex()
-		if ok, _ := s.taskRepo.Exists(ctx, "TaskInfo:"+id); ok {
-			continue // 还有目标没被节点领走
-		}
-		if ok, _ := s.taskRepo.Exists(ctx, "TaskInfo:tmp:"+id); ok {
-			continue // 节点仍在写进度
-		}
-		update := bson.M{"$set": bson.M{
-			"status":   constants.TaskStatusFailed,
-			"endTime":  helper.GetNowTimeString(),
-			"progress": task.Progress,
-		}}
-		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
-			logger.Error(fmt.Sprintf("sweep stale tasks: update %s failed: %v", id, err))
+
+		// 「有人在跑」的唯一可靠信号是队列里有它；有进度 hash 不代表还活着
+		// （节点重启/发布打断后 hash 会留着，2026-11-20 实测停在 8%/50% 数小时）。
+		if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
 			continue
 		}
-		logger.Warn(fmt.Sprintf("task %s marked failed: no progress after %s", id, staleAfter))
+
+		// 参考时间取「创建时间」与「最后一次模块结束时间」里较晚的那个：
+		// 长任务会持续刷新 lastEnd，不会因为创建早而被误杀。
+		ref := time.Time{}
+		if t, perr := time.ParseInLocation("2006-01-02 15:04:05", task.CreatTime, time.Local); perr == nil {
+			ref = t
+		} else {
+			ref = task.ID.Timestamp()
+		}
+		if _, _, _, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, id); perr == nil && lastEnd != "" {
+			if t, terr := time.ParseInLocation("2006-01-02 15:04:05", lastEnd, time.Local); terr == nil && t.After(ref) {
+				ref = t
+			}
+		}
+		if now.Sub(ref) < staleAfter {
+			continue
+		}
+
+		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": bson.M{
+			"status":  constants.TaskStatusFailed,
+			"endTime": helper.GetNowTimeString(),
+		}}); err != nil {
+			logger.Error(fmt.Sprintf("sweep task %s failed: %v", id, err))
+			continue
+		}
 		swept++
+		logger.Info(fmt.Sprintf("stale task marked failed: %s (%s), last activity %s", task.Name, id, ref.Format("2006-01-02 15:04:05")))
 	}
 	return swept, nil
 }

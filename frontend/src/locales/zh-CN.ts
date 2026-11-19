@@ -898,6 +898,9 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    queuedHint: '排队中（等待节点空闲）',
+    moduleStalled: '疑似停滞（>1h 未结束）',
+    minutesShort: ' 分钟',
     emptyTitle: '还没有扫描任务',
     emptyDesc: '新建一个任务，选择节点与扫描模板即可开始',
 

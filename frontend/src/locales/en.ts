@@ -929,6 +929,9 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    queuedHint: 'Queued (waiting for a free node)',
+    moduleStalled: 'stalled (>1h)',
+    minutesShort: 'm',
     emptyTitle: 'No scan tasks yet',
     emptyDesc: 'Create a task, pick a node and a scan template to start',
 

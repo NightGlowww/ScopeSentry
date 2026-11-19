@@ -83,15 +83,41 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'progress',
     label: t('task.taskProgress'),
-    minWidth: 180,
-    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
-      return h(ElProgress, {
+    minWidth: 200,
+    formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
+      const bar = h(ElProgress, {
         percentage: cellValue,
         type: 'line',
         striped: true,
         status: cellValue < 100 ? '' : 'success',
         stripedFlow: cellValue < 100 ? true : false
       })
+      // 运行中额外显示「正在做什么 + 已用时长」：长任务（目录扫描 7 分钟/目标）
+      // 只显示百分比会像卡死，这一段让用户看得出它到底在干什么。
+      const mod = row.currentModule as string
+      // 排队中：任务在节点队列里等，还没真正开跑（节点一次只跑一个任务）
+      if (row.status === 1 && row.queued) {
+        return h('div', { class: 'progress-cell' }, [
+          bar,
+          h('div', { class: 'progress-sub queued' }, t('task.queuedHint'))
+        ])
+      }
+      if (row.status !== 1 || !mod) {
+        return bar
+      }
+      let elapsed = ''
+      if (row.currentSince) {
+        const t0 = new Date(String(row.currentSince).replace(/-/g, '/')).getTime()
+        const mins = Math.floor((Date.now() - t0) / 60000)
+        if (mins >= 1) {
+          // 超过 1 小时还没结束的模块基本是停滞，直接标注而不是显示 480 分钟
+          elapsed = mins > 60 ? ' · ' + t('task.moduleStalled') : ' · ' + mins + t('task.minutesShort')
+        }
+      }
+      return h('div', { class: 'progress-cell' }, [
+        bar,
+        h('div', { class: 'progress-sub' }, mod + ' @ ' + (row.currentTarget || '-') + elapsed)
+      ])
     }
   },
   {
@@ -803,6 +829,18 @@ const setMaxHeight = () => {
 </template>
 
 <style scoped>
+.progress-cell {
+  line-height: 1.2;
+}
+.progress-sub {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 空列表引导：默认的「暂无数据」太冷，给标题+说明+主操作按钮 */
 .empty-block {
   padding: 40px 0 48px;
