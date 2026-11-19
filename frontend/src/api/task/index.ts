@@ -339,3 +339,10 @@ interface TaskNameData {
 export const getTaskNamesApi = (): Promise<IResponse<TaskNameData[]>> => {
   return request.get({ url: '/api/task/names' })
 }
+
+// 按当前筛选批量删除任务（必须带 search 或 status）
+export const deleteTaskByFilterApi = (
+  search: string,
+  status?: number
+): Promise<IResponse<any>> =>
+  request.post({ url: '/api/task/deleteByFilter', data: { search, pageIndex: 1, pageSize: 10, status } })

@@ -957,6 +957,13 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    deleteFilter: '필터로 삭제',
+    deleteFilterNeedCond: '먼저 검색어나 상태를 지정하세요',
+    deleteFilterSearch: '(검색: {q})',
+    deleteFilterStatus: '(상태)',
+    deleteFilterAnd: ' 및 ',
+    deleteFilterConfirm: '조건에 맞는 작업을 삭제합니다: {scope}. 되돌릴 수 없습니다. 계속할까요?',
+    deleteFilterDone: '{n}개 작업을 삭제했습니다',
     statusFilter: '상태',
     statusAll: '모든 상태',
     statusRunning: '실행 중',

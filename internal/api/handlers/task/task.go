@@ -372,3 +372,24 @@ func init() {
 	taskService = task.NewService()
 	commonService = common.NewService()
 }
+
+// DeleteByFilter 按当前筛选批量删除任务。
+// 安全边界：必须给至少一个筛选条件（名字或状态），单次最多 200 条。
+func DeleteByFilter(c *gin.Context) {
+	var req models.ListRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	if req.Search == "" && (req.Status == nil || *req.Status < 0) {
+		response.BadRequest(c, "api.bad_request", fmt.Errorf("need search or status to avoid full delete"))
+		return
+	}
+	n, err := taskService.DeleteByFilter(c, req.Search, req.Status)
+	if err != nil {
+		logger.Error(fmt.Sprintf("DeleteByFilter: %v", err))
+		response.InternalServerError(c, "api.task.delete.error", err)
+		return
+	}
+	response.Success(c, map[string]interface{}{"deleted": n}, "api.success")
+}

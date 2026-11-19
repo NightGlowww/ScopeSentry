@@ -934,6 +934,13 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    deleteFilter: '按筛选删除',
+    deleteFilterNeedCond: '需先输入搜索词或选择状态',
+    deleteFilterSearch: '（搜索：{q}）',
+    deleteFilterStatus: '（状态）',
+    deleteFilterAnd: '与',
+    deleteFilterConfirm: '将删除满足条件的任务：{scope}。此操作不可恢复，确认继续？',
+    deleteFilterDone: '已删除 {n} 个任务',
     statusFilter: '状态',
     statusAll: '全部状态',
     statusRunning: '运行中',

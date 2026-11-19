@@ -42,6 +42,13 @@ func registerTaskRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 按当前筛选批量删除（必须带搜索词或状态）
+				Method:      "POST",
+				Path:        "deleteByFilter",
+				Handler:     taskHandler.DeleteByFilter,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "retest",
 				Handler:     taskHandler.RetestTask,

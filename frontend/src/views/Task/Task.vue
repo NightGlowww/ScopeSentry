@@ -49,6 +49,7 @@ import { useRouter } from 'vue-router'
 import { getProjectAllApi } from '@/api/project'
 import { getNodeDataApi } from '@/api/node'
 import { exportTaskApi } from '@/api/export'
+import { deleteTaskByFilterApi } from '@/api/task'
 const { push } = useRouter()
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
@@ -347,6 +348,44 @@ const exportTask = async (row: any) => {
 
 // 该任务期间的工具失败次数（用于弹窗顶部告警）
 const progressCmdFail = ref(0)
+
+// 按当前筛选批量删除：勾选跨页太慢，直接按筛选条件清
+// 安全：后端要求必须带搜索词或状态，且单次最多 200 条
+const filterDelLoading = ref(false)
+const confirmDeleteByFilter = async () => {
+  const hasCond = !!search.value.trim() || statusFilter.value >= 0
+  if (!hasCond) {
+    ElMessage.warning(t('task.deleteFilterNeedCond'))
+    return
+  }
+  const scope = [
+    search.value.trim() ? t('task.deleteFilterSearch', { q: search.value.trim() }) : '',
+    statusFilter.value >= 0 ? t('task.deleteFilterStatus') : ''
+  ].filter(Boolean).join(t('task.deleteFilterAnd'))
+  try {
+    await ElMessageBox.confirm(
+      t('task.deleteFilterConfirm', { scope }),
+      t('common.delWarning'),
+      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  filterDelLoading.value = true
+  try {
+    const res: any = await deleteTaskByFilterApi(
+      search.value.trim(),
+      statusFilter.value >= 0 ? statusFilter.value : undefined
+    )
+    ElMessage.success(t('task.deleteFilterDone', { n: res?.data?.deleted ?? 0 }))
+    resetSelection()
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    filterDelLoading.value = false
+  }
+}
 
 const getProgressInfo = async (id) => {
   // 弹窗打开后立刻解除按钮 loading：真正的加载状态由弹窗内部的表格承担，
@@ -820,6 +859,14 @@ const setMaxHeight = () => {
       <ElCol style="position: relative; top: 16px">
         <div class="mb-10px task-toolbar">
           <BaseButton type="primary" @click="addTask">{{ t('task.addTask') }}</BaseButton>
+          <BaseButton
+            type="danger"
+            plain
+            :loading="filterDelLoading"
+            @click="confirmDeleteByFilter"
+          >
+            {{ t('task.deleteFilter') }}
+          </BaseButton>
           <DisableHint :disabled="noTaskSelected" :reason="t('common.disabledNeedTask')">
             <BaseButton
               type="danger"

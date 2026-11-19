@@ -36,6 +36,8 @@ import (
 // Service 定义任务服务接口
 type Service interface {
 	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int) ([]models.Task, int64, error)
+	// DeleteByFilter 按筛选批量删除，返回条数
+	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
 	CheckTaskNameExists(ctx *gin.Context, name string) (bool, error)
 	GetTaskDetail(ctx *gin.Context, taskID string) (*models.Task, error)
 	GetTasksByIDs(ctx *gin.Context, ids []string) ([]models.Task, error)
@@ -946,4 +948,36 @@ func (s *service) ResumeRunningTasks(ctx context.Context) (int, error) {
 		logger.Info(fmt.Sprintf("resumed task after restart: %s (%s)", task.Name, id))
 	}
 	return resumed, nil
+}
+
+// DeleteByFilter 按当前筛选（名字 + 状态）批量删除任务，返回删除条数。
+// 场景：外部队列刷出几十个暂停任务，一页页勾选太慢（2026-11-20）。
+// 安全边界：必须至少有一个筛选条件，且单次最多 200 条，避免误操作清空全库。
+func (s *service) DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error) {
+	filter := bson.M{}
+	if search != "" {
+		filter["name"] = bson.M{"$regex": search, "$options": "i"}
+	}
+	if status != nil && *status >= 0 {
+		filter["status"] = *status
+	}
+	if len(filter) == 0 {
+		return 0, fmt.Errorf("拒绝执行：未提供任何筛选条件（会造成全量删除）")
+	}
+	opts := options.Find().SetProjection(bson.M{"_id": 1}).SetLimit(200)
+	tasks, err := s.taskRepo.Find(ctx, filter, opts)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query tasks: %w", err)
+	}
+	if len(tasks) == 0 {
+		return 0, nil
+	}
+	ids := make([]string, 0, len(tasks))
+	for _, t := range tasks {
+		ids = append(ids, t.ID.Hex())
+	}
+	if err := s.DeleteTasks(ctx, ids, true); err != nil {
+		return 0, err
+	}
+	return len(ids), nil
 }

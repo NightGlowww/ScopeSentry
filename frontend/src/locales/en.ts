@@ -965,6 +965,13 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    deleteFilter: 'Delete by filter',
+    deleteFilterNeedCond: 'Enter a keyword or pick a status first',
+    deleteFilterSearch: '(keyword: {q})',
+    deleteFilterStatus: '(status)',
+    deleteFilterAnd: ' and ',
+    deleteFilterConfirm: 'This will delete tasks matching: {scope}. Cannot be undone. Continue?',
+    deleteFilterDone: 'Deleted {n} task(s)',
     statusFilter: 'Status',
     statusAll: 'All statuses',
     statusRunning: 'Running',
