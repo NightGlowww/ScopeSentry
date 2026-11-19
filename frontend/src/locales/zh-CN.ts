@@ -365,6 +365,7 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    statusAll: '全部状态',
     status: '状态',
     statusNew: '未处理',
     statusDoing: '处理中',

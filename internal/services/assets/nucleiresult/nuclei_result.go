@@ -92,6 +92,11 @@ func BuildListFilter(req models.NucleiResultListRequest) bson.M {
 		}
 	}
 
+	// 处置状态过滤：漏报/误报分流的入口
+	if req.Status > 0 {
+		conds = append(conds, bson.M{"status": req.Status})
+	}
+
 	if templateID := strings.TrimSpace(req.TemplateID); templateID != "" {
 		conds = append(conds, bson.M{"vulnid": primitive.Regex{
 			Pattern: regexp.QuoteMeta(templateID),

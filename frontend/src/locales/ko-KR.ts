@@ -372,6 +372,7 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    statusAll: '모든 상태',
     status: '상태',
     statusNew: '신규',
     statusDoing: '처리 중',

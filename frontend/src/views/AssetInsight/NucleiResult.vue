@@ -44,6 +44,8 @@ const levelLabel = (value?: string) => t(LEVEL_LABEL_KEYS[normalizeSeverity(valu
 
 const project = ref('')
 const severity = ref('')
+// 处置状态过滤：0=全部
+const statusFilter = ref(0)
 const templateId = ref('')
 const keyword = ref('')
 
@@ -107,6 +109,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
     const res = await getNucleiResultListApi({
       project: project.value,
       severity: severity.value,
+      status: statusFilter.value || 0,
       templateId: templateId.value.trim(),
       keyword: keyword.value.trim(),
       pageIndex: currentPage.value,
@@ -133,6 +136,7 @@ const handleReset = () => {
   severity.value = ''
   templateId.value = ''
   keyword.value = ''
+  statusFilter.value = 0
   handleSearch()
 }
 
@@ -175,6 +179,14 @@ const rowStyle = () => ({ cursor: 'pointer' })
             :label="t(LEVEL_LABEL_KEYS[level])"
             :value="level"
           />
+        </ElSelect>
+      </ElCol>
+      <ElCol :span="3">
+        <ElSelect v-model="statusFilter" :placeholder="t('nucleiResult.status')" clearable>
+          <ElOption :label="t('nucleiResult.statusAll')" :value="0" />
+          <ElOption :label="t('nucleiResult.statusNew')" :value="1" />
+          <ElOption :label="t('nucleiResult.statusIgnored')" :value="3" />
+          <ElOption :label="t('nucleiResult.statusConfirmed')" :value="5" />
         </ElSelect>
       </ElCol>
       <ElCol :span="4">

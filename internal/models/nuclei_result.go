@@ -13,8 +13,10 @@ type NucleiResultListRequest struct {
 	Severity   string `json:"severity" form:"severity" binding:"max=64"`
 	TemplateID string `json:"templateId" form:"templateId" binding:"max=255"`
 	Keyword    string `json:"keyword" form:"keyword" binding:"max=255"`
-	PageIndex  int    `json:"pageIndex" form:"pageIndex" binding:"omitempty,min=0"`
-	PageSize   int    `json:"pageSize" form:"pageSize" binding:"omitempty,min=0,max=200"`
+	// Status 处置状态过滤：0=全部，1未处理 2处理中 3忽略 4疑似 5确认 6已处理
+	Status    int `json:"status" form:"status" binding:"omitempty,min=0,max=6"`
+	PageIndex int `json:"pageIndex" form:"pageIndex" binding:"omitempty,min=0"`
+	PageSize  int `json:"pageSize" form:"pageSize" binding:"omitempty,min=0,max=200"`
 }
 
 // NucleiResultItem 一条 Nuclei 结果（只读视图，不含 request/response 大字段）

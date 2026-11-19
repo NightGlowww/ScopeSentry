@@ -375,6 +375,7 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    statusAll: 'All statuses',
     status: 'Status',
     statusNew: 'New',
     statusDoing: 'In progress',
