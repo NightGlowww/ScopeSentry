@@ -73,3 +73,8 @@ go build ./... ｜ go vet ./... ｜ 19 包单测 ｜ go vet -tags integration ./
 UI 审计门禁 32 路由 0 违规 ｜ vue-tsc 78 错（基线 191，未新增） ｜ pnpm build:pro ｜ vitest 17 文件 127 用例 ｜ release.sh dry-run
 
 > 待部署条目合计 22 项。生产仍停在 v2.0.128。
+## 已知小项（2026-11-19 收尾时记录）
+
+- 扫描容器镜像内 config.yaml 默认 NodeName=node-test，docker recreate 会重置容器内修改，导致 node:node-test 幽灵心跳回归（nodeCount 显示 2，在线数正确=1）。根治需节点侧让 env 优先或给 /apps/config 挂 volume。
+- 各页面 1-2 个图标类禁用钮无 title（行级条件禁用），低优先打磨项。
+- vue-tsc 剩 78 错（基线 191），多为模板类型推断，需要运行时验证后再收敛。
