@@ -62,3 +62,37 @@ nuclei 侧每批约 30-90s，15 批约 10-15 分钟。后续优化方向：
 1. 按 -s critical,high,medium 预筛模板，减少实际加载数量（14318 → 数千）
 2. 分批并行（2-3 worker），受容器 2g 内存限制
 3. 前置模块与 nuclei 并行流水化
+## 真实域名全量扫描完成（2026-11-19 16:21）
+
+```
+task dx-1795075xxx  target=dreamxy.net（自有域名）
+ 批次：batch 15/15 done（15 × 1000 模板）
+ 耗时：target [https://mail.dreamxy.net] run time: 10m40.4s
+ 结果：任务 status=3 progress=100
+ 新增漏洞：0（canary 的 2 条为既有测试数据；该站点本身无这批 POC 覆盖的漏洞）
+```
+
+对比修复前：同一模板 5-6 分钟静默结束、无任何 batch 日志、0 命中。
+
+## 版本与检查链（用户可见）
+
+```
+系统状态页：
+  ScopeSentry-Server  current=2.0.139  latest=2.0.139   ← 一致，不再误报"发现新版本"
+  node-tx-sh-02       current=1.9.2    latest=1.9.2     ← 节点真实版本可见
+
+Nuclei 结果页：
+  高危 | aa-canary-visible | AA Canary Visible | https://www.example.com
+  高危 | aa-canary-visible | AA Canary Visible | https://example.com
+
+Dashboard：漏洞 = 2
+```
+
+## 变更清单（节点侧）
+
+1. `-t *` → `expandPocDir()` 展开目录为文件列表
+2. 分批 1000/批，独立引擎，逐批日志；取消时正确 `Wg.Done()`（不调 `Close()`，避免 leveldb 被关）
+3. severity 预筛（读 yaml 前 40 行的 `info.severity`，按 `-s` 过滤）+ 进程内索引缓存
+4. `global.VERSION` 1.9.1 → 1.9.2，界面可见
+
+上游 PR：https://github.com/Autumn-27/ScopeSentry-Scan/pull/40（分支已更新）
