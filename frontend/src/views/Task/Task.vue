@@ -13,6 +13,7 @@ import {
   ElProgress,
   ElTag,
   ElMessageBox,
+  ElMessage,
   ElSwitch,
   ElDropdown,
   ElDropdownMenu,
@@ -347,6 +348,13 @@ const stopTaskSelect = async () => {
   const elTableExpose = await getElTableExpose()
   const selectedRows = elTableExpose?.getSelectionRows() || []
   ids.value = selectedRows.map((row) => row.id)
+  if (!ids.value.length) {
+    // 选择状态为空时不要发请求：后端会返回 “ids is required”，
+    // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
+    delLoading.value = false
+    ElMessage.warning(t('common.disabledNeedTask'))
+    return
+  }
   delLoading.value = true
   try {
     await stopTask(ids.value)
@@ -373,6 +381,13 @@ const startTaskSelect = async () => {
   const elTableExpose = await getElTableExpose()
   const selectedRows = elTableExpose?.getSelectionRows() || []
   ids.value = selectedRows.map((row) => row.id)
+  if (!ids.value.length) {
+    // 选择状态为空时不要发请求：后端会返回 “ids is required”，
+    // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
+    delLoading.value = false
+    ElMessage.warning(t('common.disabledNeedTask'))
+    return
+  }
   delLoading.value = true
   try {
     await startTask(ids.value)
@@ -485,6 +500,13 @@ const confirmSyncToProjectSelect = async () => {
     const elTableExpose = await getElTableExpose()
     const selectedRows = elTableExpose?.getSelectionRows() || []
     ids.value = selectedRows.map((row) => row.id)
+  if (!ids.value.length) {
+    // 选择状态为空时不要发请求：后端会返回 “ids is required”，
+    // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
+    delLoading.value = false
+    ElMessage.warning(t('common.disabledNeedTask'))
+    return
+  }
     await syancProjectApi(
       ids.value,
       option.value,
@@ -543,6 +565,13 @@ const delSelect = async (delA) => {
   const elTableExpose = await getElTableExpose()
   const selectedRows = elTableExpose?.getSelectionRows() || []
   ids.value = selectedRows.map((row) => row.id)
+  if (!ids.value.length) {
+    // 选择状态为空时不要发请求：后端会返回 “ids is required”，
+    // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
+    delLoading.value = false
+    ElMessage.warning(t('common.disabledNeedTask'))
+    return
+  }
   delLoading.value = true
   try {
     const res = await deleteTaskApi(ids.value, delA)
