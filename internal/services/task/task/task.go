@@ -728,42 +728,25 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 		// 没有 tmp 集合时不要直接把进度归零：节点实际把进度写在
 		// TaskInfo:progress:<taskId>:<target> 的 hash 里（各模块 _start/_end 时间戳）。
 		// 之前只认 tmp 集合，导致真实扫描跑完进度仍显示 0%。
-		targets, doneModules, totalModules, perTarget, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, taskID)
+		targets, completedTargets, partial, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, taskID)
 		if perr != nil {
 			logger.Error(fmt.Sprintf("failed to summarise progress for task %s: %v", taskID, perr))
 		}
-		if targets > 0 && totalModules > 0 {
-			// 分母必须覆盖任务的全部目标：只按「已写 hash 的目标」算，
-			// 12 个目标里只有 1 个开始时进度就会虚高（实测 91% 实际 0/12）。
+		if targets > 0 {
+			// 进度 = (已完成目标数 + 进行中目标的完成比例) / 任务目标总数。
+			// 必须按「目标」而非「模块总数」算：模块总数会随新目标出现而变大，
+			// 导致进度回退（实测 19% → 8%）。这个公式只增不减。
 			expectedTargets := task.TaskNum
-			if expectedTargets <= 0 {
+			if expectedTargets <= 0 || expectedTargets < targets {
 				expectedTargets = targets
 			}
-			if expectedTargets < targets {
-				expectedTargets = targets
-			}
-			if perTarget <= 0 {
-				perTarget = totalModules / targets
-			}
-			expectedModules := expectedTargets * perTarget
-			if expectedModules < totalModules {
-				expectedModules = totalModules
-			}
-			progress := doneModules * 100 / expectedModules
+			progress := int((float64(completedTargets) + partial) * 100 / float64(expectedTargets))
 			if progress > 100 {
 				progress = 100
 			}
-			completed := 0
-			if doneModules >= expectedModules {
-				completed = expectedTargets
-			}
-			denom := task.TaskNum
-			if denom <= 0 {
-				denom = targets
-			}
 			status := constants.TaskStatusRunning
 			update := bson.M{"$set": bson.M{"progress": progress, "status": status}}
-			if completed >= denom {
+			if completedTargets >= expectedTargets {
 				status = constants.TaskStatusFinished
 				if lastEnd == "" {
 					lastEnd = helper.GetNowTimeString()
@@ -855,7 +838,7 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 		if nodeAlive && now.Sub(created) < hardLimit {
 			id := task.ID.Hex()
 			hasProgress := false
-			if n, _, _, _, _, err := s.taskRepo.ProgressSummary(ctx, id); err == nil && n > 0 {
+			if n, _, _, _, err := s.taskRepo.ProgressSummary(ctx, id); err == nil && n > 0 {
 				hasProgress = true
 			}
 			if !hasProgress {
