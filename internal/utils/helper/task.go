@@ -69,8 +69,9 @@ func GenerateTarget(target string) []string {
 		for ip := network.IP.Mask(network.Mask); network.Contains(ip); ip = NextIP(ip) {
 			result = append(result, ip.String())
 		}
-		// 移除网络地址和广播地址
-		if len(result) >= 2 {
+		// 移除网络地址与广播地址；但 /31（RFC 3021，两端都可用）与 /32（单主机）
+		// 不能剥，否则 /31 会被剥空 —— 任务看似下发，实际一个目标都没有。
+		if len(result) > 2 {
 			result = result[1 : len(result)-1]
 		}
 		return result
