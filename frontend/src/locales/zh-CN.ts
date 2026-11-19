@@ -899,6 +899,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    logErrorSummary: '错误摘要',
     logFilterPlaceholder: '过滤日志（关键字）',
     logOnlyError: '只看错误',
     logNoMatch: '无匹配行',

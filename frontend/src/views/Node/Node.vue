@@ -283,6 +283,32 @@ const filteredLogLines = computed(() => {
     return true
   })
 })
+// 错误摘要：打开日志先看「哪类错误出现了多少次」，
+// 不用手动勾「只看错误」再一条条读（2026-11-20）。
+const errorSummary = computed(() => {
+  const map = new Map<string, number>()
+  for (const line of logLines.value) {
+    if (!/ERROR|FATAL|panic/i.test(line)) continue
+    // 归一化：去掉行首时间戳、协程号、地址等易变部分，只留稳定特征
+    const key = line
+      .replace(/^\s*\[?\d{4}-\d{2}-\d{2}[^\]]*\]?\s*/, '')
+      .replace(/\b[0-9a-f]{8,}\b/gi, '<id>')
+      .replace(/\b\d+(\.\d+)?(ms|s|µs)\b/g, '<dur>')
+      .trim()
+      .slice(0, 120)
+    map.set(key, (map.get(key) || 0) + 1)
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([text, count]) => ({ text, count }))
+})
+const showSummary = ref(true)
+const applyErrorFilter = (text: string) => {
+  logKeyword.value = text.slice(0, 40)
+  logErrorsOnly.value = true
+}
+
 const shownLog = computed(() => {
   const arr = filteredLogLines.value
   return (arr.length > MAX_LOG_LINES ? arr.slice(-MAX_LOG_LINES) : arr).join('\n')
@@ -393,6 +419,23 @@ const closepluginDialogVisible = () => {
         <span>{{ t('node.logLoading') }}</span>
       </div>
       <template v-else-if="logContent">
+        <div v-if="errorSummary.length" class="log-summary">
+          <div class="log-summary__head" @click="showSummary = !showSummary">
+            {{ t('node.logErrorSummary') }}（{{ errorSummary.length }}）
+            <span class="log-summary__toggle">{{ showSummary ? '−' : '+' }}</span>
+          </div>
+          <div v-if="showSummary" class="log-summary__list">
+            <div
+              v-for="item in errorSummary"
+              :key="item.text"
+              class="log-summary__item"
+              @click="applyErrorFilter(item.text)"
+            >
+              <span class="log-summary__count">×{{ item.count }}</span>
+              <span class="log-summary__text">{{ item.text }}</span>
+            </div>
+          </div>
+        </div>
         <div class="log-toolbar">
           <ElInput
             v-model="logKeyword"
@@ -429,6 +472,45 @@ const closepluginDialogVisible = () => {
 
 <style scoped>
 /* 日志弹窗的加载与空态：此前点击后是一片空白，看不出在加载还是没日志 */
+.log-summary {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.log-summary__head {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--el-fill-color-light);
+}
+.log-summary__list {
+  max-height: 160px;
+  overflow: auto;
+}
+.log-summary__item {
+  display: flex;
+  gap: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.log-summary__item:hover {
+  background: var(--el-fill-color-lighter);
+}
+.log-summary__count {
+  color: var(--el-color-danger);
+  flex: 0 0 auto;
+}
+.log-summary__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .log-loading {
   display: flex;
   align-items: center;
