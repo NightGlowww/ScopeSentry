@@ -367,6 +367,19 @@ const rowStyle = () => ({ cursor: 'pointer' })
           </ElDescriptionsItem>
         </ElDescriptions>
 
+        <div v-if="detail.templateContent" class="detail-block">
+          <div class="detail-block__head">
+            <span class="detail-block__title">{{ t('nucleiResult.pocTemplate') }}</span>
+            <ElButton link type="primary" size="small" @click="copyBlock(detail.templateContent)">
+              {{ t('common.copy') }}
+            </ElButton>
+          </div>
+          <pre class="detail-block__code">{{ clipText(detail.templateContent) }}</pre>
+          <ElText v-if="isClipped(detail.templateContent)" type="warning" size="small">
+            {{ t('nucleiResult.truncatedHint') }}
+          </ElText>
+        </div>
+
         <div class="detail-block">
           <div class="detail-block__head">
             <span class="detail-block__title">{{ t('nucleiResult.request') }}</span>

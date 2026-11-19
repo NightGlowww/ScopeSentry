@@ -54,4 +54,7 @@ type NucleiResultDetail struct {
 	NucleiResultItem `bson:",inline"`
 	Request          string `json:"request" bson:"request"`
 	Response         string `json:"response" bson:"response"`
+	// TemplateContent 命中的 POC 模板正文（按 templateId 从 PocList 取）。
+	// 判断误报时缺了匹配规则就只能看报文猜，2026-11-20 补上。
+	TemplateContent string `json:"templateContent" bson:"-"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	pocrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/poc"
 	"regexp"
 	"strings"
 
@@ -68,6 +69,28 @@ func (s *service) GetDetail(ctx context.Context, id string) (*models.NucleiResul
 	}
 	if detail == nil {
 		return nil, ErrNotFound
+	}
+
+	// 附带命中的 POC 模板正文：判断误报必须能看到匹配规则，
+	// 只给报文等于让人猜。取不到模板不算错误（历史数据/模板已删除），留空即可。
+	if tid := strings.TrimSpace(detail.TemplateID); tid != "" {
+		repo := pocrepo.NewRepository()
+		var doc *models.Poc
+		// 漏洞文档里的 vulnid 可能存的是 POC 的 _id（ObjectID hex），
+		// 也可能是模板 id 字符串，两种都要试（2026-11-20 实测存的是 _id）。
+		if oid, err := primitive.ObjectIDFromHex(tid); err == nil {
+			if d, cerr := repo.FindOne(ctx, bson.M{"_id": oid}); cerr == nil {
+				doc = d
+			}
+		}
+		if doc == nil {
+			if d, cerr := repo.FindOne(ctx, bson.M{"id": tid}); cerr == nil {
+				doc = d
+			}
+		}
+		if doc != nil {
+			detail.TemplateContent = doc.Content
+		}
 	}
 	return detail, nil
 }

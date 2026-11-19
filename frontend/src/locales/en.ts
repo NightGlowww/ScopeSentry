@@ -376,6 +376,7 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    pocTemplate: 'POC template',
     batchConfirm: 'Confirm selected',
     batchFalsePositive: 'Mark selected as false positive',
     batchDone: 'Updated {n} row(s)',
