@@ -124,6 +124,19 @@ func main() {
 		}
 	}()
 
+	// 启动自愈：把「状态=运行中但没人跑」的任务重新投递给节点。
+	// 场景：发布/重启服务端时，Redis 里的目标列表或队列消息过期，任务会停在
+	// progress<100 且无人消费，用户只看到「运行中 0%」，只能手动暂停再开始。
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		if n, err := taskSvc.NewService().ResumeRunningTasks(ctx); err != nil {
+			logger.Warn("resume running tasks failed", zap.Error(err))
+		} else if n > 0 {
+			logger.Info(fmt.Sprintf("resumed %d running task(s) after restart", n))
+		}
+	}()
+
 	// POC 每日同步自愈：设置 POC_SYNC_URL 后，确保 scheduledTasks 里有 poc_sync 记录。
 	// 不设置时什么都不做（默认不联网）。
 	go func() {

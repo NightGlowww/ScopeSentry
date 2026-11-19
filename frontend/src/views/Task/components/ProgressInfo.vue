@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, h } from 'vue'
+import { reactive, h, ref, onMounted, onUnmounted } from 'vue'
 import { Table, TableColumn } from '@/components/Table'
 import { getTaskProgressApi, pauseTaskTargetApi, resumeTaskTargetApi } from '@/api/task'
 import { useTable } from '@/hooks/web/useTable'
@@ -450,9 +450,59 @@ const toggleTarget = async (row: Recordable) => {
   }
 }
 
-getList()
+// 自动刷新：任务进度是动态的，弹窗打开期间每 5 秒静默刷新一次，
+// 用户不用手动点、也看不到整表闪白（Table 的 loading 只在新查询时置位）。
+const lastRefresh = ref('')
+const autoRefresh = ref(true)
+let timer: ReturnType<typeof setInterval> | null = null
+
+const refreshOnce = async () => {
+  try {
+    await getList()
+    const d = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    lastRefresh.value = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  } catch {
+    // 静默失败：不打扰用户，下一轮继续
+  }
+}
+
+const startAuto = () => {
+  stopAuto()
+  if (!autoRefresh.value) return
+  timer = setInterval(refreshOnce, 5000)
+}
+const stopAuto = () => {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+const toggleAuto = () => {
+  if (autoRefresh.value) {
+    startAuto()
+    refreshOnce()
+  } else {
+    stopAuto()
+  }
+}
+
+onMounted(async () => {
+  await refreshOnce()
+  startAuto()
+})
+onUnmounted(stopAuto)
 </script>
 <template>
+  <div class="progress-hint">
+    <span class="hint-text">
+      {{ t('task.autoRefreshHint') }}
+      <span v-if="lastRefresh">· {{ t('task.lastRefresh') }} {{ lastRefresh }}</span>
+    </span>
+    <ElButton size="small" :type="autoRefresh ? 'primary' : 'default'" @click="toggleAuto">
+      {{ autoRefresh ? t('task.autoRefreshOn') : t('task.autoRefreshOff') }}
+    </ElButton>
+  </div>
   <Table
     v-model:pageSize="pageSize"
     v-model:currentPage="currentPage"

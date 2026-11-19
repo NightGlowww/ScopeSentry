@@ -52,6 +52,8 @@ type Service interface {
 	TaskProgress(ctx context.Context) error
 	// SweepStaleTasks 把长期无进度、无疑活动迹象的运行中任务判定为失败
 	SweepStaleTasks(ctx context.Context, staleAfter time.Duration) (int, error)
+	// ResumeRunningTasks 启动自愈：把没人消费的「运行中」任务重新投递给节点
+	ResumeRunningTasks(ctx context.Context) (int, error)
 	ProcessTaskProgress(ctx context.Context, task models.Task) error
 	GetAllTaskNames(ctx *gin.Context) ([]models.Task, error)
 }
@@ -884,4 +886,44 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 		swept++
 	}
 	return swept, nil
+}
+
+// ResumeRunningTasks 服务端启动自愈：把「状态＝运行中但实际没人跑」的任务重新投递给节点。
+//
+// 场景：发布/重启服务端时，运行中的任务在 Redis 队列里的消息可能已过期，
+// 或节点重启后没再收到任务；此时任务会停在 progress<100 且没人消费，
+// 用户在页面上只看到「运行中 0%」，只能手动暂停再开始。
+// 这里在启动时判定一次：没有进度、也不在队列里 → 重新投递（沿用已有目标列表，不重建）。
+func (s *service) ResumeRunningTasks(ctx context.Context) (int, error) {
+	filter := bson.M{
+		"status":   constants.TaskStatusRunning,
+		"progress": bson.M{"$lt": 100},
+	}
+	tasks, err := s.taskRepo.Find(ctx, filter, nil)
+	if err != nil {
+		return 0, fmt.Errorf("resume running tasks: %w", err)
+	}
+
+	resumed := 0
+	for _, task := range tasks {
+		id := task.ID.Hex()
+		if ok, _ := s.taskRepo.Exists(ctx, "TaskInfo:"+id); ok {
+			continue // 目标还没被领完，节点会继续
+		}
+		if n, _, _, _, err := s.taskRepo.ProgressSummary(ctx, id); err == nil && n > 0 {
+			continue // 已有进度 hash，说明节点在跑
+		}
+		if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
+			continue // 队列里还有，等节点来取
+		}
+		// 真正的孤儿：状态是运行中，但没有目标、没有进度、也没人排队
+		task.IsStart = true // 沿用已有目标列表继续跑，而不是重建
+		if _, err := s.commonService.CreateTaskScan(ctx, task, id, true); err != nil {
+			logger.Error(fmt.Sprintf("resume task %s failed: %v", id, err))
+			continue
+		}
+		resumed++
+		logger.Info(fmt.Sprintf("resumed task after restart: %s (%s)", task.Name, id))
+	}
+	return resumed, nil
 }

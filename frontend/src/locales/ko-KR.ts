@@ -921,6 +921,11 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    autoRefreshHint: '5초마다 자동 새로고침',
+    autoRefreshOn: '자동: 켜짐',
+    autoRefreshOff: '자동: 꺼짐',
+    lastRefresh: '업데이트',
+
     policyWarnings: '정책 알림',
     allPocNucleiWarning: '현재 스캔 노드의 nuclei는 단일 파일 -t만 지원합니다. All POC를 선택하면 조용히 무시되어 0건이 됩니다. 개별 POC를 선택하거나 노드 측 파라미터 처리를 먼저 업그레이드하세요.',
     failed: '실패',

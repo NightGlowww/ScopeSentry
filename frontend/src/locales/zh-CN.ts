@@ -898,6 +898,11 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    autoRefreshHint: '每 5 秒自动刷新',
+    autoRefreshOn: '自动刷新：开',
+    autoRefreshOff: '自动刷新：关',
+    lastRefresh: '更新于',
+
     policyWarnings: '策略提示',
     allPocNucleiWarning: '当前扫描节点的 nuclei 只接受单文件 -t，选择「全部 POC」会被静默忽略（0 命中）。请改选具体 POC，或先升级节点侧 nuclei 参数解析。',
     failed: '失败',

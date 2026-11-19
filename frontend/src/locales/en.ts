@@ -929,6 +929,11 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    autoRefreshHint: 'Auto-refresh every 5s',
+    autoRefreshOn: 'Auto: on',
+    autoRefreshOff: 'Auto: off',
+    lastRefresh: 'updated',
+
     policyWarnings: 'Policy notes',
     allPocNucleiWarning: 'The scan node currently accepts only a single-file -t; choosing All POC is silently ignored (0 hits). Pick explicit POCs, or upgrade the node-side nuclei argument handling first.',
     failed: 'Failed',
