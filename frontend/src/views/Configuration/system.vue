@@ -11,7 +11,7 @@ import {
   ElDivider
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElCard } from 'element-plus'
+import { ElCard, ElMessage } from 'element-plus'
 import { ref, reactive, onBeforeMount } from 'vue'
 import notification from './components/notification.vue'
 import Deduplication from './components/Deduplication.vue'
@@ -46,11 +46,18 @@ const confirmAdd = async () => {
   }
 }
 const save = async () => {
+  // 保存后必须给出反馈：此前只有 loading 收尾，用户确认完看不出成没成功
   saveLoading.value = true
-  const res = await saveSystemConfigurationApi(form.timezone, form.ModulesConfig)
-  if (res.code == 200) {
-    saveLoading.value = false
-  } else {
+  try {
+    const res = await saveSystemConfigurationApi(form.timezone, form.ModulesConfig)
+    if (res.code == 200) {
+      ElMessage.success(t('common.success'))
+    } else {
+      ElMessage.error(res.message || t('common.operateFailed'))
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
     saveLoading.value = false
   }
 }
