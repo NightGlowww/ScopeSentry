@@ -143,12 +143,20 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'cmdFail',
     label: t('node.cmdFail'),
-    width: 100,
-    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
-      // 外部工具（ksubdomain/rad/katana）非零退出的累计次数：
-      // >0 说明这个节点的扫描产出可能不完整
+    width: 120,
+    formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
+      // 累计次数 + 最近 10 分钟增量：前者看历史，后者判断「刚跑这批可不可信」
       const v = cellValue || 0
-      return h(ElTag, { type: v > 0 ? 'warning' : 'info' }, () => v)
+      const recent = (row.cmdFail10m as number) || 0
+      if (v === 0 && recent === 0) {
+        return h(ElTag, { type: 'info' }, () => '0')
+      }
+      return h('div', { style: 'display:flex;gap:4px;align-items:center' }, [
+        h(ElTag, { type: v > 0 ? 'warning' : 'info' }, () => String(v)),
+        recent > 0
+          ? h(ElTag, { type: 'danger', size: 'small' }, () => '+' + String(recent))
+          : null
+      ])
     }
   },
   {

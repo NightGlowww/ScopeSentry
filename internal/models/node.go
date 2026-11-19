@@ -16,6 +16,8 @@ type NodeData struct {
 	QueueLen int64 `json:"queueLen"`
 	// CmdFail 外部工具失败累计（ksubdomain/rad/katana 等非零退出次数）
 	CmdFail int64 `json:"cmdFail"`
+	// CmdFail10m 最近 10 分钟内的工具失败次数：判断"这批任务产出可不可信"用它
+	CmdFail10m int64 `json:"cmdFail10m"`
 }
 
 type Message struct {

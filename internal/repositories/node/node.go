@@ -86,6 +86,11 @@ func (r *repository) GetAllNodes(ctx context.Context) ([]models.NodeData, error)
 				node.CmdFail = n
 			}
 		}
+		if v, ok := hashData["cmdFail10m"]; ok {
+			if n, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+				node.CmdFail10m = n
+			}
+		}
 		nodes = append(nodes, node)
 	}
 
