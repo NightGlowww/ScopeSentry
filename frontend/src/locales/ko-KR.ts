@@ -373,6 +373,7 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    filterByTask: '작업명으로 필터',
     pocTemplate: 'POC 템플릿',
     batchConfirm: '선택 항목 확인',
     batchFalsePositive: '선택 항목 오탐 처리',

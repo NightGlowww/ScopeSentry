@@ -366,6 +366,7 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    filterByTask: '按任务筛选（任务名）',
     pocTemplate: 'POC 模板',
     batchConfirm: '批量确认存在',
     batchFalsePositive: '批量标记误报',

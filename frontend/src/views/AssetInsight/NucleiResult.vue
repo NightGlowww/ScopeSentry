@@ -46,6 +46,8 @@ const project = ref('')
 const severity = ref('')
 // 处置状态过滤：0=全部
 const statusFilter = ref(0)
+// 按任务筛选：一个任务扫完想直接看它的产出
+const taskNameFilter = ref('')
 const templateId = ref('')
 const keyword = ref('')
 
@@ -111,6 +113,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
       project: project.value,
       severity: severity.value,
       status: statusFilter.value || 0,
+      taskName: taskNameFilter.value.trim(),
       templateId: templateId.value.trim(),
       keyword: keyword.value.trim(),
       pageIndex: currentPage.value,
@@ -138,6 +141,7 @@ const handleReset = () => {
   templateId.value = ''
   keyword.value = ''
   statusFilter.value = 0
+  taskNameFilter.value = ''
   handleSearch()
 }
 
@@ -266,6 +270,14 @@ const rowStyle = () => ({ cursor: 'pointer' })
         <ElInput
           v-model="templateId"
           :placeholder="t('nucleiResult.templatePlaceholder')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+      </ElCol>
+      <ElCol :span="4">
+        <ElInput
+          v-model="taskNameFilter"
+          :placeholder="t('nucleiResult.filterByTask')"
           clearable
           @keyup.enter="handleSearch"
         />

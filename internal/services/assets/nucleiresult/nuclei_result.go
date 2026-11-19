@@ -122,6 +122,11 @@ func BuildListFilter(req models.NucleiResultListRequest) bson.M {
 		conds = append(conds, bson.M{"status": req.Status})
 	}
 
+	// 按任务筛选：出问题时常想直接看"某个任务扫出了什么"
+	if taskName := strings.TrimSpace(req.TaskName); taskName != "" {
+		conds = append(conds, bson.M{"taskName": bson.M{"$regex": regexp.QuoteMeta(taskName), "$options": "i"}})
+	}
+
 	if templateID := strings.TrimSpace(req.TemplateID); templateID != "" {
 		conds = append(conds, bson.M{"vulnid": primitive.Regex{
 			Pattern: regexp.QuoteMeta(templateID),
