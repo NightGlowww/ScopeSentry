@@ -177,6 +177,18 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
     exit 1
   fi
   echo "   ✓ 线上版本已生效：$RUN_VER"
+
+  # compose 文件一致性断言：fork 文件会覆盖单机文件的 image，
+  # 两边 tag 不一致时 compose 会拉起旧镜像（2026-11-20 实测 v2.0.148 覆盖 v2.0.205）
+  TAGS="$(ssh -o BatchMode=yes "$PROD_HOST" "cd /opt/scopesentry/ScopeSentry && for f in single-host-deployment.yml docker-compose.fork.yml; do [ -f \"\$f\" ] && echo -n \"\$f=\" && (grep -ohE $IMAGE_PREFIX:v[0-9.]+ \"\$f\" | head -1 || echo none); done" 2>/dev/null || true)"
+  UNIQ="$(echo "$TAGS" | sed "s/.*=//" | sort -u | wc -l | tr -d " ")"
+  if [[ "$UNIQ" != "1" ]]; then
+    echo "✗ compose 文件镜像 tag 不一致：" >&2
+    echo "$TAGS" >&2
+    echo "  后加载的文件会覆盖前面的，可能导致拉起旧镜像" >&2
+    exit 1
+  fi
+  echo "   ✓ compose 文件镜像一致"
   git checkout -q -- cmd/main/static && git clean -fdq cmd/main/static || true
   echo "   健康检查通过；记得提交 version.json 与打 tag"
 fi
