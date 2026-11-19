@@ -24,6 +24,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"github.com/Autumn-27/ScopeSentry/internal/scheduler/jobs"
 	"io/fs"
 	"strings"
 
@@ -120,6 +121,16 @@ func main() {
 		defer cancel()
 		if err := schedulerSvc.NewService().EnsurePageMonitoringJob(ctx); err != nil {
 			logger.Warn("ensure page_monitoring job failed", zap.Error(err))
+		}
+	}()
+
+	// POC 每日同步自愈：设置 POC_SYNC_URL 后，确保 scheduledTasks 里有 poc_sync 记录。
+	// 不设置时什么都不做（默认不联网）。
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := jobs.EnsurePOCSyncJob(ctx); err != nil {
+			logger.Warn("ensure poc_sync job failed", zap.Error(err))
 		}
 	}()
 

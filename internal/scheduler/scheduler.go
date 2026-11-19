@@ -81,6 +81,10 @@ func InitializeGlobalScheduler() {
 		globalScheduler.RegisterHandler("server_plugin", func(params string, nextTime string) error {
 			return jobs.ServerPluginRunner(params, nextTime)
 		})
+		// POC 每日同步：handler 名 poc_sync，未设置 POC_SYNC_URL 时函数内部直接返回
+		globalScheduler.RegisterHandler("poc_sync", func(params string, nextTime string) error {
+			return jobs.POCSync()
+		})
 	})
 }
 
