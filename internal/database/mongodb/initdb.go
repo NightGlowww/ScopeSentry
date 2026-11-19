@@ -716,6 +716,9 @@ func createIndexes(db *mongo.Database) error {
 		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "time", Value: -1}}},
 		{Keys: bson.D{{Key: "level", Value: 1}, {Key: "time", Value: -1}}},
 		{Keys: bson.D{{Key: "project", Value: 1}, {Key: "level", Value: 1}, {Key: "time", Value: -1}}},
+		// 处置状态筛选与进度统计（v2.0.208/220 新增能力）：
+		// {status:1} 让聚合分组不走 COLLSCAN；time 参与排序避免 blocking sort。
+		{Keys: bson.D{{Key: "status", Value: 1}, {Key: "time", Value: -1}}},
 	}
 	_, err = vulnerability.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
