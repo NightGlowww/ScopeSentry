@@ -930,6 +930,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    cmdFail: 'Tool failures',
     logErrorSummary: 'Error summary',
     logFilterPlaceholder: 'Filter logs (keyword)',
     logOnlyError: 'Errors only',

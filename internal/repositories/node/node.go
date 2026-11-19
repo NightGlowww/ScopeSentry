@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,6 +79,12 @@ func (r *repository) GetAllNodes(ctx context.Context) ([]models.NodeData, error)
 			MaxTaskNum:    hashData["maxTaskNum"],
 			Version:       hashData["version"],
 			ModulesConfig: hashData["modulesConfig"],
+		}
+		// 外部工具失败累计：历史节点没有这个字段，缺失按 0 处理
+		if v, ok := hashData["cmdFail"]; ok {
+			if n, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+				node.CmdFail = n
+			}
 		}
 		nodes = append(nodes, node)
 	}

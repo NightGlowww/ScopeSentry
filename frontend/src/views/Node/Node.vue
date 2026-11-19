@@ -141,6 +141,17 @@ const nodeColums = reactive<TableColumn[]>([
     }
   },
   {
+    field: 'cmdFail',
+    label: t('node.cmdFail'),
+    width: 100,
+    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
+      // 外部工具（ksubdomain/rad/katana）非零退出的累计次数：
+      // >0 说明这个节点的扫描产出可能不完整
+      const v = cellValue || 0
+      return h(ElTag, { type: v > 0 ? 'warning' : 'info' }, () => v)
+    }
+  },
+  {
     field: 'updateTime',
     label: t('node.updateTime'),
     // 时间戳需要约 175px，小于这个值右侧会被截断

@@ -922,6 +922,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    cmdFail: '도구 실패',
     logErrorSummary: '오류 요약',
     logFilterPlaceholder: '로그 필터(키워드)',
     logOnlyError: '오류만',
