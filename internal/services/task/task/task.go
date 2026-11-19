@@ -904,14 +904,25 @@ func (s *service) ResumeRunningTasks(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("resume running tasks: %w", err)
 	}
 
+	// 启动时打一条总览：候选多少、最后恢复多少。没有这条日志时
+	// 无法判断自愈到底有没有执行（2026-11-20 一开始就是"看不出跑没跑"）。
+	logger.Info(fmt.Sprintf("resume scan: %d running task(s) to check", len(tasks)))
 	resumed := 0
 	for _, task := range tasks {
 		id := task.ID.Hex()
-		if ok, _ := s.taskRepo.Exists(ctx, "TaskInfo:"+id); ok {
-			continue // 目标还没被领完，节点会继续
-		}
-		if n, _, _, _, err := s.taskRepo.ProgressSummary(ctx, id); err == nil && n > 0 {
-			continue // 已有进度 hash，说明节点在跑
+		// 不能因为 TaskInfo:<id> 还在就跳过：目标列表残留 ≠ 有节点会来取。
+		// 节点重启/发布打断后列表会留着，但没人消费（2026-11-20 实测停在 8%）。
+		// 可靠判据只有两个：队列里有没有这条任务、最近有没有进度写入。
+		// 有进度 hash 不代表有人在跑：节点重启/发布打断后 hash 会留下，
+		// 但没人再更新它（2026-11-20 实测：etoro 任务停在 8%，4 个 hash 静止）。
+		// 用「最后一次模块结束时间」判断新鲜度，超过 10 分钟视为停滞。
+		_, _, _, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, id)
+		if perr == nil && lastEnd != "" {
+			if t, terr := time.ParseInLocation("2006-01-02 15:04:05", lastEnd, time.Local); terr == nil {
+				if time.Since(t) < 10*time.Minute {
+					continue // 最近还有写入，节点确实在跑
+				}
+			}
 		}
 		if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
 			continue // 队列里还有，等节点来取
