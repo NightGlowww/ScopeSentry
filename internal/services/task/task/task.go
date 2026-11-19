@@ -208,10 +208,30 @@ func (s *service) DeleteTasks(ctx *gin.Context, ids []string, delA bool) error {
 
 					// 按 taskName 删除各资产集合数据
 					// 注意：部分集合中 taskName 为数组字段，$in 也能匹配
-					collections := []string{"asset", "DirScanResult", "SensitiveResult", "SubdomainTakerResult", "UrlScan", "crawler", "subdomain", "vulnerability", "PageMonitoring", "app", "RootDomain", "mp", "IPAsset"}
+					collections := []string{"asset", "DirScanResult", "SensitiveResult", "SubdomainTakerResult", "UrlScan", "crawler", "subdomain", "PageMonitoring", "app", "RootDomain", "mp", "IPAsset"}
 					filter := bson.M{"taskName": bson.M{"$in": names}}
-					// 直接通过底层数据库执行批删
 					db := mongodb.DB
+
+					// vulnerabilityDetail 无 taskName 字段，只能按 vulnerability 的 hash 级联删。
+					// 必须先取 hash 再删主表，否则留下永久孤儿明细（2026-11-19 实测）。
+					hashCursor, herr := db.Collection("vulnerability").Find(ctx.Request.Context(), filter, options.Find().SetProjection(bson.M{"hash": 1}))
+					if herr == nil {
+						var hashes []interface{}
+						for hashCursor.Next(ctx.Request.Context()) {
+							var doc struct {
+								Hash string `bson:"hash"`
+							}
+							if err := hashCursor.Decode(&doc); err == nil && doc.Hash != "" {
+								hashes = append(hashes, doc.Hash)
+							}
+						}
+						_ = hashCursor.Close(ctx.Request.Context())
+						if len(hashes) > 0 {
+							_, _ = db.Collection("vulnerabilityDetail").DeleteMany(ctx.Request.Context(), bson.M{"hash": bson.M{"$in": hashes}})
+						}
+					}
+					_, _ = db.Collection("vulnerability").DeleteMany(ctx.Request.Context(), filter)
+
 					for _, coll := range collections {
 						_, _ = db.Collection(coll).DeleteMany(ctx.Request.Context(), filter)
 					}
