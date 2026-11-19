@@ -191,6 +191,24 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
     exit 1
   fi
   echo "   ✓ compose 文件镜像一致"
+
+  # 节点在线断言：发布不该把节点带下线，也不该在节点全掉时报告成功
+  # 逻辑在服务器 /opt/scopesentry/nodecheck.py（凭据读 .api_cred，不进仓库）
+  NODE_SUMMARY="$(ssh -o BatchMode=yes "$PROD_HOST" "python3 /opt/scopesentry/nodecheck.py 2>/dev/null || echo HELPER_FAIL")"
+  case "$NODE_SUMMARY" in
+    [0-9]*/[0-9]*)
+      ONLINE="${NODE_SUMMARY%%/*}"; TOTAL="${NODE_SUMMARY##*/}"
+      if [[ "$TOTAL" == "0" ]]; then
+        echo "   ✗ 没有任何已注册节点——发布后系统无法扫描" >&2
+        exit 1
+      elif [[ "$ONLINE" != "$TOTAL" ]]; then
+        echo "   ! 节点在线 $ONLINE/$TOTAL，有节点离线" >&2
+      else
+        echo "   ✓ 节点在线 $ONLINE/$TOTAL"
+      fi ;;
+    *)
+      echo "   ! 无法校验节点在线状态（$NODE_SUMMARY），请手工确认" >&2 ;;
+  esac
   git checkout -q -- cmd/main/static && git clean -fdq cmd/main/static || true
   echo "   健康检查通过；记得提交 version.json 与打 tag"
 fi
