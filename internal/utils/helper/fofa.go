@@ -59,6 +59,13 @@ func parseFofaQueryWithBrackets(query string) string {
 	if query == "" {
 		return ""
 	}
+	// 带括号的查询直接透传给 FOFA（它原生支持括号）。
+	// 旧实现尝试改写成自有语法，但当内层解析结果与原文相同时替换不改变字符串，
+	// for 循环永不前进 —— 任何含括号的查询都会卡死请求 goroutine。
+	// 透传的代价只是不做语法归一，收益是绝不挂起。
+	if strings.ContainsAny(query, "()") {
+		return query
+	}
 
 	// 查找并替换所有括号内的内容
 	for {
