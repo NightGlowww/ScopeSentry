@@ -232,7 +232,14 @@ func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id strin
 	if err != nil {
 		return 0, err
 	}
+	// 背压：节点一次只跑一个任务，队列堆太深只会让后面的任务一直「排队中」。
+	// 2026-11-20 实测：某个 MCP key 每分钟建 3-4 个任务并立即 start，
+	// 队列瞬间堆到 16 个，真实任务永远排不上。这里直接拒绝而不是静默排队。
+	const maxQueuedPerNode = 5
 	for _, n := range task.Node {
+		if q, qerr := s.taskRepo.NodeQueueLen(ctx, n); qerr == nil && q >= maxQueuedPerNode {
+			return 0, fmt.Errorf("节点 %s 队列已积压 %d 个任务（上限 %d），请等待当前任务完成后再提交", n, q, maxQueuedPerNode)
+		}
 		template.Target = ""
 		err := s.taskRepo.RPushNodeTask(ctx, n, template)
 		if err != nil {

@@ -72,6 +72,10 @@ type Repository interface {
 	RemoveQueuedNodeTasks(ctx context.Context, taskID string) (int64, error)
 	// HasQueuedTask 任务是否仍在某个节点的待领取队列里
 	HasQueuedTask(ctx context.Context, taskID string) (bool, error)
+	// NodeQueueLen 节点待领取队列长度
+	NodeQueueLen(ctx context.Context, node string) (int64, error)
+	// CurrentActivity 当前正在执行的模块/目标/开始时间
+	CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string)
 	// 目标级暂停（issue #277）
 	AddTargetControl(ctx context.Context, taskID, target string) error
 	RemoveTargetControl(ctx context.Context, taskID, target string) error
@@ -414,4 +418,48 @@ func (r *repository) HasQueuedTask(ctx context.Context, taskID string) (bool, er
 		}
 	}
 	return false, nil
+}
+
+// CurrentActivity 返回任务当前正在执行的模块与目标。
+//
+// 列表页只显示百分比时，长任务（目录扫描单目标 7 分钟）看起来像卡死。
+// 这里从逐目标进度 hash 里找「有 _start、没有 _end」的最新模块，
+// 用它的开始时间算已执行时长，让界面能显示「正在目录扫描 xxx，已 7 分钟」。
+func (r *repository) CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string) {
+	keys, err := r.redisClient.Keys(ctx, fmt.Sprintf("TaskInfo:progress:%s:*", taskID)).Result()
+	if err != nil {
+		return "", "", ""
+	}
+	latest := ""
+	for _, key := range keys {
+		tgt := key[strings.LastIndex(key, ":")+1:]
+		fields, err := r.redisClient.HGetAll(ctx, key).Result()
+		if err != nil {
+			continue
+		}
+		for name, ts := range fields {
+			if name == "node" || ts == "" {
+				continue
+			}
+			if !strings.HasSuffix(name, "_start") {
+				continue
+			}
+			mod := strings.TrimSuffix(name, "_start")
+			if end, ok := fields[mod+"_end"]; ok && end != "" {
+				continue // 该模块已结束
+			}
+			if ts > latest {
+				latest = ts
+				module = mod
+				target = tgt
+				since = ts
+			}
+		}
+	}
+	return module, target, since
+}
+
+// NodeQueueLen 返回某节点待领取队列的长度（背压判断用）。
+func (r *repository) NodeQueueLen(ctx context.Context, node string) (int64, error) {
+	return r.redisClient.LLen(ctx, "NodeTask:"+node).Result()
 }
