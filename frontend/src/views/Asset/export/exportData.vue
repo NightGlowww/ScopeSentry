@@ -15,7 +15,8 @@ import {
   ElCheckbox,
   CheckboxValueType,
   ElCheckboxGroup,
-  ElDatePicker
+  ElDatePicker,
+  ElMessage
 } from 'element-plus'
 import { onMounted, reactive, Ref, ref } from 'vue'
 import BatchExportTab from './BatchExportTab.vue'
@@ -43,21 +44,30 @@ const exportForm = reactive({
   timeRange: [] as string[]
 })
 const create = async () => {
+  // 导出是异步任务：提交后要明确告诉用户「已提交，去列表等」，并刷新记录列表。
+  // 之前只切 loading，成功失败都没有任何提示（2026-11-20）。
   createLoading.value = true
-  const searchFilter = props.getFilter()
-  const [startTime = '', endTime = ''] = exportForm.timeRange || []
-  await exportApi(
-    props.index,
-    exportForm.quantity,
-    exportForm.type,
-    props.searchParams,
-    searchFilter,
-    startTime,
-    endTime,
-    checkedField.value,
-    filetype.value
-  )
-  createLoading.value = false
+  try {
+    const searchFilter = props.getFilter()
+    const [startTime = '', endTime = ''] = exportForm.timeRange || []
+    await exportApi(
+      props.index,
+      exportForm.quantity,
+      exportForm.type,
+      props.searchParams,
+      searchFilter,
+      startTime,
+      endTime,
+      checkedField.value,
+      filetype.value
+    )
+    ElMessage.success(t('export.submitted'))
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    createLoading.value = false
+  }
 }
 
 const exportColums = reactive<TableColumn[]>([

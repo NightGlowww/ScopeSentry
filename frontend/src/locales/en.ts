@@ -124,6 +124,7 @@ export default {
     disabledNeedScope: 'Select at least one record first'
   },
   export: {
+    submitted: 'Export submitted; check the records list below for progress',
     timeRange: 'Time range',
     timeRangeStart: 'Start time',
     timeRangeEnd: 'End time',
