@@ -15,6 +15,28 @@ func init() {
 	nucleiResultService = nucleiservice.NewService()
 }
 
+// UpdateStatus 更新一条 Nuclei 结果的处置状态（误报标记 / 确认）。
+// @Summary      更新Nuclei结果状态
+// @Tags         Assets
+// @Accept       json
+// @Produce      json
+// @Router       /assets/nuclei_result/status [post]
+func UpdateStatus(c *gin.Context) {
+	var req struct {
+		ID     string `json:"id" binding:"required"`
+		Status int    `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	if err := nucleiResultService.UpdateStatus(c.Request.Context(), req.ID, req.Status); err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, nil, "api.success")
+}
+
 // List Nuclei 结果列表（只读视图，对标 ARL-Next assetNucleiResult）
 //
 // @Summary      Nuclei 结果列表

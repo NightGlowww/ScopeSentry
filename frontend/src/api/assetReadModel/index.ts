@@ -47,3 +47,7 @@ export const getWihListApi = (payload: WihListQuery): Promise<IResponse<WihListR
 export const getWihDetailApi = (id: string): Promise<IResponse<WihDetail>> => {
   return request.post({ url: '/api/assets/wih/detail', data: { id } })
 }
+
+// 更新 Nuclei 结果处置状态（3=误报 5=确认）
+export const updateNucleiStatusApi = (id: string, status: number): Promise<IResponse<any>> =>
+  request.post({ url: '/api/assets/nuclei_result/status', data: { id, status } })

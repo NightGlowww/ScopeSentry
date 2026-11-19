@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { reactive, ref } from 'vue'
+import { reactive, ref, h } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -13,11 +13,13 @@ import {
   ElTag,
   ElText
 } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { useI18n } from '@/hooks/web/useI18n'
 import { useIcon } from '@/hooks/web/useIcon'
+import { updateNucleiStatusApi } from '@/api/assetReadModel'
 import { getNucleiResultDetailApi, getNucleiResultListApi } from '@/api/assetReadModel'
 import type { NucleiResultDetail, NucleiResultItem } from '@/api/assetReadModel/types'
 import { normalizeSeverity, SEVERITY_LEVELS, severityTagType } from '@/utils/severity'
@@ -60,6 +62,42 @@ const columns = reactive<TableColumn[]>([
   { field: 'name', label: t('nucleiResult.templateName'), minWidth: 180 },
   { field: 'url', label: t('nucleiResult.url'), minWidth: 260 },
   { field: 'project', label: t('nucleiResult.project'), minWidth: 140 },
+  {
+    field: 'status',
+    label: t('nucleiResult.status'),
+    width: 110,
+    formatter: (_: any, __: any, v: number) => {
+      const map: Record<number, { type: any; key: string }> = {
+        1: { type: 'info', key: 'nucleiResult.statusNew' },
+        2: { type: 'warning', key: 'nucleiResult.statusDoing' },
+        3: { type: 'info', key: 'nucleiResult.statusIgnored' },
+        4: { type: 'warning', key: 'nucleiResult.statusSuspect' },
+        5: { type: 'danger', key: 'nucleiResult.statusConfirmed' },
+        6: { type: 'success', key: 'nucleiResult.statusDone' }
+      }
+      const m = map[v] || map[1]
+      return h(ElTag, { type: m.type }, () => t(m.key))
+    }
+  },
+  {
+    field: 'action',
+    label: t('tableDemo.action'),
+    width: 180,
+    formatter: (row: any) => {
+      return h('div', { style: 'display:flex;gap:6px' }, [
+        h(
+          ElButton,
+          { size: 'small', type: 'danger', link: true, onClick: () => setStatus(row.id, 5) },
+          () => t('nucleiResult.markConfirmed')
+        ),
+        h(
+          ElButton,
+          { size: 'small', type: 'info', link: true, onClick: () => setStatus(row.id, 3) },
+          () => t('nucleiResult.markFalsePositive')
+        )
+      ])
+    }
+  },
   { field: 'matchedAt', label: t('nucleiResult.matchedAt'), minWidth: 170 }
 ])
 

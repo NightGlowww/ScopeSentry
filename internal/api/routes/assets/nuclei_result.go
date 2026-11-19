@@ -24,6 +24,13 @@ func registerNucleiResultRoutes() models.RouteGroup {
 				Handler:     nucleiresulthandler.Detail,
 				Middlewares: common.WithAuth(),
 			},
+			{
+				// 处置状态：误报标记 / 确认存在
+				Method:      "POST",
+				Path:        "/status",
+				Handler:     nucleiresulthandler.UpdateStatus,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 }

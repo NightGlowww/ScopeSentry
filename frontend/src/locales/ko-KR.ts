@@ -372,6 +372,16 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    status: '상태',
+    statusNew: '신규',
+    statusDoing: '처리 중',
+    statusIgnored: '무시됨',
+    statusSuspect: '의심',
+    statusConfirmed: '확인됨',
+    statusDone: '완료',
+    markConfirmed: '확인',
+    markFalsePositive: '오탐',
+
     project: '프로젝트',
     severity: '심각도',
     allSeverity: '전체 심각도',

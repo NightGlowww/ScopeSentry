@@ -365,6 +365,16 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    status: '状态',
+    statusNew: '未处理',
+    statusDoing: '处理中',
+    statusIgnored: '已忽略',
+    statusSuspect: '疑似',
+    statusConfirmed: '已确认',
+    statusDone: '已处理',
+    markConfirmed: '确认存在',
+    markFalsePositive: '标记误报',
+
     project: '项目',
     severity: '危害等级',
     allSeverity: '全部等级',

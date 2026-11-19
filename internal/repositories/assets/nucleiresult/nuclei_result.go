@@ -24,6 +24,8 @@ type Repository interface {
 	List(ctx context.Context, filter bson.M, pageIndex, pageSize int) ([]models.NucleiResultItem, int64, error)
 	// FindByID 单条完整记录；不存在时返回 (nil, nil)
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.NucleiResultDetail, error)
+	// UpdateStatus 更新处置状态
+	UpdateStatus(ctx context.Context, id primitive.ObjectID, status int) error
 	// ExplainList 列表查询的 explain（queryPlanner），用于验证走索引
 	ExplainList(ctx context.Context, filter bson.M, pageIndex, pageSize int) (bson.M, error)
 }
@@ -253,4 +255,14 @@ func hostFromURL(raw string) string {
 		return ""
 	}
 	return u.Host
+}
+
+// UpdateStatus 更新一条漏洞结果的处置状态（1未处理 2处理中 3忽略 4疑似 5确认 6已处理）。
+// 误报请用 3（忽略），确认存在用 5。
+func (r *repository) UpdateStatus(ctx context.Context, id primitive.ObjectID, status int) error {
+	_, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"status": status}})
+	if err != nil {
+		return fmt.Errorf("failed to update nuclei result status: %w", err)
+	}
+	return nil
 }

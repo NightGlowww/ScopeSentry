@@ -29,6 +29,8 @@ var (
 type Service interface {
 	List(ctx context.Context, req models.NucleiResultListRequest) (*models.NucleiResultListResult, error)
 	GetDetail(ctx context.Context, id string) (*models.NucleiResultDetail, error)
+	// UpdateStatus 更新处置状态
+	UpdateStatus(ctx context.Context, id string, status int) error
 }
 
 type service struct {
@@ -161,4 +163,16 @@ func normalizePage(pageIndex, pageSize int) (int, int) {
 		pageSize = maxPageSize
 	}
 	return pageIndex, pageSize
+}
+
+// UpdateStatus 更新一条漏洞结果的处置状态。
+func (s *service) UpdateStatus(ctx context.Context, id string, status int) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return fmt.Errorf("invalid id: %w", err)
+	}
+	if status < 1 || status > 6 {
+		return fmt.Errorf("invalid status: %d", status)
+	}
+	return s.repo.UpdateStatus(ctx, oid, status)
 }

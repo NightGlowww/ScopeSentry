@@ -375,6 +375,16 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    status: 'Status',
+    statusNew: 'New',
+    statusDoing: 'In progress',
+    statusIgnored: 'Ignored',
+    statusSuspect: 'Suspect',
+    statusConfirmed: 'Confirmed',
+    statusDone: 'Done',
+    markConfirmed: 'Confirm',
+    markFalsePositive: 'False positive',
+
     project: 'Project',
     severity: 'Severity',
     allSeverity: 'All severities',
