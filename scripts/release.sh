@@ -45,7 +45,17 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
     echo "✗ 生产不可达：$PROD_HOST 的 /healthz 无响应，终止发布" >&2
     exit 1
   fi
-  echo "   生产健康"
+
+  # 目标主机身份校验：/healthz 通了不等于它跑着服务端。
+  # 2026-11-20 事故：PROD_HOST 默认值仍指向已降级为纯扫描节点的机器，
+  # 发版"成功"但线上完全没变。这里确认容器存在，否则直接终止。
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$PROD_HOST" \
+      'docker ps --format "{{.Names}}" | grep -qx scope-sentry' 2>/dev/null; then
+    echo "✗ $PROD_HOST 上没有 scope-sentry 容器——它很可能只是扫描节点，不是服务端" >&2
+    echo "  请确认 PROD_HOST，或检查该机容器状态" >&2
+    exit 1
+  fi
+  echo "   生产健康（scope-sentry 容器在运行）"
 fi
 
 echo "== [1/7] 审计门禁"
