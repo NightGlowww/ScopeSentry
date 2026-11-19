@@ -55,6 +55,7 @@ type manageService struct {
 	entryRepo   dictrepo.EntryRepository
 	nodeService nodessvc.Service
 	locks       *keyedMutex
+	lines       *lineCache
 }
 
 var (
@@ -69,6 +70,7 @@ func sharedManageService() *manageService {
 		sharedManage = &manageService{
 			repo:        dictrepo.NewManageRepository(),
 			entryRepo:   dictrepo.NewEntryRepository(),
+			lines:       newLineCache(),
 			nodeService: nodessvc.NewService(),
 			locks:       newKeyedMutex(),
 		}
