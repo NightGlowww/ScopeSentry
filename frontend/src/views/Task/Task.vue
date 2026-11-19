@@ -24,7 +24,8 @@ import {
 
 
   ElTreeSelect,
-  ElTooltip
+  ElTooltip,
+  ElAlert
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -44,6 +45,7 @@ import AddTask from './components/AddTask.vue'
 import ProgressInfo from './components/ProgressInfo.vue'
 import { useRouter } from 'vue-router'
 import { getProjectAllApi } from '@/api/project'
+import { getNodeDataApi } from '@/api/node'
 const { push } = useRouter()
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
@@ -344,10 +346,12 @@ const nodeOnline = ref(0)
 const nodeTotal = ref(0)
 const loadNodeHealth = async () => {
   try {
-    const res: any = await getConsoleInfoApi()
-    const d = res?.data || {}
-    nodeOnline.value = d.nodeOnline ?? 0
-    nodeTotal.value = d.nodeCount ?? 0
+    // 直接用节点列表接口（与节点管理页同源、已验证可用），按 state 统计在线数
+    const res: any = await getNodeDataApi()
+    const raw = res?.data?.list ?? res?.data ?? res?.list ?? []
+    const list: any[] = Array.isArray(raw) ? raw : []
+    nodeTotal.value = list.length
+    nodeOnline.value = list.filter((n) => String(n?.state) === '1').length
   } catch {
     // 静默：不打扰主流程
   }
@@ -387,6 +391,9 @@ const getList = async () => {
   const r = await rawGetList()
   resetSelection()
   syncAutoList()
+  // 顺手刷新节点健康度：页面被 keep-alive 缓存时 onMounted 不会再跑，
+  // 只靠挂载钩子会导致警告条永远不出现（2026-11-20 实测）。
+  loadNodeHealth()
   return r
 }
 function tableHeaderColor() {
