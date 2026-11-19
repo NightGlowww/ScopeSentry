@@ -71,3 +71,17 @@
 
 内存预算：mongo 1.2G + redis 256M + server 1.5G + scan 2.5G ≈ 5.5G / 7.68G。
 8G 机器上给 scan 5G 会把整机压到假死（ping 通但 SSH/HTTP 全挂，需重启实例）。
+## 六、已知缺口：i18n key 缺失靠人工发现（2026-11-20）
+
+现状：`common.confirm` 这类 key 不存在时，界面直接显示原始 key，构建不报错。
+本轮尝试写自动检查脚本（解析 locale 的 TS 对象字面量），但 locale 里有内联嵌套对象
+（`system: { version: { success: ... } }`）和多行字符串，简单缩进解析会产出 2000+ 假阳性，
+**已放弃该脚本**——留着比没有更糟。
+
+当前做法：
+1. 涉及弹窗/二次确认的文案，改完必须在浏览器里真实打开一次看按钮文字
+2. 已对六个主页面做全量扫描（task / node / poc / asset / project / dict），无裸 key 泄漏
+3. 若要做自动检查，正确路线是把 locale 编译成 JSON（走 vite 产物）再做 key 集合比对，
+   而不是正则解析源码
+
+命名对照：`common.confirmed` 是状态标签「确认」，确认按钮统一用 `confirmButtonText: OK`。
