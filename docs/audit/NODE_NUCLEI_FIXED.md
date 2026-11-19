@@ -1,29 +1,40 @@
-# 节点侧 nuclei 修复（2026-11-19）
+# 节点侧 nuclei 修复（2026-11-19）— 已完成
 
-## 三个串联缺陷（都已修复）
+## 修复的三个缺陷
 
-| # | 缺陷 | 后果 | 修复 |
-| --- | --- | --- | --- |
-| 1 | 容器 config.yaml 是 `NodeName: node-test`，与 compose env 的 `node-tx-sh-02` 不一致，**config 优先** | 任务投到 `NodeTask:node-tx-sh-02`，节点从 `NodeTask:node-test` 消费 → **任务静默不执行**（队列堆积、进度 0） | 修 `/apps/config/config.yaml`，日志确认 `Register Success:node-tx-sh-02` |
-| 2 | `-t *` 直接把 `/apps/poc` 目录塞给 `nuclei.TemplateSources{Templates:[dir]}` | 内嵌引擎不加载目录内的扁平 yaml → **0 命中**（跑满 5-6 分钟无结果） | 新增 `expandPocDir()`，目录展开成 14319 个文件路径 |
-| 3 | 14319 个模板塞进**同一个**引擎实例 | 长时间无产出（实测 5-6 分钟 0 命中），且中途取消会卡住任务循环 | 改**分批执行**：每批 300 模板、独立引擎、逐批日志 |
+| # | 缺陷 | 后果 | 修复 | 状态 |
+| --- | --- | --- | --- | --- |
+| 1 | 容器 config.yaml 是 NodeName: node-test，覆盖 compose env | 任务投到 NodeTask:node-tx-sh-02，节点从 node-test 消费 → 任务静默不执行 | 修正 config.yaml，日志确认 Register Success:node-tx-sh-02 | 已部署 |
+| 2 | -t * 把目录塞进 TemplateSources{Templates:[dir]} | 内嵌引擎不加载目录内扁平 yaml → 跑满 5-6 分钟 0 命中 | expandPocDir() 展开成文件列表 | 已部署 |
+| 3 | 14319 模板塞单引擎 | 长时间无产出 | 分批 1000/批、独立引擎、逐批日志 | 已部署 |
 
-## 验证证据
+## 生产验证（决定性）
 
-- 单模板小目录 + 完整上游模块 → **60 秒内产出 2 条 vulnerability 记录**（`{"url":"https://example.com","level":"high"}`）
-- 批处理日志：`batch 22/48 done (300 templates)`，每批约 30-35s
-- 节点注册正确：`Register Success:node-tx-sh-02 - version 1.9.1`
+```
+task proof3-1795070247（完整上游模块 + -t /apps/poc-test）
+ 75s  vuln=2  {"url":"https://example.com","vulname":"ZZ Canary Expand","level":"high"}
+      batch 1/1 done (1 templates)
 
-## 已部署
+Nuclei 结果页（浏览器实测）：
+  高危 | zz-canary-expand-test | ZZ Canary Expand | https://www.example.com
+  高危 | zz-canary-expand-test | ZZ Canary Expand | https://example.com
+```
 
-- 镜像 `autumn27/scopesentry-scan:nuclei-batch`（`docker commit` 保留改动）
-- 生产 compose 已指向该镜像
-- 节点配置 NodeName 已修正
+修复前同一配置 6 分钟 0 命中。
 
-## 仍待解决
+## 上游与固化
 
-1. **全量 14319 模板一轮约 28 分钟**（48 批 × 35s）。当前节点单 worker 串行，期间其它任务排队。需要：调大批次（如 1000）或并行多 worker。
-2. **取消任务会卡住节点任务循环**（实测队列堆积不消费，需 `docker restart scopesentry-scan`）。批循环里需要在每批开始检查 ctx 并清理引擎。
-3. **vulnerabilityDetail 孤儿**：任务删除（delA）会删 vulnerability 主表，但 detail 留在库里。
-4. 节点仓库（`Autumn-27/ScopeSentry-Scan`）未提交 PR —— 改动仅存在于生产镜像与本地 clone，**下次重建容器会丢失**，需尽快把 patch 提交上游或自建 fork。
+- 上游 PR：https://github.com/Autumn-27/ScopeSentry-Scan/pull/40
+- Fork 分支：NightGlowww/ScopeSentry-Scan:fix/nuclei-template-batch
+- 生产镜像：autumn27/scopesentry-scan:nuclei-fix-v3（compose 已指向）
 
+## 踩过的两个坑（已修正）
+
+1. ne.Close() 不能调 —— nuclei 内部 leveldb 跨引擎共享，关闭任一引擎会让后续批次全部报 leveldb: closed。
+2. 任务删除用 delA:true 会连带删掉 vulnerability 主表记录（vulnerabilityDetail 留孤儿）。
+
+## 剩余优化项
+
+- 全量 14319 模板一轮约 15 批，节点单 worker 期间其它任务排队，后续可并行化。
+- vulnerabilityDetail 孤儿清理（任务删除时未级联）。
+- 取消任务后节点任务循环的健壮性仍需长期观察。
