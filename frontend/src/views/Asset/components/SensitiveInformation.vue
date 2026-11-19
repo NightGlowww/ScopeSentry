@@ -398,7 +398,23 @@ loadColumnConfig()
 const lastSearchParams = ref('')
 let lastFilter = reactive<{ [key: string]: any }>({})
 
-const filter = reactive<{ [key: string]: any }>({})
+// 筛选条件记忆：切页返回后下拉框选择不丢
+const FILTER_KEY = 'asset:sensitiveinformation:filter'
+const savedFilter = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem(FILTER_KEY) || '{}')
+  } catch {
+    return {}
+  }
+})()
+const filter = reactive<{ [key: string]: any }>(savedFilter)
+const persistFilter = () => {
+  try {
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({ ...filter }))
+  } catch {
+    // 忽略
+  }
+}
 const { allSchemas } = useCrudSchemas(crudSchemas)
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
@@ -463,10 +479,12 @@ const action = async (id) => {
 }
 const filterChange = async (newFilters: any) => {
   Object.assign(filter, newFilters)
+  persistFilter()
   callFunctionsConcurrently()
 }
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
+  persistFilter()
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
   callFunctionsConcurrently()

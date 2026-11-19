@@ -269,7 +269,11 @@ const taskColums = reactive<TableColumn[]>([
           >
             {t('common.view')}
           </BaseButton>
-          <ElButton type="warning" onClick={() => getProgressInfo(row.id)}>
+          <ElButton
+            type="warning"
+            loading={rowActionId.value === row.id}
+            onClick={() => getProgressInfo(row.id)}
+          >
             {t('task.taskProgress')}
           </ElButton>
         </>
@@ -281,8 +285,14 @@ const taskColums = reactive<TableColumn[]>([
 const progressDialogVisible = ref(false)
 let getProgressInfoID = ''
 const getProgressInfo = async (id) => {
+  // 弹窗打开后立刻解除按钮 loading：真正的加载状态由弹窗内部的表格承担，
+  // 这里只负责防止连点触发多次 open。
+  rowActionId.value = id || ''
   getProgressInfoID = id
   progressDialogVisible.value = true
+  setTimeout(() => {
+    rowActionId.value = ''
+  }, 600)
 }
 
 const getTaskResult = async (id) => {
@@ -328,6 +338,8 @@ const { getList: rawGetList, getElTableExpose } = tableMethods
 
 // 节点离线提示：任务卡住最常见的原因是节点掉了，但以前只能去「系统状态」页才看得到。
 // 这里在任务页顶部直接给出「X/Y 节点在线」，离线时高亮成警告条。
+// 行内操作防连点：点了「任务进度」后按钮转圈，避免重复请求
+const rowActionId = ref('')
 const nodeOnline = ref(0)
 const nodeTotal = ref(0)
 const loadNodeHealth = async () => {

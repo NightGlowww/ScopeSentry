@@ -387,15 +387,33 @@ const setMaxHeight = () => {
   const screenHeight = window.innerHeight || document.documentElement.clientHeight
   maxHeight.value = screenHeight * 0.7
 }
-const filter = reactive<{ [key: string]: any }>({})
+// 筛选条件记忆：切页返回后下拉框选择不丢
+const FILTER_KEY = 'asset:url:filter'
+const savedFilter = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem(FILTER_KEY) || '{}')
+  } catch {
+    return {}
+  }
+})()
+const filter = reactive<{ [key: string]: any }>(savedFilter)
+const persistFilter = () => {
+  try {
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({ ...filter }))
+  } catch {
+    // 忽略
+  }
+}
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
+  persistFilter()
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 const filterChange = async (newFilters: any) => {
   Object.assign(filter, newFilters)
+  persistFilter()
   getList()
 }
 const dynamicTags = ref<string[]>([])

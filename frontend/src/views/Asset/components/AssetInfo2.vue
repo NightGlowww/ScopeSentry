@@ -683,6 +683,7 @@ const getScreenshot = async (id) => {
 }
 const filterChange = async (newFilters: any) => {
   Object.assign(filter, newFilters)
+  persistFilter()
   getList()
 }
 const action = (id: string) => {
@@ -754,7 +755,23 @@ const handleColumnVisibilityChange = ({ field, hidden }) => {
 }
 loadColumnConfig()
 
-const filter = reactive<{ [key: string]: any }>({})
+// 筛选条件记忆：切页返回后下拉框选择不丢
+const FILTER_KEY = 'asset:assetinfo2:filter'
+const savedFilter = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem(FILTER_KEY) || '{}')
+  } catch {
+    return {}
+  }
+})()
+const filter = reactive<{ [key: string]: any }>(savedFilter)
+const persistFilter = () => {
+  try {
+    sessionStorage.setItem(FILTER_KEY, JSON.stringify({ ...filter }))
+  } catch {
+    // 忽略
+  }
+}
 
 const lastSearchParams = ref('')
 let lastFilter = reactive<{ [key: string]: any }>({})
@@ -815,6 +832,7 @@ const filterListHeight = (list: unknown[] | undefined, maxRem: number) =>
   list && list.length ? `${maxRem}rem` : '2.75rem'
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
+  persistFilter()
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
   if (activeSegment.value == 'cardSegment') {
