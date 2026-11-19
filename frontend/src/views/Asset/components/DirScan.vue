@@ -58,9 +58,11 @@ const searchKeywordsData = [
     explain: t('searchHelp.length')
   }
 ]
-const searchParams = ref('')
+const SEARCH_KEY = 'asset:dirscan:search'
+const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 const rowStateMap = reactive<Record<string, RowState>>({})
@@ -365,6 +367,7 @@ const sortChange = async (column: any) => {
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 

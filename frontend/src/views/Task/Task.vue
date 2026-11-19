@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h, onMounted, computed } from 'vue'
+import { ref, reactive, h, onMounted, onUnmounted, computed } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import {
   ElButton,
@@ -299,10 +299,37 @@ const { tableRegister, tableState, tableMethods } = useTable({
 const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
 const { getList: rawGetList, getElTableExpose } = tableMethods
+
+// 列表自动刷新：有任务在跑时每 10 秒静默刷新一次，
+// 用户不用反复点刷新按钮也能看到进度变化；全部结束后自动停止。
+const autoListTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const hasRunning = computed(() =>
+  (dataList.value || []).some((t: any) => t.status === 0 || t.status === 1)
+)
+const syncAutoList = () => {
+  if (autoListTimer.value) {
+    clearInterval(autoListTimer.value)
+    autoListTimer.value = null
+  }
+  if (hasRunning.value) {
+    autoListTimer.value = setInterval(async () => {
+      try {
+        await rawGetList()
+      } catch {
+        // 静默：失败下一轮再试
+      }
+    }, 10000)
+  }
+}
+onMounted(() => syncAutoList())
+onUnmounted(() => {
+  if (autoListTimer.value) clearInterval(autoListTimer.value)
+})
 // 每次刷新列表后重置选择状态，避免"按钮可点但选中为空"
 const getList = async () => {
   const r = await rawGetList()
   resetSelection()
+  syncAutoList()
   return r
 }
 function tableHeaderColor() {

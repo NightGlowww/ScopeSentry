@@ -52,9 +52,11 @@ const searchKeywordsData = [
     explain: t('searchHelp.project')
   }
 ]
-const searchParams = ref('')
+const SEARCH_KEY = 'asset:crawler:search'
+const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 
@@ -310,6 +312,7 @@ const handleFilterSearch = (data: any, newFilters: any) => {
   Object.keys(filter).forEach((key) => delete filter[key])
   Object.assign(filter, newFilters)
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 const getFilter = () => {

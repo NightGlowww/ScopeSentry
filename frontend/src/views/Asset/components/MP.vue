@@ -62,9 +62,11 @@ const setMaxHeight = () => {
   maxHeight.value = screenHeight * 0.7
 }
 
-const searchParams = ref('')
+const SEARCH_KEY = 'asset:mp:search'
+const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 const rowStateMap = reactive<Record<string, RowState>>({})
@@ -271,6 +273,7 @@ const filterChange = async (newFilters: any) => {
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
 }
 const dynamicTags = ref<string[]>([])

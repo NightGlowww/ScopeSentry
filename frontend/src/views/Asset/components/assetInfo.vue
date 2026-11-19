@@ -74,9 +74,11 @@ const layout = ref('inline')
 
 const buttonPosition = ref('left')
 
-const searchParams = ref('')
+const SEARCH_KEY = 'asset:assetinfo:search'
+const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
-  searchParams.value = data.search
+  searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '').search
   getAssetData()
 }
 

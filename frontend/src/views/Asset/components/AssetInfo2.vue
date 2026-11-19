@@ -140,9 +140,11 @@ const searchKeywordsData = [
   }
 ]
 const staticLoading = ref(true)
-const searchParams = ref('')
+const SEARCH_KEY = 'asset:assetinfo2:search'
+const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   if (activeSegment.value == 'cardSegment') {
     getAssetCardData()
     return
@@ -814,6 +816,7 @@ const filterListHeight = (list: unknown[] | undefined, maxRem: number) =>
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
   searchParams.value = data
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   if (activeSegment.value == 'cardSegment') {
     getAssetCardData()
     return
