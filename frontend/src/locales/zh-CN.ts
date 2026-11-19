@@ -927,6 +927,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    exportTask: '导出任务结果',
+    exportDone: '已开始下载任务导出包',
     nodeOfflineWarn: '节点离线，任务可能无法推进',
     queuedHint: '排队中（等待节点空闲）',
     moduleStalled: '疑似停滞（>1h 未结束）',

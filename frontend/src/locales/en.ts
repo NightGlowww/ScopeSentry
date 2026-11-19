@@ -958,6 +958,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    exportTask: 'Export results',
+    exportDone: 'Task export package download started',
     nodeOfflineWarn: 'Node offline, tasks may not progress',
     queuedHint: 'Queued (waiting for a free node)',
     moduleStalled: 'stalled (>1h)',

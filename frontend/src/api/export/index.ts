@@ -83,3 +83,17 @@ export const batchExportCsvApi = async (data: BatchExportPayload): Promise<Blob>
   })
   return res.data as unknown as Blob
 }
+
+// 按任务导出：后端直接流式返回 zip（一个集合一个 CSV 文件）
+export const exportTaskApi = (taskId: string): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    request
+      .get({
+        url: '/api/export/task/' + taskId,
+        responseType: 'blob',
+        timeout: 300000
+      })
+      .then((response) => resolve(response.data))
+      .catch((error) => reject(error))
+  })
+}

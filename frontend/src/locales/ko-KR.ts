@@ -950,6 +950,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    exportTask: '결과 내보내기',
+    exportDone: '작업 내보내기 다운로드를 시작했습니다',
     nodeOfflineWarn: '노드 오프라인, 작업이 진행되지 않을 수 있습니다',
     queuedHint: '대기 중(노드 여유 대기)',
     moduleStalled: '정체 의심(>1시간)',

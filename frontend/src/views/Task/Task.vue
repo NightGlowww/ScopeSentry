@@ -46,6 +46,7 @@ import ProgressInfo from './components/ProgressInfo.vue'
 import { useRouter } from 'vue-router'
 import { getProjectAllApi } from '@/api/project'
 import { getNodeDataApi } from '@/api/node'
+import { exportTaskApi } from '@/api/export'
 const { push } = useRouter()
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
@@ -272,6 +273,21 @@ const taskColums = reactive<TableColumn[]>([
             {t('common.view')}
           </BaseButton>
           <ElButton
+
+            type="info"
+
+            link
+
+            loading={exportingId.value === row.id}
+
+            onClick={() => exportTask(row)}
+
+          >
+
+            {t('task.exportTask')}
+
+          </ElButton>
+          <ElButton
             type="warning"
             loading={rowActionId.value === row.id}
             onClick={() => getProgressInfo(row.id)}
@@ -286,6 +302,30 @@ const taskColums = reactive<TableColumn[]>([
 
 const progressDialogVisible = ref(false)
 let getProgressInfoID = ''
+// 按任务导出：后端流式返回 zip（每个集合一个 CSV）。
+// 任务跑完想存档时，不用再去导出页手选类型和筛选。
+const exportingId = ref('')
+const exportTask = async (row: any) => {
+  if (!row?.id) return
+  exportingId.value = row.id
+  try {
+    const blob = await exportTaskApi(row.id)
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'task-' + (row.name || row.id) + '.zip'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success(t('task.exportDone'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    exportingId.value = ''
+  }
+}
+
 const getProgressInfo = async (id) => {
   // 弹窗打开后立刻解除按钮 loading：真正的加载状态由弹窗内部的表格承担，
   // 这里只负责防止连点触发多次 open。
