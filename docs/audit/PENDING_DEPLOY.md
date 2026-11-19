@@ -54,3 +54,22 @@ scripts/recover.sh 2.0.131             # 自检 → 部署 → scan 限载重建
 ```
 
 > 截至本轮，main 上共 17 项未上线改动；生产仍是 v2.0.128。
+## 追加（第 31–43 轮）
+
+| 内容 | 验收 |
+| --- | --- |
+| 工作树 19 个未提交源码入库 + .gitignore 排除 data/ 与 tools/ | 仓库与生产二进制一致（此前自 2.0.116 起已在跑） |
+| Makefile: preflight / health / recover | make help 可见 |
+| /31 CIDR 不再被剥空 | go test ./internal/utils/helper/ |
+| 反向 IP 段不再死循环 + 65536 上限 | 同上 |
+| 超大 CIDR / IPv6 网段不展开 | 同上 |
+| 含括号的 FOFA / Shodan 查询透传（原为死循环，会挂住 goroutine） | 同上，3 秒内必返回 |
+| 前端三语 locale 对齐守卫 | npx vitest run src/locales |
+| 路由清单守卫（integration tag，SetupRouter 需 Mongo） | go vet -tags integration ./internal/api/routes/ |
+
+## 离线验证矩阵（本地全部通过）
+
+go build ./... ｜ go vet ./... ｜ 19 包单测 ｜ go vet -tags integration ./... ｜ staticcheck（仅剩 ioutil 弃用）
+UI 审计门禁 32 路由 0 违规 ｜ vue-tsc 78 错（基线 191，未新增） ｜ pnpm build:pro ｜ vitest 17 文件 127 用例 ｜ release.sh dry-run
+
+> 待部署条目合计 22 项。生产仍停在 v2.0.128。
