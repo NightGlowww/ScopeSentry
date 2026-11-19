@@ -1,16 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import {
-  ElButton,
-  ElDialog,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElMessage,
-  ElRadio,
-  ElRadioGroup,
-  ElSelect
-} from 'element-plus'
+import {ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElMessage, ElRadio, ElRadioGroup, ElSelect, ElOption} from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { addAssetApi, addAssetBatchApi } from '@/api/asset'
 

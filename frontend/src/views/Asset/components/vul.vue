@@ -3,22 +3,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { h, nextTick, reactive, Ref, ref } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
-import {
-  ElCard,
-  ElPagination,
-  ElCol,
-  ElRow,
-  ElDescriptions,
-  ElDescriptionsItem,
-  ElText,
-  ElButton,
-  ElInput,
-  ElTag,
-  InputInstance,
-  ElSelect,
-  ElOption,
-
-} from 'element-plus'
+import {ElCard, ElPagination, ElCol, ElRow, ElDescriptions, ElDescriptionsItem, ElText, ElButton, ElInput, ElTag, InputInstance, ElSelect, ElOption, ElScrollbar} from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'

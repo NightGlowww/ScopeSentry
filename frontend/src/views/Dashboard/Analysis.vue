@@ -1,20 +1,9 @@
 <script setup lang="ts">
 import PanelGroup from './components/PanelGroup.vue'
-import {
-  ElRow,
-  ElCol,
-  ElCard,
-  ElProgress,
-  ElText,
-  ElTooltip,
-  ElButton,
+import { ElRow, ElCol, ElCard, ElProgress, ElText, ElTooltip, ElButton, ElForm, ElFormItem, ElInput, ElTag, ElPopconfirm } from 'element-plus'
 
-  ElForm,
-  ElFormItem,
-  ElInput
-} from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
-import { ElTag } from 'element-plus'
+
 import { Dialog } from '@/components/Dialog'
 import { ref, reactive, h, onBeforeUnmount, Ref } from 'vue'
 import { getNodeDataApi } from '@/api/node'

@@ -1,20 +1,9 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
-import {
-  ElRow,
-  ElCol,
-  ElButton,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElRadioGroup,
-  ElRadio,
-  ElText,
-  ElSwitch,
-  ElDivider
-} from 'element-plus'
+import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElInput, ElRadioGroup, ElRadio, ElText, ElSwitch, ElDivider, ElCard } from 'element-plus'
+
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElCard } from 'element-plus'
+
 import { h, reactive, ref } from 'vue'
 import { Icon } from '@/components/Icon'
 import { Dialog } from '@/components/Dialog'

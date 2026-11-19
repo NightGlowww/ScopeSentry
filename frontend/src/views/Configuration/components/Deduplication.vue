@@ -1,16 +1,8 @@
 <script setup lang="tsx">
-import {
-  ElRow,
-  ElCol,
-  ElButton,
-  ElForm,
-  ElFormItem,
-  ElSwitch,
-  ElInputNumber,
-  ElAlert
-} from 'element-plus'
+
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElCard } from 'element-plus'
+import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElSwitch, ElInputNumber, ElAlert, ElCard, ElText } from 'element-plus'
+
 import { reactive, ref } from 'vue'
 import { getDeduplicationConfigApi, updateDeduplicationConfigApi } from '@/api/Configuration'
 const { t } = useI18n()

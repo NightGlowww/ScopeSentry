@@ -1,9 +1,10 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
+import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, h, computed } from 'vue'
-import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox } from 'element-plus'
+
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 // import { useIcon } from '@/hooks/web/useIcon'

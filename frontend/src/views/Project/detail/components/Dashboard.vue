@@ -2,24 +2,7 @@
 import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, Ref, ref } from 'vue'
 import { Echart } from '@/components/Echart'
-import {
-  ElRow,
-  ElCol,
-  ElCard,
-  ElStatistic,
-  ElContainer,
-  ElFooter,
-  ElDescriptions,
-  ElDescriptionsItem,
-  ElTag,
-  ElDivider,
-  ElSkeleton,
-  ElTable,
-  ElTableColumn,
-  ElText,
-  ElSpace,
-  ElAlert
-} from 'element-plus'
+import {ElRow, ElCol, ElCard, ElStatistic, ElContainer, ElFooter, ElDescriptions, ElDescriptionsItem, ElTag, ElDivider, ElSkeleton, ElTable, ElTableColumn, ElText, ElSpace, ElAlert, ElIcon, ElMain, ElScrollbar} from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useIcon } from '@/hooks/web/useIcon'
 import {

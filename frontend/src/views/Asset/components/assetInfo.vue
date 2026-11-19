@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ContentWrap } from '@/components/ContentWrap'
+import { ElPagination, ElCard, ElCol, ElInput, ElLink, ElRow, ElTabPane, ElTabs, ElTag, ElText } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { Search } from '@/components/Search'
 import { reactive, ref } from 'vue'
 import { FormSchema } from '@/components/Form'
 import { useSearch } from '@/hooks/web/useSearch'
 import { onMounted } from 'vue'
-import { ElPagination } from 'element-plus'
+
 import { getAssetApi } from '@/api/asset'
-import { ElRow, ElCol, ElCard } from 'element-plus'
-import { ElTabs } from 'element-plus'
-import { ElTabPane, ElInput, ElLink, ElTag, ElText } from 'element-plus'
+
 import type { TagProps } from 'element-plus'
 
 const { t } = useI18n()

@@ -1,27 +1,7 @@
 <script setup lang="ts">
-import {
 
-  ElDivider,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElRow,
-  ElCol,
-
-
-
-
-
-  ElButton,
-  FormInstance,
-
-
-
-
-  ElMessage,
-  CheckboxValueType
-} from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
+import { ElDivider, ElForm, ElFormItem, ElInput, ElRow, ElCol, ElButton, FormInstance, ElMessage, CheckboxValueType, ElCheckbox, ElInputNumber, ElOption, ElRadio, ElRadioGroup, ElSelect, ElSelectV2, ElSwitch, ElText, ElTooltip } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { addProjectDataApi, getProjectContentDataApi, updateProjectDataApi } from '@/api/project'
 import { getNodeDataOnlineApi } from '@/api/node'
