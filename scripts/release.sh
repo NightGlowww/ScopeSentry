@@ -7,7 +7,7 @@
 #   DRY_RUN=1 scripts/release.sh 2.0.73      # 只跑门禁 + 打印计划，不构建/不上传
 #
 # 环境变量：
-#   PROD_HOST   默认 prod-tx-sh-app-02
+#   PROD_HOST   默认 prod-tx-sh-app-01（8G 主服务器；02 已降级为纯节点）
 #   DEPLOY_DIR  默认 /opt/scopesentry/deploy
 #   IMAGE_PREFIX 默认 autumn27/scopesentry
 set -euo pipefail
@@ -31,7 +31,9 @@ if grep -nE 'jsonschema:"[A-Za-z_][A-Za-z0-9_]*=' "$ROOT"/internal/mcp/tools.go 
 fi
 cd "$ROOT"
 
-PROD_HOST="${PROD_HOST:-prod-tx-sh-app-02}"
+# 2026-11-20 起生产主服务器迁到 prod-tx-sh-app-01（8G）；
+# prod-tx-sh-app-02 已降级为纯扫描节点，不再部署服务端。
+PROD_HOST="${PROD_HOST:-prod-tx-sh-app-01}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/scopesentry/deploy}"
 IMAGE_PREFIX="${IMAGE_PREFIX:-autumn27/scopesentry}"
 
@@ -50,6 +52,9 @@ echo "== [1/7] 审计门禁"
 if [[ "${SKIP_AUDIT:-0}" == "1" ]]; then
   echo "   SKIP_AUDIT=1，跳过"
 else
+  # Vue 组件导入检查：缺 import 时组件会渲染成未解析标签，界面静默失效
+  # （2026-11-20：任务弹窗的告警条因此长期不显示）
+  python3 scripts/lint-vue-imports.py
   python3 scripts/check-ui-audit.py docs/ui-audit-baseline.json
 fi
 
