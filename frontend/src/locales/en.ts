@@ -929,6 +929,9 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    emptyTitle: 'No scan tasks yet',
+    emptyDesc: 'Create a task, pick a node and a scan template to start',
+
     startSubmitted: 'Start submitted; node will pick it up shortly',
     stopSubmitted: 'Stop submitted',
     operateFailed: 'Operation failed',

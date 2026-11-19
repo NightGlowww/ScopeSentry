@@ -898,6 +898,9 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    emptyTitle: '还没有扫描任务',
+    emptyDesc: '新建一个任务，选择节点与扫描模板即可开始',
+
     startSubmitted: '已提交开始指令，节点会在一分钟内接手',
     stopSubmitted: '已提交暂停指令',
     operateFailed: '操作失败',

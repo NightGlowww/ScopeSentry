@@ -47,8 +47,11 @@ import { getProjectAllApi } from '@/api/project'
 const { push } = useRouter()
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
-const search = ref('')
+// 搜索词记忆：切走再回来不用重输（sessionStorage，同一标签页内有效）
+const SEARCH_KEY = 'task:search'
+const search = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = () => {
+  sessionStorage.setItem(SEARCH_KEY, search.value || '')
   getList()
 }
 const taskColums = reactive<TableColumn[]>([
@@ -729,7 +732,15 @@ const setMaxHeight = () => {
           fontFamily:
             '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji'
         }"
-      />
+      >
+        <template #empty>
+          <div class="empty-block">
+            <div class="empty-title">{{ t('task.emptyTitle') }}</div>
+            <div class="empty-desc">{{ t('task.emptyDesc') }}</div>
+            <ElButton type="primary" @click="addTask">{{ t('task.addTask') }}</ElButton>
+          </div>
+        </template>
+      </Table>
     </div>
   </ContentWrap>
   <Dialog
@@ -765,6 +776,23 @@ const setMaxHeight = () => {
 </template>
 
 <style scoped>
+/* 空列表引导：默认的「暂无数据」太冷，给标题+说明+主操作按钮 */
+.empty-block {
+  padding: 40px 0 48px;
+  text-align: center;
+}
+.empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 6px;
+}
+.empty-desc {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 16px;
+}
+
 /* 禁用按钮外面多了一层 DisableHint 包裹，原来的 .el-button + .el-button 相邻选择器失效，
    这里改用 flex gap 统一间距，避免按钮粘在一起 */
 .task-toolbar {

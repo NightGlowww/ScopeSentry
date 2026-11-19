@@ -921,6 +921,9 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    emptyTitle: '스캔 작업이 없습니다',
+    emptyDesc: '작업을 만들고 노드와 스캔 템플릿을 선택하세요',
+
     startSubmitted: '시작 요청이 접수되었습니다',
     stopSubmitted: '중지 요청이 접수되었습니다',
     operateFailed: '작업 실패',
