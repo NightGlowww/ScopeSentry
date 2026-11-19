@@ -58,3 +58,7 @@ export const batchUpdateNucleiStatusApi = (
   status: number
 ): Promise<IResponse<any>> =>
   request.post({ url: '/api/assets/nuclei_result/status/batch', data: { ids, status } })
+
+// 处置状态分布（受当前筛选影响）
+export const getNucleiStatusStatsApi = (payload: any): Promise<IResponse<Record<string, number>>> =>
+  request.post({ url: '/api/assets/nuclei_result/stats', data: payload })

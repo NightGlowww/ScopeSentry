@@ -34,6 +34,8 @@ type Service interface {
 	UpdateStatus(ctx context.Context, id string, status int) error
 	// UpdateStatusMany 批量更新处置状态
 	UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, error)
+	// StatusStats 各处置状态计数
+	StatusStats(ctx context.Context, req models.NucleiResultListRequest) (map[int]int64, error)
 }
 
 type service struct {
@@ -227,4 +229,9 @@ func (s *service) UpdateStatusMany(ctx context.Context, ids []string, status int
 		return 0, fmt.Errorf("no valid ids")
 	}
 	return s.repo.UpdateStatusMany(ctx, oids, status)
+}
+
+// StatusStats 返回各处置状态计数（受当前筛选影响）。
+func (s *service) StatusStats(ctx context.Context, req models.NucleiResultListRequest) (map[int]int64, error) {
+	return s.repo.StatusStats(ctx, BuildListFilter(req))
 }

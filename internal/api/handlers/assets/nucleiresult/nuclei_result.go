@@ -37,6 +37,21 @@ func UpdateStatus(c *gin.Context) {
 	response.Success(c, nil, "api.success")
 }
 
+// Stats 返回处置状态分布（受当前筛选影响），用于结果页顶部进度展示。
+func Stats(c *gin.Context) {
+	var req models.NucleiResultListRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	stats, err := nucleiResultService.StatusStats(c.Request.Context(), req)
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, stats, "api.success")
+}
+
 // UpdateStatusBatch 批量更新处置状态（勾选多条一次标误报/确认）。
 // @Summary      批量更新Nuclei结果状态
 // @Tags         Assets

@@ -376,6 +376,7 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    totalVuln: '{n} total',
     filterByTask: 'Filter by task name',
     pocTemplate: 'POC template',
     batchConfirm: 'Confirm selected',

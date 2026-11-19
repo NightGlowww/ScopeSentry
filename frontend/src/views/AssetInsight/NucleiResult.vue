@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { reactive, ref, h } from 'vue'
+import { reactive, ref, h, computed } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -20,7 +20,7 @@ import { useTable } from '@/hooks/web/useTable'
 import { useI18n } from '@/hooks/web/useI18n'
 import { useIcon } from '@/hooks/web/useIcon'
 import { updateNucleiStatusApi, batchUpdateNucleiStatusApi } from '@/api/assetReadModel'
-import { getNucleiResultDetailApi, getNucleiResultListApi } from '@/api/assetReadModel'
+import { getNucleiResultDetailApi, getNucleiResultListApi, getNucleiStatusStatsApi } from '@/api/assetReadModel'
 import type { NucleiResultDetail, NucleiResultItem } from '@/api/assetReadModel/types'
 import { normalizeSeverity, SEVERITY_LEVELS, severityTagType } from '@/utils/severity'
 import type { SeverityLevel } from '@/utils/severity'
@@ -46,6 +46,24 @@ const project = ref('')
 const severity = ref('')
 // 处置状态过滤：0=全部
 const statusFilter = ref(0)
+// 处置进度：顶部展示各状态条数，让「还有多少没处理」一眼可见
+const statusStats = ref<Record<string, number>>({})
+const totalVuln = computed(() =>
+  Object.values(statusStats.value || {}).reduce((a: number, b: any) => a + Number(b || 0), 0)
+)
+const loadStatusStats = async () => {
+  try {
+    const res: any = await getNucleiStatusStatsApi({
+      project: project.value,
+      severity: severity.value,
+      taskName: taskNameFilter.value.trim(),
+      status: 0
+    })
+    statusStats.value = res?.data || {}
+  } catch {
+    // 统计失败不影响列表主流程
+  }
+}
 // 按任务筛选：一个任务扫完想直接看它的产出
 const taskNameFilter = ref('')
 const templateId = ref('')
@@ -108,6 +126,8 @@ const columns = reactive<TableColumn[]>([
 
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
+    // 每次刷新列表顺带更新处置进度（统计失败不影响列表）
+    loadStatusStats()
     const { currentPage, pageSize } = tableState
     const res = await getNucleiResultListApi({
       project: project.value,
@@ -298,6 +318,19 @@ const rowStyle = () => ({ cursor: 'pointer' })
       </ElCol>
     </ElRow>
 
+    <div class="triage-bar">
+      <span class="triage-total">{{ t('nucleiResult.totalVuln', { n: totalVuln }) }}</span>
+      <ElTag v-if="statusStats['1']" type="info" size="small">
+        {{ t('nucleiResult.statusNew') }} {{ statusStats['1'] }}
+      </ElTag>
+      <ElTag v-if="statusStats['3']" type="info" size="small" effect="plain">
+        {{ t('nucleiResult.statusIgnored') }} {{ statusStats['3'] }}
+      </ElTag>
+      <ElTag v-if="statusStats['5']" type="danger" size="small">
+        {{ t('nucleiResult.statusConfirmed') }} {{ statusStats['5'] }}
+      </ElTag>
+    </div>
+
     <div class="batch-bar">
       <ElButton :loading="batchLoading" type="danger" link @click="batchSetStatus(5)">
         {{ t('nucleiResult.batchConfirm') }}
@@ -458,6 +491,19 @@ const rowStyle = () => ({ cursor: 'pointer' })
 
 .detail-block {
   margin-bottom: 16px;
+}
+
+.triage-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+.triage-total {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
 }
 
 .batch-bar {

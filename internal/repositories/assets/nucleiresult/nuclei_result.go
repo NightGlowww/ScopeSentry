@@ -28,6 +28,8 @@ type Repository interface {
 	UpdateStatus(ctx context.Context, id primitive.ObjectID, status int) error
 	// UpdateStatusMany 批量更新处置状态
 	UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, error)
+	// StatusStats 各处置状态计数
+	StatusStats(ctx context.Context, filter bson.M) (map[int]int64, error)
 	// ExplainList 列表查询的 explain（queryPlanner），用于验证走索引
 	ExplainList(ctx context.Context, filter bson.M, pageIndex, pageSize int) (bson.M, error)
 }
@@ -279,4 +281,30 @@ func (r *repository) UpdateStatusMany(ctx context.Context, ids []primitive.Objec
 		return 0, fmt.Errorf("failed to batch update nuclei result status: %w", err)
 	}
 	return res.ModifiedCount, nil
+}
+
+// StatusStats 返回各处置状态的漏洞数量（1未处理 2处理中 3忽略 4疑似 5确认 6已处理）。
+// 用于结果页顶部的处置进度条：只看总数看不出"还有多少没处理"。
+func (r *repository) StatusStats(ctx context.Context, filter bson.M) (map[int]int64, error) {
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: filter}},
+		{{Key: "$group", Value: bson.M{"_id": "$status", "n": bson.M{"$sum": 1}}}},
+	}
+	cursor, err := r.coll.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate status stats: %w", err)
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		ID int   `bson:"_id"`
+		N  int64 `bson:"n"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, fmt.Errorf("failed to decode status stats: %w", err)
+	}
+	out := map[int]int64{}
+	for _, row := range rows {
+		out[row.ID] = row.N
+	}
+	return out, nil
 }
