@@ -9,7 +9,8 @@ import {
   ElButton,
   ElSwitch,
   ElDivider,
-  ElText
+  ElText,
+  ElMessage
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { onMounted, ref } from 'vue'
@@ -51,8 +52,9 @@ const ruleFormRef = ref<FormInstance>()
 
 const oldName = localForm.value.name
 const submitForm = async (formEl: FormInstance | undefined) => {
-  saveLoading.value = true
+  // 先校验再开 loading，避免 formEl 为空时按钮永久转圈
   if (!formEl) return
+  saveLoading.value = true
   await formEl.validate(async (valid, fields) => {
     if (valid) {
       let res
@@ -64,9 +66,14 @@ const submitForm = async (formEl: FormInstance | undefined) => {
           switchValue.value
         )
         if (res.code === 200) {
+          ElMessage.success(t('common.success'))
           props.getList()
           props.closeDialog()
+        } else {
+          ElMessage.error(res.message || t('common.operateFailed'))
         }
+      } catch (e: any) {
+        ElMessage.error(e?.message || t('common.operateFailed'))
       } finally {
         saveLoading.value = false
       }

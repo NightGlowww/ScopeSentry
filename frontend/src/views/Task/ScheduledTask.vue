@@ -206,12 +206,13 @@ const handleTableSelectionChange = (rows: unknown[]) => {
 const del = async (data) => {
   delLoading.value = true
   try {
-    const res = await scheduledDeleteTaskApi([data.id])
-    console.log('Data deleted successfully:', res)
+    await scheduledDeleteTaskApi([data.id])
+    ElMessage.success(t('common.success'))
     delLoading.value = false
     getList()
-  } catch (error) {
-    console.error('Error deleting data:', error)
+  } catch (error: any) {
+    // 之前只 console.error，失败时界面毫无反应
+    ElMessage.error(error?.message || t('common.operateFailed'))
     delLoading.value = false
     getList()
   }
@@ -223,12 +224,12 @@ const delSelect = async () => {
   ids.value = selectedRows.map((row) => row.id)
   delLoading.value = true
   try {
-    const res = await scheduledDeleteTaskApi(ids.value)
-    console.log('Data deleted successfully:', res)
+    await scheduledDeleteTaskApi(ids.value)
+    ElMessage.success(t('common.success'))
     delLoading.value = false
     getList()
-  } catch (error) {
-    console.error('Error deleting data:', error)
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('common.operateFailed'))
     delLoading.value = false
     getList()
   }
