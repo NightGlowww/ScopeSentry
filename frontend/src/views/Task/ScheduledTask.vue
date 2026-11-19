@@ -335,6 +335,7 @@ const addTask = async () => {
         type="danger"
         :loading="delLoading"
         :disabled="tableSelectedCount === 0"
+        :title="tableSelectedCount === 0 ? t('common.disabledNeedTask') : ''"
         @click="confirmDeleteSelect"
       >
             {{ t('task.delTask') }}
