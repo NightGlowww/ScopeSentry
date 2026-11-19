@@ -964,6 +964,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    cmdFailHint: '{n} tool failure(s) during this task; results may be incomplete',
     exportTask: 'Export results',
     exportDone: 'Task export package download started',
     nodeOfflineWarn: 'Node offline, tasks may not progress',

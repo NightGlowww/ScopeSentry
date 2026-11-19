@@ -63,6 +63,8 @@ type Task struct {
 	CurrentSince  string `bson:"-" json:"currentSince,omitempty"`
 	// Queued 表示任务还在队列里等节点来取（尚未真正开跑）
 	Queued bool `bson:"-" json:"queued,omitempty"`
+	// CmdFail 本次任务期间外部工具失败次数（节点任务结束时上报）
+	CmdFail int64 `bson:"-" json:"cmdFail,omitempty"`
 }
 
 // TaskProgress 任务进度模型

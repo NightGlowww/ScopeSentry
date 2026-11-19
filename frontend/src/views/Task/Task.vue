@@ -105,6 +105,14 @@ const taskColums = reactive<TableColumn[]>([
           h('div', { class: 'progress-sub queued' }, t('task.queuedHint'))
         ])
       }
+      // 本次任务期间外部工具失败：直接标在进度下方，产出可信度一眼可见
+      const cmdFail = (row.cmdFail as number) || 0
+      if (cmdFail > 0) {
+        return h('div', { class: 'progress-cell' }, [
+          bar,
+          h('div', { class: 'progress-sub fail' }, t('task.cmdFailHint', { n: cmdFail }))
+        ])
+      }
       if (row.status !== 1 || !mod) {
         return bar
       }
@@ -917,6 +925,9 @@ const setMaxHeight = () => {
 <style scoped>
 .progress-cell {
   line-height: 1.2;
+}
+.progress-sub.fail {
+  color: var(--el-color-danger);
 }
 .progress-sub {
   font-size: 11px;

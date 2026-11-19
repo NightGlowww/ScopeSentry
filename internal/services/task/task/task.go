@@ -118,6 +118,9 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int)
 	// 只给运行中的任务补「当前正在做什么」：长任务（目录扫描 7 分钟/目标）
 	// 只显示百分比会像卡死。运行中任务通常 1-2 个，N+1 查询可接受。
 	for i := range tasks {
+		// 工具失败数对所有任务都填：它是任务「结束后」才写回的，
+		// 只在运行中填等于永远看不到（2026-11-20 实测坑）。
+		tasks[i].CmdFail = s.taskRepo.TaskCmdFail(ctx, tasks[i].ID.Hex())
 		if tasks[i].Status != constants.TaskStatusRunning {
 			continue
 		}

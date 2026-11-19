@@ -74,6 +74,8 @@ type Repository interface {
 	HasQueuedTask(ctx context.Context, taskID string) (bool, error)
 	// NodeQueueLen 节点待领取队列长度
 	NodeQueueLen(ctx context.Context, node string) (int64, error)
+	// TaskCmdFail 任务期间工具失败总数
+	TaskCmdFail(ctx context.Context, taskID string) int64
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
 	CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string)
 	// 目标级暂停（issue #277）
@@ -462,4 +464,20 @@ func (r *repository) CurrentActivity(ctx context.Context, taskID string) (module
 // NodeQueueLen 返回某节点待领取队列的长度（背压判断用）。
 func (r *repository) NodeQueueLen(ctx context.Context, node string) (int64, error) {
 	return r.redisClient.LLen(ctx, "NodeTask:"+node).Result()
+}
+
+// TaskCmdFail 返回该任务期间各节点上报的外部工具失败次数之和。
+// 节点在任务结束时写入 TaskInfo:cmdfail:<taskID>（field=节点名）。
+func (r *repository) TaskCmdFail(ctx context.Context, taskID string) int64 {
+	m, err := r.redisClient.HGetAll(ctx, "TaskInfo:cmdfail:"+taskID).Result()
+	if err != nil || len(m) == 0 {
+		return 0
+	}
+	var total int64
+	for _, v := range m {
+		if n, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+			total += n
+		}
+	}
+	return total
 }

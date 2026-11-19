@@ -956,6 +956,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    cmdFailHint: '이번 작업 중 도구 실패 {n}회, 결과가 불완전할 수 있습니다',
     exportTask: '결과 내보내기',
     exportDone: '작업 내보내기 다운로드를 시작했습니다',
     nodeOfflineWarn: '노드 오프라인, 작업이 진행되지 않을 수 있습니다',

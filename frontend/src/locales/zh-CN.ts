@@ -933,6 +933,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    cmdFailHint: '本次工具失败 {n} 次，产出可能不完整',
     exportTask: '导出任务结果',
     exportDone: '已开始下载任务导出包',
     nodeOfflineWarn: '节点离线，任务可能无法推进',
