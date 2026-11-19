@@ -577,6 +577,7 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
   },
   {
     path: '/about',
+    redirect: '/about/index',
     component: Layout,
     name: 'About',
     meta: {},
