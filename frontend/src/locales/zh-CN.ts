@@ -878,6 +878,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    offlineSuffix: '（离线）',
     queueLen: '队列',
     clearQueue: '清空队列',
     clearQueueMsg: '清空该节点待领取的任务队列',

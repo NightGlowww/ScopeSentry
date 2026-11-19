@@ -28,7 +28,7 @@ import {
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { getNodeDataOnlineApi } from '@/api/node'
+import { getNodeDataOnlineApi, getNodeDataApi } from '@/api/node'
 import {
   addScheduledTaskApi,
   addTaskApi,
@@ -249,14 +249,29 @@ const submitForm = async (formEl: FormInstance | undefined) => {
     saveLoading.value = false // 确保无论成功或失败都重置加载状态
   }
 }
-const nodeOptions = reactive<{ value: string; label: string }[]>([])
+const nodeOptions = reactive<{ value: string; label: string; disabled?: boolean }[]>([])
+// 同时取「全部节点」和「在线节点」：离线节点也列出来但禁用，
+// 否则用户只看到节点消失，不知道是自己选错了还是节点掉了。
 const getNodeList = async () => {
-  const res = await getNodeDataOnlineApi()
-  if (res.data.list.length > 0) {
+  const [onlineRes, allRes] = await Promise.all([
+    getNodeDataOnlineApi().catch(() => ({ data: { list: [] } }) as any),
+    getNodeDataApi().catch(() => ({ data: { list: [] } }) as any)
+  ])
+  const online: string[] = onlineRes?.data?.list || []
+  const allRaw = allRes?.data?.list || []
+  const all: string[] = allRaw.map((n: any) => (typeof n === 'string' ? n : n.name)).filter(Boolean)
+
+  nodeOptions.length = 0
+  // 在线优先，离线排后面并标注
+  online.forEach((item) => nodeOptions.push({ value: item, label: item }))
+  all
+    .filter((n) => !online.includes(n))
+    .forEach((n) =>
+      nodeOptions.push({ value: n, label: n + ' ' + t('node.offlineSuffix'), disabled: true })
+    )
+
+  if (online.length > 0) {
     isCheckboxDisabledNode.value = false
-    res.data.list.forEach((item) => {
-      nodeOptions.push({ value: item, label: item })
-    })
   } else {
     isCheckboxDisabledNode.value = true
     ElMessage.warning(t('node.onlineNodeMsg'))

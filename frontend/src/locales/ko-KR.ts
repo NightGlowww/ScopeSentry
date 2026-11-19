@@ -901,6 +901,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    offlineSuffix: '(오프라인)',
     queueLen: '대기',
     clearQueue: '대기열 비우기',
     clearQueueMsg: '이 노드의 대기 중인 작업 대기열을 비웁니다',

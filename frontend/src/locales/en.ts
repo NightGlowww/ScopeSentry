@@ -909,6 +909,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    offlineSuffix: '(offline)',
     queueLen: 'Queue',
     clearQueue: 'Clear queue',
     clearQueueMsg: 'Clear pending task queue of this node',
