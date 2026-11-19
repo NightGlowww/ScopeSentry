@@ -497,18 +497,24 @@ var numericFilterFields = map[string]bool{
 	"length":     true,
 }
 
-func normalizeFilterValue(field string, v interface{}) (interface{}, bool) {
+// buildFilterForms 返回过滤值的候选形态。
+//
+// 背景（2026-11-19 实测）：同一个"数值字段"在不同集合里类型不一致——
+// asset.statuscode 是 number，但 asset.port 是 string（'443'）。
+// 单方向归一（字符串→数字）会让 string 存法的过滤器静默空；
+// 因此对数值歧义字段同时下发字符串与数字两种形态，哪种存法都能命中。
+func buildFilterForms(field string, v interface{}) []interface{} {
 	if !numericFilterFields[field] {
-		return v, false
+		return []interface{}{v}
 	}
 	s, ok := v.(string)
 	if !ok {
-		return v, false
+		return []interface{}{v}
 	}
-	if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil {
-		return n, true
+	if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && strconv.Itoa(n) == strings.TrimSpace(s) {
+		return []interface{}{s, n}
 	}
-	return v, false
+	return []interface{}{s}
 }
 
 func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
@@ -552,20 +558,19 @@ func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 				tmpOr := make([]map[string]interface{}, 0, len(values))
 				for _, v := range values {
 					if v != "" {
-						if nv, changed := normalizeFilterValue(f, v); changed {
-							v = nv
-						}
-						if strings.Contains(mongoKey, ",") {
-							keys := strings.Split(mongoKey, ",")
-							for _, key := range keys {
+						for _, form := range buildFilterForms(f, v) {
+							if strings.Contains(mongoKey, ",") {
+								keys := strings.Split(mongoKey, ",")
+								for _, key := range keys {
+									tmpOr = append(tmpOr, map[string]interface{}{
+										key: form,
+									})
+								}
+							} else {
 								tmpOr = append(tmpOr, map[string]interface{}{
-									key: v,
+									mongoKey: form,
 								})
 							}
-						} else {
-							tmpOr = append(tmpOr, map[string]interface{}{
-								mongoKey: v,
-							})
 						}
 					}
 				}
