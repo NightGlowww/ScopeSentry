@@ -131,6 +131,8 @@ type ListRequest struct {
 	Search    string `json:"search" binding:"omitempty" example:"测试"`
 	PageIndex int    `json:"pageIndex" binding:"required,min=1" example:"1"`
 	PageSize  int    `json:"pageSize" binding:"required,min=1" example:"10"`
+	// Status 过滤：-1/不传=全部，0未开始 1运行中 2暂停 3完成 4失败
+	Status *int `json:"status" binding:"omitempty,min=-1,max=4" example:"1"`
 }
 
 // ScheduledTask 计划任务模型

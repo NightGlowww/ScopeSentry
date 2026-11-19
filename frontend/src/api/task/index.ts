@@ -17,9 +17,10 @@ interface TaskDataResponse {
 export const getTaskDataApi = (
   search: string,
   pageIndex: number,
-  pageSize: number
+  pageSize: number,
+  status?: number
 ): Promise<IResponse<TaskDataResponse>> => {
-  return request.post({ url: '/api/task/', data: { search, pageIndex, pageSize } })
+  return request.post({ url: '/api/task/', data: { search, pageIndex, pageSize, status } })
 }
 
 export const stopTaskApi = (ids: string[]): Promise<IResponse<TaskDataResponse>> => {

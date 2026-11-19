@@ -965,6 +965,12 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    statusFilter: 'Status',
+    statusAll: 'All statuses',
+    statusRunning: 'Running',
+    statusPaused: 'Paused',
+    statusFinished: 'Finished',
+    statusFailed: 'Failed',
     cmdFailBanner: 'External tools failed {n} time(s) during this task; some targets may be incompletely scanned',
     cmdFailHint: '{n} tool failure(s) during this task; results may be incomplete',
     exportTask: 'Export results',

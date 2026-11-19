@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h, onMounted, onUnmounted, computed } from 'vue'
+import { ref, reactive, h, onMounted, onUnmounted, computed, watch } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import {
   ElButton,
@@ -25,7 +25,9 @@ import {
 
   ElTreeSelect,
   ElTooltip,
-  ElAlert
+  ElAlert,
+  ElSelect,
+  ElOption
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -53,6 +55,15 @@ const { t } = useI18n()
 // 搜索词记忆：切走再回来不用重输（sessionStorage，同一标签页内有效）
 const SEARCH_KEY = 'task:search'
 const search = ref(sessionStorage.getItem(SEARCH_KEY) || '')
+// 状态筛选：-1=全部。任务堆积时（几十个暂停任务）只靠名字搜很难找
+const STATUS_KEY = 'task:status'
+const statusFilter = ref<number>(Number(sessionStorage.getItem(STATUS_KEY) ?? -1))
+// 下拉一改就重新查询：之前只有点「搜索」才生效，用户会以为筛选没反应
+watch(statusFilter, (v) => {
+  sessionStorage.setItem(STATUS_KEY, String(v ?? -1))
+  currentPage.value = 1
+  getList()
+})
 const handleSearch = () => {
   sessionStorage.setItem(SEARCH_KEY, search.value || '')
   getList()
@@ -379,7 +390,12 @@ const progresscloseDialog = () => {
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = tableState
-    const res = await getTaskDataApi(search.value, currentPage.value, pageSize.value)
+    const res = await getTaskDataApi(
+      search.value,
+      currentPage.value,
+      pageSize.value,
+      statusFilter.value >= 0 ? statusFilter.value : undefined
+    )
     return {
       list: res.data.list,
       total: res.data.total
@@ -779,6 +795,15 @@ const setMaxHeight = () => {
 <template>
   <ContentWrap>
     <ElRow class="locale-search-row">
+      <ElCol :span="4">
+        <ElSelect v-model="statusFilter" :placeholder="t('task.statusFilter')" clearable>
+          <ElOption :label="t('task.statusAll')" :value="-1" />
+          <ElOption :label="t('task.statusRunning')" :value="1" />
+          <ElOption :label="t('task.statusPaused')" :value="2" />
+          <ElOption :label="t('task.statusFinished')" :value="3" />
+          <ElOption :label="t('task.statusFailed')" :value="4" />
+        </ElSelect>
+      </ElCol>
       <ElCol :span="1">
         <ElText class="mx-1">{{ t('task.taskName') }}:</ElText>
       </ElCol>

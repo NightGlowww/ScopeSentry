@@ -35,7 +35,7 @@ import (
 
 // Service 定义任务服务接口
 type Service interface {
-	List(ctx *gin.Context, search string, pageIndex, pageSize int) ([]models.Task, int64, error)
+	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int) ([]models.Task, int64, error)
 	CheckTaskNameExists(ctx *gin.Context, name string) (bool, error)
 	GetTaskDetail(ctx *gin.Context, taskID string) (*models.Task, error)
 	GetTasksByIDs(ctx *gin.Context, ids []string) ([]models.Task, error)
@@ -81,10 +81,14 @@ func NewService() Service {
 }
 
 // List 获取任务列表
-func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int) ([]models.Task, int64, error) {
+func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int) ([]models.Task, int64, error) {
 	filter := bson.M{}
 	if search != "" {
 		filter["name"] = bson.M{"$regex": search, "$options": "i"}
+	}
+	// 状态过滤：任务堆积时（几十个暂停任务）只靠名字搜很难找
+	if status != nil && *status >= 0 {
+		filter["status"] = *status
 	}
 
 	// 计算总数

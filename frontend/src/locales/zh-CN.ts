@@ -934,6 +934,12 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    statusFilter: '状态',
+    statusAll: '全部状态',
+    statusRunning: '运行中',
+    statusPaused: '已暂停',
+    statusFinished: '已完成',
+    statusFailed: '已失败',
     cmdFailBanner: '本次任务期间外部工具失败 {n} 次，部分目标可能扫描不完整',
     cmdFailHint: '本次工具失败 {n} 次，产出可能不完整',
     exportTask: '导出任务结果',

@@ -957,6 +957,12 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    statusFilter: '상태',
+    statusAll: '모든 상태',
+    statusRunning: '실행 중',
+    statusPaused: '일시중지',
+    statusFinished: '완료',
+    statusFailed: '실패',
     cmdFailBanner: '이 작업 중 외부 도구가 {n}회 실패했습니다. 일부 대상 스캔이 불완전할 수 있습니다',
     cmdFailHint: '이번 작업 중 도구 실패 {n}회, 결과가 불완전할 수 있습니다',
     exportTask: '결과 내보내기',
