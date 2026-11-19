@@ -124,6 +124,7 @@ export default {
     disabledNeedScope: '请先勾选记录后再操作'
   },
   export: {
+    quantityRequired: '请填写导出数量（至少 1 条）',
     submitted: '导出任务已提交，可在下方记录列表查看进度',
     timeRange: '时间范围',
     timeRangeStart: '开始时间',

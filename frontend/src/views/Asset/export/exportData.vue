@@ -18,7 +18,7 @@ import {
   ElDatePicker,
   ElMessage
 } from 'element-plus'
-import { onMounted, reactive, Ref, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, Ref, ref } from 'vue'
 import BatchExportTab from './BatchExportTab.vue'
 import {
   exportApi,
@@ -39,13 +39,19 @@ const props = defineProps<{
 }>()
 const exportForm = reactive({
   type: 'all',
-  quantity: 0,
+  // 默认 1000：后端 ExportRequest.Quantity 是 required，0 会被判参数非法，
+  // 之前默认 0 导致点「Create」直接报 "Invalid request parameters"（2026-11-20）。
+  quantity: 1000,
   // issue #261：可选的导出时间范围，Element 的 datetimerange 给的是 [start, end]
   timeRange: [] as string[]
 })
 const create = async () => {
   // 导出是异步任务：提交后要明确告诉用户「已提交，去列表等」，并刷新记录列表。
   // 之前只切 loading，成功失败都没有任何提示（2026-11-20）。
+  if (!exportForm.quantity || exportForm.quantity < 1) {
+    ElMessage.warning(t('export.quantityRequired'))
+    return
+  }
   createLoading.value = true
   try {
     const searchFilter = props.getFilter()
@@ -62,7 +68,7 @@ const create = async () => {
       filetype.value
     )
     ElMessage.success(t('export.submitted'))
-    getList()
+    refreshWithTimer()
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
@@ -150,6 +156,33 @@ const { tableRegister, tableState, tableMethods } = useTable({
   immediate: false
 })
 const { dataList, loading } = tableState
+// 导出是异步任务：有记录处于「生成中」时，每 3 秒静默刷新一次，
+// 用户不用手动点刷新就能看到文件变成可用（2026-11-20）。
+let exportTimer: ReturnType<typeof setInterval> | null = null
+const syncExportTimer = () => {
+  const running = (dataList.value || []).some((r: any) => Number(r.state) === 0)
+  if (running && !exportTimer) {
+    exportTimer = setInterval(async () => {
+      try {
+        await getList()
+      } catch {
+        // 静默
+      }
+    }, 3000)
+  } else if (!running && exportTimer) {
+    clearInterval(exportTimer)
+    exportTimer = null
+  }
+}
+onUnmounted(() => {
+  if (exportTimer) clearInterval(exportTimer)
+})
+
+const refreshWithTimer = async () => {
+  await getList()
+  syncExportTimer()
+}
+
 const { getList, getElTableExpose } = tableMethods
 
 const download = async (id) => {
@@ -218,7 +251,14 @@ const delSelect = async () => {
 const fields = ref([]) as Ref<string[]>
 const getField = async () => {
   const res = await getFieldApi(props.index)
-  fields.value = res.data.field
+  fields.value = res.data.field || []
+  // 默认全选：字段为空时后端直接 400（fields cannot be empty），
+  // 用户不勾任何框就点 Create 必然失败——这里给一个可直接用的默认值。
+  if (checkedField.value.length === 0) {
+    checkedField.value = [...fields.value]
+    checkAll.value = true
+    isIndeterminate.value = false
+  }
 }
 
 onMounted(() => {

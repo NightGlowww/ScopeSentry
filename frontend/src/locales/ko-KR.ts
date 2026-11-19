@@ -124,6 +124,7 @@ export default {
     disabledNeedScope: '먼저 레코드를 하나 이상 선택하세요'
   },
   export: {
+    quantityRequired: '내보낼 개수를 입력하세요(최소 1개)',
     submitted: '내보내기가 접수되었습니다. 아래 기록 목록에서 진행 상황을 확인하세요',
     timeRange: '시간 범위',
     timeRangeStart: '시작 시간',

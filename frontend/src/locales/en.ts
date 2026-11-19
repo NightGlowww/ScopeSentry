@@ -124,6 +124,7 @@ export default {
     disabledNeedScope: 'Select at least one record first'
   },
   export: {
+    quantityRequired: 'Enter export quantity (at least 1)',
     submitted: 'Export submitted; check the records list below for progress',
     timeRange: 'Time range',
     timeRangeStart: 'Start time',
