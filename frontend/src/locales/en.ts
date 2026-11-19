@@ -376,6 +376,7 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    truncatedHint: 'Content too large; showing first 200KB',
     statusAll: 'All statuses',
     status: 'Status',
     statusNew: 'New',

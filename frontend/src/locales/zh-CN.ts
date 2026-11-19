@@ -366,6 +366,7 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    truncatedHint: '内容过大，仅显示前 200KB',
     statusAll: '全部状态',
     status: '状态',
     statusNew: '未处理',

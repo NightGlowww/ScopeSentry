@@ -141,6 +141,41 @@ const handleReset = () => {
 }
 
 // ---- 详情抽屉 ----
+// 大报文保护 + 一键复制：详情页内容常被贴进报告，
+// 但有的响应体几百 KB，直接渲染会把抽屉卡死（2026-11-20）。
+const MAX_PREVIEW = 200 * 1024
+const clipText = (t?: string) => {
+  if (!t) return ''
+  return t.length > MAX_PREVIEW ? t.slice(0, MAX_PREVIEW) : t
+}
+const isClipped = (t?: string) => !!t && t.length > MAX_PREVIEW
+const copyBlock = async (text?: string) => {
+  if (!text) return
+  // 优先用异步剪贴板；不可用（非安全上下文 / 无用户激活）时退回 textarea + execCommand，
+  // 否则在没有 focus 的后台标签页里会直接报「复制失败」（2026-11-20 实测）。
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text)
+      ElMessage.success(t('common.copySuccess'))
+      return
+    }
+  } catch {
+    // 落到下面的兜底
+  }
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    ok ? ElMessage.success(t('common.copySuccess')) : ElMessage.error(t('common.copyFailed'))
+  } catch {
+    ElMessage.error(t('common.copyFailed'))
+  }
+}
 const drawerVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<NucleiResultDetail | null>(null)
@@ -285,15 +320,43 @@ const rowStyle = () => ({ cursor: 'pointer' })
         </ElDescriptions>
 
         <div class="detail-block">
-          <div class="detail-block__title">{{ t('nucleiResult.request') }}</div>
-          <pre v-if="detail.request" class="detail-block__code">{{ detail.request }}</pre>
+          <div class="detail-block__head">
+            <span class="detail-block__title">{{ t('nucleiResult.request') }}</span>
+            <ElButton
+              v-if="detail.request"
+              link
+              type="primary"
+              size="small"
+              @click="copyBlock(detail.request)"
+            >
+              {{ t('common.copy') }}
+            </ElButton>
+          </div>
+          <pre v-if="detail.request" class="detail-block__code">{{ clipText(detail.request) }}</pre>
           <ElText v-else type="info">{{ t('nucleiResult.noRequest') }}</ElText>
+          <ElText v-if="isClipped(detail.request)" type="warning" size="small">
+            {{ t('nucleiResult.truncatedHint') }}
+          </ElText>
         </div>
 
         <div class="detail-block">
-          <div class="detail-block__title">{{ t('nucleiResult.response') }}</div>
-          <pre v-if="detail.response" class="detail-block__code">{{ detail.response }}</pre>
+          <div class="detail-block__head">
+            <span class="detail-block__title">{{ t('nucleiResult.response') }}</span>
+            <ElButton
+              v-if="detail.response"
+              link
+              type="primary"
+              size="small"
+              @click="copyBlock(detail.response)"
+            >
+              {{ t('common.copy') }}
+            </ElButton>
+          </div>
+          <pre v-if="detail.response" class="detail-block__code">{{ clipText(detail.response) }}</pre>
           <ElText v-else type="info">{{ t('nucleiResult.noResponse') }}</ElText>
+          <ElText v-if="isClipped(detail.response)" type="warning" size="small">
+            {{ t('nucleiResult.truncatedHint') }}
+          </ElText>
         </div>
       </template>
     </div>
@@ -322,6 +385,13 @@ const rowStyle = () => ({ cursor: 'pointer' })
 
 .detail-block {
   margin-bottom: 16px;
+}
+
+.detail-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .detail-block__title {
