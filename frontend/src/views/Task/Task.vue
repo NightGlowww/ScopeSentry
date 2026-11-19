@@ -285,7 +285,13 @@ const { tableRegister, tableState, tableMethods } = useTable({
 })
 const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
-const { getList, getElTableExpose } = tableMethods
+const { getList: rawGetList, getElTableExpose } = tableMethods
+// 每次刷新列表后重置选择状态，避免"按钮可点但选中为空"
+const getList = async () => {
+  const r = await rawGetList()
+  resetSelection()
+  return r
+}
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
@@ -544,6 +550,13 @@ const delLoading = ref(false)
 const tableSelectedCount = ref(0)
 const handleTableSelectionChange = (rows: unknown[]) => {
   tableSelectedCount.value = rows?.length ?? 0
+}
+
+// 列表刷新后表格会清空选中，但选择回调不一定触发，
+// 导致 count 仍 >0 → 批量按钮可点 → 请求带空 ids → 后端报 "ids is required"（2026-11-19）
+const resetSelection = () => {
+  tableSelectedCount.value = 0
+  ids.value = []
 }
 // 工具条四个批量按钮共用一条禁用条件，文案也共用一条
 const noTaskSelected = computed(() => tableSelectedCount.value === 0)
