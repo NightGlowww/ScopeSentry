@@ -929,6 +929,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    nodeOfflineWarn: 'Node offline, tasks may not progress',
     queuedHint: 'Queued (waiting for a free node)',
     moduleStalled: 'stalled (>1h)',
     minutesShort: 'm',

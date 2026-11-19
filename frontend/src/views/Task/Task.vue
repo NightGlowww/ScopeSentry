@@ -326,6 +326,21 @@ const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
 const { getList: rawGetList, getElTableExpose } = tableMethods
 
+// 节点离线提示：任务卡住最常见的原因是节点掉了，但以前只能去「系统状态」页才看得到。
+// 这里在任务页顶部直接给出「X/Y 节点在线」，离线时高亮成警告条。
+const nodeOnline = ref(0)
+const nodeTotal = ref(0)
+const loadNodeHealth = async () => {
+  try {
+    const res: any = await getConsoleInfoApi()
+    const d = res?.data || {}
+    nodeOnline.value = d.nodeOnline ?? 0
+    nodeTotal.value = d.nodeCount ?? 0
+  } catch {
+    // 静默：不打扰主流程
+  }
+}
+
 // 列表自动刷新：有任务在跑时每 10 秒静默刷新一次，
 // 用户不用反复点刷新按钮也能看到进度变化；全部结束后自动停止。
 const autoListTimer = ref<ReturnType<typeof setInterval> | null>(null)
@@ -347,7 +362,11 @@ const syncAutoList = () => {
     }, 10000)
   }
 }
-onMounted(() => syncAutoList())
+onMounted(() => {
+  loadNodeHealth()
+  setInterval(loadNodeHealth, 60000)
+  syncAutoList()
+})
 onUnmounted(() => {
   if (autoListTimer.value) clearInterval(autoListTimer.value)
 })
@@ -752,6 +771,14 @@ const setMaxHeight = () => {
       </ElCol>
     </ElRow>
     <div style="position: relative; top: 12px">
+      <ElAlert
+        v-if="nodeTotal > 0 && nodeOnline < nodeTotal"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 10px"
+        :title="t('task.nodeOfflineWarn') + ': ' + nodeOnline + '/' + nodeTotal"
+      />
       <Table
         :tooltip-options="{
           offset: 1,
