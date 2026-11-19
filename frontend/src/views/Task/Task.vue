@@ -366,7 +366,7 @@ const confirmDeleteByFilter = async () => {
     await ElMessageBox.confirm(
       t('task.deleteFilterConfirm', { scope }),
       t('common.delWarning'),
-      { confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel'), type: 'warning' }
+      { confirmButtonText: 'OK', cancelButtonText: t('common.cancel'), type: 'warning' }
     )
   } catch {
     return
