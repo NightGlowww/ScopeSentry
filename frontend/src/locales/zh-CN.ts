@@ -1372,6 +1372,7 @@ export default {
     valueMsg: '请输入值'
   },
   fingerprint: {
+    contentRequired: '指纹内容不能为空',
     name: '名称',
     rule: '规则',
     category: '类型',

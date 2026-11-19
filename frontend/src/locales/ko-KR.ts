@@ -1399,6 +1399,7 @@ export default {
     valueMsg: '값을 입력하세요.'
   },
   fingerprint: {
+    contentRequired: '지문 내용은 비워둘 수 없습니다',
     name: '이름',
     rule: '규칙',
     category: '분류',

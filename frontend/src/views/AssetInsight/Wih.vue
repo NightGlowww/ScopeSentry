@@ -9,7 +9,8 @@ import {
   ElInput,
   ElRow,
   ElTag,
-  ElText
+  ElText,
+  ElMessage
 } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { Table, TableColumn } from '@/components/Table'
@@ -107,6 +108,8 @@ const openDetail = async (row: WihRow) => {
   try {
     const res = await getWihDetailApi(row.id)
     if (res?.data) detail.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
     detailLoading.value = false
   }

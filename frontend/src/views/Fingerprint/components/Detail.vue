@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElButton } from 'element-plus'
+import { ElButton, ElMessage } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { toRefs } from '@vueuse/core'
@@ -120,7 +120,8 @@ const submitForm = async () => {
   try {
     const content = editor?.getValue() || ''
     if (!content.trim()) {
-      saveLoading.value = false
+      // 空内容静默返回会让用户以为保存成功
+      ElMessage.warning(t('fingerprint.contentRequired'))
       return
     }
 
@@ -131,9 +132,15 @@ const submitForm = async () => {
       res = await addFingerprintDataApi(content)
     }
     if (res.code === 200) {
+      ElMessage.success(t('common.success'))
       props.getList()
       props.closeDialog()
+    } else {
+      ElMessage.error(res.message || t('common.operateFailed'))
     }
+  } catch (e: any) {
+    // 保存失败此前会被 finally 吞掉，界面无任何反馈
+    ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
     saveLoading.value = false
   }

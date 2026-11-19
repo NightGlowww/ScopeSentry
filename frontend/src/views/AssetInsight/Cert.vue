@@ -11,7 +11,8 @@ import {
   ElOption,
   ElRow,
   ElSelect,
-  ElTag
+  ElTag,
+  ElMessage
 } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { Table, TableColumn } from '@/components/Table'
@@ -128,6 +129,9 @@ const openDetail = async (row: CertRow) => {
   try {
     const res = await getCertDetailApi({ id: row.id, project: project.value })
     if (res?.data) detail.value = res.data
+  } catch (e: any) {
+    // 详情拉取失败此前只关 loading，抽屉里一片空白，用户以为没数据
+    ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
     detailLoading.value = false
   }

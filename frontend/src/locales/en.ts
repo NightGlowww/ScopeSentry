@@ -1412,6 +1412,7 @@ export default {
     valueMsg: 'Please enter value'
   },
   fingerprint: {
+    contentRequired: 'Fingerprint content cannot be empty',
     name: 'Name',
     rule: 'Rule',
     category: 'Category',
