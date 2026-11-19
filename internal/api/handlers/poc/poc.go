@@ -192,13 +192,21 @@ func SyncPoc(c *gin.Context) {
 		url = DefaultPocSyncURL
 	}
 
-	result, err := pocService.SyncFromURL(c.Request.Context(), url)
-	if err != nil {
-		logger.Error(fmt.Sprintf("SyncPoc error %v", err))
-		response.InternalServerError(c, "api.error", err)
-		return
-	}
-	response.Success(c, result, "api.success")
+	// 异步执行：同步一次要下载+逐个文件入库（实测 ~25 秒），
+	// 同步阻塞会让前端在整个过程里只能干等、拿不到任何进度。
+	// 这里立刻返回，真实进度走 /poc/data/import/status 轮询。
+	go func(u string) {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error(fmt.Sprintf("SyncPoc panic: %v", r))
+			}
+		}()
+		if _, err := pocService.SyncFromURL(context.Background(), u); err != nil {
+			logger.Error(fmt.Sprintf("SyncPoc background error %v", err))
+		}
+	}(url)
+
+	response.Success(c, map[string]interface{}{"message": "sync started"}, "api.success")
 }
 
 // ImportPoc godoc

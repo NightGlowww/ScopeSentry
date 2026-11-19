@@ -16,7 +16,7 @@ import {
   UploadRawFile,
   UploadInstance,
   ElTag,
-
+  ElProgress
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -322,10 +322,19 @@ const stopImportPoll = () => {
 }
 const startImportPoll = () => {
   stopImportPoll()
+  // 同步是异步启动的：刚返回时后台可能还没开始跑，
+  // 因此前几轮看到 running=false 不能立刻停，要等它真正开跑（最多等 15 秒）。
+  let sawRunning = false
+  let attempts = 0
   importTimer = setInterval(async () => {
+    attempts++
     try {
       const res: any = await getImportStatusApi()
-      importStatus.value = res?.data || null
+      // 兼容三种响应形态：payload / {data:payload} / {code,message,data:payload}
+      const pick = (o: any) => (o && typeof o === 'object' && 'running' in o ? o : null)
+      importStatus.value = pick(res) || pick(res?.data) || pick(res?.data?.data) || null
+      if (importStatus.value?.running) sawRunning = true
+      if (!sawRunning && attempts < 15) return
       if (importStatus.value && importStatus.value.running === false) {
         stopImportPoll()
         getList()
@@ -399,6 +408,20 @@ const filterChange = async (newFilters: any) => {
       <ElButton :loading="syncLoading" :icon="Refresh" @click="handleSync">
         {{ t('poc.syncNow') }}
       </ElButton>
+      <!-- 导入进行中：工具栏直接显示进度，不用等结束才知道在跑 -->
+      <div
+        v-if="importStatus && importStatus.total > 0 && importStatus.done < importStatus.total"
+        class="import-progress"
+      >
+        <ElProgress
+          :percentage="
+            importStatus.total ? Math.floor((importStatus.done / importStatus.total) * 100) : 0
+          "
+          :stroke-width="8"
+          style="width: 160px"
+        />
+        <span class="import-progress-text">{{ importStatus.done }}/{{ importStatus.total }}</span>
+      </div>
       <ElTooltip
         :content="t('common.uploadMsg')"
         placement="top-start"
@@ -473,6 +496,16 @@ const filterChange = async (newFilters: any) => {
 .poc-toolbar__input {
   width: 320px;
 }
+.import-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.import-progress-text {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
 .poc-actions {
   display: flex;
   align-items: center;
