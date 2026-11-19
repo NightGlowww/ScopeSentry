@@ -116,13 +116,27 @@ echo "== [6/7] 部署"
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "   docker cp / commit / compose up --no-deps scope-sentry"
 else
+  # 记录当前生效的镜像 tag：部署失败时切回它（2026-11-20 增加）
+  # 以「正在运行的容器」为准，而不是 compose 文件：文件可能被钉在旧 tag 上
+  PREV_TAG="$(ssh -o BatchMode=yes "$PROD_HOST" "docker inspect scope-sentry --format \"{{.Config.Image}}\" 2>/dev/null | grep -oE v[0-9]+[.][0-9]+[.][0-9]+ | head -1")" || true
+  if [[ -n "$PREV_TAG" ]]; then
+    ssh -o BatchMode=yes "$PROD_HOST" "echo $PREV_TAG > /opt/scopesentry/ScopeSentry/.prev_image" || true
+    echo "   当前线上镜像：$PREV_TAG（已记录，可用于回滚）"
+  fi
   ssh -o BatchMode=yes "$PROD_HOST" "set -e
     cd /opt/scopesentry/ScopeSentry
     docker cp $DEPLOY_DIR/ScopeSentry-v$VERSION scope-sentry:/opt/ScopeSentry/ScopeSentry
     docker exec scope-sentry chmod +x /opt/ScopeSentry/ScopeSentry
     docker commit scope-sentry $IMAGE_PREFIX:v$VERSION >/dev/null
-    PREV=\$(grep -oE '$IMAGE_PREFIX:v[0-9.]+' docker-compose.fork.yml | head -1)
-    sed -i \"s#\$PREV#$IMAGE_PREFIX:v$VERSION#\" docker-compose.fork.yml
+    # 两个 compose 文件都改：fork 覆盖单机文件里的 image，只改一个会导致
+    # 「compose up 成功但镜像还是老的」（2026-11-20 实测：fork 里还钉着 v2.0.148）
+    for CF in single-host-deployment.yml docker-compose.fork.yml; do
+      [ -f \"\$CF\" ] || continue
+      PREV=\$(grep -oE \"$IMAGE_PREFIX:v[0-9.]+\" \"\$CF\" | head -1)
+      if [ -n \"\$PREV\" ]; then
+        sed -i \"s#\$PREV#$IMAGE_PREFIX:v$VERSION#\" \"\$CF\"
+      fi
+    done
     docker compose -f single-host-deployment.yml -f docker-compose.fork.yml up -d --no-deps scope-sentry
     sleep 9
     curl -s http://127.0.0.1:8082/healthz
@@ -144,7 +158,22 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
     | python3 -c 'import sys,json;print(json.load(sys.stdin).get("version",""))' 2>/dev/null || true)"
   if [[ "$RUN_VER" != "$VERSION" ]]; then
     echo "✗ 线上版本不符：期望 $VERSION，实际 ${RUN_VER:-未知}" >&2
-    echo "  检查 compose 里的 image tag 是否已更新、容器是否真的重建" >&2
+    RB="$(ssh -o BatchMode=yes "$PROD_HOST" "cat /opt/scopesentry/ScopeSentry/.prev_image 2>/dev/null" || true)"
+    if [[ -n "$RB" ]]; then
+      echo "   尝试回滚到 $RB ..." >&2
+      CUR="$(ssh -o BatchMode=yes "$PROD_HOST" "cd /opt/scopesentry/ScopeSentry && grep -ohE v[0-9]+.[0-9]+.[0-9]+ docker-compose.fork.yml | head -1" || true)"
+      if [[ -n "$CUR" ]]; then
+        ssh -o BatchMode=yes "$PROD_HOST" "cd /opt/scopesentry/ScopeSentry && sed -i s#$CUR#$RB# docker-compose.fork.yml && docker compose -f single-host-deployment.yml -f docker-compose.fork.yml up -d --no-deps scope-sentry" >/dev/null 2>&1 || true
+        sleep 10
+        if ssh -o BatchMode=yes "$PROD_HOST" "curl -fsS -m 6 http://127.0.0.1:8082/healthz" >/dev/null 2>&1; then
+          echo "   已回滚到 $RB，服务健康" >&2
+        else
+          echo "   回滚后健康检查仍失败，需要人工介入" >&2
+        fi
+      fi
+    else
+      echo "   未记录发布前镜像（.prev_image 缺失），无法自动回滚" >&2
+    fi
     exit 1
   fi
   echo "   ✓ 线上版本已生效：$RUN_VER"
