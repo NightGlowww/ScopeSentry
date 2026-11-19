@@ -910,6 +910,8 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    logLoading: 'Loading...',
+    logEmpty: 'No logs',
     offlineSuffix: '(offline)',
     queueLen: 'Queue',
     clearQueue: 'Clear queue',

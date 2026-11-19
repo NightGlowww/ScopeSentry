@@ -902,6 +902,8 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    logLoading: '불러오는 중…',
+    logEmpty: '로그 없음',
     offlineSuffix: '(오프라인)',
     queueLen: '대기',
     clearQueue: '대기열 비우기',

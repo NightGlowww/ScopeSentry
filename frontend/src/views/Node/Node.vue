@@ -268,10 +268,21 @@ const closeLogDialogVisible = () => {
 }
 const logContent = ref('')
 const scrollbarRef = ref<InstanceType<typeof ElScrollbar>>()
+const logLoading = ref(false)
 const openLogDialogVisible = async (data) => {
-  const res = await getNodeLogApi(data.name)
-  logContent.value = res.data.logs
+  // 大日志接口要几百毫秒到几秒：先开弹窗显示 loading，再填内容，
+  // 否则点完「日志」会有一段毫无反应的空白（2026-11-20）。
+  logContent.value = ''
+  logLoading.value = true
   logDialogVisible.value = true
+  try {
+    const res = await getNodeLogApi(data.name)
+    logContent.value = res.data.logs || ''
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    logLoading.value = false
+  }
 }
 onMounted(() => {
   setMaxHeight()
@@ -358,7 +369,12 @@ const closepluginDialogVisible = () => {
     :maxHeight="maxHeight"
   >
     <ElScrollbar ref="scrollbarRef">
-      <pre v-if="logContent">{{ logContent }}</pre>
+      <div v-if="logLoading" class="log-loading">
+        <span class="spinner" />
+        <span>{{ t('node.logLoading') }}</span>
+      </div>
+      <pre v-else-if="logContent">{{ logContent }}</pre>
+      <div v-else class="log-empty">{{ t('node.logEmpty') }}</div>
     </ElScrollbar>
     <template #footer>
       <BaseButton @click="closeLogDialogVisible">{{ t('common.off') }}</BaseButton>
@@ -377,6 +393,35 @@ const closepluginDialogVisible = () => {
 </template>
 
 <style scoped>
+/* 日志弹窗的加载与空态：此前点击后是一片空白，看不出在加载还是没日志 */
+.log-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--el-border-color);
+  border-top-color: var(--el-color-primary);
+  border-radius: 50%;
+  animation: node-log-spin 0.8s linear infinite;
+}
+@keyframes node-log-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.log-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
 .node-toolbar {
   margin-bottom: 12px;
 }

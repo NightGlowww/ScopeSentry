@@ -879,6 +879,8 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    logLoading: '加载中…',
+    logEmpty: '暂无日志',
     offlineSuffix: '（离线）',
     queueLen: '队列',
     clearQueue: '清空队列',
