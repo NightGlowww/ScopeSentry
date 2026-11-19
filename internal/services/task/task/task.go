@@ -849,7 +849,26 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 				break
 			}
 		}
+		// 「有节点在线」不等于「这个任务在跑」：任务可能早就没被领取。
+		// 只要既没有进度 hash、又不在任何 NodeTask 队列里，就没有节点会再执行它，
+		// 此时继续显示「运行中 + 0%」是假状态（2026-11-19 实测 16 小时未变）。
 		if nodeAlive && now.Sub(created) < hardLimit {
+			id := task.ID.Hex()
+			hasProgress := false
+			if n, _, _, _, _, err := s.taskRepo.ProgressSummary(ctx, id); err == nil && n > 0 {
+				hasProgress = true
+			}
+			if !hasProgress {
+				if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && !queued {
+					task.Status = constants.TaskStatusFailed
+					s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": bson.M{
+						"status":  constants.TaskStatusFailed,
+						"endTime": helper.GetNowTimeString(),
+					}})
+					swept++
+					continue
+				}
+			}
 			continue
 		}
 		id := task.ID.Hex()

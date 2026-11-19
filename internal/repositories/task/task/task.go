@@ -69,6 +69,8 @@ type Repository interface {
 	DeleteProgressSnapshot(ctx context.Context, taskIDs ...string) error
 	// RemoveQueuedNodeTasks 清掉 NodeTask:* 里还没被领取的该任务消息
 	RemoveQueuedNodeTasks(ctx context.Context, taskID string) (int64, error)
+	// HasQueuedTask 任务是否仍在某个节点的待领取队列里
+	HasQueuedTask(ctx context.Context, taskID string) (bool, error)
 	// 目标级暂停（issue #277）
 	AddTargetControl(ctx context.Context, taskID, target string) error
 	RemoveTargetControl(ctx context.Context, taskID, target string) error
@@ -356,4 +358,25 @@ func (r *repository) ProgressSummary(ctx context.Context, taskID string) (int, i
 		}
 	}
 	return targets, doneModules, totalModules, perTarget, lastEnd, nil
+}
+
+// HasQueuedTask 判断该任务是否还躺在任一节点的 NodeTask 队列里（还没被领取）。
+// 用于僵尸判定：既没有进度 hash、又不在队列里 = 没有任何节点会再跑它。
+func (r *repository) HasQueuedTask(ctx context.Context, taskID string) (bool, error) {
+	keys, err := r.redisClient.Keys(ctx, "NodeTask:*").Result()
+	if err != nil {
+		return false, err
+	}
+	for _, key := range keys {
+		items, err := r.redisClient.LRange(ctx, key, 0, -1).Result()
+		if err != nil {
+			continue
+		}
+		for _, item := range items {
+			if strings.Contains(item, taskID) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
