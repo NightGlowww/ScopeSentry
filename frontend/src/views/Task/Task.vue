@@ -334,11 +334,16 @@ const exportTask = async (row: any) => {
   }
 }
 
+// 该任务期间的工具失败次数（用于弹窗顶部告警）
+const progressCmdFail = ref(0)
+
 const getProgressInfo = async (id) => {
   // 弹窗打开后立刻解除按钮 loading：真正的加载状态由弹窗内部的表格承担，
   // 这里只负责防止连点触发多次 open。
   rowActionId.value = id || ''
   getProgressInfoID = id
+  const row = (dataList.value || []).find((r: any) => r.id === id) as any
+  progressCmdFail.value = (row?.cmdFail as number) || 0
   progressDialogVisible.value = true
   setTimeout(() => {
     rowActionId.value = ''
@@ -919,7 +924,8 @@ const setMaxHeight = () => {
       :getProgressInfoID="getProgressInfoID"
       getProgressInfotype="scan"
       getProgressInforunnerid=""
-  /></Dialog>
+      :cmdFail="progressCmdFail"
+    /></Dialog>
 </template>
 
 <style scoped>

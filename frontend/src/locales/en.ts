@@ -930,6 +930,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    cmdFailTip: 'External tools (subdomain/crawler/dirscan) exited non-zero {total} times, {recent} in last 10 min. Failures silently reduce asset output.',
     cmdFail: 'Tool failures',
     logErrorSummary: 'Error summary',
     logFilterPlaceholder: 'Filter logs (keyword)',
@@ -964,6 +965,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    cmdFailBanner: 'External tools failed {n} time(s) during this task; some targets may be incompletely scanned',
     cmdFailHint: '{n} tool failure(s) during this task; results may be incomplete',
     exportTask: 'Export results',
     exportDone: 'Task export package download started',

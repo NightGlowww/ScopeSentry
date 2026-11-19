@@ -922,6 +922,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    cmdFailTip: '외부 도구(서브도메인/크롤러/디렉터리) 비정상 종료 {total}회, 최근 10분 {recent}회. 실패하면 자산 산출이 조용히 줄어듭니다.',
     cmdFail: '도구 실패',
     logErrorSummary: '오류 요약',
     logFilterPlaceholder: '로그 필터(키워드)',
@@ -956,6 +957,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    cmdFailBanner: '이 작업 중 외부 도구가 {n}회 실패했습니다. 일부 대상 스캔이 불완전할 수 있습니다',
     cmdFailHint: '이번 작업 중 도구 실패 {n}회, 결과가 불완전할 수 있습니다',
     exportTask: '결과 내보내기',
     exportDone: '작업 내보내기 다운로드를 시작했습니다',

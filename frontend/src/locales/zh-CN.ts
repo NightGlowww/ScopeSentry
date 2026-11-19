@@ -899,6 +899,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    cmdFailTip: '外部工具（子域/爬虫/目录扫描）非零退出 {total} 次，其中最近 10 分钟 {recent} 次。失败会静默减少资产产出。',
     cmdFail: '工具失败',
     logErrorSummary: '错误摘要',
     logFilterPlaceholder: '过滤日志（关键字）',
@@ -933,6 +934,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    cmdFailBanner: '本次任务期间外部工具失败 {n} 次，部分目标可能扫描不完整',
     cmdFailHint: '本次工具失败 {n} 次，产出可能不完整',
     exportTask: '导出任务结果',
     exportDone: '已开始下载任务导出包',

@@ -12,7 +12,7 @@ import {
   ElPagination,
   ElTag,
   ElTooltip,
-
+  ElAlert
 } from 'element-plus'
 import { Icon } from '@/components/Icon'
 const { t } = useI18n()
@@ -22,6 +22,8 @@ const props = defineProps<{
   getProgressInfoID: string
   getProgressInfotype: string
   getProgressInforunnerid: string
+  // 该任务期间外部工具失败次数（0 表示无异常产出）
+  cmdFail?: number
 }>()
 const progressColums = reactive<TableColumn[]>([
   {
@@ -419,6 +421,8 @@ const progressColums = reactive<TableColumn[]>([
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const res = await getTaskProgressApi(props.getProgressInfoID, currentPage.value, pageSize.value)
+    // 顺带取任务级工具失败数（接口已返回），不再依赖父组件传参
+    cmdFail.value = (res.data as any).cmdFail || 0
     return {
       total: res.data.total,
       list: res.data.list
@@ -452,6 +456,7 @@ const toggleTarget = async (row: Recordable) => {
 
 // 自动刷新：任务进度是动态的，弹窗打开期间每 5 秒静默刷新一次，
 // 用户不用手动点、也看不到整表闪白（Table 的 loading 只在新查询时置位）。
+const cmdFail = ref(0)
 const lastRefresh = ref('')
 const autoRefresh = ref(true)
 let timer: ReturnType<typeof setInterval> | null = null
@@ -494,6 +499,14 @@ onMounted(async () => {
 onUnmounted(stopAuto)
 </script>
 <template>
+  <ElAlert
+    v-if="cmdFail > 0"
+    type="error"
+    :closable="false"
+    show-icon
+    style="margin-bottom: 8px"
+    :title="t('task.cmdFailBanner', { n: cmdFail })"
+  />
   <div class="progress-hint">
     <span class="hint-text">
       {{ t('task.autoRefreshHint') }}

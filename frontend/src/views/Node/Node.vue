@@ -148,15 +148,20 @@ const nodeColums = reactive<TableColumn[]>([
       // 累计次数 + 最近 10 分钟增量：前者看历史，后者判断「刚跑这批可不可信」
       const v = cellValue || 0
       const recent = (row.cmdFail10m as number) || 0
+      const tip = t('node.cmdFailTip', { total: v, recent })
       if (v === 0 && recent === 0) {
-        return h(ElTag, { type: 'info' }, () => '0')
+        return h(ElTooltip, { content: tip, placement: 'top' }, () =>
+          h(ElTag, { type: 'info' }, () => '0')
+        )
       }
-      return h('div', { style: 'display:flex;gap:4px;align-items:center' }, [
+      return h(ElTooltip, { content: tip, placement: 'top' }, () =>
+        h('div', { style: 'display:flex;gap:4px;align-items:center' }, [
         h(ElTag, { type: v > 0 ? 'warning' : 'info' }, () => String(v)),
-        recent > 0
-          ? h(ElTag, { type: 'danger', size: 'small' }, () => '+' + String(recent))
-          : null
-      ])
+          recent > 0
+            ? h(ElTag, { type: 'danger', size: 'small' }, () => '+' + String(recent))
+            : null
+        ])
+      )
     }
   },
   {
