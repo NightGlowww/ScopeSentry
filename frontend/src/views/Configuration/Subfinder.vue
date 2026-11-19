@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { confirmDialog } from '@/utils/confirm'
-import { ElRow, ElCol, ElButton } from 'element-plus'
+import { ElRow, ElCol, ElButton, ElMessage } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ElCard } from 'element-plus'
 import { ref, onBeforeMount } from 'vue'
@@ -31,9 +31,18 @@ const confirmAdd = async () => {
   }
 }
 const save = async () => {
+  // 保存结果要有反馈；失败也复位 loading，否则按钮会一直转
   saveLoading.value = true
-  const res = await saveSubfinderConfigurationApi(content.value)
-  if (res.code == 200) {
+  try {
+    const res = await saveSubfinderConfigurationApi(content.value)
+    if (res.code == 200) {
+      ElMessage.success(t('common.success'))
+    } else {
+      ElMessage.error(res.message || t('common.operateFailed'))
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
     saveLoading.value = false
   }
 }
@@ -48,7 +57,7 @@ const saveLoading = ref(false)
           <span>{{ t('configuration.subfinder') }}</span>
         </ElCol>
         <ElCol :span="2" :offset="19">
-          <ElButton type="primary" @click="confirmAdd" @loading="saveLoading">{{
+          <ElButton type="primary" @click="confirmAdd" :loading="saveLoading">{{
             t('common.save')
           }}</ElButton>
         </ElCol>
