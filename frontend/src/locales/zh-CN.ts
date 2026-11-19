@@ -882,6 +882,7 @@ export default {
     hasPermission: '请设置操作权限值'
   },
   dashboard: {
+    vulnBreakdown: '待处理 {pending} · 已忽略 {ignored}',
     totalAssets: '资产总数',
     subDomain: '子域名',
     informationLeakage: '信息泄露',

@@ -905,6 +905,7 @@ export default {
     hasPermission: '작업 권한 값을 설정하세요.'
   },
   dashboard: {
+    vulnBreakdown: '대기 {pending} · 무시 {ignored}',
     totalAssets: '전체 자산',
     subDomain: '서브도메인',
     informationLeakage: '정보 유출',

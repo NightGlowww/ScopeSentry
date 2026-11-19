@@ -5,6 +5,7 @@ import { useDesign } from '@/hooks/web/useDesign'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, ref, reactive } from 'vue'
 import { getAssetStatisticsApi } from '@/api/dashboard/analysis'
+import { getDashboardStatsApi } from '@/api/dashboard'
 import type { DashboardTotalTypes } from '@/api/dashboard/analysis/types'
 
 const { t } = useI18n()
@@ -22,6 +23,28 @@ let totalState = reactive<DashboardTotalTypes>({
   urlCount: 0,
   vulnerabilityCount: 0
 })
+
+// 漏洞处置分布：首页从「一个总数」升级成「待处理 / 已忽略」
+const vulnPending = ref(0)
+const vulnIgnored = ref(0)
+const vulnBreakdown = computed(() => {
+  if (!vulnPending.value && !vulnIgnored.value) return ''
+  return t('dashboard.vulnBreakdown', {
+    pending: vulnPending.value,
+    ignored: vulnIgnored.value
+  })
+})
+
+const getVulnBreakdown = async () => {
+  try {
+    const res: any = await getDashboardStatsApi()
+    const d = res?.data || {}
+    vulnPending.value = d.vulnPending ?? 0
+    vulnIgnored.value = d.vulnIgnored ?? 0
+  } catch {
+    // 静默：首页不能因为这一块失败而白屏
+  }
+}
 
 const getCount = async () => {
   try {
@@ -41,6 +64,7 @@ const getCount = async () => {
 }
 
 getCount()
+getVulnBreakdown()
 
 // 五个指标卡：颜色只做“识别”，不做装饰
 const cards = computed(() => [
@@ -115,6 +139,9 @@ const cards = computed(() => [
                   :end-val="card.value"
                   :duration="1600"
                 />
+                <div v-if="card.key === 'vul' && vulnBreakdown" :class="`${prefixCls}__sub`">
+                  {{ vulnBreakdown }}
+                </div>
               </div>
             </div>
           </template>
@@ -128,6 +155,13 @@ const cards = computed(() => [
 @prefix-cls: ~'@{namespace}-panel';
 
 .@{prefix-cls} {
+  &__sub {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--el-text-color-secondary);
+    white-space: nowrap;
+  }
+
   &__card {
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius-md);

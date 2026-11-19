@@ -103,7 +103,14 @@ func (s *service) Stats(ctx context.Context, req models.DashboardStatsRequest) (
 	go func() { defer wg.Done(); count("asset", base, &out.Asset) }()
 	go func() { defer wg.Done(); count("subdomain", base, &out.Subdomain) }()
 	go func() { defer wg.Done(); count("UrlScan", base, &out.URL) }()
-	go func() { defer wg.Done(); count("vulnerability", base, &out.Vulnerability) }()
+	go func() {
+		defer wg.Done()
+		count("vulnerability", base, &out.Vulnerability)
+		// 处置分布：首页要能看出「待处理 / 已忽略 / 已确认」，不能只有一个总数。
+		count("vulnerability", withStatus(base, 1), &out.VulnPending)
+		count("vulnerability", withStatus(base, 3), &out.VulnIgnored)
+		count("vulnerability", withStatus(base, 5), &out.VulnConfirmed)
+	}()
 	go func() { defer wg.Done(); count("SensitiveResult", base, &out.Sensitive) }()
 	go func() {
 		defer wg.Done()

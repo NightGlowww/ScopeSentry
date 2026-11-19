@@ -23,6 +23,10 @@ type DashboardStats struct {
 	Vulnerability int64  `json:"vulnerability"`
 	Sensitive     int64  `json:"sensitive"`
 	Task          int64  `json:"task"`
+	// 漏洞处置分布：让首页能看出「待处理多少 / 已忽略多少」，而不只是一个总数
+	VulnPending   int64  `json:"vulnPending"`
+	VulnIgnored   int64  `json:"vulnIgnored"`
+	VulnConfirmed int64  `json:"vulnConfirmed"`
 	TaskRunning   int64  `json:"taskRunning"`
 	TaskFinished  int64  `json:"taskFinished"`
 	Node          int64  `json:"node"`

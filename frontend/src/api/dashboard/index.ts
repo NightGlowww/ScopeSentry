@@ -34,3 +34,7 @@ export interface ConsoleInfo {
 
 export const getConsoleInfoApi = (): Promise<IResponse<ConsoleInfo>> =>
   request.get({ url: '/api/console/info' })
+
+// 仪表盘统计（含漏洞处置分布）
+export const getDashboardStatsApi = (): Promise<IResponse<any>> =>
+  request.post({ url: '/api/dashboard/stats', data: {} })

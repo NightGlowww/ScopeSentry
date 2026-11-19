@@ -913,6 +913,7 @@ export default {
     hasPermission: 'Please set the operation permission value'
   },
   dashboard: {
+    vulnBreakdown: '{pending} pending · {ignored} ignored',
     totalAssets: 'Total assets',
     subDomain: 'Subdomain',
     informationLeakage: 'Information leakage',
