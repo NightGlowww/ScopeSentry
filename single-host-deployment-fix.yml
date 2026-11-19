@@ -81,7 +81,7 @@ services:
     pids_limit: 4096
     restart: always
     environment:
-      NodeName: node-test
+      NodeName: node-tx-sh-02
       TimeZoneName: Asia/Shanghai
       MONGODB_IP: 127.0.0.1
       MONGODB_PORT: 27017
