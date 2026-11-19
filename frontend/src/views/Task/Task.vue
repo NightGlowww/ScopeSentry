@@ -55,12 +55,13 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'selection',
     type: 'selection',
-    minWidth: 55
+    width: 45
   },
   {
     field: 'name',
     label: t('task.taskName'),
-    minWidth: 180
+    minWidth: 150,
+    showOverflowTooltip: true
   },
   {
     field: 'taskNum',
@@ -79,7 +80,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'progress',
     label: t('task.taskProgress'),
-    minWidth: 260,
+    minWidth: 180,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(ElProgress, {
         percentage: cellValue,
@@ -128,7 +129,7 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'policyWarnings',
     label: t('task.policyWarnings'),
-    width: 110,
+    width: 90,
     formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
       const list = Array.isArray(cellValue) ? cellValue : []
       if (!list.length) return h('span', '-')
@@ -141,13 +142,13 @@ const taskColums = reactive<TableColumn[]>([
   },
   {
     field: 'creatTime',
-    width: 170,
+    width: 152,
     label: t('task.createTime')
   },
   {
     field: 'endTime',
     label: t('task.endTime'),
-    width: 170,
+    width: 152,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       if (cellValue == '') {
         return '-'
@@ -158,10 +159,10 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    /* 之前 minWidth 420 + fixed:'right'：列宽远超按钮实际需要，
-       固定列又脱离文档流，导致右侧留一条空白、还把「创建时间」压在下面。
-       收窄到 300 并取消固定，让操作列正常排在最后一列、贴住表格右边缘。 */
-    width: 300,
+    /* 操作列固定在右侧：横向空间不足时用户仍能直接点到按钮，
+       不必拖滚动条。其余列宽收紧，总宽控制在 1280 内尽量不出现横向滚动。 */
+    width: 268,
+    fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
         ids.value = []
