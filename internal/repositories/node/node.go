@@ -25,6 +25,10 @@ type Repository interface {
 	DeleteNodes(ctx context.Context, names []string) error
 	GetNodeLogs(ctx context.Context, name string) (string, error)
 	GetNodePlugin(ctx context.Context, nodeName string) ([]models.NodePluginInfo, error)
+	// NodeQueueLen 节点待领取队列长度
+	NodeQueueLen(ctx context.Context, name string) (int64, error)
+	// ClearNodeQueue 清空节点待领取队列
+	ClearNodeQueue(ctx context.Context, name string) (int64, error)
 }
 
 type repository struct {
@@ -184,4 +188,24 @@ func (r *repository) GetNodePlugin(ctx context.Context, nodeName string) ([]mode
 	}
 
 	return result, nil
+}
+
+// NodeQueueLen 返回该节点待领取队列长度（NodeTask:<name>）。
+func (r *repository) NodeQueueLen(ctx context.Context, name string) (int64, error) {
+	return r.redisClient.LLen(ctx, "NodeTask:"+name).Result()
+}
+
+// ClearNodeQueue 清空该节点待领取队列，返回清掉的条数。
+// 场景：任务洪泛把队列堆满后，真实任务永远排不上；界面需要一键清空入口
+// （此前只能在服务器上 redis-cli DEL）。
+func (r *repository) ClearNodeQueue(ctx context.Context, name string) (int64, error) {
+	key := "NodeTask:" + name
+	n, err := r.redisClient.LLen(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	if n == 0 {
+		return 0, nil
+	}
+	return n, r.redisClient.Del(ctx, key).Err()
 }

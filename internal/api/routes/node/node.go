@@ -57,6 +57,12 @@ func RegisterNodeRoutes(api *gin.RouterGroup) {
 			},
 			{
 				Method:      "POST",
+				Path:        "/queue/clear",
+				Handler:     node.ClearNodeQueue,
+				Middlewares: common.WithAuth(),
+			},
+			{
+				Method:      "POST",
 				Path:        "/restart",
 				Handler:     node.RestartNode,
 				Middlewares: common.WithAuth(),

@@ -58,3 +58,7 @@ interface pluginInfoDataresp {
 export const getPluginInfoApi = (name: string): Promise<IResponse<pluginInfoDataresp>> => {
   return request.post({ url: '/api/node/plugin', data: { name } })
 }
+
+// 清空节点待领取队列
+export const clearNodeQueueApi = (name: string): Promise<IResponse<any>> =>
+  request.post({ url: '/api/node/queue/clear', data: { name } })

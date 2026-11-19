@@ -65,6 +65,28 @@ func GetNodeOnline(c *gin.Context) {
 	response.Success(c, response.DataResponse{List: names}, "")
 }
 
+// ClearNodeQueue 清空某节点的待领取任务队列。
+// @Summary      清空节点队列
+// @Tags         Node
+// @Accept       json
+// @Produce      json
+// @Router       /node/queue/clear [post]
+func ClearNodeQueue(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	n, err := nodeService.ClearNodeQueue(c.Request.Context(), req.Name)
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, map[string]interface{}{"cleared": n}, "api.success")
+}
+
 // NodeConfigUpdateRequest 节点配置更新请求
 type NodeConfigUpdateRequest struct {
 	Name          string `json:"name" binding:"required"`

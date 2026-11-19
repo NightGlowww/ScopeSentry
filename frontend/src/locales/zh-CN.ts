@@ -878,6 +878,12 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    queueLen: '队列',
+    clearQueue: '清空队列',
+    clearQueueMsg: '清空该节点待领取的任务队列',
+    clearQueueConfirm: '确认清空节点 {name} 的待领取队列？这些任务不会被执行。',
+    clearQueueDone: '已清空 {n} 个待领取任务',
+
     nodeName: '节点名称',
     nodeStatus: '节点状态',
     taskCount: '任务数量',

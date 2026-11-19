@@ -12,7 +12,7 @@ import { Dialog } from '@/components/Dialog'
 import { BaseButton } from '@/components/Button'
 import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
-import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi } from '@/api/node'
+import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi } from '@/api/node'
 const { t } = useI18n()
 const nodeColums = reactive<TableColumn[]>([
   {
@@ -131,6 +131,16 @@ const nodeColums = reactive<TableColumn[]>([
     }
   },
   {
+    field: 'queueLen',
+    label: t('node.queueLen'),
+    width: 100,
+    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
+      // 队列积压说明有任务在排队（节点一次只跑一个），>5 用警告色提示
+      const v = cellValue || 0
+      return h(ElTag, { type: v > 5 ? 'danger' : v > 0 ? 'warning' : 'info' }, () => v)
+    }
+  },
+  {
     field: 'updateTime',
     label: t('node.updateTime'),
     // 时间戳需要约 175px，小于这个值右侧会被截断
@@ -155,6 +165,11 @@ const nodeColums = reactive<TableColumn[]>([
           <BaseButton type="primary" size="small" onClick={() => openConfig(row)}>
             {t('common.config')}
           </BaseButton>
+          <ElTooltip content={t('node.clearQueueMsg')}>
+            <BaseButton type="info" size="small" onClick={() => clearQueue(row.name)}>
+              {t('node.clearQueue')}
+            </BaseButton>
+          </ElTooltip>
           <ElTooltip content={t('node.restartMsg')}>
             <BaseButton type="danger" size="small" onClick={() => restartNode(row.name)}>
               {t('node.restart')}
@@ -165,6 +180,26 @@ const nodeColums = reactive<TableColumn[]>([
     }
   }
 ])
+// 清空节点待领取队列：任务洪泛时不用再登服务器 redis-cli
+const clearQueue = async (name: string) => {
+  try {
+    await ElMessageBox.confirm(
+      t('node.clearQueueConfirm', { name }),
+      t('common.delWarning'),
+      { confirmButtonText: 'OK', cancelButtonText: t('common.cancel'), type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    const res: any = await clearNodeQueueApi(name)
+    ElMessage.success(t('node.clearQueueDone', { n: res?.data?.cleared ?? 0 }))
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  }
+}
+
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const res = await getNodeDataApi()

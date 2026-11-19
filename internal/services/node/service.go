@@ -28,6 +28,17 @@ type Service interface {
 	GetNodeLogs(ctx context.Context, name string) (string, error)
 	GetNodePlugin(ctx context.Context, nodeName string) ([]models.NodePluginInfo, error)
 	RestartNode(ctx context.Context, nodeName string) error
+	// ClearNodeQueue 清空节点待领取队列，返回清掉的条数
+	ClearNodeQueue(ctx context.Context, nodeName string) (int64, error)
+}
+
+// ClearNodeQueue 清空节点待领取队列。
+// 场景：任务洪泛把队列堆满，真实任务永远排不上；此前只能登服务器 redis-cli 手工 DEL。
+func (s *service) ClearNodeQueue(ctx context.Context, nodeName string) (int64, error) {
+	if nodeName == "" {
+		return 0, fmt.Errorf("node name is required")
+	}
+	return s.nodeRepo.ClearNodeQueue(ctx, nodeName)
 }
 
 type service struct {
@@ -82,6 +93,10 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 
 		if online && nodeData.State != "1" {
 			continue
+		}
+		// 队列长度：让界面能看出这个节点积压了多少任务
+		if q, qerr := s.nodeRepo.NodeQueueLen(ctx, nodeData.Name); qerr == nil {
+			nodeData.QueueLen = q
 		}
 		result = append(result, nodeData)
 	}

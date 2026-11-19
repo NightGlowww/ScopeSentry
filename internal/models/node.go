@@ -12,6 +12,8 @@ type NodeData struct {
 	MaxTaskNum    string `json:"maxTaskNum"`
 	Version       string `json:"version"`
 	ModulesConfig string `json:"modulesConfig"`
+	// QueueLen 该节点待领取的任务数（节点一次只跑一个，积压多说明排队严重）
+	QueueLen int64 `json:"queueLen"`
 }
 
 type Message struct {

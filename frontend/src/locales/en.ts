@@ -909,6 +909,12 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    queueLen: 'Queue',
+    clearQueue: 'Clear queue',
+    clearQueueMsg: 'Clear pending task queue of this node',
+    clearQueueConfirm: 'Clear pending queue of node {name}? These tasks will not run.',
+    clearQueueDone: 'Cleared {n} pending task(s)',
+
     nodeName: 'Node Name',
     nodeStatus: 'Node Status',
     taskCount: 'Task Count',

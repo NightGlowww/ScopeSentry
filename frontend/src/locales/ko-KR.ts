@@ -901,6 +901,12 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    queueLen: '대기',
+    clearQueue: '대기열 비우기',
+    clearQueueMsg: '이 노드의 대기 중인 작업 대기열을 비웁니다',
+    clearQueueConfirm: '노드 {name}의 대기열을 비우시겠습니까? 해당 작업은 실행되지 않습니다.',
+    clearQueueDone: '대기 작업 {n}개를 비웠습니다',
+
     nodeName: '스캔 노드 이름',
     nodeStatus: '스캔 노드 상태',
     taskCount: '작업 수',
