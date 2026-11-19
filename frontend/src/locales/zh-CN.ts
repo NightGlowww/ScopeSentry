@@ -366,6 +366,11 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    batchConfirm: '批量确认存在',
+    batchFalsePositive: '批量标记误报',
+    batchDone: '已更新 {n} 条',
+    selectFirst: '请先勾选结果',
+
     truncatedHint: '内容过大，仅显示前 200KB',
     statusAll: '全部状态',
     status: '状态',

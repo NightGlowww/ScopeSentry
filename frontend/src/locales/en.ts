@@ -376,6 +376,11 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    batchConfirm: 'Confirm selected',
+    batchFalsePositive: 'Mark selected as false positive',
+    batchDone: 'Updated {n} row(s)',
+    selectFirst: 'Select rows first',
+
     truncatedHint: 'Content too large; showing first 200KB',
     statusAll: 'All statuses',
     status: 'Status',

@@ -31,6 +31,8 @@ type Service interface {
 	GetDetail(ctx context.Context, id string) (*models.NucleiResultDetail, error)
 	// UpdateStatus 更新处置状态
 	UpdateStatus(ctx context.Context, id string, status int) error
+	// UpdateStatusMany 批量更新处置状态
+	UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, error)
 }
 
 type service struct {
@@ -180,4 +182,21 @@ func (s *service) UpdateStatus(ctx context.Context, id string, status int) error
 		return fmt.Errorf("invalid status: %d", status)
 	}
 	return s.repo.UpdateStatus(ctx, oid, status)
+}
+
+// UpdateStatusMany 批量更新处置状态，返回成功条数。
+func (s *service) UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, error) {
+	if status < 1 || status > 6 {
+		return 0, fmt.Errorf("invalid status: %d", status)
+	}
+	oids := make([]primitive.ObjectID, 0, len(ids))
+	for _, id := range ids {
+		if oid, err := primitive.ObjectIDFromHex(id); err == nil {
+			oids = append(oids, oid)
+		}
+	}
+	if len(oids) == 0 {
+		return 0, fmt.Errorf("no valid ids")
+	}
+	return s.repo.UpdateStatusMany(ctx, oids, status)
 }

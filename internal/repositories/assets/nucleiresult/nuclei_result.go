@@ -26,6 +26,8 @@ type Repository interface {
 	FindByID(ctx context.Context, id primitive.ObjectID) (*models.NucleiResultDetail, error)
 	// UpdateStatus 更新处置状态
 	UpdateStatus(ctx context.Context, id primitive.ObjectID, status int) error
+	// UpdateStatusMany 批量更新处置状态
+	UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, error)
 	// ExplainList 列表查询的 explain（queryPlanner），用于验证走索引
 	ExplainList(ctx context.Context, filter bson.M, pageIndex, pageSize int) (bson.M, error)
 }
@@ -265,4 +267,16 @@ func (r *repository) UpdateStatus(ctx context.Context, id primitive.ObjectID, st
 		return fmt.Errorf("failed to update nuclei result status: %w", err)
 	}
 	return nil
+}
+
+// UpdateStatusMany 批量更新处置状态，返回实际影响条数。
+func (r *repository) UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	res, err := r.coll.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": ids}}, bson.M{"$set": bson.M{"status": status}})
+	if err != nil {
+		return 0, fmt.Errorf("failed to batch update nuclei result status: %w", err)
+	}
+	return res.ModifiedCount, nil
 }

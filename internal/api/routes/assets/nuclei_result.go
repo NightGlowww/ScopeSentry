@@ -31,6 +31,13 @@ func registerNucleiResultRoutes() models.RouteGroup {
 				Handler:     nucleiresulthandler.UpdateStatus,
 				Middlewares: common.WithAuth(),
 			},
+			{
+				// 批量处置：勾选多条一次改状态
+				Method:      "POST",
+				Path:        "/status/batch",
+				Handler:     nucleiresulthandler.UpdateStatusBatch,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 }

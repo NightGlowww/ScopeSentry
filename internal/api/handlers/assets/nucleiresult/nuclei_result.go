@@ -37,6 +37,29 @@ func UpdateStatus(c *gin.Context) {
 	response.Success(c, nil, "api.success")
 }
 
+// UpdateStatusBatch 批量更新处置状态（勾选多条一次标误报/确认）。
+// @Summary      批量更新Nuclei结果状态
+// @Tags         Assets
+// @Accept       json
+// @Produce      json
+// @Router       /assets/nuclei_result/status/batch [post]
+func UpdateStatusBatch(c *gin.Context) {
+	var req struct {
+		IDs    []string `json:"ids" binding:"required"`
+		Status int      `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	n, err := nucleiResultService.UpdateStatusMany(c.Request.Context(), req.IDs, req.Status)
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, map[string]interface{}{"updated": n}, "api.success")
+}
+
 // List Nuclei 结果列表（只读视图，对标 ARL-Next assetNucleiResult）
 //
 // @Summary      Nuclei 结果列表

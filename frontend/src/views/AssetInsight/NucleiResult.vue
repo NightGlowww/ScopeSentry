@@ -19,7 +19,7 @@ import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { useI18n } from '@/hooks/web/useI18n'
 import { useIcon } from '@/hooks/web/useIcon'
-import { updateNucleiStatusApi } from '@/api/assetReadModel'
+import { updateNucleiStatusApi, batchUpdateNucleiStatusApi } from '@/api/assetReadModel'
 import { getNucleiResultDetailApi, getNucleiResultListApi } from '@/api/assetReadModel'
 import type { NucleiResultDetail, NucleiResultItem } from '@/api/assetReadModel/types'
 import { normalizeSeverity, SEVERITY_LEVELS, severityTagType } from '@/utils/severity'
@@ -50,6 +50,7 @@ const templateId = ref('')
 const keyword = ref('')
 
 const columns = reactive<TableColumn[]>([
+  { field: 'selection', type: 'selection', width: 44 },
   {
     field: 'severity',
     label: t('nucleiResult.severity'),
@@ -138,6 +139,43 @@ const handleReset = () => {
   keyword.value = ''
   statusFilter.value = 0
   handleSearch()
+}
+
+// 单条处置：确认存在(5) / 标记误报(3)
+const setStatus = async (id: string, status: number) => {
+  if (!id) return
+  try {
+    await updateNucleiStatusApi(id, status)
+    ElMessage.success(t('common.success'))
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  }
+}
+
+// 批量处置：勾选多条一次改状态
+const selectedRows = ref<any[]>([])
+const batchLoading = ref(false)
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows || []
+}
+const batchSetStatus = async (status: number) => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning(t('nucleiResult.selectFirst'))
+    return
+  }
+  batchLoading.value = true
+  try {
+    const ids = selectedRows.value.map((r) => r.id)
+    await batchUpdateNucleiStatusApi(ids, status)
+    ElMessage.success(t('nucleiResult.batchDone', { n: ids.length }))
+    selectedRows.value = []
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    batchLoading.value = false
+  }
 }
 
 // ---- 详情抽屉 ----
@@ -248,6 +286,15 @@ const rowStyle = () => ({ cursor: 'pointer' })
       </ElCol>
     </ElRow>
 
+    <div class="batch-bar">
+      <ElButton :loading="batchLoading" type="danger" link @click="batchSetStatus(5)">
+        {{ t('nucleiResult.batchConfirm') }}
+      </ElButton>
+      <ElButton :loading="batchLoading" type="info" link @click="batchSetStatus(3)">
+        {{ t('nucleiResult.batchFalsePositive') }}
+      </ElButton>
+      <span class="batch-count">{{ selectedRows.length }}</span>
+    </div>
     <Table
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
@@ -260,6 +307,7 @@ const rowStyle = () => ({ cursor: 'pointer' })
       :row-style="rowStyle"
       :pagination="{ total, pageSizes: [10, 20, 50, 100, 200] }"
       @register="tableRegister"
+      @selection-change="handleSelectionChange"
       @row-click="onRowClick"
     >
       <template #empty>
@@ -385,6 +433,17 @@ const rowStyle = () => ({ cursor: 'pointer' })
 
 .detail-block {
   margin-bottom: 16px;
+}
+
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.batch-count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .detail-block__head {
