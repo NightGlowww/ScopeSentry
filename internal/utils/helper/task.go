@@ -8,6 +8,7 @@
 package helper
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"regexp"
@@ -15,19 +16,36 @@ import (
 )
 
 // GenerateIPRange 生成 IP 范围
+// MaxIPRangeSize 单次 IP 段展开上限（对应一个 /16）。
+// 没有上限时 "1.0.0.0-255.255.255.255" 会直接吃掉数 GB 内存。
+const MaxIPRangeSize = 1 << 16
+
 func GenerateIPRange(startIP, endIP string) ([]string, error) {
-	start := net.ParseIP(startIP)
-	end := net.ParseIP(endIP)
+	start := net.ParseIP(startIP).To4()
+	end := net.ParseIP(endIP).To4()
 	if start == nil || end == nil {
 		return nil, fmt.Errorf("invalid IP range")
 	}
-
-	var ipList []string
-	for ip := start; !ip.Equal(end); ip = NextIP(ip) {
-		ipList = append(ipList, ip.String())
+	s := binary.BigEndian.Uint32(start)
+	e := binary.BigEndian.Uint32(end)
+	// 起始大于结束时必须报错：旧实现用 !ip.Equal(end) 循环，IPv4 回绕后
+	// 要跑约 40 亿次才能命中，实际表现是任务创建卡死 + 内存爆掉。
+	if e < s {
+		return nil, fmt.Errorf("invalid IP range: end %s is before start %s", endIP, startIP)
 	}
-	ipList = append(ipList, end.String()) // 包含结束 IP
-	return ipList, nil
+	if uint64(e)-uint64(s)+1 > MaxIPRangeSize {
+		return nil, fmt.Errorf("IP range too large: %d addresses (limit %d)", uint64(e)-uint64(s)+1, MaxIPRangeSize)
+	}
+	out := make([]string, 0, e-s+1)
+	buf := make(net.IP, 4)
+	for v := s; ; v++ {
+		binary.BigEndian.PutUint32(buf, v)
+		out = append(out, buf.String())
+		if v == e {
+			break
+		}
+	}
+	return out, nil
 }
 
 // NextIP 生成下一个 IP（仅支持 IPv4）
