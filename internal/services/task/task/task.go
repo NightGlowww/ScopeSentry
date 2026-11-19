@@ -736,13 +736,23 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			// 进度 = (已完成目标数 + 进行中目标的完成比例) / 任务目标总数。
 			// 必须按「目标」而非「模块总数」算：模块总数会随新目标出现而变大，
 			// 导致进度回退（实测 19% → 8%）。这个公式只增不减。
+			// 分母只认任务声明的目标数。多节点并行时，子目标（www.x.com 这类）
+			// 也会各自写一个 hash，用「hash 数量」做分母会让进度回退（实测 61%→33%）。
 			expectedTargets := task.TaskNum
-			if expectedTargets <= 0 || expectedTargets < targets {
+			if expectedTargets <= 0 {
 				expectedTargets = targets
 			}
-			progress := int((float64(completedTargets) + partial) * 100 / float64(expectedTargets))
+			done := float64(completedTargets) + partial
+			if done > float64(expectedTargets) {
+				done = float64(expectedTargets)
+			}
+			progress := int(done * 100 / float64(expectedTargets))
 			if progress > 100 {
 				progress = 100
+			}
+			// 未全部完成时不超过 99%，避免「看着 100% 但其实还在跑」
+			if completedTargets < expectedTargets && progress >= 100 {
+				progress = 99
 			}
 			status := constants.TaskStatusRunning
 			update := bson.M{"$set": bson.M{"progress": progress, "status": status}}

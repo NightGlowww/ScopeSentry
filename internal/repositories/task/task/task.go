@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -330,6 +331,14 @@ func (r *repository) ProgressSummary(ctx context.Context, taskID string) (int, i
 	lastEnd := ""
 	completed := 0
 	partial := 0.0
+	// 每个目标的完成比例要单调：模块数会随执行推进增加，
+	// 直接算 ended/started 会让同一目标的比例回退（实测 61%→33%）。
+	hwmKey := fmt.Sprintf("TaskInfo:progmax:%s", taskID)
+	hwm, _ := r.redisClient.HGetAll(ctx, hwmKey).Result()
+	if hwm == nil {
+		hwm = map[string]string{}
+	}
+	hwmUpdates := map[string]interface{}{}
 	for _, key := range keys {
 		fields, err := r.redisClient.HGetAll(ctx, key).Result()
 		if err != nil {
@@ -352,14 +361,36 @@ func (r *repository) ProgressSummary(ctx context.Context, taskID string) (int, i
 		if started > 0 && ended >= started {
 			completed++
 		} else if started > 0 {
-			// 进行中的目标按自身模块完成比例计入，且封顶 0.99，
-			// 保证进度只会前进不会因为新目标出现而回退（2026-11-19 实测 19%→8%）。
 			f := float64(ended) / float64(started)
 			if f > 0.99 {
 				f = 0.99
 			}
+			// 与历史高水位取大：模块变多时比例不倒退
+			if prev, ok := hwm[key]; ok {
+				if pf, err := strconv.ParseFloat(prev, 64); err == nil && pf > f {
+					f = pf
+				}
+			}
+			hwmUpdates[key] = f
 			partial += f
 		}
+	}
+	// 已完成目标数也要存高水位：节点跑完一个目标后会删掉它的 hash，
+	// 该目标就从 statistics 里消失，完成数会倒退（实测 71%→66%）。
+	doneKey := fmt.Sprintf("TaskInfo:progdone:%s", taskID)
+	if prevStr, err := r.redisClient.Get(ctx, doneKey).Result(); err == nil {
+		if prevDone, perr := strconv.Atoi(prevStr); perr == nil && prevDone > completed {
+			completed = prevDone
+		}
+	}
+	if completed > 0 {
+		_ = r.redisClient.Set(ctx, doneKey, strconv.Itoa(completed), TaskQueueTTL).Err()
+	}
+
+	if len(hwmUpdates) > 0 {
+		// 顺手把高水位写回，TTL 与任务队列一致，避免永久堆积
+		_ = r.redisClient.HMSet(ctx, hwmKey, hwmUpdates).Err()
+		_ = r.redisClient.Expire(ctx, hwmKey, TaskQueueTTL).Err()
 	}
 	return len(keys), completed, partial, lastEnd, nil
 }
