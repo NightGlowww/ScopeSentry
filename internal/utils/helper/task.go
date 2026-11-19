@@ -83,6 +83,16 @@ func GenerateTarget(target string) []string {
 		if err != nil {
 			return []string{target}
 		}
+		// 与 IP 段同一类风险：/0 这类超大网段会展开出 40 亿个地址，
+		// 直接把进程内存打爆。超限就退化成字面量目标。
+		if network.IP.To4() == nil {
+			return []string{target}
+		}
+		if ones, bits := network.Mask.Size(); bits == 32 {
+			if uint64(1)<<uint(bits-ones) > MaxIPRangeSize {
+				return []string{target}
+			}
+		}
 		var result []string
 		for ip := network.IP.Mask(network.Mask); network.Contains(ip); ip = NextIP(ip) {
 			result = append(result, ip.String())
