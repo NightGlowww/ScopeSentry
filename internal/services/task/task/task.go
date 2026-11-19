@@ -342,6 +342,7 @@ func (s *service) StartTasks(ctx *gin.Context, ids []string) error {
 	if len(ids) == 0 {
 		return nil
 	}
+	var lastErr error
 	for _, id := range ids {
 		oid, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
@@ -361,11 +362,14 @@ func (s *service) StartTasks(ctx *gin.Context, ids []string) error {
 		t.IsStart = true
 		if _, err := s.commonService.CreateTaskScan(ctx, *t, id, resume); err != nil {
 			logger.Error(fmt.Sprintf("StartTasks create scan failed task=%s resume=%v err=%v", id, resume, err))
+			// 把失败原因透出给调用方：此前只写日志、接口照样返回 success，
+			// 用户在界面上点「开始」看到成功提示，任务其实没进队列（2026-11-20 实测）。
+			lastErr = err
 			continue
 		}
 		_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 1}})
 	}
-	return nil
+	return lastErr
 }
 
 // GetTaskProgress 获取任务进度信息
