@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
-import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElInput, ElRadioGroup, ElRadio, ElText, ElSwitch, ElDivider, ElCard } from 'element-plus'
+import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElInput, ElRadioGroup, ElRadio, ElText, ElSwitch, ElDivider, ElCard, ElMessage } from 'element-plus'
 
 import { useI18n } from '@/hooks/web/useI18n'
 
@@ -172,8 +172,12 @@ const submitAddPageMonitForm = async () => {
       )
     }
     getList()
-    addNotificationSaveLoading.value = false
+    // 保存结果要有明确反馈：此前只有 loading 收尾，用户看不出成没成功
+    ElMessage.success(t('common.success'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
+    addNotificationSaveLoading.value = false
     dialogVisible.value = false
   }
 }

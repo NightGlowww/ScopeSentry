@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElSwitch, ElInputNumber, ElAlert, ElCard, ElText } from 'element-plus'
+import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElSwitch, ElInputNumber, ElAlert, ElCard, ElText, ElMessage } from 'element-plus'
 
 import { reactive, ref } from 'vue'
 import { getDeduplicationConfigApi, updateDeduplicationConfigApi } from '@/api/Configuration'
@@ -22,6 +22,7 @@ const deduplication = reactive({
 })
 const updateDeduplicationConfig = async () => {
   DeduplicationConfigLoading.value = true
+  try {
   await updateDeduplicationConfigApi(
     deduplication.asset,
     deduplication.subdomain,
@@ -36,7 +37,12 @@ const updateDeduplicationConfig = async () => {
     deduplication.flag,
     deduplication.runNow
   )
-  DeduplicationConfigLoading.value = false
+  ElMessage.success(t('common.success'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    DeduplicationConfigLoading.value = false
+  }
 }
 const getDeduplicationConfig = async () => {
   const res = await getDeduplicationConfigApi()
