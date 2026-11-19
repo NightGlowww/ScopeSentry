@@ -135,13 +135,23 @@ func (s *manageService) SearchLines(ctx context.Context, kind, name, keyword str
 	}
 
 	limit = ClampSearchLimit(limit)
-	rows, err := s.entryRepo.Search(ctx, meta.ID.Hex(), keyword, limit)
-	if err != nil {
-		return nil, err
-	}
-	matches := make([]models.DictionaryMatch, 0, len(rows))
-	for _, row := range rows {
-		matches = append(matches, models.DictionaryMatch{Value: row.Value, Seq: row.Seq})
+
+	// 优先走进程内行缓存：字典「上传后基本不变」，子串过滤在 Go 里是亚毫秒级；
+	// Mongo 路径因为 value-regex + seq 排序用不上同一索引，2 万行要 60-80ms。
+	var matches []models.DictionaryMatch
+	if values, seqs, cached, err := s.lines.load(ctx, s.entryRepo, meta.ID.Hex()); err == nil && cached {
+		for _, m := range filterLines(values, seqs, keyword, limit) {
+			matches = append(matches, models.DictionaryMatch{Value: m.Value, Seq: m.Seq})
+		}
+	} else {
+		rows, err := s.entryRepo.Search(ctx, meta.ID.Hex(), keyword, limit)
+		if err != nil {
+			return nil, err
+		}
+		matches = make([]models.DictionaryMatch, 0, len(rows))
+		for _, row := range rows {
+			matches = append(matches, models.DictionaryMatch{Value: row.Value, Seq: row.Seq})
+		}
 	}
 	return &models.DictionarySearchResult{
 		Kind:      meta.Category,
