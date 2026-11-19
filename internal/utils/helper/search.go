@@ -12,6 +12,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -488,6 +489,28 @@ func expandBareTerm(term string, keyword map[string]string) map[string]interface
 }
 
 // GetSearchQuery 构建完整的搜索查询
+// numericFilterFields 这些过滤字段在库里是数字；字符串形态会导致等值/IN 恒不匹配。
+var numericFilterFields = map[string]bool{
+	"statuscode": true,
+	"status":     true,
+	"port":       true,
+	"length":     true,
+}
+
+func normalizeFilterValue(field string, v interface{}) (interface{}, bool) {
+	if !numericFilterFields[field] {
+		return v, false
+	}
+	s, ok := v.(string)
+	if !ok {
+		return v, false
+	}
+	if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil {
+		return n, true
+	}
+	return v, false
+}
+
 func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 	logger.Logger.Info(fmt.Sprintf("search query: %v", req))
 	if req.Index == "" {
@@ -517,10 +540,21 @@ func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 		}
 
 		for f, values := range req.Filter {
+			// 按索引的字段别名：UrlScan/DirScanResult 的状态字段叫 status，
+			// 而 asset 叫 statuscode。全局 filterKeyCache 只认 statuscode，
+			// 这两个索引下过滤器会查一个不存在的字段、静默返回空（2026-11-19 实测）。
+			if req.Index == "UrlScan" || req.Index == "DirScanResult" {
+				if f == "statuscode" {
+					f = "status"
+				}
+			}
 			if mongoKey, ok := filterKeyCache[f]; ok {
 				tmpOr := make([]map[string]interface{}, 0, len(values))
 				for _, v := range values {
 					if v != "" {
+						if nv, changed := normalizeFilterValue(f, v); changed {
+							v = nv
+						}
 						if strings.Contains(mongoKey, ",") {
 							keys := strings.Split(mongoKey, ",")
 							for _, key := range keys {
