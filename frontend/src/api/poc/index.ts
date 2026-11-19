@@ -56,3 +56,8 @@ export const updatePocDataApi = (
 export const deletePocDataApi = (ids: string[]): Promise<IResponse<pocRespData>> => {
   return request.post({ url: '/api/poc/delete', data: { ids } })
 }
+
+
+// POC 导入进度（前端轮询）
+export const getImportStatusApi = (): Promise<IResponse<any>> =>
+  request.get({ url: '/api/poc/data/import/status' })

@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -20,7 +20,7 @@ import {
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
-import { syncPocApi } from '@/api/poc'
+import { syncPocApi, getImportStatusApi } from '@/api/poc'
 import { Icon } from '@/components/Icon'
 import { Upload, Refresh } from '@element-plus/icons-vue'
 import { useIcon } from '@/hooks/web/useIcon'
@@ -285,6 +285,7 @@ const handleSync = async () => {
   syncLoading.value = true
   try {
     const res: any = await syncPocApi()
+    startImportPoll()
     const d = res?.data || {}
     ElMessage.success(
       `同步完成：新增 ${d.success_num ?? 0}，更新 ${d.update_num ?? 0}，` +
@@ -310,10 +311,46 @@ const handleExceed: UploadProps['onExceed'] = (files) => {
   upload.value!.handleStart(file)
 }
 
+// 导入进度轮询：上传/同步后每 1 秒查一次，把「黑盒等待」变成进度反馈
+const importStatus = ref<any>(null)
+let importTimer: ReturnType<typeof setInterval> | null = null
+const stopImportPoll = () => {
+  if (importTimer) {
+    clearInterval(importTimer)
+    importTimer = null
+  }
+}
+const startImportPoll = () => {
+  stopImportPoll()
+  importTimer = setInterval(async () => {
+    try {
+      const res: any = await getImportStatusApi()
+      importStatus.value = res?.data || null
+      if (importStatus.value && importStatus.value.running === false) {
+        stopImportPoll()
+        getList()
+        const d = importStatus.value
+        ElMessage.success(
+          t('poc.importDone', {
+            total: d.total ?? 0,
+            update: d.update ?? 0,
+            repeat: d.repeat ?? 0,
+            failed: d.failed ?? 0
+          })
+        )
+      }
+    } catch {
+      stopImportPoll()
+    }
+  }, 1000)
+}
+onUnmounted(stopImportPoll)
+
 const handleUploadSuccess = (response) => {
   console.log(response)
   if (response.code === 200) {
     ElMessage.success(t('localization.uploadSuccess'))
+    startImportPoll()
   } else {
     ElMessage.error(response.message)
   }

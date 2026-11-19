@@ -262,3 +262,14 @@ func ImportPoc(c *gin.Context) {
 		"message": "Importing in progress",
 	}, "api.success")
 }
+
+// ImportPocStatus 返回当前（或最近一次）POC 导入进度。
+// 前端点完「导入」后轮询它，把黑盒变成进度条。
+// @Summary      查询POC导入进度
+// @Tags         POC管理
+// @Produce      json
+// @Router       /poc/data/import/status [get]
+func ImportPocStatus(c *gin.Context) {
+	snap := poc.GlobalImportProgress.Snapshot()
+	response.Success(c, snap, "api.success")
+}

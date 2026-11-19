@@ -1281,6 +1281,7 @@ export default {
     overview: 'Overview'
   },
   poc: {
+    importDone: 'Import done: {total} total, {update} updated, {repeat} unchanged, {failed} failed',
     syncNow: 'Sync now',
     pocName: 'POC Name',
     content: 'POC Content',

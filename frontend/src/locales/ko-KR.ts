@@ -1268,6 +1268,7 @@ export default {
     overview: '개요'
   },
   poc: {
+    importDone: '가져오기 완료: 총 {total}개, 업데이트 {update}, 변경 없음 {repeat}, 실패 {failed}',
     syncNow: '지금 동기화',
     pocName: 'POC 이름',
     content: 'POC 내용',

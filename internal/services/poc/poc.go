@@ -258,12 +258,15 @@ func (s *service) ImportPocWithOptions(ctx context.Context, filePath string, ove
 	)
 
 	logger.Info(fmt.Sprintf("共%d个POC", len(yamlFiles)))
+	GlobalImportProgress.Begin(len(yamlFiles))
+	defer func() { GlobalImportProgress.Finish("") }()
 
 	for _, yamlFile := range yamlFiles {
 		content, readErr := os.ReadFile(yamlFile)
 		if readErr != nil {
 			logger.Error(fmt.Sprintf("POC导入 读取文件失败: %s", yamlFile), zap.Error(readErr))
 			errorNum++
+			GlobalImportProgress.Step("failed")
 			continue
 		}
 
@@ -271,10 +274,12 @@ func (s *service) ImportPocWithOptions(ctx context.Context, filePath string, ove
 		if unmarshalErr := yaml.Unmarshal(content, &pt); unmarshalErr != nil {
 			logger.Error(fmt.Sprintf("POC导入 解析YAML失败: %s", yamlFile), zap.Error(unmarshalErr))
 			errorNum++
+			GlobalImportProgress.Step("failed")
 			continue
 		}
 		if pt.Info.Name == "" || pt.ID == "" {
 			errorNum++
+			GlobalImportProgress.Step("failed")
 			continue
 		}
 
@@ -292,6 +297,7 @@ func (s *service) ImportPocWithOptions(ctx context.Context, filePath string, ove
 			}
 			if existingHash == hash || !overwrite {
 				repeatNum++
+				GlobalImportProgress.Step("repeat")
 				continue
 			}
 			update := bson.M{"$set": bson.M{
@@ -304,13 +310,16 @@ func (s *service) ImportPocWithOptions(ctx context.Context, filePath string, ove
 			if _, updateErr := s.repo.UpdateOne(ctx, bson.M{"_id": entry.ID}, update); updateErr != nil {
 				logger.Error(fmt.Sprintf("POC导入 更新失败: %s", pt.ID), zap.Error(updateErr))
 				errorNum++
+				GlobalImportProgress.Step("failed")
 				continue
 			}
 			updateNum++
+			GlobalImportProgress.Step("update")
 			changedIDs = append(changedIDs, entry.ID.Hex())
 			continue
 		}
 
+		GlobalImportProgress.Step("success")
 		newDocs = append(newDocs, models.Poc{
 			Name:        pt.Info.Name,
 			Content:     raw,

@@ -1244,6 +1244,7 @@ export default {
     overview: '概况'
   },
   poc: {
+    importDone: '导入完成：共 {total} 个，更新 {update}，无变化 {repeat}，失败 {failed}',
     syncNow: '立即同步',
     pocName: 'POC名称',
     level: '风险等级',
