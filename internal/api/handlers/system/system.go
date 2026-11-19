@@ -39,6 +39,12 @@ type RemoteVersion struct {
 	ScanMsg   string `json:"scan_msg"`
 }
 
+// VersionSourceURL 版本检查来源（本仓库）。发布新版本后只需更新本仓库 version.json。
+const VersionSourceURL = "https://raw.githubusercontent.com/NightGlowww/ScopeSentry/main/version.json"
+
+// UpstreamVersionSourceURL 上游仓库，仅作后备。
+const UpstreamVersionSourceURL = "https://raw.githubusercontent.com/Autumn-27/ScopeSentry/main/version.json"
+
 // GetSystemVersion @Summary      获取系统及节点版本信息
 // @Description  获取 ScopeSentry 服务端及所有节点的当前版本信息
 // @Tags         System
@@ -67,7 +73,10 @@ func GetSystemVersion(c *gin.Context) {
 	defer fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
 
-	req.SetRequestURI("https://gitee.com/constL/scope-sentry/raw/main/version.json")
+	// 版本检查必须读**本仓库**的 version.json：此前读的是上游 Autumn-27/ScopeSentry，
+	// 导致我们发到 2.0.138 了界面还显示「最新 1.9.4」，节点同理（1.9.2 vs 1.9.1）。
+	// 上游地址保留为后备，仅在自仓库不可达时才用。
+	req.SetRequestURI(VersionSourceURL)
 	req.Header.SetMethod("GET")
 
 	err := client.Do(req, resp)
@@ -81,9 +90,8 @@ func GetSystemVersion(c *gin.Context) {
 		}
 	}
 
-	// 如果gitee失败，尝试从github获取
 	if serverLVersion == "" {
-		req.SetRequestURI("https://raw.githubusercontent.com/Autumn-27/ScopeSentry/main/version.json")
+		req.SetRequestURI(UpstreamVersionSourceURL)
 		err = client.Do(req, resp)
 		if err == nil && resp.StatusCode() == http.StatusOK {
 			var version RemoteVersion
