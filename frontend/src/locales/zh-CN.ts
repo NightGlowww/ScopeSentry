@@ -1221,6 +1221,7 @@ export default {
     overview: '概况'
   },
   poc: {
+    syncNow: '立即同步',
     pocName: 'POC名称',
     level: '风险等级',
     content: 'POC内容',

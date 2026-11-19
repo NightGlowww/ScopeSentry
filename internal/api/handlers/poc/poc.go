@@ -15,6 +15,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// DefaultPocSyncURL 默认 POC 源（上游 nuclei-templates 压缩包）。
+// 服务端能直连 codeload.github.com 时无需再配 POC_SYNC_URL。
+const DefaultPocSyncURL = "https://codeload.github.com/projectdiscovery/nuclei-templates/zip/refs/heads/main"
+
 var pocService poc.Service
 
 func init() {
@@ -164,6 +168,37 @@ func GetAllPocData(c *gin.Context) {
 	response.Success(c, map[string]interface{}{
 		"list": result,
 	}, "api.success")
+}
+
+// SyncPoc 立即从上游仓库同步 POC（「立即同步」按钮 + 定时任务共用同一实现）。
+// 请求体可选 {"url":"..."}；留空用环境变量 POC_SYNC_URL；再留空用内置默认源。
+// @Summary      立即同步POC
+// @Tags         POC管理
+// @Accept       json
+// @Produce      json
+// @Success      200  {object}  response.SuccessResponse{data=models.PocImportResponse}
+// @Router       /poc/data/sync [post]
+func SyncPoc(c *gin.Context) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	url := strings.TrimSpace(req.URL)
+	if url == "" {
+		url = strings.TrimSpace(os.Getenv("POC_SYNC_URL"))
+	}
+	if url == "" {
+		url = DefaultPocSyncURL
+	}
+
+	result, err := pocService.SyncFromURL(c.Request.Context(), url)
+	if err != nil {
+		logger.Error(fmt.Sprintf("SyncPoc error %v", err))
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, result, "api.success")
 }
 
 // ImportPoc godoc

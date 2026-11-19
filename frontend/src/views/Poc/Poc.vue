@@ -20,8 +20,9 @@ import {
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
+import { syncPocApi } from '@/api/poc'
 import { Icon } from '@/components/Icon'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, Refresh } from '@element-plus/icons-vue'
 import { useIcon } from '@/hooks/web/useIcon'
 import { BaseButton } from '@/components/Button'
 import { getPocDataApi, deletePocDataApi, getPocDetailApi } from '@/api/poc'
@@ -278,6 +279,25 @@ const confirmDelete = async () => {
 const userStore = useUserStore()
 const uploadHeaders = ref({ Authorization: `${userStore.getToken}` })
 
+// 「立即同步」：从上游仓库拉取 POC 并导入（后端复用每日定时任务的同一实现）
+const syncLoading = ref(false)
+const handleSync = async () => {
+  syncLoading.value = true
+  try {
+    const res: any = await syncPocApi()
+    const d = res?.data || {}
+    ElMessage.success(
+      `同步完成：新增 ${d.success_num ?? 0}，更新 ${d.update_num ?? 0}，` +
+        `无变化 ${d.repeat_num ?? 0}，失败 ${d.error_num ?? 0}`
+    )
+    getList()
+  } catch (e: any) {
+    ElMessage.error(`同步失败：${e?.message || '未知错误'}`)
+  } finally {
+    syncLoading.value = false
+  }
+}
+
 const upload = ref<UploadInstance>()
 const uploadSuccess = async () => {
   console.log('导入中')
@@ -339,6 +359,9 @@ const filterChange = async (newFilters: any) => {
       >
         {{ t('common.delete') }}
       </BaseButton>
+      <ElButton :loading="syncLoading" :icon="Refresh" @click="handleSync">
+        {{ t('poc.syncNow') }}
+      </ElButton>
       <ElTooltip
         :content="t('common.uploadMsg')"
         placement="top-start"

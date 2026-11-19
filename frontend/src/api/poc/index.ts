@@ -14,6 +14,11 @@ export const getPocDataApi = (
   return request.post({ url: '/api/poc', data: { search, pageIndex, pageSize, filter } })
 }
 
+// 「立即同步」：从上游仓库拉取 POC 并导入，返回导入统计
+export const syncPocApi = (url?: string): Promise<IResponse<any>> => {
+  return request.post({ url: '/api/poc/data/sync', data: url ? { url } : {} })
+}
+
 export const getPocDataAllApi = (): Promise<IResponse<pocDataResponse>> => {
   return request.get({ url: '/api/poc/data/all' })
 }

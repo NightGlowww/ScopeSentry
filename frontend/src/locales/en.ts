@@ -1258,6 +1258,7 @@ export default {
     overview: 'Overview'
   },
   poc: {
+    syncNow: 'Sync now',
     pocName: 'POC Name',
     content: 'POC Content',
     level: 'Risk Level',

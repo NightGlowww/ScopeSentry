@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
@@ -39,6 +41,7 @@ type Service interface {
 	GetAllPocData(ctx context.Context) ([]models.Poc, error)
 	ImportPoc(ctx context.Context, filePath string) (*models.PocImportResponse, error)
 	ImportPocWithOptions(ctx context.Context, filePath string, overwrite bool) (*models.PocImportResponse, error)
+	SyncFromURL(ctx context.Context, url string) (*models.PocImportResponse, error)
 	UpsertPoc(ctx context.Context, content string) (pocID string, action string, err error)
 	TemplateIdExists(ctx context.Context, templateId string) (bool, error)
 }
@@ -589,4 +592,45 @@ func (s *service) isSafeFilePath(filePath string) bool {
 	// }
 
 	return true
+}
+
+// SyncFromURL 从给定 URL 下载 POC 压缩包并导入，返回导入统计。
+// 供「立即同步」按钮与每日定时任务共用：URL 为空时返回错误，不做网络请求。
+func (s *service) SyncFromURL(ctx context.Context, url string) (*models.PocImportResponse, error) {
+	url = strings.TrimSpace(url)
+	if url == "" {
+		return nil, fmt.Errorf("sync url is empty")
+	}
+
+	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Minute)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	client := &http.Client{Timeout: 15 * time.Minute}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download status %d", resp.StatusCode)
+	}
+
+	tmp := filepath.Join(os.TempDir(), fmt.Sprintf("poc_sync_%d.zip", time.Now().Unix()))
+	f, err := os.Create(tmp)
+	if err != nil {
+		return nil, fmt.Errorf("create temp: %w", err)
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return nil, fmt.Errorf("write temp: %w", err)
+	}
+	f.Close()
+	defer os.Remove(tmp)
+
+	return s.ImportPocWithOptions(ctx, tmp, true)
 }

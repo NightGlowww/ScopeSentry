@@ -56,6 +56,13 @@ func RegisterPocRoutes(api *gin.RouterGroup) {
 				Handler:     poc.ImportPoc,
 				Middlewares: common.WithAuth(),
 			},
+			{
+				// 「立即同步」按钮：从上游仓库拉取并导入
+				Method:      "POST",
+				Path:        "/data/sync",
+				Handler:     poc.SyncPoc,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 

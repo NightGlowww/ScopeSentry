@@ -1245,6 +1245,7 @@ export default {
     overview: '개요'
   },
   poc: {
+    syncNow: '지금 동기화',
     pocName: 'POC 이름',
     content: 'POC 내용',
     level: '위험도',
