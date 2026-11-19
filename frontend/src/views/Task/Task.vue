@@ -351,9 +351,7 @@ const confirmStopSelect = async () => {
   })
 }
 const stopTaskSelect = async () => {
-  const elTableExpose = await getElTableExpose()
-  const selectedRows = elTableExpose?.getSelectionRows() || []
-  ids.value = selectedRows.map((row) => row.id)
+  ids.value = selectedRows.value.map((row: any) => row.id)
   if (!ids.value.length) {
     // 选择状态为空时不要发请求：后端会返回 “ids is required”，
     // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
@@ -384,9 +382,7 @@ const confirmStartSelect = async () => {
   })
 }
 const startTaskSelect = async () => {
-  const elTableExpose = await getElTableExpose()
-  const selectedRows = elTableExpose?.getSelectionRows() || []
-  ids.value = selectedRows.map((row) => row.id)
+  ids.value = selectedRows.value.map((row: any) => row.id)
   if (!ids.value.length) {
     // 选择状态为空时不要发请求：后端会返回 “ids is required”，
     // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
@@ -503,9 +499,7 @@ const confirmSyncToProjectSelect = async () => {
     } else {
       console.log('创建新项目:', newProjectName.value, newProjectTag.value)
     }
-    const elTableExpose = await getElTableExpose()
-    const selectedRows = elTableExpose?.getSelectionRows() || []
-    ids.value = selectedRows.map((row) => row.id)
+    ids.value = selectedRows.value.map((row: any) => row.id)
   if (!ids.value.length) {
     // 选择状态为空时不要发请求：后端会返回 “ids is required”，
     // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
@@ -548,14 +542,17 @@ const confirmDelete = async (data) => {
 const delLoading = ref(false)
 // 未勾选任何行时，工具条上的批量删除应禁用
 const tableSelectedCount = ref(0)
-const handleTableSelectionChange = (rows: unknown[]) => {
-  tableSelectedCount.value = rows?.length ?? 0
+const selectedRows = ref<any[]>([])
+const handleTableSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows || []
+  tableSelectedCount.value = selectedRows.value.length
 }
 
 // 列表刷新后表格会清空选中，但选择回调不一定触发，
 // 导致 count 仍 >0 → 批量按钮可点 → 请求带空 ids → 后端报 "ids is required"（2026-11-19）
 const resetSelection = () => {
   tableSelectedCount.value = 0
+  selectedRows.value = []
   ids.value = []
 }
 // 工具条四个批量按钮共用一条禁用条件，文案也共用一条
@@ -575,9 +572,7 @@ const del = async (data, delA) => {
 }
 const ids = ref<string[]>([])
 const delSelect = async (delA) => {
-  const elTableExpose = await getElTableExpose()
-  const selectedRows = elTableExpose?.getSelectionRows() || []
-  ids.value = selectedRows.map((row) => row.id)
+  ids.value = selectedRows.value.map((row: any) => row.id)
   if (!ids.value.length) {
     // 选择状态为空时不要发请求：后端会返回 “ids is required”，
     // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
