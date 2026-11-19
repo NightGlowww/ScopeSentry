@@ -921,6 +921,10 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    startSubmitted: '시작 요청이 접수되었습니다',
+    stopSubmitted: '중지 요청이 접수되었습니다',
+    operateFailed: '작업 실패',
+
     autoRefreshHint: '5초마다 자동 새로고침',
     autoRefreshOn: '자동: 켜짐',
     autoRefreshOff: '자동: 꺼짐',

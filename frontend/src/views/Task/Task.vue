@@ -261,13 +261,22 @@ const getTaskResult = async (id) => {
 }
 
 const stopTask = async (ids) => {
-  console.log('begin stop')
-  await stopTaskApi(ids)
+  try {
+    await stopTaskApi(ids)
+    ElMessage.success(t('task.stopSubmitted'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  }
 }
 
 const startTask = async (ids) => {
-  console.log('begin start')
-  await starTaskApi(ids)
+  // 成功/失败都给明确反馈：此前点「开始」只有列表静默刷新，用户不知道有没有生效
+  try {
+    await starTaskApi(ids)
+    ElMessage.success(t('task.startSubmitted'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  }
 }
 
 const progresscloseDialog = () => {

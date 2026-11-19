@@ -898,6 +898,10 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    startSubmitted: '已提交开始指令，节点会在一分钟内接手',
+    stopSubmitted: '已提交暂停指令',
+    operateFailed: '操作失败',
+
     autoRefreshHint: '每 5 秒自动刷新',
     autoRefreshOn: '自动刷新：开',
     autoRefreshOff: '自动刷新：关',

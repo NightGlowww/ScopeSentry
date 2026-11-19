@@ -929,6 +929,10 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    startSubmitted: 'Start submitted; node will pick it up shortly',
+    stopSubmitted: 'Stop submitted',
+    operateFailed: 'Operation failed',
+
     autoRefreshHint: 'Auto-refresh every 5s',
     autoRefreshOn: 'Auto: on',
     autoRefreshOff: 'Auto: off',
