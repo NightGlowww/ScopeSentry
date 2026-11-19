@@ -232,6 +232,7 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
   },
   {
     path: '/task-management',
+    redirect: '/task-management/ScanTask',
     component: Layout,
     name: 'TaskManagement',
     meta: {
@@ -400,6 +401,7 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
   },
   {
     path: '/dictionary-management',
+    redirect: '/dictionary-management/manage',
     component: Layout,
     name: 'Dictionary management',
     meta: {
@@ -451,6 +453,7 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
   },
   {
     path: '/configuration',
+    redirect: '/configuration/system',
     component: Layout,
     name: 'configuration',
     meta: {
@@ -552,6 +555,7 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
   },
   {
     path: '/github',
+    redirect: '/github/index',
     component: Layout,
     name: 'github',
     meta: {
