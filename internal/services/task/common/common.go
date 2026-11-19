@@ -25,6 +25,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskpolicy"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/diskguard"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/memguard"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"regexp"
 	"strings"
@@ -181,6 +182,12 @@ func (s *service) Insert(ctx context.Context, task *models.Task) (string, error)
 func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id string, stopToStart bool) (int64, error) {
 	logger.Info(fmt.Sprintf("CreateTaskScan task:%v %v", id, task.Name))
 	if err := diskguard.Check("/"); err != nil {
+		logger.Warn(fmt.Sprintf("CreateTaskScan rejected task %s: %v", id, err))
+		return 0, err
+	}
+	// 内存闸：2026-11-19 事故中两个 nuclei 并发把主机打到 swap 抖动 4.5 小时；
+	// 磁盘闸之外的第二道防线，主机可用内存不足时不再叠加扫描负载。
+	if err := memguard.Check(); err != nil {
 		logger.Warn(fmt.Sprintf("CreateTaskScan rejected task %s: %v", id, err))
 		return 0, err
 	}
