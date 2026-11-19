@@ -59,6 +59,11 @@ func parseShodanQueryWithBrackets(query string) string {
 	if query == "" {
 		return ""
 	}
+	// 与 FOFA 同一处历史缺陷：括号解析的 for 循环在内层结果与原文相同时不前进，
+	// 任何带括号的查询都会卡死 goroutine。Shodan 原生支持括号，直接透传。
+	if strings.ContainsAny(query, "()") {
+		return query
+	}
 
 	// 查找并替换所有括号内的内容
 	for {
