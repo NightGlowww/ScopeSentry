@@ -2,8 +2,8 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, h } from 'vue'
-import { ElScrollbar, ElTag, ElTooltip } from 'element-plus'
+import { ref, reactive, h, computed } from 'vue'
+import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 // import { useIcon } from '@/hooks/web/useIcon'
@@ -269,6 +269,25 @@ const closeLogDialogVisible = () => {
 const logContent = ref('')
 const scrollbarRef = ref<InstanceType<typeof ElScrollbar>>()
 const logLoading = ref(false)
+// 日志过滤：175KB 全量塞进 <pre> 找 ERROR 只能手滚（2026-11-20）。
+// 按行切分 + 关键字/级别过滤，并只渲染末尾 2000 行控制 DOM 规模。
+const logKeyword = ref('')
+const logErrorsOnly = ref(false)
+const MAX_LOG_LINES = 2000
+const logLines = computed(() => (logContent.value ? logContent.value.split('\n') : []))
+const filteredLogLines = computed(() => {
+  const kw = logKeyword.value.trim().toLowerCase()
+  return logLines.value.filter((line) => {
+    if (logErrorsOnly.value && !/ERROR|FATAL|panic/i.test(line)) return false
+    if (kw && !line.toLowerCase().includes(kw)) return false
+    return true
+  })
+})
+const shownLog = computed(() => {
+  const arr = filteredLogLines.value
+  return (arr.length > MAX_LOG_LINES ? arr.slice(-MAX_LOG_LINES) : arr).join('\n')
+})
+
 const openLogDialogVisible = async (data) => {
   // 大日志接口要几百毫秒到几秒：先开弹窗显示 loading，再填内容，
   // 否则点完「日志」会有一段毫无反应的空白（2026-11-20）。
@@ -373,7 +392,23 @@ const closepluginDialogVisible = () => {
         <span class="spinner" />
         <span>{{ t('node.logLoading') }}</span>
       </div>
-      <pre v-else-if="logContent">{{ logContent }}</pre>
+      <template v-else-if="logContent">
+        <div class="log-toolbar">
+          <ElInput
+            v-model="logKeyword"
+            :placeholder="t('node.logFilterPlaceholder')"
+            clearable
+            size="small"
+            style="width: 240px"
+          />
+          <ElCheckbox v-model="logErrorsOnly" size="small">
+            {{ t('node.logOnlyError') }}
+          </ElCheckbox>
+          <span class="log-count">{{ filteredLogLines.length }}/{{ logLines.length }}</span>
+        </div>
+        <pre v-if="filteredLogLines.length">{{ shownLog }}</pre>
+        <div v-else class="log-empty">{{ t('node.logNoMatch') }}</div>
+      </template>
       <div v-else class="log-empty">{{ t('node.logEmpty') }}</div>
     </ElScrollbar>
     <template #footer>

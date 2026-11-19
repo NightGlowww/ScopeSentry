@@ -930,6 +930,9 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    logFilterPlaceholder: 'Filter logs (keyword)',
+    logOnlyError: 'Errors only',
+    logNoMatch: 'No matching lines',
     logLoading: 'Loading...',
     logEmpty: 'No logs',
     offlineSuffix: '(offline)',

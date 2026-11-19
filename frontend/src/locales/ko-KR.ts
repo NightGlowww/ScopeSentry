@@ -922,6 +922,9 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    logFilterPlaceholder: '로그 필터(키워드)',
+    logOnlyError: '오류만',
+    logNoMatch: '일치하는 줄 없음',
     logLoading: '불러오는 중…',
     logEmpty: '로그 없음',
     offlineSuffix: '(오프라인)',

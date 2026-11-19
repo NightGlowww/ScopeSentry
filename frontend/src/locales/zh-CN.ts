@@ -899,6 +899,9 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    logFilterPlaceholder: '过滤日志（关键字）',
+    logOnlyError: '只看错误',
+    logNoMatch: '无匹配行',
     logLoading: '加载中…',
     logEmpty: '暂无日志',
     offlineSuffix: '（离线）',
