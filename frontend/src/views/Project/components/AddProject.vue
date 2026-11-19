@@ -49,8 +49,9 @@ const saveLoading = ref(false)
 const ruleFormRef = ref<FormInstance>()
 const runNow = ref(false)
 const submitForm = async (formEl: FormInstance | undefined) => {
-  saveLoading.value = true
+  // formEl 为空时不能先把 loading 打开，否则按钮会永久转圈
   if (!formEl) return
+  saveLoading.value = true
   await formEl.validate(async (valid, fields) => {
     if (valid) {
       if (props.projectid == '') {
@@ -70,8 +71,13 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             projectForm.template
           )
           if (res.code === 200) {
+            ElMessage.success(t('common.success'))
             props.closeDialog()
+          } else {
+            ElMessage.error(res.message || t('common.operateFailed'))
           }
+        } catch (e: any) {
+          ElMessage.error(e?.message || t('common.operateFailed'))
         } finally {
           saveLoading.value = false
         }
@@ -93,8 +99,13 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             projectForm.template
           )
           if (res.code === 200) {
+            ElMessage.success(t('common.success'))
             props.closeDialog()
+          } else {
+            ElMessage.error(res.message || t('common.operateFailed'))
           }
+        } catch (e: any) {
+          ElMessage.error(e?.message || t('common.operateFailed'))
         } finally {
           saveLoading.value = false
         }

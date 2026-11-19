@@ -1330,6 +1330,7 @@ export default {
     contentMsg: 'POC 내용을 입력하세요.'
   },
   apiKey: {
+    nameRequired: '키 이름을 입력하세요',
     createTitle: 'API Key 생성',
     keyCreatedTitle: 'API Key 생성 완료',
     keyPrefix: '키 접두사',

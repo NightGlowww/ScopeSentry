@@ -1306,6 +1306,7 @@ export default {
     contentMsg: '请输入poc内容'
   },
   apiKey: {
+    nameRequired: '请输入密钥名称',
     createTitle: '新建 API Key',
     keyCreatedTitle: 'API Key 已创建',
     keyPrefix: 'Key 前缀',

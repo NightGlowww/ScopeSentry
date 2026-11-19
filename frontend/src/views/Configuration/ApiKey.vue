@@ -11,6 +11,7 @@ import {
   ElFormItem,
   ElAlert,
   ElTag,
+  ElMessage,
   ElMessageBox,
   ElCheckboxGroup,
   ElCheckbox,
@@ -177,6 +178,8 @@ const openCreateDialog = () => {
 const handleCreate = async () => {
   const name = form.value.name.trim()
   if (!name) {
+    // 静默 return 会让用户以为点了没反应
+    ElMessage.warning(t('apiKey.nameRequired'))
     return
   }
   createLoading.value = true
@@ -190,6 +193,9 @@ const handleCreate = async () => {
     createdKey.value = res.data.key
     keyDialogVisible.value = true
     getList()
+  } catch (e: any) {
+    // 创建失败必须给提示：此前只复位 loading，失败时对话框留在原地、无任何反馈
+    ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
     createLoading.value = false
   }

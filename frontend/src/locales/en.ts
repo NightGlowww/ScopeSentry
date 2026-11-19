@@ -1344,6 +1344,7 @@ export default {
     contentMsg: 'Please enter poc content'
   },
   apiKey: {
+    nameRequired: 'Enter a key name',
     createTitle: 'Create API Key',
     keyCreatedTitle: 'API Key Created',
     keyPrefix: 'Key Prefix',
