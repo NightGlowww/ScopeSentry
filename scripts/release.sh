@@ -100,6 +100,8 @@ echo "== [5/7] 上传并校验"
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   echo "   scp $BIN $PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
 else
+  # 目标目录可能不存在（换机后常见）：先建目录再上传，否则 scp 报 No such file
+  ssh -o BatchMode=yes "$PROD_HOST" "mkdir -p $DEPLOY_DIR" 2>/dev/null || true
   scp -o BatchMode=yes "$BIN" "$PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
   REMOTE_SHA=$(ssh -o BatchMode=yes "$PROD_HOST" "sha256sum $DEPLOY_DIR/ScopeSentry-v$VERSION | cut -d' ' -f1")
   if [[ "$REMOTE_SHA" != "$SHA" ]]; then
