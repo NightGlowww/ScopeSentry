@@ -87,10 +87,11 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
 else
   scp -o BatchMode=yes "$BIN" "$PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
   REMOTE_SHA=$(ssh -o BatchMode=yes "$PROD_HOST" "sha256sum $DEPLOY_DIR/ScopeSentry-v$VERSION | cut -d' ' -f1")
-  # 清理半截上传，避免 DEPLOY_DIR 堆垃圾（磁盘满会把整机拖死）
-    ssh -o BatchMode=yes "$PROD_HOST" "rm -f $DEPLOY_DIR/ScopeSentry-v$VERSION" 2>/dev/null || true
   if [[ "$REMOTE_SHA" != "$SHA" ]]; then
     echo "   sha256 不一致：local=$SHA remote=$REMOTE_SHA" >&2
+    # 仅在校验失败时清理半截上传；此前这行被误插在比较之前且无条件执行，
+    # 会把刚传好的文件删掉，docker cp 报 lstat no such file（2.0.131 前两次部署失败）
+    ssh -o BatchMode=yes "$PROD_HOST" "rm -f $DEPLOY_DIR/ScopeSentry-v$VERSION" 2>/dev/null || true
     exit 1
   fi
   echo "   sha256 一致"
