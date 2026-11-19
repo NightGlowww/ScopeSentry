@@ -306,6 +306,9 @@ func (s *service) StopTasks(ctx *gin.Context, ids []string) error {
 		}
 		// 状态置为2
 		if oid, err := primitive.ObjectIDFromHex(id); err == nil {
+			// 暂停时把逐目标进度快照进 Mongo：Redis 的 TaskInfo:progress:* 会过期，
+			// 之后打开「任务进度」弹窗就只剩一片 "-"（2026-11-19 实测）。
+			s.snapshotTaskProgress(ctx, id)
 			_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 2}})
 		}
 	}
@@ -725,20 +728,34 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 		// 没有 tmp 集合时不要直接把进度归零：节点实际把进度写在
 		// TaskInfo:progress:<taskId>:<target> 的 hash 里（各模块 _start/_end 时间戳）。
 		// 之前只认 tmp 集合，导致真实扫描跑完进度仍显示 0%。
-		targets, doneModules, totalModules, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, taskID)
+		targets, doneModules, totalModules, perTarget, lastEnd, perr := s.taskRepo.ProgressSummary(ctx, taskID)
 		if perr != nil {
 			logger.Error(fmt.Sprintf("failed to summarise progress for task %s: %v", taskID, perr))
 		}
 		if targets > 0 && totalModules > 0 {
-			// 细粒度：已结束的模块数 / 已开始的模块数（同一目标内按模块推进），
-			// 多目标时再按目标平均，避免单目标任务长时间卡在 0%。
-			progress := doneModules * 100 / totalModules
+			// 分母必须覆盖任务的全部目标：只按「已写 hash 的目标」算，
+			// 12 个目标里只有 1 个开始时进度就会虚高（实测 91% 实际 0/12）。
+			expectedTargets := task.TaskNum
+			if expectedTargets <= 0 {
+				expectedTargets = targets
+			}
+			if expectedTargets < targets {
+				expectedTargets = targets
+			}
+			if perTarget <= 0 {
+				perTarget = totalModules / targets
+			}
+			expectedModules := expectedTargets * perTarget
+			if expectedModules < totalModules {
+				expectedModules = totalModules
+			}
+			progress := doneModules * 100 / expectedModules
 			if progress > 100 {
 				progress = 100
 			}
 			completed := 0
-			if doneModules >= totalModules {
-				completed = targets
+			if doneModules >= expectedModules {
+				completed = expectedTargets
 			}
 			denom := task.TaskNum
 			if denom <= 0 {
