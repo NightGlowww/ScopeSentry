@@ -995,6 +995,9 @@ func createIndexes(db *mongo.Database) error {
 		{"UrlScan", []bson.D{
 			{{Key: "project", Value: 1}, {Key: "time", Value: -1}},
 			{{Key: "taskName", Value: 1}, {Key: "time", Value: -1}},
+			// status 过滤 + time 倒序：资产页/MCP filter 的热路径（UrlScan 的字段名是
+			// status 而非 statuscode；filter 别名见 helper.normalizeFilterValue）
+			{{Key: "status", Value: 1}, {Key: "time", Value: -1}},
 		}},
 		{"IPAsset", []bson.D{
 			{{Key: "project", Value: 1}, {Key: "time", Value: -1}},
