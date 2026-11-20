@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElAlert, ElButton, ElCard, ElCol, ElRow, ElTag, ElDescriptions, ElDescriptionsItem } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { getConsoleInfoApi, type ConsoleInfo } from '@/api/dashboard'
+import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
 
 const info = ref<ConsoleInfo | null>(null)
 const loading = ref(false)
@@ -30,11 +31,9 @@ const depTag = (dep?: { connected: boolean; latencyMs: number; error?: string })
 
 onMounted(() => {
   load()
-  timer = window.setInterval(load, 15000)
+  useVisibleInterval(load, 15000)
 })
-onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer)
-})
+
 </script>
 
 <template>

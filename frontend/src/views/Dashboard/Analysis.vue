@@ -11,6 +11,7 @@ import { getTaskDataApi } from '@/api/task'
 import { useI18n } from '@/hooks/web/useI18n'
 import { UPDATEsYSTEMApi, getVersionDataApi } from '@/api/dashboard/analysis'
 import { checkKeyApi } from '@/api/plugins'
+import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
 
 const { t } = useI18n()
 
@@ -281,11 +282,9 @@ const getAllApi = async () => {
 }
 getVersionData()
 getAllApi()
-const refreshInterval = setInterval(getAllApi, 10000)
+useVisibleInterval(getAllApi, 10000)
 
-onBeforeUnmount(() => {
-  clearInterval(refreshInterval)
-})
+
 
 const pluginKey = ref('')
 const updateSystem = async () => {
