@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
@@ -238,6 +239,11 @@ func (r *repository) GetCollectionCursor(ctx *gin.Context, collection string, fi
 	return r.db.Collection(collection).Find(ctx.Request.Context(), filter)
 }
 
+// nodeTaskPushMu 串行化「查重 + 入队」：
+// 两个来源（建任务、节点注册时的补投）可能同时推同一任务，
+// 各自读队列时都还没看到对方写入，结果同一条消息出现两次（2026-11-20 实测）。
+var nodeTaskPushMu sync.Mutex
+
 func (r *repository) RPushNodeTask(ctx context.Context, name string, data any) error {
 	key := fmt.Sprintf("NodeTask:%s", name)
 
@@ -245,6 +251,25 @@ func (r *repository) RPushNodeTask(ctx context.Context, name string, data any) e
 	value, err := json.Marshal(data)
 	if err != nil {
 		return err
+	}
+
+	nodeTaskPushMu.Lock()
+	defer nodeTaskPushMu.Unlock()
+
+	// 入队前查重：该节点队列里已有同一任务就不再加一条。
+	// 节点是 LPOP 原子出队，所以「队列里没有」等价于「还没被领走」。
+	var probe struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(value, &probe) == nil && probe.ID != "" {
+		if items, lerr := r.redisClient.LRange(ctx, key, 0, -1).Result(); lerr == nil {
+			needle := fmt.Sprintf("\"id\":\"%s\"", probe.ID)
+			for _, raw := range items {
+				if strings.Contains(raw, needle) {
+					return nil
+				}
+			}
+		}
 	}
 
 	// 使用 Redis RPush 插入数据，并给队列滑动 TTL（issue #200）
