@@ -1,4 +1,11 @@
 export default {
+  smartEmpty: {
+    task: 'No results for task: {v}',
+    domain: 'No results for host: {v}',
+    filtered: 'No results match the current filters',
+    reset: 'Clear filters',
+  },
+
   api: {
     success: 'Operation successful',
     system: { version: { success: 'Version information retrieved' } }

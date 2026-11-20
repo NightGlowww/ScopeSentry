@@ -1,4 +1,11 @@
 export default {
+  smartEmpty: {
+    task: '작업 {v} 에 대한 결과가 없습니다',
+    domain: '호스트 {v} 에 대한 결과가 없습니다',
+    filtered: '현재 조건에 맞는 결과가 없습니다',
+    reset: '필터 지우기',
+  },
+
   api: {
     success: '요청을 처리했습니다.',
     system: { version: { success: '버전 정보를 조회했습니다.' } }

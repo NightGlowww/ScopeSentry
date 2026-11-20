@@ -1,4 +1,11 @@
 export default {
+  smartEmpty: {
+    task: '当前筛选（任务：{v}）没有结果',
+    domain: '当前筛选（主机：{v}）没有结果',
+    filtered: '当前条件下没有结果',
+    reset: '清除筛选',
+  },
+
   api: {
     success: '操作成功',
     system: { version: { success: '版本信息获取成功' } }

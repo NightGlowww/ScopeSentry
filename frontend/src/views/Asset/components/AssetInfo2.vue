@@ -140,6 +140,17 @@ const searchKeywordsData = [
   }
 ]
 const staticLoading = ref(true)
+// 空状态说人话（同 Subdomain）：把搜索表达式翻译成原因
+const emptyHint = computed(() => {
+  const s = (searchParams.value || '').trim()
+  const task = /task\s*==\s*"([^"]+)"/.exec(s)
+  const domain = /domain\s*==\s*"([^"]+)"/.exec(s)
+  if (task) return t('smartEmpty.task', { v: task[1] })
+  if (domain) return t('smartEmpty.domain', { v: domain[1] })
+  if (s) return t('smartEmpty.filtered')
+  return t('common.noData')
+})
+
 const SEARCH_KEY = 'asset:assetinfo2:search'
 const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
@@ -1214,6 +1225,7 @@ const confirmSelectedIcons = () => {
             <Table
               :columns="allSchemas.tableColumns"
               :data="dataList"
+              :empty-text="emptyHint"
               stripe
               :border="true"
               :loading="loading"

@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
-import { h, nextTick, reactive, Ref, ref } from 'vue'
+import { h, nextTick, reactive, Ref, ref, computed } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
 import {
@@ -70,6 +70,17 @@ const setMaxHeight = () => {
   const screenHeight = window.innerHeight || document.documentElement.clientHeight
   maxHeight.value = screenHeight * 0.7
 }
+
+// 空状态说人话：把当前搜索表达式翻译成"为什么这里是空的"
+const emptyHint = computed(() => {
+  const s = (searchParams.value || '').trim()
+  const task = /task\s*==\s*"([^"]+)"/.exec(s)
+  const domain = /domain\s*==\s*"([^"]+)"/.exec(s)
+  if (task) return t('smartEmpty.task', { v: task[1] })
+  if (domain) return t('smartEmpty.domain', { v: domain[1] })
+  if (s) return t('smartEmpty.filtered')
+  return t('common.noData')
+})
 
 const SEARCH_KEY = 'asset:subdomain:search'
 const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
@@ -430,6 +441,7 @@ const getFilter = () => {
           v-model:currentPage="currentPage"
           :columns="allSchemas.tableColumns"
           :data="dataList"
+          :empty-text="emptyHint"
           stripe
           :border="true"
           :loading="loading"
