@@ -157,7 +157,13 @@ const nodeColums = reactive<TableColumn[]>([
         },
         () => t('node.containerMem', { n: ctr.toFixed(1) })
       )
-      return h('div', { class: 'node-mem-cell' }, [tag, h('div', { class: 'node-mem-sub' }, [ctrTag]), peakTag, highTag])
+      const soft = Number((row as any).memSoftLimitMB || 0)
+      const title = soft > 0 ? t('node.memSoftLimit', { n: soft }) : ''
+      return h(
+        'div',
+        { class: 'node-mem-cell', title },
+        [tag, h('div', { class: 'node-mem-sub' }, [ctrTag]), peakTag, highTag]
+      )
     }
   },
   {

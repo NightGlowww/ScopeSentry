@@ -111,6 +111,11 @@ func (r *repository) GetAllNodes(ctx context.Context) ([]models.NodeData, error)
 				node.ContainerMem = f
 			}
 		}
+		if v, ok := hashData["memSoftLimitMB"]; ok {
+			if n, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+				node.MemSoftLimitMB = n
+			}
+		}
 		nodes = append(nodes, node)
 	}
 

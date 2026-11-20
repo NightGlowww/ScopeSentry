@@ -23,6 +23,8 @@ type NodeData struct {
 	// ContainerMem 节点容器自身内存占用百分比（-1 或 0 表示节点版本不支持上报）
 	// memNum 是宿主机占用，容器被 cgroup 限住时它看不出来（实测宿主 24% / 容器 42%）
 	ContainerMem float64 `json:"containerMem"`
+	// MemSoftLimitMB 节点进程的 Go 软内存上限（MiB）：0 表示节点版本不支持上报
+	MemSoftLimitMB int64 `json:"memSoftLimitMB"`
 }
 
 type Message struct {

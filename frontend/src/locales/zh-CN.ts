@@ -931,6 +931,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    memSoftLimit: 'Go 软内存上限 {n} MB（超过会被 GC 压制）',
     memHighFor: '高压 {n} 分钟',
     memPeak1h: '1h 峰 {n}%',
     autoRefreshHint: '每 15 秒自动刷新 · 更新于 {t}',

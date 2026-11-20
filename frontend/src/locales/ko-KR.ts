@@ -954,6 +954,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    memSoftLimit: 'Go 소프트 메모리 한도 {n} MB',
     memHighFor: '{n}분째 고압',
     memPeak1h: '1시간 최고 {n}%',
     autoRefreshHint: '15초마다 자동 새로고침 · {t} 업데이트',
