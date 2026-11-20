@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import {
   ElButton,
   ElCol,
@@ -52,11 +53,15 @@ const loadStatus = async () => {
   }
 }
 
+const { isLeader: backupLeader } = useSingleTabLeader('backup')
+
 const startPolling = () => {
   stopPolling()
   // 后台标签页不轮询：备份可能要几分钟，用户切走后没必要一直打接口
   timer = window.setInterval(() => {
     if (document.hidden) return
+    // 多标签页只让一个轮询：2.5 秒的间隔多开时叠加最明显（2026-11-21）
+    if (!backupLeader.value) return
     loadStatus()
   }, 2500)
 }

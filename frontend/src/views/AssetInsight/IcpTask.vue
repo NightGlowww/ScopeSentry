@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import {
   ElAlert,
   ElButton,
@@ -473,10 +474,13 @@ const stopPoll = () => {
   }
 }
 
+const { isLeader: icpLeader } = useSingleTabLeader('icp-tasks')
+
 const startPoll = () => {
   stopPoll()
   pollTimer = window.setInterval(async () => {
     if (document.hidden) return
+    if (!icpLeader.value) return
     if (!drawerVisible.value || !currentTask.value) {
       stopPoll()
       return
