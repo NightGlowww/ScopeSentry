@@ -951,6 +951,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    containerMem: 'container {n}%',
     heartbeatDelayed: 'heartbeat slightly late (still running)',
     healPending: 'Moved {n} task(s), but {name} did not act on the restart (likely starved). Restart it by hand: docker restart scopesentry-scan',
     healBanner: 'Node {name} is offline with {n} queued; move them to {to} and restart it.',

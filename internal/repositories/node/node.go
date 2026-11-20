@@ -95,6 +95,12 @@ func (r *repository) GetAllNodes(ctx context.Context) ([]models.NodeData, error)
 				node.CmdFail10m = n
 			}
 		}
+		// 容器内存占用：老版本节点没有这个字段，缺失保持 0（界面按「不支持」处理）
+		if v, ok := hashData["containerMem"]; ok {
+			if f, perr := strconv.ParseFloat(v, 64); perr == nil {
+				node.ContainerMem = f
+			}
+		}
 		nodes = append(nodes, node)
 	}
 

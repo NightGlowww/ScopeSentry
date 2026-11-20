@@ -245,7 +245,25 @@ func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id strin
 			maxQueuedPerNode = n
 		}
 	}
+	// 容器内存压力：节点容器被 cgroup 限住时会被压死（心跳停、任务卡住）。
+	// 宿主 memNum 看不出来（实测宿主 24% / 容器 82%），所以按节点的 containerMem 判断：
+	// 已接近上限且还在跑任务，就不要再往里塞（2026-11-20）。
+	const containerMemLimit = 90.0
+	nodeMem := map[string]float64{}
+	nodeRunning := map[string]float64{}
+	if nodes, nerr := s.nodeService.GetNodeData(ctx, false); nerr == nil {
+		for _, nd := range nodes {
+			nodeMem[nd.Name] = nd.ContainerMem
+			if v, perr := strconv.ParseFloat(nd.Running, 64); perr == nil {
+				nodeRunning[nd.Name] = v
+			}
+		}
+	}
+
 	for _, n := range task.Node {
+		if mem := nodeMem[n]; mem >= containerMemLimit && nodeRunning[n] >= 1 {
+			return 0, fmt.Errorf("节点 %s 容器内存已用 %.1f%%（接近上限）且正在执行任务，为避免压死节点本次不派发；可换节点或等当前任务结束", n, mem)
+		}
 		if q, qerr := s.taskRepo.NodeQueueLen(ctx, n); qerr == nil && q >= int64(maxQueuedPerNode) {
 			return 0, fmt.Errorf("节点 %s 队列已积压 %d 个任务（上限 %d），请等待当前任务完成后再提交", n, q, maxQueuedPerNode)
 		}

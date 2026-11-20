@@ -109,20 +109,33 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'memNum',
     label: t('node.nodeUsageMemory'),
-    width: 110,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
-      let numericValue = parseFloat(cellValue)
-      numericValue = parseFloat(numericValue.toFixed(2))
-      return h(
+    width: 130,
+    formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
+      const host = parseFloat(parseFloat(cellValue).toFixed(1))
+      const ctr = Number(row.containerMem) || 0
+      const tag = h(
         ElTag,
         {
           round: true,
           effect: 'plain',
           hit: true,
-          type: numericValue < 50 ? '' : numericValue < 80 ? 'warning' : 'danger'
+          type: host < 50 ? '' : host < 80 ? 'warning' : 'danger'
         },
-        () => numericValue + '%'
+        () => host + '%'
       )
+      // 容器内存单独一行：宿主 24% 时容器可能已经 42%，被 cgroup 限住时只有它能看出压力
+      if (ctr <= 0) return tag
+      const ctrTag = h(
+        ElTag,
+        {
+          round: true,
+          effect: 'plain',
+          size: 'small',
+          type: ctr < 70 ? 'info' : ctr < 90 ? 'warning' : 'danger'
+        },
+        () => t('node.containerMem', { n: ctr.toFixed(1) })
+      )
+      return h('div', { class: 'node-mem-cell' }, [tag, h('div', { class: 'node-mem-sub' }, [ctrTag])])
     }
   },
   {
@@ -712,6 +725,13 @@ const closepluginDialogVisible = () => {
     transform: rotate(360deg);
   }
 }
+.node-mem-cell {
+  line-height: 1.2;
+}
+.node-mem-sub {
+  margin-top: 2px;
+}
+
 .node-health {
   display: flex;
   gap: 8px;

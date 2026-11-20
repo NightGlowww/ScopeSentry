@@ -58,7 +58,10 @@ const defaultResponseInterceptors = (response: AxiosResponse) => {
     }
     return response.data
   } else {
-    ElMessage.error(translateApiMessage(response?.data?.message))
+    // data 里是后端给的具体原因（如「节点内存已用 95%…」），message 只是 i18n 键；
+    // 只显示 message 会让所有可预期的拒绝都成一个「api.error」，用户没法排查（2026-11-20）。
+    const detail = typeof response?.data?.data === 'string' ? response.data.data.trim() : ''
+    ElMessage.error(detail || translateApiMessage(response?.data?.message))
     if (response?.data?.code === 401) {
       const userStore = useUserStoreWithOut()
       userStore.logout()

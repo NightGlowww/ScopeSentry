@@ -920,6 +920,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    containerMem: '容器 {n}%',
     heartbeatDelayed: '心跳稍有延迟（仍在运行）',
     healPending: '已迁移 {n} 个任务，但 {name} 未响应重启指令（多半被压住），请在主机上手工 docker restart scopesentry-scan',
     healBanner: '节点 {name} 离线，队列还有 {n} 个任务；建议先迁到 {to} 再重启该节点。',

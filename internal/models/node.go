@@ -20,6 +20,9 @@ type NodeData struct {
 	CmdFail10m int64 `json:"cmdFail10m"`
 	// Stale 心跳刚过期但还没到「判定死亡」的时长：界面应显示「心跳延迟」而不是「离线」
 	Stale bool `json:"stale,omitempty"`
+	// ContainerMem 节点容器自身内存占用百分比（-1 或 0 表示节点版本不支持上报）
+	// memNum 是宿主机占用，容器被 cgroup 限住时它看不出来（实测宿主 24% / 容器 42%）
+	ContainerMem float64 `json:"containerMem"`
 }
 
 type Message struct {

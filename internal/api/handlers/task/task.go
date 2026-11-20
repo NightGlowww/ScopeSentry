@@ -50,7 +50,7 @@ func List(c *gin.Context) {
 			logger.Error(fmt.Sprintf("%v", err))
 		}
 	}()
-	tasks, total, err := taskService.List(c, req.Search, req.PageIndex, req.PageSize, req.Status)
+	tasks, total, err := taskService.List(c, req.Search, req.PageIndex, req.PageSize, req.Status, req.Node)
 	if err != nil {
 		logger.Error(fmt.Sprintf("%v", err))
 		response.InternalServerError(c, "api.task.list.error", err)
@@ -301,7 +301,9 @@ func StartTask(c *gin.Context) {
 		return
 	}
 	if err := taskService.StartTasks(c, req.IDs); err != nil {
-		response.InternalServerError(c, "api.error", err)
+		// 起不来通常是「可预期的拒绝」（队列积压、节点内存接近上限、模板缺失），
+		// 归到 400 并把原因带出去；500 只会显示成「api.error」，用户看不出发生了什么。
+		response.BadRequest(c, "api.error", err)
 		return
 	}
 	response.Success(c, nil, "api.success")

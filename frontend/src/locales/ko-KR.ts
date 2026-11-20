@@ -943,6 +943,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    containerMem: '컨테이너 {n}%',
     heartbeatDelayed: '하트비트 지연(계속 실행 중)',
     healPending: '{n}개 작업을 이동했지만 {name} 이(가) 재시작 명령에 응답하지 않았습니다. 호스트에서 직접 docker restart scopesentry-scan 하세요',
     healBanner: '노드 {name} 이(가) 오프라인이며 대기 {n}개가 있습니다. {to} 로 이동 후 재시작하세요.',
