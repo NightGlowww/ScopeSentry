@@ -33,6 +33,25 @@
     const h = headers();
     add("包含工具失败列", h.includes("工具失败"), h.join("|"));
     add("节点非空", rows() > 0, rows() + " 节点");
+  } else if (mode === "dialogOpens") {
+    // 点「新建/新建 X」按钮，断言弹窗真的出现（抓"按钮在但点了没反应"）。
+    // 标签通过 window.__LABEL__ 指定，缺省依次尝试常见文案。
+    const labels = window.__LABEL__ ? [window.__LABEL__] : ["新建", "新建任务", "新建项目", "新建插件", "新建字典", "新建 API Key"];
+    const btn = [...document.querySelectorAll("button")].filter(vis).find(b => labels.some(l => b.innerText.replace(/\s+/g, "") === l.replace(/\s+/g, "")));
+    add("目标按钮存在", !!btn, btn ? btn.innerText.trim() : labels.join("|"));
+    if (btn) {
+      btn.click();
+      await new Promise(r => setTimeout(r, 1800));
+      const dlg = [...document.querySelectorAll(".el-dialog")].filter(d => d.getBoundingClientRect().height > 60)[0];
+      add("弹窗已打开", !!dlg, dlg ? (dlg.querySelector(".el-dialog__title")?.innerText || "opened") : "not opened");
+      if (dlg) {
+        const cancel = [...dlg.querySelectorAll("button")].find(b => /取消|Cancel|关闭/.test(b.innerText));
+        if (cancel) {
+          cancel.click();
+          await new Promise(r => setTimeout(r, 600));
+        }
+      }
+    }
   } else if (mode === "resetWorks") {
     // 点「重置」后：URL query 清空、所有文本输入框为空、列表有数据或明确空态。
     // 这类断言专门抓「后加的筛选字段漏在重置之外」（2026-11-20 hostFilter 漏过一次）。

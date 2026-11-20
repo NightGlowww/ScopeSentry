@@ -15,6 +15,11 @@
     { "name": "敏感信息规则", "hash": "#/sensitive-information-rules", "assert": "tableOrEmpty" },
     { "name": "系统配置", "hash": "#/configuration/system", "assert": "hasButtons" },
     { "name": "重置-漏洞主机筛选", "hash": "#/asset-information/nuclei-result?host=__none__", "assert": "resetWorks" },
-    { "name": "重置-漏洞任务筛选", "hash": "#/asset-information/nuclei-result?taskName=__none__", "assert": "resetWorks" }
+    { "name": "重置-漏洞任务筛选", "hash": "#/asset-information/nuclei-result?taskName=__none__", "assert": "resetWorks" },
+    { "name": "弹窗-新建任务", "hash": "#/task-management/ScanTask", "assert": "dialogOpens", "label": "新建任务" },
+    { "name": "弹窗-POC新建", "hash": "#/poc-management/index", "assert": "dialogOpens", "label": "新建" },
+    { "name": "弹窗-指纹新建", "hash": "#/fingerprint-management", "assert": "dialogOpens", "label": "新建" },
+    { "name": "弹窗-敏感规则新建", "hash": "#/sensitive-information-rules", "assert": "dialogOpens", "label": "新建" },
+    { "name": "弹窗-项目新建", "hash": "#/project-management", "assert": "dialogOpens", "label": "新建项目" }
   ]
 }

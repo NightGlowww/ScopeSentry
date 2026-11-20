@@ -82,3 +82,16 @@ URL query 清空、所有文本输入框为空、列表回到有数据状态。
 已覆盖用例：
 - `重置-漏洞主机筛选`：`?host=xxx` → 重置后 URL 干净、输入框空、12 行
 - `重置-漏洞任务筛选`：`?taskName=xxx` → 同上
+### 弹窗类断言（2026-11-20 新增）
+
+`dialogOpens` 专治「按钮在但点了没反应」：按标签找到「新建」类按钮，点击后断言
+弹窗真的出现（`.el-dialog` 高度 > 60），然后点「取消」关闭，不留残留状态。
+
+标签通过 `window.__LABEL__` 指定（同一次 eval 里先设置再执行断言）：
+
+```js
+eval({ tabId, expression: 'window.__ASSERT__ = "dialogOpens"; window.__LABEL__ = "新建项目"; "ok"' })
+eval({ tabId, expression: <assert.js 全文> })
+```
+
+已覆盖用例：新建任务 / POC / 指纹 / 敏感规则 / 项目（5/5 通过）。
