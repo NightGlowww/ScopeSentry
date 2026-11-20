@@ -15,6 +15,7 @@ import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
 import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi } from '@/api/node'
 import { getDispatchRejectStatsApi, getDispatchRecentApi } from '@/api/task'
+import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
 const { t } = useI18n()
 // 离线原因推断：把「最后心跳多久前」翻译成可行动的判断
 const offlineReason = (row: any, state: string): string => {
@@ -412,6 +413,14 @@ const { tableRegister, tableState, tableMethods } = useTable({
 })
 const { loading, dataList, currentPage, pageSize } = tableState
 const { getList, getElTableExpose } = tableMethods
+
+// 节点页也有「实时性」需求（排队、内存、在线状态一直在变），和任务页保持一致：
+// 可见时每 15 秒刷一次，后台不刷，回来补一次（2026-11-20）。
+const lastRefreshAt = ref('')
+useVisibleInterval(() => {
+  getList()
+  lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+}, 15000)
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
@@ -580,6 +589,10 @@ const closepluginDialogVisible = () => {
       </BaseButton>
     </div>
     <div>
+      <div class="refresh-hint">
+        {{ t('node.autoRefreshHint', { t: lastRefreshAt || t('task.refreshJustNow') }) }}
+      </div>
+
       <div v-if="hasRejectInfo" class="node-health">
         <ElTag type="info" size="small" effect="plain" style="cursor: pointer" @click="toggleRecentRejections">
           {{ t('node.rejectTitle') }}：{{ rejectSummary.length ? rejectSummary.join(' · ') : t('node.rejectRecentOnly') }}
@@ -839,6 +852,12 @@ const closepluginDialogVisible = () => {
 }
 .node-mem-sub {
   margin-top: 2px;
+}
+
+.refresh-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 6px;
 }
 
 .node-health {

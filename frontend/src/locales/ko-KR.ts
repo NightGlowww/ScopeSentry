@@ -943,6 +943,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    autoRefreshHint: '15초마다 자동 새로고침 · {t} 업데이트',
     rejectRecentOnly: '최근 거부 기록(클릭하여 보기)',
     recentRejectEmpty: '거부 기록 없음',
     rejectTitle: '발송 거부(시작 이후)',

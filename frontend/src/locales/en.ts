@@ -951,6 +951,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    autoRefreshHint: 'Auto-refresh every 15s · updated {t}',
     rejectRecentOnly: 'recent rejections (click to view)',
     recentRejectEmpty: 'No rejections recorded',
     rejectTitle: 'Dispatch rejected (since start)',

@@ -920,6 +920,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    autoRefreshHint: '每 15 秒自动刷新 · 更新于 {t}',
     rejectRecentOnly: '最近有拒绝记录（点击查看）',
     recentRejectEmpty: '暂无拒绝记录',
     rejectTitle: '派发被拒（自启动起）',
