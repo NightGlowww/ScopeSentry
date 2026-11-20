@@ -71,6 +71,8 @@ const loadCveHistory = async () => {
   try {
     const res = await getCveHistoryApi({ keyword: cveKeyword.value || undefined, limit: 100 })
     cveHistory.value = res.data.list || []
+  } catch (e: any) {
+    ElMessage.error(e?.message || '加载 CVE 历史失败')
   } finally {
     cveLoading.value = false
   }
@@ -106,6 +108,8 @@ const save = async (kind: ThreatKind) => {
       tokenRef: sources[kind].tokenRef
     })
     ElMessage.success('已保存')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '保存失败')
   } finally {
     saving[kind] = false
   }
@@ -116,6 +120,8 @@ const runOnce = async (kind: ThreatKind) => {
   try {
     await runThreatOnceApi(kind)
     ElMessage.success('已触发一次采集')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '触发失败')
   } finally {
     running[kind] = false
   }
