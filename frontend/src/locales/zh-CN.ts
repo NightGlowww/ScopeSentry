@@ -953,6 +953,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    queueBacklog: '有 {n} 个任务在排队（节点一次只跑一个任务，后面的要等）',
     elapsed: '耗时',
     showAllModules: '显示全部模块',
     moduleColumnsHint: '当前显示 {n} 个模块列',

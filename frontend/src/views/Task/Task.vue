@@ -379,6 +379,8 @@ const exportTask = async (row: any) => {
 const progressCmdFail = ref(0)
 // 当前查看进度的任务名（产出一栏点击跳转要用）
 const progressTaskName = ref('')
+// 队列积压：节点一次只跑一个任务，队列深说明后面要等；把总数摆出来免得用户以为卡住
+const queuedTotal = ref(0)
 
 // 按当前筛选批量删除：勾选跨页太慢，直接按筛选条件清
 // 安全：后端要求必须带搜索词或状态，且单次最多 200 条
@@ -492,6 +494,7 @@ const loadNodeHealth = async () => {
     const list: any[] = Array.isArray(raw) ? raw : []
     nodeTotal.value = list.length
     nodeOnline.value = list.filter((n) => String(n?.state) === '1').length
+    queuedTotal.value = list.reduce((sum: number, n: any) => sum + (Number(n?.queueLen) || 0), 0)
   } catch {
     // 静默：不打扰主流程
   }
@@ -954,6 +957,14 @@ const setMaxHeight = () => {
         show-icon
         style="margin-bottom: 10px"
         :title="t('task.nodeOfflineWarn') + ': ' + nodeOnline + '/' + nodeTotal"
+      />
+      <ElAlert
+        v-if="queuedTotal > 0"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 10px"
+        :title="t('task.queueBacklog', { n: queuedTotal })"
       />
       <Table
         :tooltip-options="{
