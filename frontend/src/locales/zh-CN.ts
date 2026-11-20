@@ -975,6 +975,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    targetProgress: '目标 {done}/{total}',
     filterByNode: '按节点筛选',
     emptyFilteredTitle: '当前筛选没有任务',
     filterByName: '搜索：{q}',

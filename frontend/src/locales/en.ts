@@ -1006,6 +1006,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    targetProgress: 'target {done}/{total}',
     filterByNode: 'Filter by node',
     emptyFilteredTitle: 'No tasks match the filters',
     filterByName: 'search: {q}',

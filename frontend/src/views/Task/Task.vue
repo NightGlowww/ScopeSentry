@@ -165,7 +165,18 @@ const taskColums = reactive<TableColumn[]>([
       }
       return h('div', { class: 'progress-cell' }, [
         bar,
-        h('div', { class: 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed)
+        h('div', { class: 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed),
+        // 目标进度：光看百分比不知道「一共多少个目标、现在第几个」
+        (row.taskNum as number) > 0
+          ? h(
+              'div',
+              { class: 'progress-sub progress-sub--dim' },
+              t('task.targetProgress', {
+                done: Math.min(Math.round(((row.progress as number) || 0) * (row.taskNum as number) / 100), row.taskNum as number),
+                total: row.taskNum as number
+              })
+            )
+          : null
       ])
     }
   },
@@ -1137,6 +1148,10 @@ const setMaxHeight = () => {
 .progress-cell {
   line-height: 1.2;
 }
+.progress-sub--dim {
+  opacity: 0.75;
+}
+
 .progress-sub.fail {
   color: var(--el-color-danger);
 }
