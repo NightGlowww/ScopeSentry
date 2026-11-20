@@ -74,6 +74,10 @@ func (r *repository) GetAllNodes(ctx context.Context) ([]models.NodeData, error)
 		}
 
 		name := strings.TrimPrefix(key, "node:")
+		// 空名字的 node 键（历史遗留/启动时 NodeName 为空）会在界面显示成一台离线节点，直接跳过
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
 
 		// 构造结构体，提供默认值
 		node := models.NodeData{
