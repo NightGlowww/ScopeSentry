@@ -240,6 +240,16 @@ const healedTargets = computed(() => {
   if (!online.length) return ''
   return [...online].sort((a: any, b: any) => (Number(a.queueLen) || 0) - (Number(b.queueLen) || 0))[0].name
 })
+// 节点健康一眼可见：只看「在线/离线」会漏掉「在线但工具一直在失败」。
+// 用 10 分钟窗口——节点本来就按这个粒度上报 cmdFail10m。
+const healthSummary = computed(() => {
+  const list = dataList.value || []
+  if (!list.length) return null
+  const offline = list.filter((n: any) => String(n.state) !== '1').length
+  const fails = list.reduce((s: number, n: any) => s + (Number(n.cmdFail10m) || 0), 0)
+  return { total: list.length, offline, fails }
+})
+
 const healOne = async () => {
   const bad = offlineNodes.value[0]
   if (!bad) return
@@ -490,6 +500,21 @@ const closepluginDialogVisible = () => {
       </BaseButton>
     </div>
     <div>
+      <div v-if="healthSummary" class="node-health">
+        <ElTag v-if="healthSummary.offline > 0" type="danger" size="small" effect="plain">
+          {{ healthSummary.offline }}/{{ healthSummary.total }} 台节点离线
+        </ElTag>
+        <ElTag v-else type="success" size="small" effect="plain">
+          全部 {{ healthSummary.total }} 台节点在线
+        </ElTag>
+        <ElTag v-if="healthSummary.fails > 0" type="warning" size="small" effect="plain">
+          最近 10 分钟工具失败 {{ healthSummary.fails }} 次
+        </ElTag>
+        <ElTag v-else type="success" size="small" effect="plain">
+          最近 10 分钟无工具失败
+        </ElTag>
+      </div>
+
       <ElAlert
         v-if="offlineNodes.length"
         type="warning"
@@ -687,6 +712,13 @@ const closepluginDialogVisible = () => {
     transform: rotate(360deg);
   }
 }
+.node-health {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
 .node-state-cell {
   line-height: 1.25;
 }

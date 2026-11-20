@@ -102,7 +102,29 @@ if [[ "${DRY_RUN:-0}" == "1" ]]; then
 else
   # 目标目录可能不存在（换机后常见）：先建目录再上传，否则 scp 报 No such file
   ssh -o BatchMode=yes "$PROD_HOST" "mkdir -p $DEPLOY_DIR" 2>/dev/null || true
-  scp -o BatchMode=yes "$BIN" "$PROD_HOST:$DEPLOY_DIR/ScopeSentry-v$VERSION"
+  # 大文件单连接上传会被中途 reset（2026-11-20 实测：96MB 传到 ~8MB 就断）。
+  # 改成分片上传：每片 4MB、独立连接、单片失败重试 3 次，再远端拼接。
+  CHUNK_DIR=$(mktemp -d)
+  split -b 4m "$BIN" "$CHUNK_DIR/part_"
+  ssh -o BatchMode=yes "$PROD_HOST" "rm -rf $DEPLOY_DIR/.chunks && mkdir -p $DEPLOY_DIR/.chunks" 2>/dev/null || true
+  CHUNK_FAIL=0
+  for f in "$CHUNK_DIR"/part_*; do
+    base=$(basename "$f")
+    for attempt in 1 2 3; do
+      if scp -q -o BatchMode=yes "$f" "$PROD_HOST:$DEPLOY_DIR/.chunks/$base" 2>/dev/null; then
+        break
+      fi
+      if [[ $attempt -eq 3 ]]; then
+        echo "   分片 $base 上传失败（重试 3 次）" >&2
+        CHUNK_FAIL=1
+      fi
+    done
+  done
+  rm -rf "$CHUNK_DIR"
+  if [[ $CHUNK_FAIL -ne 0 ]]; then
+    exit 1
+  fi
+  ssh -o BatchMode=yes "$PROD_HOST" "cat $DEPLOY_DIR/.chunks/part_* > $DEPLOY_DIR/ScopeSentry-v$VERSION && rm -rf $DEPLOY_DIR/.chunks" || exit 1
   REMOTE_SHA=$(ssh -o BatchMode=yes "$PROD_HOST" "sha256sum $DEPLOY_DIR/ScopeSentry-v$VERSION | cut -d' ' -f1")
   if [[ "$REMOTE_SHA" != "$SHA" ]]; then
     echo "   sha256 不一致：local=$SHA remote=$REMOTE_SHA" >&2
