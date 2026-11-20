@@ -384,6 +384,16 @@ const progressCmdFail = ref(0)
 const progressTaskName = ref('')
 // 队列积压：节点一次只跑一个任务，队列深说明后面要等；把总数摆出来免得用户以为卡住
 const queuedTotal = ref(0)
+// 节点下拉选项：从节点接口拿，避免任务里的节点名写错
+const nodeOptions = ref<string[]>([])
+// 按节点筛选：多节点时排查「某个节点跑了什么」只能翻列表
+const NODE_KEY = 'task:node'
+const nodeFilter = ref(sessionStorage.getItem(NODE_KEY) || '')
+watch(nodeFilter, (v) => {
+  sessionStorage.setItem(NODE_KEY, v || '')
+  currentPage.value = 1
+  getList()
+})
 // 空状态区分「还没有任务」和「当前筛选没结果」——否则筛完看到"还没有扫描任务"+新建按钮很误导
 const hasTaskFilter = computed(() => !!search.value.trim() || statusFilter.value >= 0)
 const taskFilterSummary = computed(() => {
@@ -435,7 +445,8 @@ const confirmDeleteByFilter = async () => {
   try {
     const res: any = await deleteTaskByFilterApi(
       search.value.trim(),
-      statusFilter.value >= 0 ? statusFilter.value : undefined
+      statusFilter.value >= 0 ? statusFilter.value : undefined,
+      nodeFilter.value || undefined
     )
     ElMessage.success(t('task.deleteFilterDone', { n: res?.data?.deleted ?? 0 }))
     resetSelection()
@@ -497,7 +508,8 @@ const { tableRegister, tableState, tableMethods } = useTable({
       search.value,
       currentPage.value,
       pageSize.value,
-      statusFilter.value >= 0 ? statusFilter.value : undefined
+      statusFilter.value >= 0 ? statusFilter.value : undefined,
+      nodeFilter.value || undefined
     )
     // 首次加载完也要评估是否该起自动刷新：
     // 之前只在 getList() 包装里调 syncAutoList()，而表格首屏走的是这里，
@@ -529,6 +541,7 @@ const loadNodeHealth = async () => {
     nodeTotal.value = list.length
     nodeOnline.value = list.filter((n) => String(n?.state) === '1').length
     queuedTotal.value = list.reduce((sum: number, n: any) => sum + (Number(n?.queueLen) || 0), 0)
+    nodeOptions.value = list.map((n: any) => String(n?.name || '')).filter(Boolean)
   } catch {
     // 静默：不打扰主流程
   }
@@ -549,6 +562,8 @@ const syncAutoList = () => {
   }
   if (hasRunning.value) {
     autoListTimer.value = setInterval(async () => {
+      // 页面在后台时不刷新：标签页挂着不动还每 10 秒打一次接口，纯浪费
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         await getList()
       } catch {
@@ -562,7 +577,14 @@ onMounted(() => {
   setInterval(loadNodeHealth, 60000)
   syncAutoList()
 })
+// 回到前台立刻补一次刷新，避免看到十几分钟前的旧数据
+const onVisible = () => {
+  if (!document.hidden) getList()
+}
+onMounted(() => document.addEventListener('visibilitychange', onVisible))
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onVisible)
+
   if (autoListTimer.value) clearInterval(autoListTimer.value)
 })
 // 每次刷新列表后重置选择状态，避免"按钮可点但选中为空"
@@ -907,6 +929,11 @@ const setMaxHeight = () => {
 <template>
   <ContentWrap>
     <ElRow class="locale-search-row">
+      <ElCol :span="4">
+        <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
+          <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
+        </ElSelect>
+      </ElCol>
       <ElCol :span="4">
         <ElSelect v-model="statusFilter" :placeholder="t('task.statusFilter')" clearable>
           <ElOption :label="t('task.statusAll')" :value="-1" />
