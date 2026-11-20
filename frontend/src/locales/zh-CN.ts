@@ -911,6 +911,10 @@ export default {
     hasPermission: '请设置操作权限值'
   },
   dashboard: {
+    serverHealth: '服务端健康',
+    load: '负载',
+    memAvailable: '内存可用',
+    diskFree: '磁盘可用',
     vulnBreakdown: '待处理 {pending} · 已忽略 {ignored}',
     totalAssets: '资产总数',
     subDomain: '子域名',

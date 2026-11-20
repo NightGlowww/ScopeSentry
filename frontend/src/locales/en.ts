@@ -942,6 +942,10 @@ export default {
     hasPermission: 'Please set the operation permission value'
   },
   dashboard: {
+    serverHealth: 'Server health',
+    load: 'load',
+    memAvailable: 'mem free',
+    diskFree: 'disk free',
     vulnBreakdown: '{pending} pending · {ignored} ignored',
     totalAssets: 'Total assets',
     subDomain: 'Subdomain',

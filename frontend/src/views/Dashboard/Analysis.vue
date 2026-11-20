@@ -5,7 +5,7 @@ import { ElRow, ElCol, ElCard, ElProgress, ElText, ElTooltip, ElButton, ElForm, 
 import { Table, TableColumn } from '@/components/Table'
 
 import { Dialog } from '@/components/Dialog'
-import { ref, reactive, h, onBeforeUnmount, Ref } from 'vue'
+import { ref, reactive, h, onBeforeUnmount, Ref, computed } from 'vue'
 import { getNodeDataApi } from '@/api/node'
 import { getTaskDataApi } from '@/api/task'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -15,7 +15,28 @@ import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
 
 const { t } = useI18n()
 
+// 服务端自身健康：负载/内存/磁盘。之前这些只在 /healthz 里，界面上看不到——
+// 宿主被别的容器吃满 CPU 时（load 19/4 核），服务端会被拖到探活失败还无人察觉（2026-11-20）。
+const serverHealth = ref<any>(null)
+const loadServerHealth = async () => {
+  try {
+    const res = await fetch('/healthz', { headers: { Accept: 'application/json' } })
+    serverHealth.value = await res.json()
+  } catch {
+    serverHealth.value = null
+  }
+}
+const healthTone = (v: number, warn: number, danger: number) =>
+  v >= danger ? 'danger' : v >= warn ? 'warning' : 'success'
+const loadRatio = computed(() => {
+  const h = serverHealth.value?.host
+  if (!h || !h.cpus) return 0
+  return Number((h.load1 / h.cpus).toFixed(2))
+})
+
 const loading = ref(true)
+// 首屏就取一次服务端健康（/healthz 是公开接口，不需要登录态）
+loadServerHealth()
 
 const nodeColumns = reactive<TableColumn[]>([
   {
@@ -324,6 +345,21 @@ async function handleSubmit() {
 
 <template>
   <PanelGroup />
+  <ElCard v-if="serverHealth" shadow="never" class="mb-12px server-health">
+    <div class="server-health__row">
+      <span class="server-health__title">{{ t('dashboard.serverHealth') }}</span>
+      <ElTag size="small" effect="plain" type="info">v{{ serverHealth.version }}</ElTag>
+      <ElTag size="small" effect="plain" :type="healthTone(loadRatio, 0.9, 1.5)">
+        {{ t('dashboard.load') }} {{ serverHealth.host?.load1 }} / {{ serverHealth.host?.cpus }} 核
+      </ElTag>
+      <ElTag size="small" effect="plain" :type="healthTone(100 - (serverHealth.host?.memAvailablePercent || 100), 80, 92)">
+        {{ t('dashboard.memAvailable') }} {{ (serverHealth.host?.memAvailablePercent || 0).toFixed(0) }}%
+      </ElTag>
+      <ElTag size="small" effect="plain" :type="healthTone(100 - (serverHealth.host?.diskFreePercent || 100), 80, 92)">
+        {{ t('dashboard.diskFree') }} {{ (serverHealth.host?.diskFreePercent || 0).toFixed(0) }}%
+      </ElTag>
+    </div>
+  </ElCard>
   <ElRow :gutter="20" justify="space-between">
     <ElCol :xl="12" :lg="12" :md="24" :sm="24" :xs="24">
       <ElCard shadow="hover" class="mb-20px">
@@ -451,6 +487,17 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
+.server-health__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.server-health__title {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
 .header-container {
   display: flex;
   justify-content: center;

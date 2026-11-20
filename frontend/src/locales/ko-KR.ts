@@ -934,6 +934,10 @@ export default {
     hasPermission: '작업 권한 값을 설정하세요.'
   },
   dashboard: {
+    serverHealth: '서버 상태',
+    load: '부하',
+    memAvailable: '가용 메모리',
+    diskFree: '가용 디스크',
     vulnBreakdown: '대기 {pending} · 무시 {ignored}',
     totalAssets: '전체 자산',
     subDomain: '서브도메인',
