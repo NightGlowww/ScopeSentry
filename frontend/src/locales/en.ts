@@ -1006,6 +1006,10 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    targetStats: '{total} targets',
+    targetDone: '{n} done',
+    targetRunning: '{n} running',
+    targetSkipped: '{n} skipped',
     targetProgress: 'target {done}/{total}',
     filterByNode: 'Filter by node',
     emptyFilteredTitle: 'No tasks match the filters',

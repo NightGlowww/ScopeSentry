@@ -209,6 +209,34 @@ const { tableRegister, tableState, tableMethods } = useTable({
 })
 const { loading, dataList, total, currentPage, pageSize } = tableState
 
+// 目标级小结：表格里每行一个目标、每列一个模块，肉眼统计很费劲。
+// 按「模块字段是否都结束」算出 已完成/进行中/跳过，一眼看出整体推进（2026-11-20）。
+const targetStats = computed(() => {
+  const rows = (dataList.value || []) as any[]
+  const moduleFields = (progressColums as any[])
+    .map((c) => c.field)
+    .filter((f) => f && !['target', 'node', 'action', 'pausedAction', 'All'].includes(f))
+  let done = 0
+  let running = 0
+  let skipped = 0
+  for (const r of rows) {
+    let started = 0
+    let ended = 0
+    let skippedMark = false
+    for (const f of moduleFields) {
+      const v = r?.[f]
+      if (!Array.isArray(v)) continue
+      if (v.length === 3) { skippedMark = true; continue }
+      if (v[0]) started++
+      if (v[0] && v[1]) ended++
+    }
+    if (started === 0 && skippedMark) skipped++
+    else if (started > 0 && ended >= started) done++
+    else if (started > 0) running++
+  }
+  return { total: rows.length, done, running, skipped }
+})
+
 // 模块列默认只显示「真的有数据」的那些：任务没跑到的模块留空列只会拉长横向滚动。
 // 想看全部就打开「显示全部模块」。
 const showAllModules = ref(false)
@@ -275,8 +303,8 @@ const autoRefresh = ref(true)
 let timer: ReturnType<typeof setInterval> | null = null
 
 const refreshOnce = async () => {
-  // 后台标签页不刷新：看不见的时候轮询纯浪费
-  if (typeof document !== 'undefined' && document.hidden) return
+  // 注意：只有「定时轮询」该跳过后台，首次加载不能跳过——
+  // 否则在后台标签里打开弹窗会永远显示「暂无数据」（2026-11-20 实测）。
   try {
     await getList()
     const d = new Date()
@@ -290,7 +318,11 @@ const refreshOnce = async () => {
 const startAuto = () => {
   stopAuto()
   if (!autoRefresh.value) return
-  timer = setInterval(refreshOnce, 5000)
+  timer = setInterval(() => {
+    // 后台标签页不轮询：看不见的时候纯浪费
+    if (typeof document !== 'undefined' && document.hidden) return
+    void refreshOnce()
+  }, 5000)
 }
 const stopAuto = () => {
   if (timer) {
@@ -334,6 +366,17 @@ onUnmounted(stopAuto)
     style="margin-bottom: 8px"
     :title="t('task.cmdFailBanner', { n: cmdFail })"
   />
+  <div v-if="targetStats.total" class="target-stats">
+    <span>{{ t('task.targetStats', { total: targetStats.total }) }}</span>
+    <ElTag type="success" size="small" effect="plain">{{ t('task.targetDone', { n: targetStats.done }) }}</ElTag>
+    <ElTag v-if="targetStats.running" type="primary" size="small" effect="plain">
+      {{ t('task.targetRunning', { n: targetStats.running }) }}
+    </ElTag>
+    <ElTag v-if="targetStats.skipped" type="info" size="small" effect="plain">
+      {{ t('task.targetSkipped', { n: targetStats.skipped }) }}
+    </ElTag>
+  </div>
+
   <div class="module-toggle">
     <ElCheckbox v-model="showAllModules" size="small">{{ t('task.showAllModules') }}</ElCheckbox>
     <span class="module-toggle__hint">{{ t('task.moduleColumnsHint', { n: visibleColumns.length - 2 }) }}</span>
@@ -402,6 +445,15 @@ onUnmounted(stopAuto)
 </template>
 
 <style scoped>
+.target-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
 .module-toggle {
   display: flex;
   align-items: center;

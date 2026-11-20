@@ -975,6 +975,10 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    targetStats: '目标共 {total} 个',
+    targetDone: '已完成 {n}',
+    targetRunning: '进行中 {n}',
+    targetSkipped: '跳过 {n}',
     targetProgress: '目标 {done}/{total}',
     filterByNode: '按节点筛选',
     emptyFilteredTitle: '当前筛选没有任务',

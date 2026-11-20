@@ -998,6 +998,10 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    targetStats: '대상 {total}개',
+    targetDone: '완료 {n}',
+    targetRunning: '진행 중 {n}',
+    targetSkipped: '건너뜀 {n}',
     targetProgress: '대상 {done}/{total}',
     filterByNode: '노드로 필터',
     emptyFilteredTitle: '현재 조건에 맞는 작업이 없습니다',
