@@ -950,6 +950,9 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    healBanner: 'Node {name} is offline with {n} queued; move them to {to} and restart it.',
+    healAction: 'Move and restart',
+    healDone: 'Moved {n} task(s) off {name} to {to} and restarted it',
     heartbeatAgo: 'heartbeat {ago} ago',
     offlineBusy: 'offline · last heartbeat {ago}, tasks still running (container likely starved)',
     offlineJustNow: 'offline · just dropped ({ago})',

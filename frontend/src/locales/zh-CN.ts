@@ -919,6 +919,9 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    healBanner: '节点 {name} 离线，队列还有 {n} 个任务；建议先迁到 {to} 再重启该节点。',
+    healAction: '迁移并重启',
+    healDone: '已对 {name} 迁移 {n} 个任务到 {to} 并重启',
     heartbeatAgo: '心跳 {ago} 前',
     offlineBusy: '离线 · 心跳 {ago} 前，仍有任务在跑（容器可能被压住）',
     offlineJustNow: '离线 · 刚刚失联（{ago}）',

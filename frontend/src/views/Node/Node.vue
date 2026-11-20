@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
-import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText, ElDialog, ElSelect, ElOption, ElInputNumber } from 'element-plus'
+import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText, ElDialog, ElSelect, ElOption, ElInputNumber, ElAlert } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, h, computed } from 'vue'
@@ -13,7 +13,7 @@ import { Dialog } from '@/components/Dialog'
 import { BaseButton } from '@/components/Button'
 import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
-import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi } from '@/api/node'
+import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi } from '@/api/node'
 const { t } = useI18n()
 // 离线原因推断：把「最后心跳多久前」翻译成可行动的判断
 const offlineReason = (row: any, state: string): string => {
@@ -230,6 +230,33 @@ const nodeColums = reactive<TableColumn[]>([
     }
   }
 ])
+// 自愈建议：节点离线但容器还活着（有心跳记录/仍有任务在跑）时，
+// 直接把「该做什么」摆出来——上一轮是人工判断才发现要「先迁任务再重启」。
+const offlineNodes = computed(() =>
+  (dataList.value || []).filter((n: any) => String(n.state) === '3')
+)
+const healedTargets = computed(() => {
+  const online = (dataList.value || []).filter((n: any) => String(n.state) === '1')
+  if (!online.length) return ''
+  return [...online].sort((a: any, b: any) => (Number(a.queueLen) || 0) - (Number(b.queueLen) || 0))[0].name
+})
+const healOne = async () => {
+  const bad = offlineNodes.value[0]
+  if (!bad) return
+  const moveCount = Math.min(Number(bad.queueLen) || 0, 5)
+  const target = healedTargets.value
+  try {
+    if (moveCount > 0 && target && target !== bad.name) {
+      await rebalanceNodeQueueApi(bad.name, target, moveCount)
+    }
+    await restartNodeApi(bad.name)
+    ElMessage.success(t('node.healDone', { name: bad.name, n: moveCount, to: target || '-' }))
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  }
+}
+
 // 迁移排队任务：某节点积压超上限（新任务被拒）而其他节点空转时用
 const rebalanceVisible = ref(false)
 const rebalanceFrom = ref('')
@@ -454,6 +481,20 @@ const closepluginDialogVisible = () => {
       </BaseButton>
     </div>
     <div>
+      <ElAlert
+        v-if="offlineNodes.length"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 10px"
+      >
+        <template #title>
+          {{ t('node.healBanner', { name: offlineNodes[0].name, n: offlineNodes[0].queueLen || 0, to: healedTargets || '-' }) }}
+        </template>
+        <BaseButton type="warning" size="small" style="margin-top: 6px" @click="healOne">
+          {{ t('node.healAction') }}
+        </BaseButton>
+      </ElAlert>
       <Table
         v-model:pageSize="pageSize"
         v-model:currentPage="currentPage"

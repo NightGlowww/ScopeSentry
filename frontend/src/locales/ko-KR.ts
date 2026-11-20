@@ -942,6 +942,9 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    healBanner: '노드 {name} 이(가) 오프라인이며 대기 {n}개가 있습니다. {to} 로 이동 후 재시작하세요.',
+    healAction: '이동 후 재시작',
+    healDone: '{name} 의 작업 {n}개를 {to} 로 이동하고 재시작했습니다',
     heartbeatAgo: '하트비트 {ago} 전',
     offlineBusy: '오프라인 · {ago} 전 하트비트, 작업 실행 중(컨테이너 과부하 의심)',
     offlineJustNow: '오프라인 · 방금 끊김({ago})',
