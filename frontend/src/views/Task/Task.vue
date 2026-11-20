@@ -62,9 +62,20 @@ const route = useRoute()
 const search = ref((route.query.search as string) || sessionStorage.getItem(SEARCH_KEY) || '')
 // 状态筛选：-1=全部。任务堆积时（几十个暂停任务）只靠名字搜很难找
 const STATUS_KEY = 'task:status'
-const statusFilter = ref<number>(Number(sessionStorage.getItem(STATUS_KEY) ?? -1))
+// 用 localStorage 而不是 sessionStorage：关掉标签/重启浏览器后筛选还在
+// （sessionStorage 一关就没了，每次进来都要重筛一遍）。首次读不到再回落到 session。
+const readPersisted = (key: string): string => {
+  const v = localStorage.getItem(key)
+  if (v !== null && v !== '') return v
+  return sessionStorage.getItem(key) ?? ''
+}
+const statusFilter = ref<number>(Number(readPersisted(STATUS_KEY) || -1))
+const restoredFilter = ref<boolean>(
+  !!readPersisted(STATUS_KEY) || Number(readPersisted(STATUS_KEY) || -1) >= 0
+)
 // 下拉一改就重新查询：之前只有点「搜索」才生效，用户会以为筛选没反应
 watch(statusFilter, (v) => {
+  localStorage.setItem(STATUS_KEY, String(v ?? -1))
   sessionStorage.setItem(STATUS_KEY, String(v ?? -1))
   currentPage.value = 1
   getList()
@@ -408,8 +419,9 @@ const queuedTotal = ref(0)
 const nodeOptions = ref<string[]>([])
 // 按节点筛选：多节点时排查「某个节点跑了什么」只能翻列表
 const NODE_KEY = 'task:node'
-const nodeFilter = ref(sessionStorage.getItem(NODE_KEY) || '')
+const nodeFilter = ref(readPersisted(NODE_KEY) || '')
 watch(nodeFilter, (v) => {
+  localStorage.setItem(NODE_KEY, v || '')
   sessionStorage.setItem(NODE_KEY, v || '')
   currentPage.value = 1
   getList()
@@ -433,6 +445,9 @@ const taskFilterSummary = computed(() => {
 const clearTaskFilters = () => {
   search.value = ''
   statusFilter.value = -1
+  localStorage.removeItem(STATUS_KEY)
+  localStorage.removeItem(NODE_KEY)
+  restoredFilter.value = false
   sessionStorage.removeItem(SEARCH_KEY)
   sessionStorage.removeItem(STATUS_KEY)
   currentPage.value = 1
@@ -948,6 +963,12 @@ const setMaxHeight = () => {
 
 <template>
   <ContentWrap>
+    <div v-if="restoredFilter && hasTaskFilter" class="restored-hint">
+      <ElTag size="small" type="info" effect="plain">{{ t('task.filterRestored') }}</ElTag>
+      <ElButton link type="primary" size="small" @click="clearTaskFilters">
+        {{ t('task.clearFilter') }}
+      </ElButton>
+    </div>
     <ElRow class="locale-search-row">
       <ElCol :span="4">
         <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
@@ -1157,6 +1178,14 @@ const setMaxHeight = () => {
 .progress-cell {
   line-height: 1.2;
 }
+.restored-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
 .progress-sub--dim {
   opacity: 0.75;
 }

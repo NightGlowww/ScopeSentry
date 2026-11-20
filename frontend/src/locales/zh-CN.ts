@@ -987,6 +987,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    filterRestored: '已恢复上次的筛选条件',
+    clearFilter: '清除筛选',
     targetStats: '目标共 {total} 个',
     targetDone: '已完成 {n}',
     targetRunning: '进行中 {n}',

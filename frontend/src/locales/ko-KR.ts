@@ -1010,6 +1010,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    filterRestored: '지난 필터를 복원했습니다',
+    clearFilter: '필터 지우기',
     targetStats: '대상 {total}개',
     targetDone: '완료 {n}',
     targetRunning: '진행 중 {n}',

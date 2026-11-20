@@ -1018,6 +1018,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    filterRestored: 'Restored your last filter',
+    clearFilter: 'Clear filter',
     targetStats: '{total} targets',
     targetDone: '{n} done',
     targetRunning: '{n} running',
