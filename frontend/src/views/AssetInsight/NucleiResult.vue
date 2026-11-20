@@ -244,6 +244,11 @@ const handleReset = () => {
   keyword.value = ''
   statusFilter.value = 0
   taskNameFilter.value = ''
+  // hostFilter 是后加的，之前漏在重置之外：点「重置」后主机筛选还在，URL 也留着参数
+  hostFilter.value = ''
+  if (route.query.host || route.query.taskName) {
+    router.replace({ path: route.path, query: {} })
+  }
   handleSearch()
 }
 
