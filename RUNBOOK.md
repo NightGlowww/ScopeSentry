@@ -201,3 +201,34 @@ python3 scripts/remote/queue-drain.py --prefix huntdeck- --apply   # 执行
 
 把匹配前缀的**待开始**任务从节点队列摘掉并标为暂停（`status=2`），**不删除数据**，
 想恢复在界面上点「开始」。
+### 事故复盘 6：配置被空值覆盖 → 三台节点连环崩溃（2026-11-20）
+
+**现象**：三台扫描节点同时 `Restarting (2)`，服务端 0/3 在线；
+日志里 `panic` 栈顶指向 `internal/pool/pool.go:50` 的 `ants.NewPool(...)`。
+
+**根因链**：
+
+```
+心跳无条件写 "modulesConfig": cfgStr（多数时候 cfgStr == ""）
+  → Redis HMSet 用空串覆盖了已有的节点配置
+  → 节点重启时 GetGoroutineCount 返回 0
+  → ants.NewPool(0) 直接 panic（不是返回 error！）
+  → 容器崩溃循环
+```
+
+**为什么原有的兜底没救到**：`pool.go` 里写的是 `if err != nil { 用默认值 }`，
+但 `ants.NewPool` 对非法 size 是 **panic**，那个分支永远进不去。
+
+**修法**（三层）：
+
+1. `internal/node/node.go`：心跳**只在配置变化时**才带 `modulesConfig` 字段
+2. `internal/pool/pool.go`：调用前判断 `count <= 0` → 兜底 2 并告警
+3. `internal/configupdater/update.go`：序列化失败或结果为空时**不写**该字段
+
+**验证**：把某节点配置改成 `maxGoroutineCount: 0` 再重启 → 容器 `Up`（不再崩溃循环）。
+
+**通用教训**：
+
+- Redis `HMSet`/`HSet` 对空字符串是**覆盖**，不是跳过 → 可选字段必须条件写入
+- `if err != nil` 兜底的前提是**被调方会返回 error**；会 panic 的调用要前置校验
+- 回滚二进制救不了数据面故障（配置已被清空），必须同时修数据
