@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
@@ -32,6 +33,10 @@ type Service interface {
 	ClearNodeQueue(ctx context.Context, nodeName string) (int64, error)
 	// MoveQueuedTasks 把待开始任务从积压节点迁到空闲节点
 	MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error)
+	// EnsureMemSample 惰性写入内存采样
+	EnsureMemSample(ctx context.Context, name string, mem, running float64)
+	// MemPeaks 最近一小时每个节点的峰值/均值
+	MemPeaks(ctx context.Context) map[string][2]float64
 }
 
 // ClearNodeQueue 清空节点待领取队列。
@@ -105,6 +110,10 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 		// 队列长度：让界面能看出这个节点积压了多少任务
 		if q, qerr := s.nodeRepo.NodeQueueLen(ctx, nodeData.Name); qerr == nil {
 			nodeData.QueueLen = q
+		}
+		// 惰性采样：把容器内存写进趋势（4 分钟一条）
+		if rv, perr := strconv.ParseFloat(nodeData.Running, 64); perr == nil {
+			s.nodeRepo.EnsureMemSample(ctx, nodeData.Name, nodeData.ContainerMem, rv)
 		}
 		result = append(result, nodeData)
 	}
@@ -182,4 +191,14 @@ func (s *service) RestartNode(ctx context.Context, nodeName string) error {
 // MoveQueuedTasks 把待开始任务从一个节点迁到另一个节点（缓解队列积压）。
 func (s *service) MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error) {
 	return s.nodeRepo.MoveQueuedTasks(ctx, from, to, limit)
+}
+
+// EnsureMemSample 惰性写入内存采样
+func (s *service) EnsureMemSample(ctx context.Context, name string, mem, running float64) {
+	s.nodeRepo.EnsureMemSample(ctx, name, mem, running)
+}
+
+// MemPeaks 最近一小时每个节点的峰值/均值
+func (s *service) MemPeaks(ctx context.Context) map[string][2]float64 {
+	return s.nodeRepo.MemPeaks(ctx)
 }

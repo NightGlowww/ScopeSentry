@@ -13,7 +13,7 @@ import { Dialog } from '@/components/Dialog'
 import { BaseButton } from '@/components/Button'
 import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
-import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi } from '@/api/node'
+import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi, getMemPeaksApi } from '@/api/node'
 import { getDispatchRejectStatsApi, getDispatchRecentApi } from '@/api/task'
 import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
 const { t } = useI18n()
@@ -127,6 +127,15 @@ const nodeColums = reactive<TableColumn[]>([
       )
       // 容器内存单独一行：宿主 24% 时容器可能已经 42%，被 cgroup 限住时只有它能看出压力
       if (ctr <= 0) return tag
+      const peak = memPeaks.value[String(row.name)]?.max || 0
+      const peakTag =
+        peak > 0
+          ? h(
+              ElTag,
+              { size: 'small', effect: 'plain', type: peak >= 90 ? 'danger' : 'info' },
+              () => t('node.memPeak1h', { n: peak.toFixed(1) })
+            )
+          : null
       const ctrTag = h(
         ElTag,
         {
@@ -137,7 +146,7 @@ const nodeColums = reactive<TableColumn[]>([
         },
         () => t('node.containerMem', { n: ctr.toFixed(1) })
       )
-      return h('div', { class: 'node-mem-cell' }, [tag, h('div', { class: 'node-mem-sub' }, [ctrTag])])
+      return h('div', { class: 'node-mem-cell' }, [tag, h('div', { class: 'node-mem-sub' }, [ctrTag]), peakTag])
     }
   },
   {
@@ -259,6 +268,17 @@ const healedTargets = computed(() => {
 // 用 10 分钟窗口——节点本来就按这个粒度上报 cmdFail10m。
 // 降压中：节点因容器内存高把并发降下来了，但已经在跑的任务不会被打断，
 // 所以会出现「并发上限 1、当前在跑 2」。这不是异常，界面上要说清楚（2026-11-20）。
+// 最近一小时内存峰值（趋势）：瞬时值看不出「一直高」还是「偶尔冲高」
+const memPeaks = ref<Record<string, { max: number; avg: number }>>({})
+const loadMemPeaks = async () => {
+  try {
+    const res: any = await getMemPeaksApi()
+    memPeaks.value = res?.data || {}
+  } catch {
+    memPeaks.value = {}
+  }
+}
+
 // 派发拒绝统计：外部集成反复撞闸时一眼看出来（进程内累计，重启归零）
 const rejectStats = ref<Record<string, number>>({})
 const loadRejectStats = async () => {
@@ -406,6 +426,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
     // 顺带刷新「派发被拒」统计与最近记录：和节点列表一起看才有意义
     loadRejectStats()
     loadRecentRejections()
+    loadMemPeaks()
     return {
       list: res.data.list
     }

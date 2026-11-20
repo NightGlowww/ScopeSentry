@@ -830,6 +830,15 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create mcp_call_logs indexes: %v", err)
 	}
 
+	// 节点内存采样保留 7 天（趋势看一周足够）
+	memSamples := db.Collection("node_mem_samples")
+	if _, err := memSamples.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "at", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(7 * 24 * 3600).SetName("at_ttl7d"),
+	}); err != nil {
+		return fmt.Errorf("failed to create node_mem_samples ttl index: %v", err)
+	}
+
 	// 调度拒绝记录保留 30 天（每次撞闸一条，长期会无限增长）
 	rejections := db.Collection("dispatch_rejections")
 	if _, err := rejections.Indexes().CreateOne(context.Background(), mongo.IndexModel{

@@ -57,6 +57,11 @@ func RegisterNodeRoutes(api *gin.RouterGroup) {
 			},
 			{
 				Method:      "POST",
+				Path:        "/mem-peaks",
+				Handler:     node.MemPeaks,
+				Middlewares: common.WithAuth(),
+			}, {
+				Method:      "POST",
 				Path:        "/queue/rebalance",
 				Handler:     node.RebalanceQueue,
 				Middlewares: common.WithAuth(),

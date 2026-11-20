@@ -34,6 +34,10 @@ type Repository interface {
 	ClearNodeQueue(ctx context.Context, name string) (int64, error)
 	// MoveQueuedTasks 把待开始任务从一个节点的队列迁到另一个节点
 	MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error)
+	// EnsureMemSample 惰性写入容器内存采样（4 分钟一条）
+	EnsureMemSample(ctx context.Context, name string, mem, running float64)
+	// MemPeaks 最近一小时每个节点的内存峰值/均值
+	MemPeaks(ctx context.Context) map[string][2]float64
 }
 
 type repository struct {

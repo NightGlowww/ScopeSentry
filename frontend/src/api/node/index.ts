@@ -66,3 +66,7 @@ export const clearNodeQueueApi = (name: string): Promise<IResponse<any>> =>
 // 把待开始任务从积压节点迁到空闲节点
 export const rebalanceNodeQueueApi = (from: string, to: string, limit = 10): Promise<IResponse<any>> =>
   request.post({ url: '/api/node/queue/rebalance', data: { from, to, limit } })
+
+// 每个节点最近一小时的内存峰值/均值
+export const getMemPeaksApi = (): Promise<IResponse<Record<string, { max: number; avg: number }>>> =>
+  request.post({ url: '/api/node/mem-peaks', data: {} })
