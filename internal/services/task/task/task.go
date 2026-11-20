@@ -51,6 +51,8 @@ type Service interface {
 	ResumeTarget(ctx *gin.Context, taskID, target string) error
 	GetPausedTargets(ctx *gin.Context, taskID string) (map[string]bool, error)
 	StartTasks(ctx *gin.Context, ids []string) error
+	// StartTasksReport 批量开始并按 id 返回失败原因
+	StartTasksReport(ctx *gin.Context, ids []string) (int, map[string]string)
 	GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pageSize int) (map[string]interface{}, error)
 	TaskProgressNumber(ctx *gin.Context) error
 	TaskProgress(ctx context.Context) error
@@ -359,6 +361,47 @@ func (s *service) StopTasks(ctx *gin.Context, ids []string) error {
 	return nil
 }
 
+// StartTasksReport 批量开始，返回每个 id 的结果，便于界面说清「哪几个没起来、为什么」。
+// 之前的 StartTasks 只返回最后一个错误：批量 4 个里失败 1 个，用户看到的是整批失败，
+// 也不知道是哪一个（2026-11-20）。
+func (s *service) StartTasksReport(ctx *gin.Context, ids []string) (int, map[string]string) {
+	failed := map[string]string{}
+	started := 0
+	for _, id := range ids {
+		if err := s.startOne(ctx, id); err != nil {
+			failed[id] = err.Error()
+			continue
+		}
+		started++
+	}
+	return started, failed
+}
+
+// startOne 启动单个任务；返回 error 时调用方负责把原因带回界面。
+func (s *service) startOne(ctx *gin.Context, id string) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return fmt.Errorf("任务 ID 非法")
+	}
+	t, err := s.taskRepo.FindByID(ctx, oid)
+	if err != nil || t == nil {
+		return fmt.Errorf("任务不存在")
+	}
+	if t.Progress == 100 {
+		return fmt.Errorf("任务已完成，无需重新开始")
+	}
+	// stopToStart 语义是「从暂停处继续，不重建目标缓存」。
+	// 新建任务（isStart=false）必须走 false，否则目标列表永远不生成，任务以 0 目标空跑。
+	resume := t.IsStart
+	t.IsStart = true
+	if _, err := s.commonService.CreateTaskScan(ctx, *t, id, resume); err != nil {
+		logger.Error(fmt.Sprintf("start task failed task=%s resume=%v err=%v", id, resume, err))
+		return err
+	}
+	_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 1}})
+	return nil
+}
+
 // StartTasks 开始任务：从暂停恢复继续扫描
 func (s *service) StartTasks(ctx *gin.Context, ids []string) error {
 	if len(ids) == 0 {
@@ -366,30 +409,9 @@ func (s *service) StartTasks(ctx *gin.Context, ids []string) error {
 	}
 	var lastErr error
 	for _, id := range ids {
-		oid, err := primitive.ObjectIDFromHex(id)
-		if err != nil {
-			continue
-		}
-		t, err := s.taskRepo.FindByID(ctx, oid)
-		if err != nil || t == nil {
-			continue
-		}
-		if t.Progress == 100 {
-			// 已完成，不再启动
-			continue
-		}
-		// stopToStart 语义是「从暂停处继续，不重建目标缓存」。
-		// 新建任务（isStart=false）必须走 false，否则目标列表永远不生成，任务以 0 目标空跑。
-		resume := t.IsStart
-		t.IsStart = true
-		if _, err := s.commonService.CreateTaskScan(ctx, *t, id, resume); err != nil {
-			logger.Error(fmt.Sprintf("StartTasks create scan failed task=%s resume=%v err=%v", id, resume, err))
-			// 把失败原因透出给调用方：此前只写日志、接口照样返回 success，
-			// 用户在界面上点「开始」看到成功提示，任务其实没进队列（2026-11-20 实测）。
+		if err := s.startOne(ctx, id); err != nil {
 			lastErr = err
-			continue
 		}
-		_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 1}})
 	}
 	return lastErr
 }

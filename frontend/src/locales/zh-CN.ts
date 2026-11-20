@@ -987,6 +987,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    startPartial: '已开始 {ok} 个，{fail} 个未开始：{reason}',
+    startAllFailed: '全部未开始：{reason}',
     filterRestored: '已恢复上次的筛选条件',
     clearFilter: '清除筛选',
     targetStats: '目标共 {total} 个',

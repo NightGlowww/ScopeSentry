@@ -302,13 +302,27 @@ func StartTask(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", fmt.Errorf("ids is required"))
 		return
 	}
-	if err := taskService.StartTasks(c, req.IDs); err != nil {
-		// 起不来通常是「可预期的拒绝」（队列积压、节点内存接近上限、模板缺失），
-		// 归到 400 并把原因带出去；500 只会显示成「api.error」，用户看不出发生了什么。
-		response.BadRequest(c, "api.error", err)
+	// 批量开始：逐个执行并把结果汇总，界面能说清「哪几个没起来、为什么」。
+	started, failed := taskService.StartTasksReport(c, req.IDs)
+	result := map[string]interface{}{
+		"started":  started,
+		"failed":   len(failed),
+		"failures": failed,
+	}
+	if started == 0 && len(failed) > 0 {
+		// 全失败沿用 400（保持「点开始没反应」时能被脚本/客户端识别）
+		response.BadRequest(c, "api.error", fmt.Errorf("%s", firstFailureReason(failed)))
 		return
 	}
-	response.Success(c, nil, "api.success")
+	response.Success(c, result, "api.success")
+}
+
+// firstFailureReason 取第一个失败原因（map 无序，但错误信息对用户足够）
+func firstFailureReason(failed map[string]string) string {
+	for _, v := range failed {
+		return v
+	}
+	return ""
 }
 
 // ProgressInfoRequest 任务进度信息请求

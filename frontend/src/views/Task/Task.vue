@@ -521,10 +521,21 @@ const stopTask = async (ids) => {
 }
 
 const startTask = async (ids) => {
-  // 成功/失败都给明确反馈：此前点「开始」只有列表静默刷新，用户不知道有没有生效
+  // 批量开始：逐个结果由后端汇总回来，界面说清「哪几个没起来、为什么」。
+  // 之前只弹一句成功，失败的那几个要自己翻列表才发现（2026-11-20）。
   try {
-    await starTaskApi(ids)
-    ElMessage.success(t('task.startSubmitted'))
+    const res: any = await starTaskApi(ids)
+    const started = Number(res?.data?.started ?? ids.length)
+    const failed = Number(res?.data?.failed ?? 0)
+    if (failed === 0) {
+      ElMessage.success(t('task.startSubmitted'))
+    } else if (started > 0) {
+      const reasons = Object.values(res?.data?.failures || {}) as string[]
+      ElMessage.warning(t('task.startPartial', { ok: started, fail: failed, reason: reasons[0] || '' }))
+    } else {
+      ElMessage.error(t('task.startAllFailed', { reason: String(Object.values(res?.data?.failures || {})[0] || '') }))
+    }
+    getList()
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.operateFailed'))
   }

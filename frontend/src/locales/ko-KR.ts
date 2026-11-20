@@ -1010,6 +1010,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    startPartial: '{ok}개 시작, {fail}개 미시작: {reason}',
+    startAllFailed: '모두 시작되지 않음: {reason}',
     filterRestored: '지난 필터를 복원했습니다',
     clearFilter: '필터 지우기',
     targetStats: '대상 {total}개',
