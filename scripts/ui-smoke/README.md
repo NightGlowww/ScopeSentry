@@ -30,6 +30,7 @@ eval({ tabId, expression: <scripts/ui-smoke/result-page.js 的内容> })
 | `result-page.js` | 漏洞结果 | 处置进度条有数字、按任务筛选框、行点击打开详情且含 POC 模板、批量按钮 |
 | `node-page.js` | 节点管理 | 「工具失败」「队列」列存在、节点非空、日志弹窗打开、错误摘要块、行数计数 |
 | `task-vuln-loop.js` | 任务 ↔ 结果 闭环 | 产出栏出现、漏洞标签可点、跳转带 taskName、结果页显示来源、返回带 search |
+| `asset-tabs.js` | 资产 13 个 Tab | ?tab=&search= 是否真的过滤、空状态是否说明原因（逐个 Tab 切换后 eval） |
 
 ## 最近一次实测（2026-11-20, 2.0.226）
 
