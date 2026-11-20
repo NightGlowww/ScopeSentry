@@ -1018,6 +1018,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    deleteOneDone: 'Deleted {n} task(s)',
+    deleteBatchDone: 'Deleted {n} of {want} selected',
     startPartial: 'Started {ok}, {fail} not started: {reason}',
     startAllFailed: 'None started: {reason}',
     filterRestored: 'Restored your last filter',

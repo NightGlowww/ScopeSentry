@@ -913,12 +913,14 @@ const noTaskSelected = computed(() => tableSelectedCount.value === 0)
 const del = async (data, delA) => {
   delLoading.value = true
   try {
-    const res = await deleteTaskApi([data.id], delA)
-    console.log('Data deleted successfully:', res)
+    const res: any = await deleteTaskApi([data.id], delA)
+    const n = Number(res?.data?.deleted ?? 1)
+    ElMessage.success(t('task.deleteOneDone', { n, name: data?.name || '' }))
     delLoading.value = false
     getList()
   } catch (error) {
-    console.error('Error deleting data:', error)
+    // 之前这里只 console.error：界面毫无反馈，用户不知道删没删掉（2026-11-20）
+    ElMessage.error((error as any)?.message || t('common.operateFailed'))
     delLoading.value = false
     getList()
   }
@@ -935,12 +937,15 @@ const delSelect = async (delA) => {
   }
   delLoading.value = true
   try {
-    const res = await deleteTaskApi(ids.value, delA)
-    console.log('Data deleted successfully:', res)
+    const want = ids.value.length
+    const res: any = await deleteTaskApi(ids.value, delA)
+    const n = Number(res?.data?.deleted ?? want)
+    // 说清「删了几个」：批量删 20 个只回一句成功，用户无法确认范围
+    ElMessage.success(t('task.deleteBatchDone', { n, want }))
     delLoading.value = false
     getList()
   } catch (error) {
-    console.error('Error deleting data:', error)
+    ElMessage.error((error as any)?.message || t('common.operateFailed'))
     delLoading.value = false
     getList()
   }

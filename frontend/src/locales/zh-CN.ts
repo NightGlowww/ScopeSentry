@@ -987,6 +987,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    deleteOneDone: '已删除 {n} 个任务',
+    deleteBatchDone: '已删除 {n} 个（选中 {want} 个）',
     startPartial: '已开始 {ok} 个，{fail} 个未开始：{reason}',
     startAllFailed: '全部未开始：{reason}',
     filterRestored: '已恢复上次的筛选条件',

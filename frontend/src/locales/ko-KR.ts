@@ -1010,6 +1010,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    deleteOneDone: '{n}개 작업 삭제됨',
+    deleteBatchDone: '선택 {want}개 중 {n}개 삭제됨',
     startPartial: '{ok}개 시작, {fail}개 미시작: {reason}',
     startAllFailed: '모두 시작되지 않음: {reason}',
     filterRestored: '지난 필터를 복원했습니다',

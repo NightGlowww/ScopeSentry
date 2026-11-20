@@ -210,7 +210,8 @@ func DeleteTask(c *gin.Context) {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	// 回一个删除条数：界面才能说「已删除 N 个」，而不是笼统的成功
+	response.Success(c, map[string]int{"deleted": len(req.IDs)}, "api.success")
 }
 
 // RetestTask 重测任务
