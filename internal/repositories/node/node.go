@@ -38,6 +38,8 @@ type Repository interface {
 	EnsureMemSample(ctx context.Context, name string, mem, running float64)
 	// MemPeaks 最近一小时每个节点的内存峰值/均值
 	MemPeaks(ctx context.Context) map[string][2]float64
+	// MemHighMinutes 每个节点连续高压（≥90%）的分钟数
+	MemHighMinutes(ctx context.Context) map[string]int
 }
 
 type repository struct {

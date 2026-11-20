@@ -37,6 +37,8 @@ type Service interface {
 	EnsureMemSample(ctx context.Context, name string, mem, running float64)
 	// MemPeaks 最近一小时每个节点的峰值/均值
 	MemPeaks(ctx context.Context) map[string][2]float64
+	// MemHighMinutes 每个节点连续高压（≥90%）的分钟数
+	MemHighMinutes(ctx context.Context) map[string]int
 }
 
 // ClearNodeQueue 清空节点待领取队列。
@@ -201,4 +203,9 @@ func (s *service) EnsureMemSample(ctx context.Context, name string, mem, running
 // MemPeaks 最近一小时每个节点的峰值/均值
 func (s *service) MemPeaks(ctx context.Context) map[string][2]float64 {
 	return s.nodeRepo.MemPeaks(ctx)
+}
+
+// MemHighMinutes 每个节点连续高压（≥90%）的分钟数
+func (s *service) MemHighMinutes(ctx context.Context) map[string]int {
+	return s.nodeRepo.MemHighMinutes(ctx)
 }

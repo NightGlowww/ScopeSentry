@@ -129,6 +129,16 @@ const nodeColums = reactive<TableColumn[]>([
       // 容器内存单独一行：宿主 24% 时容器可能已经 42%，被 cgroup 限住时只有它能看出压力
       if (ctr <= 0) return tag
       const peak = memPeaks.value[String(row.name)]?.max || 0
+      // 连续高压时长：区分「刚冲高」和「已经饱和很久」
+      const highMin = Number((memPeaks.value as any)[String(row.name)]?.highMinutes || 0)
+      const highTag =
+        highMin >= 15
+          ? h(
+              ElTag,
+              { size: 'small', effect: 'dark', type: 'danger' },
+              () => t('node.memHighFor', { n: highMin })
+            )
+          : null
       const peakTag =
         peak > 0
           ? h(
@@ -147,7 +157,7 @@ const nodeColums = reactive<TableColumn[]>([
         },
         () => t('node.containerMem', { n: ctr.toFixed(1) })
       )
-      return h('div', { class: 'node-mem-cell' }, [tag, h('div', { class: 'node-mem-sub' }, [ctrTag]), peakTag])
+      return h('div', { class: 'node-mem-cell' }, [tag, h('div', { class: 'node-mem-sub' }, [ctrTag]), peakTag, highTag])
     }
   },
   {

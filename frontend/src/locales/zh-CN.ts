@@ -927,6 +927,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    memHighFor: '高压 {n} 分钟',
     memPeak1h: '1h 峰 {n}%',
     autoRefreshHint: '每 15 秒自动刷新 · 更新于 {t}',
     rejectRecentOnly: '最近有拒绝记录（点击查看）',

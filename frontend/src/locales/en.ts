@@ -958,6 +958,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    memHighFor: 'high for {n}m',
     memPeak1h: '1h peak {n}%',
     autoRefreshHint: 'Auto-refresh every 15s · updated {t}',
     rejectRecentOnly: 'recent rejections (click to view)',

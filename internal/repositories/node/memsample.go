@@ -75,3 +75,48 @@ func (r *repository) MemPeaks(ctx context.Context) map[string][2]float64 {
 }
 
 var _ = fmt.Sprintf
+
+// MemHighMinutes 返回每个节点「连续处于高压（≥90%）」的分钟数。
+// 用惰性采样的时间序列算：从最新一条往前，只要相邻样本间隔 <10 分钟且都 ≥90，就继续累计。
+// 用途：界面区分「刚冲高」和「已经高压 45 分钟」——后者才是要处理的（2026-11-21）。
+func (r *repository) MemHighMinutes(ctx context.Context) map[string]int {
+	out := map[string]int{}
+	if mongodb.DB == nil {
+		return out
+	}
+	cur, err := mongodb.DB.Collection(MemSampleCollection).Find(ctx, bson.M{},
+		options.Find().SetSort(bson.D{{Key: "at", Value: -1}}).SetLimit(2000))
+	if err != nil {
+		return out
+	}
+	defer cur.Close(ctx)
+	var rows []struct {
+		Node string    `bson:"node"`
+		At   time.Time `bson:"at"`
+		Mem  float64   `bson:"mem"`
+	}
+	if cur.All(ctx, &rows) != nil {
+		return out
+	}
+	lastSeen := map[string]time.Time{}
+	for _, s := range rows {
+		if s.Node == "" {
+			continue
+		}
+		prev, seen := lastSeen[s.Node]
+		if !seen {
+			lastSeen[s.Node] = s.At
+			if s.Mem >= 90 {
+				out[s.Node] = 4 // 第一条高压样本按采样间隔计
+			}
+			continue
+		}
+		gap := prev.Sub(s.At)
+		if s.Mem >= 90 && gap <= 10*time.Minute {
+			out[s.Node] += int(gap.Minutes()) + 4
+		} else if s.Mem < 90 {
+			break // 遇到低压样本，连续段结束
+		}
+	}
+	return out
+}

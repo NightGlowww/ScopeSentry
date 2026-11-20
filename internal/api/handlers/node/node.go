@@ -267,8 +267,14 @@ func RebalanceQueue(c *gin.Context) {
 // MemPeaks 返回每个节点最近一小时的内存峰值/均值（用于看压力趋势）。
 func MemPeaks(c *gin.Context) {
 	out := map[string]map[string]float64{}
+	// highMinutes：连续高压分钟数，用来区分「刚冲高」和「已经饱和 45 分钟」
+	high := nodeService.MemHighMinutes(c.Request.Context())
 	for name, v := range nodeService.MemPeaks(c.Request.Context()) {
-		out[name] = map[string]float64{"max": math.Round(v[0]*10) / 10, "avg": math.Round(v[1]*10) / 10}
+		out[name] = map[string]float64{
+			"max":         math.Round(v[0]*10) / 10,
+			"avg":         math.Round(v[1]*10) / 10,
+			"highMinutes": float64(high[name]),
+		}
 	}
 	response.Success(c, out, "api.success")
 }
