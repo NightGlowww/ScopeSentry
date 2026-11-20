@@ -670,12 +670,23 @@ let crudSchemas = reactive<CrudSchema[]>([
           >
             {t('asset.detail')}
           </BaseButton>
+          <BaseButton type="warning" plain onClick={() => goHostVulns(row)}>
+            {t('asset.viewHostVulns')}
+          </BaseButton>
         </>
       )
     },
     minWidth: 100
   }
 ])
+
+// 跳到漏洞结果页并按该主机过滤（闭环：资产 → 它的漏洞）
+const router = useRouter()
+const goHostVulns = (row: any) => {
+  const host = (Array.isArray(row.domain) ? row.domain[0] : row.domain) || row.ip || ''
+  if (!host) return
+  router.push({ path: '/asset-information/nuclei-result', query: { host: String(host) } })
+}
 
 const getScreenshot = async (id) => {
   const response = await getAssetScreenshotApi(id)

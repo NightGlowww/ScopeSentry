@@ -1138,6 +1138,7 @@ export default {
     PassiveScan: 'PassiveScan'
   },
   asset: {
+    viewHostVulns: 'Host vulns',
     noProducerHint: 'This asset type has no writer yet (node side not implemented), so the list stays empty. Add a producer before enabling this page.',
     assetName: 'Asset',
     deleteFiltered: 'Delete all (filtered)',

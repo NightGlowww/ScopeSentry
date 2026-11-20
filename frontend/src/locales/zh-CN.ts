@@ -1103,6 +1103,7 @@ export default {
     PassiveScan: '被动扫描'
   },
   asset: {
+    viewHostVulns: '看该主机漏洞',
     noProducerHint: '该资产类型当前没有写入方（节点侧未实现），页面数据会始终为空；如需启用请先补生产者。',
     assetName: '资产',
     deleteFiltered: '删除全部（当前筛选）',
