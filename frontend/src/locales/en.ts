@@ -943,6 +943,10 @@ export default {
     hasPermission: 'Please set the operation permission value'
   },
   dashboard: {
+    nodesOnline: '{a}/{b} nodes online',
+    nodesHigh: '{n} at ≥90% memory',
+    nodesWarm: '{n} at ≥70% memory',
+    nodesFine: 'node memory fine',
     depOk: 'OK',
     depDown: 'down',
     serverHealth: 'Server health',

@@ -29,6 +29,16 @@ const loadServerHealth = async () => {
 }
 const healthTone = (v: number, warn: number, danger: number) =>
   v >= danger ? 'danger' : v >= warn ? 'warning' : 'success'
+// 集群压力汇总：首页第一屏就要能看出「有几台节点在硬撑」
+const nodeSummary = computed(() => {
+  const list = (nodeData.value || []) as any[]
+  if (!list.length) return null
+  const online = list.filter((n) => String(n.state) === '1').length
+  const high = list.filter((n) => Number(n.containerMem) >= 90).length
+  const warm = list.filter((n) => Number(n.containerMem) >= 70 && Number(n.containerMem) < 90).length
+  return { total: list.length, online, high, warm }
+})
+
 const loadRatio = computed(() => {
   const h = serverHealth.value?.host
   if (!h || !h.cpus) return 0
@@ -227,6 +237,7 @@ const nodeData = ref<
     state: number
     cpuNum: number
     memNum: number
+    containerMem?: number
   }[]
 >([])
 
@@ -240,7 +251,9 @@ const getNodeState = async () => {
         state: node.state,
         finished: node.finished,
         cpuNum: node.cpuNum,
-        memNum: node.memNum
+        memNum: node.memNum,
+        // 容器内存才是节点的真实压力（宿主 memNum 看不出 cgroup 限制）
+        containerMem: node.containerMem
       }))
       nodeUsageData.value = reactive(
         res.data.list.map((node) => ({
@@ -374,6 +387,20 @@ async function handleSubmit() {
       <ElTag size="small" effect="plain" :type="serverHealth.checks?.redis?.ok ? 'success' : 'danger'">
         Redis {{ serverHealth.checks?.redis?.ok ? t('dashboard.depOk') : t('dashboard.depDown') }}
       </ElTag>
+      <template v-if="nodeSummary">
+        <ElTag size="small" effect="plain" :type="nodeSummary.online === nodeSummary.total ? 'success' : 'danger'">
+          {{ t('dashboard.nodesOnline', { a: nodeSummary.online, b: nodeSummary.total }) }}
+        </ElTag>
+        <ElTag v-if="nodeSummary.high" size="small" effect="dark" type="danger">
+          {{ t('dashboard.nodesHigh', { n: nodeSummary.high }) }}
+        </ElTag>
+        <ElTag v-else-if="nodeSummary.warm" size="small" effect="plain" type="warning">
+          {{ t('dashboard.nodesWarm', { n: nodeSummary.warm }) }}
+        </ElTag>
+        <ElTag v-else size="small" effect="plain" type="success">
+          {{ t('dashboard.nodesFine') }}
+        </ElTag>
+      </template>
     </div>
   </ElCard>
   <ElRow :gutter="20" justify="space-between">

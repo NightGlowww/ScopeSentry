@@ -912,6 +912,10 @@ export default {
     hasPermission: '请设置操作权限值'
   },
   dashboard: {
+    nodesOnline: '节点 {a}/{b} 在线',
+    nodesHigh: '{n} 台高压 (≥90%)',
+    nodesWarm: '{n} 台偏高 (≥70%)',
+    nodesFine: '节点内存正常',
     depOk: '正常',
     depDown: '异常',
     serverHealth: '服务端健康',

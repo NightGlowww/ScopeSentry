@@ -935,6 +935,10 @@ export default {
     hasPermission: '작업 권한 값을 설정하세요.'
   },
   dashboard: {
+    nodesOnline: '노드 {a}/{b} 온라인',
+    nodesHigh: '{n}대 90% 이상',
+    nodesWarm: '{n}대 70% 이상',
+    nodesFine: '노드 메모리 정상',
     depOk: '정상',
     depDown: '이상',
     serverHealth: '서버 상태',
