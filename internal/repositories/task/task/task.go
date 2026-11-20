@@ -151,6 +151,10 @@ func (r *repository) ClearTaskCache(ctx context.Context, id string) error {
 		fmt.Sprintf("TaskInfo:tmp:%s", id),
 		fmt.Sprintf("TaskInfo:%s", id),
 		fmt.Sprintf("TaskInfo:time:%s", id),
+		// 新增的两类辅助键也要一起清，否则删了任务 Redis 里还留着
+		fmt.Sprintf("TaskInfo:cmdfail:%s", id),
+		fmt.Sprintf("TaskInfo:progmax:%s", id),
+		fmt.Sprintf("TaskInfo:progdone:%s", id),
 	}
 
 	// 查找 progress 相关 key
