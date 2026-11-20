@@ -102,3 +102,25 @@
 恢复开销约 60–75s，主要花在容器重启 + 重新注册 + 重新领取任务。
 
 回归脚本：`scripts/remote/resilience-test.py`（会真的重启节点容器，只在测试环境跑）。
+## 八、服务端重启期间的任务连续性（2026-11-20 实测）
+
+场景：任务跑到 28% 时重启服务端容器（`docker restart scope-sentry`，模拟发版）。
+
+时间线：
+
+```
+08:38:16  Task begin: svrrestart-…        ← 任务开始（节点侧）
+08:38:46  scope-sentry 容器重启            ← 任务已跑到 28%，服务端下线约 8–9 秒
+08:42:52  Task end:   svrrestart-…        ← 任务完成
+```
+
+结果：status=3、progress=100%，总耗时 280s（正常 285–300s，**没有额外开销**）。
+
+为什么不受影响：
+- 扫描由节点执行，节点不依赖服务端在线；
+- 进度由节点写 Redis（`TaskInfo:progress:*`），Redis 与服务端是两个容器；
+- 服务端只负责展示与调度，重启后读同一份 Redis 数据，进度自然连续。
+
+注意：重启窗口约 8–9 秒，期间 API 不可用（前端会短暂报错，自动刷新后恢复）。
+
+回归脚本：`scripts/remote/server-restart-test.py`。
