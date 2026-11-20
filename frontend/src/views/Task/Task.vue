@@ -1110,13 +1110,16 @@ const setMaxHeight = () => {
     max-height="700"
   >
     <ProgressInfo
+      :visible="progressDialogVisible"
+      @close="progresscloseDialog"
       :closeDialog="progresscloseDialog"
       :getProgressInfoID="getProgressInfoID"
       getProgressInfotype="scan"
       getProgressInforunnerid=""
       :cmdFail="progressCmdFail"
       :taskName="progressTaskName"
-    /></Dialog>
+    />
+  </Dialog>
 </template>
 
 <style scoped>

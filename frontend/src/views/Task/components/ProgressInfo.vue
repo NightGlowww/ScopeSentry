@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, h, ref, computed, onMounted, onUnmounted } from 'vue'
+import { reactive, h, ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { Table, TableColumn } from '@/components/Table'
 import { getTaskProgressApi, pauseTaskTargetApi, resumeTaskTargetApi } from '@/api/task'
 import { useTable } from '@/hooks/web/useTable'
@@ -28,7 +28,12 @@ const props = defineProps<{
   cmdFail?: number
   // 当前任务名：产出一栏点击时带过去筛选
   taskName?: string
+  // 弹窗是否打开：关闭后必须停掉 5 秒轮询，否则关掉对话框还在后台一直打接口
+  visible?: boolean
 }>()
+// 关闭走 emit 而不是调父组件传进来的函数：函数 prop 一旦没传/传错就是静默无反应
+// （2026-11-20 实测点「关闭」没反应，正是这个坑）。
+const emit = defineEmits<{ (e: 'close'): void }>()
 // 模块列：直接显示耗时，而不是"完成/运行中"标签 + 悬停才看得到的时间戳。
 // 用时：<60s → 「12s」；>=60s → 「1m23s」；>=1h → 「1h05m」。
 const fmtDuration = (start: string, end: string): string => {
@@ -270,6 +275,8 @@ const autoRefresh = ref(true)
 let timer: ReturnType<typeof setInterval> | null = null
 
 const refreshOnce = async () => {
+  // 后台标签页不刷新：看不见的时候轮询纯浪费
+  if (typeof document !== 'undefined' && document.hidden) return
   try {
     await getList()
     const d = new Date()
@@ -300,9 +307,21 @@ const toggleAuto = () => {
   }
 }
 
+// 后台标签页不轮询；关闭弹窗立即停
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) {
+      refreshOnce()
+      startAuto()
+    } else {
+      stopAuto()
+    }
+  }
+)
 onMounted(async () => {
   await refreshOnce()
-  startAuto()
+  if (props.visible !== false) startAuto()
 })
 onUnmounted(stopAuto)
 </script>
@@ -392,6 +411,12 @@ onUnmounted(stopAuto)
 .module-toggle__hint {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.progress-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .outcome-bar {
