@@ -29,6 +29,39 @@ const props = defineProps<{
   // 当前任务名：产出一栏点击时带过去筛选
   taskName?: string
 }>()
+// 模块列：直接显示耗时，而不是"完成/运行中"标签 + 悬停才看得到的时间戳。
+// 用时：<60s → 「12s」；>=60s → 「1m23s」；>=1h → 「1h05m」。
+const fmtDuration = (start: string, end: string): string => {
+  if (!start) return ''
+  const s = new Date(start.replace(/-/g, '/')).getTime()
+  const e = end ? new Date(end.replace(/-/g, '/')).getTime() : Date.now()
+  if (!isFinite(s) || !isFinite(e) || e < s) return ''
+  const sec = Math.round((e - s) / 1000)
+  if (sec < 60) return sec + 's'
+  const m = Math.floor(sec / 60)
+  if (m < 60) return m + 'm' + String(sec % 60).padStart(2, '0') + 's'
+  const hh = Math.floor(m / 60)
+  return hh + 'h' + String(m % 60).padStart(2, '0') + 'm'
+}
+
+const moduleCell = (_: Recordable, __: TableColumn, cellValue: string[]) => {
+  if (!Array.isArray(cellValue)) return '-'
+  if (cellValue.length == 3) {
+    return h(Icon, { icon: 'ph:prohibit' })
+  }
+  if (!cellValue[0]) return '-'
+  const dur = fmtDuration(cellValue[0], cellValue[1])
+  const done = !!cellValue[1]
+  const tip = h('div', {}, [h('div', {}, ['Start: ' + cellValue[0]]), h('div', {}, ['End: ' + (cellValue[1] || '-')])])
+  return h(ElTooltip, { placement: 'top' }, {
+    content: () => tip,
+    default: () =>
+      h(ElTag, { type: done ? 'success' : 'primary', size: 'small' }, () =>
+        (done ? dur : t('task.running') + ' ' + dur)
+      )
+  })
+}
+
 const progressColums = reactive<TableColumn[]>([
   {
     field: 'target',
@@ -58,351 +91,85 @@ const progressColums = reactive<TableColumn[]>([
     field: 'TargetHandler',
     label: t('scanTemplate.TargetHandler'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'SubdomainScan',
     label: t('scanTemplate.SubdomainScan'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'SubdomainSecurity',
     label: t('scanTemplate.SubdomainSecurity'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'PortScanPreparation',
     label: t('scanTemplate.PortScanPreparation'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'PortScan',
     label: t('scanTemplate.PortScan'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'PortFingerprint',
     label: t('scanTemplate.PortFingerprint'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'AssetMapping',
     label: t('scanTemplate.AssetMapping'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'AssetHandle',
     label: t('scanTemplate.AssetHandle'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'URLScan',
     label: t('scanTemplate.URLScan'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'WebCrawler',
     label: t('scanTemplate.WebCrawler'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'URLSecurity',
     label: t('scanTemplate.URLSecurity'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'DirScan',
     label: t('scanTemplate.DirScan'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'VulnerabilityScan',
     label: t('scanTemplate.VulnerabilityScan'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'All',
     label: t('common.all'),
     minWidth: 30,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
-      if (cellValue.length == 3) {
-        return h(Icon, { icon: 'ph:prohibit' })
-      }
-      if (cellValue[0] == '') {
-        return '-'
-      }
-      let cont = ''
-      cont += `<div>Start:${cellValue[0]}</div>`
-      cont += `<div>End:${cellValue[1]}</div>`
-      if (cellValue[0] != '' && cellValue[1] != '') {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'success' }, () => t('task.done'))
-        )
-      } else {
-        return h(ElTooltip, { content: cont, placement: 'top', rawContent: true }, () =>
-          h(ElTag, { type: 'primary' }, () => t('task.running'))
-        )
-      }
-    }
+    formatter: moduleCell
   },
   {
     field: 'pausedAction',
