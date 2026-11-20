@@ -13,6 +13,8 @@
     { "name": "POC管理", "hash": "#/poc-management/index", "assert": "tableOrEmpty" },
     { "name": "指纹管理", "hash": "#/fingerprint-management", "assert": "tableOrEmpty" },
     { "name": "敏感信息规则", "hash": "#/sensitive-information-rules", "assert": "tableOrEmpty" },
-    { "name": "系统配置", "hash": "#/configuration/system", "assert": "hasButtons" }
+    { "name": "系统配置", "hash": "#/configuration/system", "assert": "hasButtons" },
+    { "name": "重置-漏洞主机筛选", "hash": "#/asset-information/nuclei-result?host=__none__", "assert": "resetWorks" },
+    { "name": "重置-漏洞任务筛选", "hash": "#/asset-information/nuclei-result?taskName=__none__", "assert": "resetWorks" }
   ]
 }

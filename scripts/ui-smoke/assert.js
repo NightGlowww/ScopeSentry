@@ -33,6 +33,19 @@
     const h = headers();
     add("包含工具失败列", h.includes("工具失败"), h.join("|"));
     add("节点非空", rows() > 0, rows() + " 节点");
+  } else if (mode === "resetWorks") {
+    // 点「重置」后：URL query 清空、所有文本输入框为空、列表有数据或明确空态。
+    // 这类断言专门抓「后加的筛选字段漏在重置之外」（2026-11-20 hostFilter 漏过一次）。
+    const btn = [...document.querySelectorAll("button")].filter(vis).find(b => b.innerText.trim() === "重置");
+    add("重置按钮存在", !!btn, btn ? "ok" : "missing");
+    if (btn) {
+      btn.click();
+      await new Promise(r => setTimeout(r, 2200));
+      add("URL 参数已清空", !location.hash.includes("?"), location.hash.slice(0, 70));
+      const vals = [...document.querySelectorAll("input")].filter(vis).map(i => i.value).filter(v => v && v !== "on" && v !== "1");
+      add("输入框已清空", vals.length === 0, vals.slice(0, 3).join("|") || "empty");
+      add("列表有数据或空态", rows() > 0 || !!empties()[0], rows() + " 行");
+    }
   } else if (mode === "hasButtons") {
     const b = buttons();
     add("保存按钮存在", b.some(x => x === "保存"), b.slice(0, 5).join("|"));
