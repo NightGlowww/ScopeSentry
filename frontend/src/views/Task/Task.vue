@@ -206,8 +206,9 @@ const taskColums = reactive<TableColumn[]>([
       // 粗估剩余时间：progress ≥ 5% 且有创建时间才算，否则不出（避免「约剩 0 分钟」这类噪音）
       let etaText = ''
       const prog = Number(row.progress) || 0
-      if (prog >= 5 && row.creatTime) {
-        const started = new Date(String(row.creatTime).replace(/-/g, '/')).getTime()
+      const startRef = row.startedAt || row.creatTime
+      if (prog >= 5 && startRef) {
+        const started = new Date(String(startRef).replace(/-/g, '/')).getTime()
         const usedMs = Date.now() - started
         if (usedMs > 5 * 60000) {
           const remainMs = (usedMs * (100 - prog)) / prog

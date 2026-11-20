@@ -118,6 +118,7 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		"failReason": 1,
 		"node":       1,
 		"allNode":    1,
+		"startedAt":  1,
 	}
 
 	// 分页查询
@@ -400,7 +401,12 @@ func (s *service) startOne(ctx *gin.Context, id string) error {
 		logger.Error(fmt.Sprintf("start task failed task=%s resume=%v err=%v", id, resume, err))
 		return err
 	}
-	_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 1}})
+	// startedAt 记录「本次真正开始/恢复」的时间：ETA 用它而不是创建时间，
+	// 否则暂停过的任务会把暂停时长算进已用时间，估算严重偏大（2026-11-21）。
+	_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{
+		"status":    1,
+		"startedAt": helper.GetNowTimeString(),
+	}})
 	return nil
 }
 

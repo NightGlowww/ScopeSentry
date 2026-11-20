@@ -69,6 +69,8 @@ type Task struct {
 	QueuePos int `bson:"-" json:"queuePos,omitempty"`
 	// FailReason 失败原因：巡检判定失败时写入，界面直接显示（否则只看到「失败」两个字）
 	FailReason string `bson:"failReason,omitempty" json:"failReason,omitempty"`
+	// StartedAt 本次启动/恢复的时间：用来算「已用时间」，暂停期间不该计入（2026-11-21）
+	StartedAt string `bson:"startedAt,omitempty" json:"startedAt,omitempty"`
 }
 
 // TaskProgress 任务进度模型
