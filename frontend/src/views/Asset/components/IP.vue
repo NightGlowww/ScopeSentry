@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
+import { useEmptyHint } from '@/hooks/web/useEmptyHint'
 import { reactive, ref } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
@@ -74,6 +75,7 @@ const setMaxHeight = () => {
 
 const SEARCH_KEY = 'asset:ip:search'
 const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
+const emptyHint = useEmptyHint(searchParams)
 const handleSearch = (data: any) => {
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
@@ -286,6 +288,7 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
 
 <template>
   <Csearch
+    :initialSearch="searchParams"
     :getList="getList"
     :handleSearch="handleSearch"
     :searchKeywordsData="searchKeywordsData"
@@ -305,6 +308,7 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
     <ElCol>
       <ElCard style="height: min-content">
         <Table
+          :empty-text="emptyHint"
           v-model:pageSize="pageSize"
           v-model:currentPage="currentPage"
           :columns="allSchemas.tableColumns"
