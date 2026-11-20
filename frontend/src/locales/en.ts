@@ -11,6 +11,7 @@ export default {
     system: { version: { success: 'Version information retrieved' } }
   },
   common: {
+    emptyFilteredHint: 'No results for current filters (search: {q})',
     selectPoc: 'Select POC',
     allPoc: 'All POCs',
     newTag: '+ New Tag',

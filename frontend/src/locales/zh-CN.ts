@@ -11,6 +11,7 @@ export default {
     system: { version: { success: '版本信息获取成功' } }
   },
   common: {
+    emptyFilteredHint: '当前筛选没有结果（搜索：{q}）',
     selectPoc: '选择 POC',
     allPoc: '全部 POC',
     newTag: '+ 新标签',

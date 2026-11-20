@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, onUnmounted } from 'vue'
+import { computed, ref, reactive, onUnmounted } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -35,6 +35,10 @@ const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 const dialogVisible = ref(false)
 const search = ref('')
+const emptyHint = computed(() => {
+  const q = (search.value || '').trim()
+  return q ? t('common.emptyFilteredHint', { q }) : t('common.noData')
+})
 const handleSearch = () => {
   getList()
 }
@@ -448,6 +452,7 @@ const filterChange = async (newFilters: any) => {
       </ElTooltip>
     </div>
     <Table
+      :empty-text="emptyHint"
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
       @selection-change="handleSelectionChange"

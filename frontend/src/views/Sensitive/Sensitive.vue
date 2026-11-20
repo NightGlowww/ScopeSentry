@@ -2,7 +2,7 @@
 import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { ElButton, ElCol, ElInput, ElRow, ElText } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { Dialog } from '@/components/Dialog'
@@ -19,6 +19,10 @@ import Detail from './components/Detail.vue'
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 const search = ref('')
+const emptyHint = computed(() => {
+  const q = (search.value || '').trim()
+  return q ? t('common.emptyFilteredHint', { q }) : t('common.noData')
+})
 const handleSearch = () => {
   getList()
 }
@@ -243,6 +247,7 @@ const updateState = async (state) => {
       </ElCol>
     </ElRow>
     <Table
+      :empty-text="emptyHint"
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
       :columns="nodeColums"
