@@ -987,6 +987,7 @@ const confirmSelectedIcons = () => {
   <Csearch
     :getList="getList"
     :handleSearch="handleSearch"
+    :initialSearch="searchParams"
     :searchKeywordsData="searchKeywordsData"
     :index="index"
     :getElTableExpose="getElTableExpose"

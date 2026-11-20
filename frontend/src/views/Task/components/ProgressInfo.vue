@@ -461,14 +461,22 @@ const toggleTarget = async (row: Recordable) => {
 // 自动刷新：任务进度是动态的，弹窗打开期间每 5 秒静默刷新一次，
 // 用户不用手动点、也看不到整表闪白（Table 的 loading 只在新查询时置位）。
 const outcomeLabels: Record<string, string> = { subdomain: t("task.outSubdomain"), url: t("task.outUrl"), asset: t("task.outAsset"), vulnerability: t("task.outVuln") }
-// 点「漏洞 N」直接跳到结果页并带上任务筛选，省掉手动输入任务名
+// 产出标签跳转：漏洞去结果页，子域/资产去资产页对应 Tab（带 task=="名字" 过滤）
 const router = useRouter()
-const goVulns = () => {
-  if (!props.taskName) return
-  router.push({ path: '/asset-information/nuclei-result', query: { taskName: props.taskName } })
+const clickableTabs: Record<string, string> = { vulnerability: '', subdomain: 'subdomain', asset: 'asset' }
+const onOutcomeClick = (key: string) => {
+  const tab = clickableTabs[key]
+  if (tab === undefined || !props.taskName) return
+  if (key === 'vulnerability') {
+    router.push({ path: '/asset-information/nuclei-result', query: { taskName: props.taskName } })
+  } else {
+    router.push({
+      path: '/asset-information',
+      query: { tab, search: 'task=="' + props.taskName + '"' }
+    })
+  }
   props.closeDialog && props.closeDialog()
 }
-
 const cmdFail = ref(0)
 // 任务产出统计（子域/URL/资产/漏洞）
 const outcome = ref<Record<string, number>>({})
@@ -531,8 +539,8 @@ onUnmounted(stopAuto)
       size="small"
       type="info"
       effect="plain"
-      :class="{ 'outcome-clickable': key === 'vulnerability' }"
-      @click="key === 'vulnerability' && goVulns()"
+      :class="{ 'outcome-clickable': clickableTabs[key] !== undefined }"
+      @click="onOutcomeClick(key)"
     >
       {{ label }} {{ (outcome as any)[key] }}
     </ElTag>

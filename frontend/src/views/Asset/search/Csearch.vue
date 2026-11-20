@@ -17,6 +17,8 @@ const { query } = useRoute()
 const props = defineProps<{
   getList: () => void
   handleSearch: (string) => void
+  // 外部预填搜索表达式（从任务详情跳过来时用）
+  initialSearch?: string
   searchKeywordsData: {
     keyword: string
     example: string
@@ -133,7 +135,8 @@ const getHelp = () => {
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
-const searchParams = ref('')
+// 支持外部预填（例如从任务详情跳过来带 task=="名字"）
+const searchParams = ref(props.initialSearch || '')
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const help = useIcon({ icon: 'tdesign:chat-bubble-help' })
 const elDropdownicon = useIcon({ icon: 'ri:arrow-drop-down-line' })

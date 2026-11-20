@@ -11,7 +11,8 @@ import DirScan from './components/DirScan.vue'
 import PageMonitoring from './components/PageMonitoring.vue'
 import vul from './components/vul.vue'
 import SubdomainTakeover from './components/SubdomainTakeover.vue'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { getProjectAllApi } from '@/api/project'
 import { getTaskNamesApi } from '@/api/task'
 import RootDomain from './components/RootDomain.vue'
@@ -45,6 +46,28 @@ const getTaskList = async () => {
 }
 getTaskList()
 
+// Tab 改为受控 + 支持 query 指定（?tab=subdomain&search=task=="x"）。
+// 子组件用 sessionStorage('asset:<tab>:search') 记忆搜索词，父组件 setup 先写进去，
+// 子组件挂载时自己读到并触发首查——不用逐个改 props。
+const route = useRoute()
+const router = useRouter()
+const TAB_KEYS: Record<string, string> = {
+  asset: 'assetinfo2', ip: 'ip', rootdomain: 'rootdomain', subdomain: 'subdomain',
+  takeover: 'subdomaintakeover', app: 'app', mp: 'mp', url: 'url', crawler: 'crawler',
+  sensitive: 'sensitiveinformation', dirscan: 'dirscan', vul: 'vul', pagemonitoring: 'pagemonitoring'
+}
+const activeTab = ref<string>((route.query.tab as string) || 'asset')
+const initialSearch = route.query.search as string
+if (initialSearch && TAB_KEYS[activeTab.value]) {
+  sessionStorage.setItem('asset:' + TAB_KEYS[activeTab.value] + ':search', initialSearch)
+}
+const onTabChange = () => {
+  // Tab 变化时清掉 query，避免刷新后又跳回旧 Tab
+  if (route.query.tab) {
+    router.replace({ path: route.path, query: {} })
+  }
+}
+
 const handleTabClick = (tab: any) => {
   if (tab.paneName === 'map') {
     // 跳转到同一网站的map项目
@@ -56,44 +79,44 @@ const handleTabClick = (tab: any) => {
 <template>
   <!-- 资产族数量总览：一行统计卡片（asset/subdomain/url/app/mp/vulnerability/sensitive/cert/cip） -->
   <AssetOverviewCards />
-  <ElTabs type="border-card" @tab-click="handleTabClick">
-    <ElTabPane :label="t('asset.assetName')"
+  <ElTabs v-model="activeTab" type="border-card" @tab-click="handleTabClick" @tab-change="onTabChange">
+    <ElTabPane name="asset" :label="t('asset.assetName')"
       ><AssetInfo2 :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane :label="t('asset.IP')"
+    <ElTabPane name="ip" :label="t('asset.IP')"
       ><IP :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane :label="t('rootDomain.rootDomainName')">
+    <ElTabPane name="rootdomain" :label="t('rootDomain.rootDomainName')">
       <RootDomain :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('subdomain.subdomainName')">
+    <ElTabPane name="subdomain" :label="t('subdomain.subdomainName')">
       <Subdomain :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('task.subdomainTakeover')">
+    <ElTabPane name="takeover" :label="t('task.subdomainTakeover')">
       <SubdomainTakeover :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('app.appName')">
+    <ElTabPane name="app" :label="t('app.appName')">
       <APP :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('miniProgram.miniProgramName')">
+    <ElTabPane name="mp" :label="t('miniProgram.miniProgramName')">
       <MP :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('URL.URLName')"
+    <ElTabPane name="url" :label="t('URL.URLName')"
       ><URL :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane :label="t('crawler.crawlerName')"
+    <ElTabPane name="crawler" :label="t('crawler.crawlerName')"
       ><Crawler :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane :label="t('sensitiveInformation.sensitiveInformationName')">
+    <ElTabPane name="sensitive" :label="t('sensitiveInformation.sensitiveInformationName')">
       <SensitiveInformation :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('dirScan.dirScanName')"
+    <ElTabPane name="dirscan" :label="t('dirScan.dirScanName')"
       ><DirScan :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane :label="t('vulnerability.vulnerabilityName')">
+    <ElTabPane name="vul" :label="t('vulnerability.vulnerabilityName')">
       <vul :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('PageMonitoring.pageMonitoringName')">
+    <ElTabPane name="pagemonitoring" :label="t('PageMonitoring.pageMonitoringName')">
       <PageMonitoring :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
     <ElTabPane :label="t('localization.map')" name="map" />
