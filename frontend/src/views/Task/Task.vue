@@ -186,18 +186,26 @@ const taskColums = reactive<TableColumn[]>([
         return failLine ? h('div', { class: 'progress-cell' }, [bar, failLine]) : bar
       }
       let elapsed = ''
+      let slow = false
       if (row.currentSince) {
         const t0 = new Date(String(row.currentSince).replace(/-/g, '/')).getTime()
         const mins = Math.floor((Date.now() - t0) / 60000)
         if (mins >= 1) {
-          // 超过 1 小时还没结束的模块基本是停滞，直接标注而不是显示 480 分钟
-          elapsed = mins > 60 ? ' · ' + t('task.moduleStalled') : ' · ' + mins + t('task.minutesShort')
+          // 分级：10 分钟起标黄（扫描单目标 10 分钟以上算慢），超过 30 分钟标「疑似停滞」。
+          // 之前只在 60 分钟才提示，导致「81% 停着」这种正常慢扫描被误判成卡死（2026-11-21）
+          if (mins > 30) {
+            elapsed = ' · ' + t('task.moduleStalled')
+            slow = true
+          } else {
+            elapsed = ' · ' + mins + t('task.minutesShort')
+            slow = mins >= 10
+          }
         }
       }
       return h('div', { class: 'progress-cell' }, [
         bar,
         failLine,
-        h('div', { class: 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed),
+        h('div', { class: slow ? 'progress-sub progress-sub--slow' : 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed),
         // 目标进度：光看百分比不知道「一共多少个目标、现在第几个」
         (row.taskNum as number) > 0
           ? h(
@@ -1219,6 +1227,10 @@ const setMaxHeight = () => {
   gap: 8px;
   margin-bottom: 8px;
   font-size: 12px;
+}
+
+.progress-sub--slow {
+  color: var(--el-color-warning);
 }
 
 .progress-sub--dim {
