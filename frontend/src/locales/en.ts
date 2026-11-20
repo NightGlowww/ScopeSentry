@@ -376,6 +376,7 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    viewHostAssets: 'View host assets',
     filteredByTask: 'Filtered by task',
     backToTask: 'Back to task',
     totalVuln: '{n} total',

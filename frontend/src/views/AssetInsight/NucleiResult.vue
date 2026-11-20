@@ -53,6 +53,25 @@ const totalVuln = computed(() =>
   Object.values(statusStats.value || {}).reduce((a: number, b: any) => a + Number(b || 0), 0)
 )
 // 从任务跳过来后要能回去：带上任务名，任务页会自动搜索
+// 从 URL 里取主机名，用于跳「这个 host 的全部资产」
+const detailHost = computed(() => {
+  const u = (detail.value as any)?.url || ''
+  if (!u) return ''
+  try {
+    return new URL(u.startsWith('http') ? u : 'http://' + u).hostname
+  } catch {
+    return u.split('/')[0]
+  }
+})
+const goHostAssets = () => {
+  if (!detailHost.value) return
+  router.push({
+    path: '/asset-information/index',
+    query: { tab: 'asset', search: 'domain=="' + detailHost.value + '"' }
+  })
+  drawerVisible.value = false
+}
+
 const goTask = () => {
   router.push({ path: '/task-management/ScanTask', query: { search: taskNameFilter.value } })
 }
@@ -401,6 +420,16 @@ const rowStyle = () => ({ cursor: 'pointer' })
           </ElDescriptionsItem>
           <ElDescriptionsItem :label="t('nucleiResult.url')" :span="2">
             {{ detail.url }}
+            <ElButton
+              v-if="detailHost"
+              link
+              type="primary"
+              size="small"
+              style="margin-left: 8px"
+              @click="goHostAssets"
+            >
+              {{ t('nucleiResult.viewHostAssets') }}
+            </ElButton>
           </ElDescriptionsItem>
           <ElDescriptionsItem :label="t('nucleiResult.rootDomain')">
             {{ detail.rootDomain }}

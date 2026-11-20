@@ -366,6 +366,7 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    viewHostAssets: '查看该主机资产',
     filteredByTask: '筛选自任务',
     backToTask: '返回该任务',
     totalVuln: '共 {n} 条',

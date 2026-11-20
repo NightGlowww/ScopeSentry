@@ -373,6 +373,7 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    viewHostAssets: '호스트 자산 보기',
     filteredByTask: '작업 기준 필터',
     backToTask: '작업으로 돌아가기',
     totalVuln: '총 {n}건',
