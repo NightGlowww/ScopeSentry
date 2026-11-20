@@ -191,14 +191,15 @@ const taskColums = reactive<TableColumn[]>([
         const t0 = new Date(String(row.currentSince).replace(/-/g, '/')).getTime()
         const mins = Math.floor((Date.now() - t0) / 60000)
         if (mins >= 1) {
-          // 分级：10 分钟起标黄（扫描单目标 10 分钟以上算慢），超过 30 分钟标「疑似停滞」。
-          // 之前只在 60 分钟才提示，导致「81% 停着」这种正常慢扫描被误判成卡死（2026-11-21）
-          if (mins > 30) {
+          // 阈值按实测调过：nuclei 对单目标跑 20-60 分钟是常态（2026-11-21 抽样 9 个模块，
+          // 最长 60 分钟仍在推进），所以 10 分钟标黄全是噪音。
+          //   20 分钟起标黄「慢」，60 分钟以上才说「疑似停滞」
+          if (mins >= 60) {
             elapsed = ' · ' + t('task.moduleStalled')
             slow = true
           } else {
             elapsed = ' · ' + mins + t('task.minutesShort')
-            slow = mins >= 10
+            slow = mins >= 20
           }
         }
       }
