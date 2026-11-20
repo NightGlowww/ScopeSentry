@@ -135,6 +135,8 @@ func (s *service) GetExportRecords(ctx context.Context) ([]models.ExportTask, er
 			{Key: "state", Value: 1},
 			{Key: "file_size", Value: 1},
 			{Key: "file_type", Value: 1},
+			// 少了这一行，导出记录页的「数量」永远显示 0（DB 里其实是 50/1000）
+			{Key: "quantity", Value: 1},
 		})
 
 	// 调用 repository 层执行查询
