@@ -21,6 +21,7 @@ import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { getMcpLogsApi, exportMcpLogsApi, getMcpConfigApi, updateMcpConfigApi } from '@/api/mcp'
 import { useUserStore } from '@/store/modules/user'
+import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
 import { formatTime } from '@/utils'
 
 const { t } = useI18n()
@@ -270,9 +271,23 @@ const copyGuide = async (c: { name: string; body: string }) => {
   }
 }
 
+// 实时监控流（对齐 ARL-Next 的 MCP 调用监控）：8 秒静默刷新，后台不刷，回前台补一次。
+// 审计是「看发生了什么」的页面，手动点刷新会错过突发调用（2026-11-21）。
+const autoRefresh = ref(true)
+const lastRefreshAt = ref('')
+const stampNow = () => {
+  lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+}
+useVisibleInterval(() => {
+  if (!autoRefresh.value) return
+  getList()
+  stampNow()
+}, 8000)
+
 const handleSearch = () => {
   currentPage.value = 1
   getList()
+  stampNow()
 }
 
 const handleReset = () => {
@@ -342,6 +357,16 @@ const handleExport = async () => {
         </div>
       </div>
     </ElCard>
+
+    <div class="stream-bar">
+      <ElSwitch v-model="autoRefresh" size="small" />
+      <span class="stream-hint">
+        {{ t('mcp.autoRefresh') }}{{ lastRefreshAt ? ' · ' + t('task.listRefreshHintShort', { t: lastRefreshAt }) : '' }}
+      </span>
+      <ElButton link type="primary" size="small" @click="getList(); stampNow()">
+        {{ t('mcp.refreshNow') }}
+      </ElButton>
+    </div>
 
     <ElAlert
       v-if="deniedCount > 0"
@@ -445,6 +470,17 @@ const handleExport = async () => {
 </template>
 
 <style scoped>
+.stream-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.stream-hint {
+  color: var(--el-text-color-secondary);
+}
+
 .guide-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

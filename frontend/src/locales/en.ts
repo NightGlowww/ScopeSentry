@@ -1024,6 +1024,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    listRefreshHintShort: 'updated {t}',
     deleteOneDone: 'Deleted {n} task(s)',
     deleteBatchDone: 'Deleted {n} of {want} selected',
     startPartial: 'Started {ok}, {fail} not started: {reason}',
@@ -1895,6 +1896,8 @@ export default {
     pluginFallback: 'Plugin-{id}'
   },
   mcp: {
+    autoRefresh: 'Auto-refresh the call stream every 8s',
+    refreshNow: 'Refresh now',
     promptTitle: 'Prompt templates',
     guideTitle: 'Client setup',
     copy: 'Copy',

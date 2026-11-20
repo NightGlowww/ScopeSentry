@@ -993,6 +993,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    listRefreshHintShort: '更新于 {t}',
     deleteOneDone: '已删除 {n} 个任务',
     deleteBatchDone: '已删除 {n} 个（选中 {want} 个）',
     startPartial: '已开始 {ok} 个，{fail} 个未开始：{reason}',
@@ -1848,6 +1849,8 @@ export default {
   },
 
   mcp: {
+    autoRefresh: '每 8 秒自动刷新调用流',
+    refreshNow: '立即刷新',
     promptTitle: '提示词模板',
     guideTitle: '客户端接入',
     copy: '复制',

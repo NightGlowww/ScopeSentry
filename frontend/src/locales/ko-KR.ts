@@ -1016,6 +1016,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    listRefreshHintShort: '{t} 업데이트',
     deleteOneDone: '{n}개 작업 삭제됨',
     deleteBatchDone: '선택 {want}개 중 {n}개 삭제됨',
     startPartial: '{ok}개 시작, {fail}개 미시작: {reason}',
@@ -1871,6 +1872,8 @@ export default {
     pluginFallback: '플러그인-{id}'
   },
   mcp: {
+    autoRefresh: '8초마다 호출 스트림 자동 새로고침',
+    refreshNow: '지금 새로고침',
     promptTitle: '프롬프트 템플릿',
     guideTitle: '클라이언트 연결',
     copy: '복사',
