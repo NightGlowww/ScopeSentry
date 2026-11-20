@@ -345,11 +345,11 @@ const rowStyle = () => ({ cursor: 'pointer' })
 
 <template>
   <ContentWrap>
-    <ElRow :gutter="12" class="filter-row">
-      <ElCol :span="4">
+    <div class="filter-row">
+      <div class="filter-item w-140">
         <ProjectSelect v-model="project" :placeholder="t('nucleiResult.project')" />
-      </ElCol>
-      <ElCol :span="3">
+      </div>
+      <div class="filter-item w-110">
         <ElSelect v-model="severity" :placeholder="t('nucleiResult.severity')" clearable>
           <ElOption :label="t('nucleiResult.allSeverity')" value="" />
           <ElOption
@@ -359,54 +359,32 @@ const rowStyle = () => ({ cursor: 'pointer' })
             :value="level"
           />
         </ElSelect>
-      </ElCol>
-      <ElCol :span="3">
+      </div>
+      <div class="filter-item w-120">
         <ElSelect v-model="statusFilter" :placeholder="t('nucleiResult.status')" clearable>
           <ElOption :label="t('nucleiResult.statusAll')" :value="0" />
           <ElOption :label="t('nucleiResult.statusNew')" :value="1" />
           <ElOption :label="t('nucleiResult.statusIgnored')" :value="3" />
           <ElOption :label="t('nucleiResult.statusConfirmed')" :value="5" />
         </ElSelect>
-      </ElCol>
-      <ElCol :span="4">
-        <ElInput
-          v-model="templateId"
-          :placeholder="t('nucleiResult.templatePlaceholder')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-      </ElCol>
-      <ElCol :span="4">
-        <ElInput
-          v-model="hostFilter"
-          :placeholder="t('nucleiResult.filterByHost')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-      </ElCol>
-      <ElCol :span="4">
-        <ElInput
-          v-model="taskNameFilter"
-          :placeholder="t('nucleiResult.filterByTask')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-      </ElCol>
-      <ElCol :span="4">
-        <ElInput
-          v-model="keyword"
-          :placeholder="t('nucleiResult.keywordPlaceholder')"
-          clearable
-          @keyup.enter="handleSearch"
-        />
-      </ElCol>
-      <ElCol :span="9">
-        <ElButton type="primary" :icon="searchIcon" @click="handleSearch">
-          {{ t('common.search') }}
-        </ElButton>
+      </div>
+      <div class="filter-item w-150">
+        <ElInput v-model="templateId" :placeholder="t('nucleiResult.templatePlaceholder')" clearable @keyup.enter="handleSearch" />
+      </div>
+      <div class="filter-item w-160">
+        <ElInput v-model="hostFilter" :placeholder="t('nucleiResult.filterByHost')" clearable @keyup.enter="handleSearch" />
+      </div>
+      <div class="filter-item w-160">
+        <ElInput v-model="taskNameFilter" :placeholder="t('nucleiResult.filterByTask')" clearable @keyup.enter="handleSearch" />
+      </div>
+      <div class="filter-item w-170">
+        <ElInput v-model="keyword" :placeholder="t('nucleiResult.keywordPlaceholder')" clearable @keyup.enter="handleSearch" />
+      </div>
+      <div class="filter-actions">
+        <ElButton type="primary" :icon="searchIcon" @click="handleSearch">{{ t('common.search') }}</ElButton>
         <ElButton @click="handleReset">{{ t('common.reset') }}</ElButton>
-      </ElCol>
-    </ElRow>
+      </div>
+    </div>
 
     <div v-if="hostFilter" class="task-link-bar">
       <span class="task-link-label">{{ t('nucleiResult.filteredByHost') }}</span>
@@ -588,7 +566,32 @@ const rowStyle = () => ({ cursor: 'pointer' })
 
 <style scoped>
 .filter-row {
-  margin-bottom: 15px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.filter-item {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.filter-item :deep(.el-select),
+.filter-item :deep(.el-input) {
+  width: 100%;
+}
+.w-110 { width: 110px; }
+.w-120 { width: 120px; }
+.w-140 { width: 140px; }
+.w-150 { width: 150px; }
+.w-160 { width: 160px; }
+.w-170 { width: 170px; }
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .empty-state {
