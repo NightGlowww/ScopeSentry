@@ -143,16 +143,16 @@ const taskColums = reactive<TableColumn[]>([
           h('div', { class: 'progress-sub queued' }, hint)
         ])
       }
-      // 本次任务期间外部工具失败：直接标在进度下方，产出可信度一眼可见
+      // 工具失败和「当前在做什么」要同时看得到：
+      // 以前 cmdFail>0 时直接 return，模块/目标/时长全被吞掉，
+      // 恰恰在出问题时最需要知道它跑到哪一步（2026-11-20）。
       const cmdFail = (row.cmdFail as number) || 0
-      if (cmdFail > 0) {
-        return h('div', { class: 'progress-cell' }, [
-          bar,
-          h('div', { class: 'progress-sub fail' }, t('task.cmdFailHint', { n: cmdFail }))
-        ])
-      }
+      const failLine =
+        cmdFail > 0
+          ? h('div', { class: 'progress-sub fail' }, t('task.cmdFailHint', { n: cmdFail }))
+          : null
       if (row.status !== 1 || !mod) {
-        return bar
+        return failLine ? h('div', { class: 'progress-cell' }, [bar, failLine]) : bar
       }
       let elapsed = ''
       if (row.currentSince) {
@@ -165,6 +165,7 @@ const taskColums = reactive<TableColumn[]>([
       }
       return h('div', { class: 'progress-cell' }, [
         bar,
+        failLine,
         h('div', { class: 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed),
         // 目标进度：光看百分比不知道「一共多少个目标、现在第几个」
         (row.taskNum as number) > 0
