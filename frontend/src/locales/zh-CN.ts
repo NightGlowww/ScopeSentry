@@ -953,6 +953,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    elapsed: '耗时',
     showAllModules: '显示全部模块',
     moduleColumnsHint: '当前显示 {n} 个模块列',
     outcome: '产出',

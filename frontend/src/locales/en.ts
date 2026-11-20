@@ -984,6 +984,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    elapsed: 'took',
     showAllModules: 'Show all modules',
     moduleColumnsHint: '{n} module columns shown',
     outcome: 'Outcome',

@@ -976,6 +976,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    elapsed: '소요',
     showAllModules: '모든 모듈 표시',
     moduleColumnsHint: '{n}개 모듈 열 표시',
     outcome: '산출물',

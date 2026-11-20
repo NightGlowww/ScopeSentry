@@ -50,6 +50,7 @@ import { getProjectAllApi } from '@/api/project'
 import { getNodeDataApi } from '@/api/node'
 import { exportTaskApi } from '@/api/export'
 import { moduleStageLabel } from '@/utils/scanModules'
+
 import { deleteTaskByFilterApi } from '@/api/task'
 const { push } = useRouter()
 const searchicon = useIcon({ icon: 'iconoir:search' })
@@ -72,6 +73,25 @@ const handleSearch = () => {
   sessionStorage.setItem(SEARCH_KEY, search.value || '')
   getList()
 }
+// 任务总耗时：创建 → 结束（运行中则算到现在）
+const fmtDur = (sec: number) => {
+  if (!isFinite(sec) || sec < 0) return ''
+  if (sec < 60) return sec + 's'
+  const m = Math.floor(sec / 60)
+  if (m < 60) return m + 'm' + String(sec % 60).padStart(2, '0') + 's'
+  const hh = Math.floor(m / 60)
+  return hh + 'h' + String(m % 60).padStart(2, '0') + 'm'
+}
+const taskDuration = (row: any): string => {
+  const start = row?.creatTime
+  if (!start) return ''
+  const s = new Date(String(start).replace(/-/g, '/')).getTime()
+  const endStr = row?.endTime
+  const e = endStr ? new Date(String(endStr).replace(/-/g, '/')).getTime() : Date.now()
+  if (!isFinite(s) || !isFinite(e) || e < s) return ''
+  return fmtDur(Math.round((e - s) / 1000))
+}
+
 const taskColums = reactive<TableColumn[]>([
   {
     field: 'selection',
@@ -203,12 +223,18 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'endTime',
     label: t('task.endTime'),
-    width: 152,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
-      if (cellValue == '') {
-        return '-'
-      }
-      return cellValue
+    width: 170,
+    formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
+      // 完成时间下面补一行总耗时：列表里就能横向比较不同任务的快慢。
+      // 暂停/未开始的任务没有结束时间，算「到现在」会一直涨且没有意义，所以不显示。
+      const end = cellValue === '' ? '-' : cellValue
+      const running = Number(row.status) === 1
+      const dur = cellValue !== '' ? taskDuration(row) : running ? taskDuration(row) : ''
+      const label = cellValue !== '' ? t('task.elapsed') : t('task.running')
+      return h('div', { class: 'time-cell' }, [
+        h('div', {}, end),
+        dur ? h('div', { class: 'time-cell__dur' }, label + ' ' + dur) : null
+      ])
     }
   },
   {
@@ -1008,6 +1034,11 @@ const setMaxHeight = () => {
 </template>
 
 <style scoped>
+.time-cell__dur {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
 .progress-cell {
   line-height: 1.2;
 }

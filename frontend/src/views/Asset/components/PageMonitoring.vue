@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
+import { useEmptyHint } from '@/hooks/web/useEmptyHint'
 import { defineAsyncComponent, h, nextTick, reactive, Ref, ref } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
@@ -59,6 +60,7 @@ const searchKeywordsData = [
 
 const SEARCH_KEY = 'asset:pagemonitoring:search'
 const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
+const emptyHint = useEmptyHint(searchParams)
 const handleSearch = (data: any) => {
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
@@ -388,6 +390,7 @@ const getFilter = () => {
 
 <template>
   <Csearch
+    :initialSearch="searchParams"
     :getList="getList"
     :handleSearch="handleSearch"
     :searchKeywordsData="searchKeywordsData"
@@ -407,6 +410,7 @@ const getFilter = () => {
     <ElCol>
       <ElCard>
         <Table
+          :empty-text="emptyHint"
           v-model:pageSize="pageSize"
           v-model:currentPage="currentPage"
           :columns="allSchemas.tableColumns"
