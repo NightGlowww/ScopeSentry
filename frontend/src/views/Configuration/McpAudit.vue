@@ -163,17 +163,21 @@ const { getList } = tableMethods
 
 // 最近 24 小时被拒情况：403/429 只能靠审计页发现，但没人会主动去看，
 // 所以在页头直接给出「有 N 次被拒 + 最主要原因」（2026-11-20）。
+// 1 小时窗口：24 小时太钝，「现在出事了」要的是最近这一小时。
 const deniedCount = ref(0)
 const deniedReason = ref('')
+const deniedChecked = ref(false)
 const loadDeniedSummary = async () => {
   try {
-    const from = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+    const from = new Date(Date.now() - 3600 * 1000).toISOString()
     const res: any = await getMcpLogsApi({ status: 'denied', from, pageIndex: 1, pageSize: 5 })
     deniedCount.value = res?.data?.total || 0
     const first = (res?.data?.list || []).find((x: any) => x?.error)
     deniedReason.value = first?.error || ''
   } catch {
     deniedCount.value = 0
+  } finally {
+    deniedChecked.value = true
   }
 }
 onMounted(loadDeniedSummary)
@@ -220,12 +224,18 @@ const handleExport = async () => {
       :closable="false"
       show-icon
       class="mb-12px"
-      :title="`最近 24 小时有 ${deniedCount} 次调用被拒绝` + (deniedReason ? ' · ' + deniedReason : '')"
+      :title="`最近 1 小时有 ${deniedCount} 次调用被拒绝` + (deniedReason ? ' · ' + deniedReason : '')"
     >
       <ElButton link type="primary" size="small" @click="filters.status = 'denied'; handleSearch()">
         只看被拒的
       </ElButton>
     </ElAlert>
+    <!-- 没黄条不代表「没人查过」：给一条明确的绿色正常态，避免把沉默当成没问题 -->
+    <div v-else-if="deniedChecked" class="mcp-ok">
+      <ElTag type="success" size="small" effect="plain">
+        {{ '最近 1 小时没有被拒的调用' }}
+      </ElTag>
+    </div>
     <ElCard class="mb-12px" shadow="never" v-loading="cfgLoading">
       <template #header>
         <span>全局配置</span>
@@ -310,6 +320,10 @@ const handleExport = async () => {
 </template>
 
 <style scoped>
+.mcp-ok {
+  margin-bottom: 10px;
+}
+
 .mb-10px {
   margin-bottom: 10px;
 }
