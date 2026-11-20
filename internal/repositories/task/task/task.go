@@ -83,6 +83,8 @@ type Repository interface {
 	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
 	// TaskQueuePositions 任务在节点队列中的位置
 	TaskQueuePositions(ctx context.Context) map[string]int
+	// CountQueuedByPrefix 统计同前缀任务在节点队列里的数量（公平性限制用）
+	CountQueuedByPrefix(ctx context.Context, node, prefix string) (int, error)
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
 	CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string)
 	// 目标级暂停（issue #277）
@@ -555,6 +557,33 @@ func (r *repository) TaskOutcome(ctx context.Context, taskName string) map[strin
 		}
 	}
 	return out
+}
+
+// CountQueuedByPrefix 统计某节点队列里 taskName 以 prefix 开头的待执行任务数。
+// 用于「同一来源不能占满队列」的公平性限制（2026-11-20）。
+func (r *repository) CountQueuedByPrefix(ctx context.Context, node, prefix string) (int, error) {
+	items, err := r.redisClient.LRange(ctx, "NodeTask:"+node, 0, -1).Result()
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, raw := range items {
+		var payload struct {
+			TaskName string `json:"TaskName"`
+			Name     string `json:"name"`
+		}
+		if json.Unmarshal([]byte(raw), &payload) != nil {
+			continue
+		}
+		name := payload.TaskName
+		if name == "" {
+			name = payload.Name
+		}
+		if strings.HasPrefix(name, prefix) {
+			n++
+		}
+	}
+	return n, nil
 }
 
 // CountTasksCreatedSince 统计某时间点之后创建的任务数（防刷用）。

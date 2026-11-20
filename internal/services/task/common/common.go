@@ -245,6 +245,20 @@ func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id strin
 			maxQueuedPerNode = n
 		}
 	}
+	// 同名前缀公平性：外部集成批量派发会霸占整个队列，真实任务永远排不上
+	// （2026-11-20 实测：huntdeck-* 占满三台节点队列，手动建的 smoke 任务等半小时）。
+	// 限制「同一前缀在单节点排队数」，超了就拒绝这一批。
+	maxPerPrefix := 3
+	if v := strings.TrimSpace(os.Getenv("TASK_QUEUE_MAX_PER_PREFIX")); v != "" {
+		if n, perr := strconv.Atoi(v); perr == nil && n > 0 && n <= 50 {
+			maxPerPrefix = n
+		}
+	}
+	namePrefix := ""
+	if i := strings.Index(task.Name, "-"); i > 0 {
+		namePrefix = task.Name[:i+1]
+	}
+
 	// 容器内存压力：节点容器被 cgroup 限住时会被压死（心跳停、任务卡住）。
 	// 宿主 memNum 看不出来（实测宿主 24% / 容器 82%），所以按节点的 containerMem 判断：
 	// 已接近上限且还在跑任务，就不要再往里塞（2026-11-20）。
@@ -261,6 +275,12 @@ func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id strin
 	}
 
 	for _, n := range task.Node {
+		// 同前缀占用检查（见上）：队列里已有 maxPerPrefix 个同前缀任务就拒绝
+		if namePrefix != "" {
+			if same, cerr := s.taskRepo.CountQueuedByPrefix(ctx, n, namePrefix); cerr == nil && same >= maxPerPrefix {
+				return 0, fmt.Errorf("节点 %s 队列里已有 %d 个「%s*」任务（上限 %d），为避免单一来源占满队列，请稍后再提交或换节点", n, same, namePrefix, maxPerPrefix)
+			}
+		}
 		if mem := nodeMem[n]; mem >= containerMemLimit && nodeRunning[n] >= 1 {
 			return 0, fmt.Errorf("节点 %s 容器内存已用 %.1f%%（接近上限）且正在执行任务，为避免压死节点本次不派发；可换节点或等当前任务结束", n, mem)
 		}
