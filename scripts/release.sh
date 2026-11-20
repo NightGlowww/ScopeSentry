@@ -220,4 +220,11 @@ if [[ "${DRY_RUN:-0}" != "1" ]]; then
   esac
   git checkout -q -- cmd/main/static && git clean -fdq cmd/main/static || true
   echo "   健康检查通过；记得提交 version.json 与打 tag"
+
+  # 端到端冒烟（可选）：SMOKE=1 时跑一遍 任务→结果→处置→导出，约 5 分钟。
+  # 常规发布不跑，避免每次发版都等 5 分钟；重大改动后建议带上。
+  if [[ "${SMOKE:-0}" == "1" ]]; then
+    echo "   端到端冒烟中（约 5 分钟）..."
+    bash scripts/e2e-smoke.sh || { echo "✗ 端到端冒烟失败，请回滚或排查" >&2; exit 1; }
+  fi
 fi
