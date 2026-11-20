@@ -79,3 +79,15 @@ sg docker -c "docker logs --tail 100 scopesentry-scan"
 2. `git status` 干净（`cmd/main/static` 由 release 脚本还原）
 3. 三节点版本一致（release 的 `[7/7]` 会打印）
 4. 发布后 `docs/ui-smoke-report-*.md` 追加一行结果（可选，但便于回溯）
+## 6. 前端导入检查的覆盖范围（2026-11-20 扩展）
+
+`scripts/lint-vue-imports.py` 现在查两类问题：
+
+1. **Element Plus 组件**用了但没 import（渲染成 `<elalert>` 之类未解析标签，界面静默失效）
+2. **Vue API**（`computed` / `watch` / `onMounted` / `nextTick` …）用了但没 import
+   —— 这类会让 setup 直接抛错、组件整个白屏（2.0.246/247 的进度弹窗就是这么空白的）
+
+已接进 `release.sh` 的 `[1/7]` 审计门禁，跑不过就不发版。
+
+自测方式：临时放一个用 `computed()` 但没 import 的 .vue 到 `frontend/src/views/`，
+运行脚本应报 `Vue API: computed` 并返回 1。
