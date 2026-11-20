@@ -14,6 +14,7 @@ import {
   ElCard,
   ElSwitch,
   ElInputNumber,
+  ElAlert,
   ElMessage
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
@@ -160,6 +161,23 @@ const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
 const { getList } = tableMethods
 
+// 最近 24 小时被拒情况：403/429 只能靠审计页发现，但没人会主动去看，
+// 所以在页头直接给出「有 N 次被拒 + 最主要原因」（2026-11-20）。
+const deniedCount = ref(0)
+const deniedReason = ref('')
+const loadDeniedSummary = async () => {
+  try {
+    const from = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+    const res: any = await getMcpLogsApi({ status: 'denied', from, pageIndex: 1, pageSize: 5 })
+    deniedCount.value = res?.data?.total || 0
+    const first = (res?.data?.list || []).find((x: any) => x?.error)
+    deniedReason.value = first?.error || ''
+  } catch {
+    deniedCount.value = 0
+  }
+}
+onMounted(loadDeniedSummary)
+
 const handleSearch = () => {
   currentPage.value = 1
   getList()
@@ -196,6 +214,18 @@ const handleExport = async () => {
 
 <template>
   <ContentWrap>
+    <ElAlert
+      v-if="deniedCount > 0"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="mb-12px"
+      :title="`最近 24 小时有 ${deniedCount} 次调用被拒绝` + (deniedReason ? ' · ' + deniedReason : '')"
+    >
+      <ElButton link type="primary" size="small" @click="filters.status = 'denied'; handleSearch()">
+        只看被拒的
+      </ElButton>
+    </ElAlert>
     <ElCard class="mb-12px" shadow="never" v-loading="cfgLoading">
       <template #header>
         <span>全局配置</span>
