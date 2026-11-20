@@ -35,7 +35,7 @@ import (
 
 // Service 定义任务服务接口
 type Service interface {
-	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int) ([]models.Task, int64, error)
+	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node string) ([]models.Task, int64, error)
 	// DeleteByFilter 按筛选批量删除，返回条数
 	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
 	// CountTasksCreatedSince 统计某时间之后创建的任务数（防刷）
@@ -85,10 +85,14 @@ func NewService() Service {
 }
 
 // List 获取任务列表
-func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int) ([]models.Task, int64, error) {
+func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node string) ([]models.Task, int64, error) {
 	filter := bson.M{}
 	if search != "" {
 		filter["name"] = bson.M{"$regex": search, "$options": "i"}
+	}
+	// 按节点筛选：node 是数组字段，直接等值匹配表示「包含该元素」
+	if strings.TrimSpace(node) != "" {
+		filter["node"] = strings.TrimSpace(node)
 	}
 	// 状态过滤：任务堆积时（几十个暂停任务）只靠名字搜很难找
 	if status != nil && *status >= 0 {
@@ -801,6 +805,12 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			// 未全部完成时不超过 99%，避免「看着 100% 但其实还在跑」
 			if completedTargets < expectedTargets && progress >= 100 {
 				progress = 99
+			}
+			// 进度不回退：节点重启/更新后当前目标会从头再跑一遍，
+			// 目标级完成数下降会让百分比倒退（实测 81% → 50%，看着像任务重来一遍）。
+			// 用户关心「还剩多少」，不是「这一轮跑到哪」，所以保留历史高水位。
+			if task.Progress > progress {
+				progress = task.Progress
 			}
 			status := constants.TaskStatusRunning
 			update := bson.M{"$set": bson.M{"progress": progress, "status": status}}
