@@ -31,6 +31,7 @@ import {
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import { useIcon } from '@/hooks/web/useIcon'
 import {
   getTaskDataApi,
@@ -596,6 +597,8 @@ const loadNodeHealth = async () => {
 // 列表自动刷新：有任务在跑时每 10 秒静默刷新一次，
 // 用户不用反复点刷新按钮也能看到进度变化；全部结束后自动停止。
 const autoListTimer = ref<ReturnType<typeof setInterval> | null>(null)
+// 多标签页选主：只有一个标签在自动刷新，其余标签靠手动/切回前台刷新
+const { isLeader: taskLeader } = useSingleTabLeader('tasks')
 // 上次刷新时间：静默自动刷新时用户看不出数据是新的还是卡住了
 const lastRefreshAt = ref('')
 const hasRunning = computed(() =>
@@ -610,6 +613,8 @@ const syncAutoList = () => {
     autoListTimer.value = setInterval(async () => {
       // 页面在后台时不刷新：标签页挂着不动还每 10 秒打一次接口，纯浪费
       if (typeof document !== 'undefined' && document.hidden) return
+      // 多标签页只让一个轮询：任务页是最常被开多个的页面（2026-11-21）
+      if (!taskLeader.value) return
       try {
         await getList()
       } catch {
@@ -1089,7 +1094,10 @@ const setMaxHeight = () => {
         :title="t('task.queueBacklog', { n: queuedTotal })"
       />
       <div v-if="hasRunning" class="refresh-hint">
-        {{ t('task.listRefreshHint', { t: lastRefreshAt || t('task.refreshJustNow') }) }}
+        <template v-if="!taskLeader">{{ t('common.pollFollower') }}</template>
+        <template v-else>
+          {{ t('task.listRefreshHint', { t: lastRefreshAt || t('task.refreshJustNow') }) }}
+        </template>
       </div>
       <Table
         :tooltip-options="{
