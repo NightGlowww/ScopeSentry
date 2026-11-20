@@ -556,12 +556,6 @@ const closepluginDialogVisible = () => {
         </ElTag>
       </div>
 
-      <div v-if="rejectSummary.length" class="node-health">
-        <ElTag type="info" size="small" effect="plain">
-          {{ t('node.rejectTitle') }}：{{ rejectSummary.join(' · ') }}
-        </ElTag>
-      </div>
-
       <div v-if="throttledNodes.length" class="node-health">
         <ElTag type="warning" size="small" effect="plain">
           {{ t('node.throttling', { names: throttledNodes.map((n: any) => n.name).join(' · ') }) }}
