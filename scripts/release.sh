@@ -108,8 +108,12 @@ else
   split -b 4m "$BIN" "$CHUNK_DIR/part_"
   ssh -o BatchMode=yes "$PROD_HOST" "rm -rf $DEPLOY_DIR/.chunks && mkdir -p $DEPLOY_DIR/.chunks" 2>/dev/null || true
   CHUNK_FAIL=0
+  TOTAL_CHUNKS=$(ls "$CHUNK_DIR"/part_* | wc -l | tr -d ' ')
+  IDX=0
+  UP_START=$(date +%s)
   for f in "$CHUNK_DIR"/part_*; do
     base=$(basename "$f")
+    IDX=$((IDX + 1))
     for attempt in 1 2 3; do
       if scp -q -o BatchMode=yes "$f" "$PROD_HOST:$DEPLOY_DIR/.chunks/$base" 2>/dev/null; then
         break
@@ -119,6 +123,12 @@ else
         CHUNK_FAIL=1
       fi
     done
+    # 进度反馈：96MB 分 40 片，几分钟无输出会让人以为卡死
+    if (( IDX % 5 == 0 || IDX == TOTAL_CHUNKS )); then
+      PCT=$((IDX * 100 / TOTAL_CHUNKS))
+      ELAPSED=$(( $(date +%s) - UP_START ))
+      echo "   上传 $IDX/$TOTAL_CHUNKS ($PCT%)  已用 ${ELAPSED}s"
+    fi
   done
   rm -rf "$CHUNK_DIR"
   if [[ $CHUNK_FAIL -ne 0 ]]; then
