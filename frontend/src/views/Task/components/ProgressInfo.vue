@@ -213,6 +213,9 @@ const { loading, dataList, total, currentPage, pageSize } = tableState
 // 按「模块字段是否都结束」算出 已完成/进行中/跳过，一眼看出整体推进（2026-11-20）。
 const targetStats = computed(() => {
   const rows = (dataList.value || []) as any[]
+  // 「全部」列（All）才是目标级的权威标记：[start, end]。
+  // 之前按各模块字段推算，模块数是动态增加的，永远凑不齐 → 81% 的任务显示「已完成 0」
+  // （2026-11-20 实测：All 已有 end，但模块还没列全）。
   const moduleFields = (progressColums as any[])
     .map((c) => c.field)
     .filter((f) => f && !['target', 'node', 'action', 'pausedAction', 'All'].includes(f))
@@ -220,6 +223,12 @@ const targetStats = computed(() => {
   let running = 0
   let skipped = 0
   for (const r of rows) {
+    const all = r?.All
+    if (Array.isArray(all) && all.length >= 2) {
+      if (all[1]) { done++; continue }
+      if (all[0]) { running++; continue }
+    }
+    // 没有 All 记录时退回按模块估算
     let started = 0
     let ended = 0
     let skippedMark = false
@@ -338,6 +347,17 @@ const toggleAuto = () => {
     stopAuto()
   }
 }
+
+// 换了任务就要重新拉数据：弹窗没关（Esc 没生效/连续点两行）时 id 变了但 visible 没变，
+// 不重新取数就会一直显示上一个任务的目标（2026-11-20 实测）。
+watch(
+  () => props.getProgressInfoID,
+  (id, old) => {
+    if (!id || id === old) return
+    currentPage.value = 1
+    refreshOnce()
+  }
+)
 
 // 后台标签页不轮询；关闭弹窗立即停
 watch(
