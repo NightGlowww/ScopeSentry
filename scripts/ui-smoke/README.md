@@ -114,3 +114,18 @@ eval({ tabId, expression: 'window.__ASSERT__ = "saveFlow"; window.__LABEL__ = "�
 （任务页的搜索框 placeholder 是「请输入」，按文案找不到）。
 
 关键词用 `window.__QUERY__` 指定。已覆盖用例：任务列表 / POC / 指纹（3/3 通过）。
+### 已验证：进度弹窗切换任务会重新取数（2026-11-20）
+
+场景：弹窗不关闭，直接点另一行的「任务进度」——必须换数据，不能沿用上一个任务。
+
+实测步骤与结果：
+
+```
+打开 huntdeck-…-094548-1 → 首行目标 www.stellingwerf.nl
+不关闭，直接点 huntdeck-…-064819-2 → 首行目标 api.na-02.cloud.solarwinds.com
+```
+
+两个任务的目标域名不同，首行随之改变，说明 `watch(getProgressInfoID)` 生效。
+
+**注意**：选验证任务时必须确认两者首行目标不同，否则「看起来没变」也会通过
+（2026-11-20 我第一次就选了两个扫同样两个域名的任务，无法分辨）。
