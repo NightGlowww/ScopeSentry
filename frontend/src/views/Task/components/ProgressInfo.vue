@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, h, ref, onMounted, onUnmounted } from 'vue'
 import { Table, TableColumn } from '@/components/Table'
@@ -24,6 +25,8 @@ const props = defineProps<{
   getProgressInforunnerid: string
   // 该任务期间外部工具失败次数（0 表示无异常产出）
   cmdFail?: number
+  // 当前任务名：产出一栏点击时带过去筛选
+  taskName?: string
 }>()
 const progressColums = reactive<TableColumn[]>([
   {
@@ -458,6 +461,14 @@ const toggleTarget = async (row: Recordable) => {
 // 自动刷新：任务进度是动态的，弹窗打开期间每 5 秒静默刷新一次，
 // 用户不用手动点、也看不到整表闪白（Table 的 loading 只在新查询时置位）。
 const outcomeLabels: Record<string, string> = { subdomain: t("task.outSubdomain"), url: t("task.outUrl"), asset: t("task.outAsset"), vulnerability: t("task.outVuln") }
+// 点「漏洞 N」直接跳到结果页并带上任务筛选，省掉手动输入任务名
+const router = useRouter()
+const goVulns = () => {
+  if (!props.taskName) return
+  router.push({ path: '/asset-information/nuclei-result', query: { taskName: props.taskName } })
+  props.closeDialog && props.closeDialog()
+}
+
 const cmdFail = ref(0)
 // 任务产出统计（子域/URL/资产/漏洞）
 const outcome = ref<Record<string, number>>({})
@@ -513,7 +524,16 @@ onUnmounted(stopAuto)
   />
   <div v-if="Object.values(outcome).some(v => v > 0)" class="outcome-bar">
     <span class="outcome-title">{{ t("task.outcome") }}</span>
-    <ElTag v-for="(label, key) in outcomeLabels" :key="key" v-show="(outcome as any)[key]" size="small" type="info" effect="plain">
+    <ElTag
+      v-for="(label, key) in outcomeLabels"
+      :key="key"
+      v-show="(outcome as any)[key]"
+      size="small"
+      type="info"
+      effect="plain"
+      :class="{ 'outcome-clickable': key === 'vulnerability' }"
+      @click="key === 'vulnerability' && goVulns()"
+    >
       {{ label }} {{ (outcome as any)[key] }}
     </ElTag>
   </div>
@@ -563,3 +583,22 @@ onUnmounted(stopAuto)
     />
   </ElCard>
 </template>
+
+<style scoped>
+.outcome-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.outcome-title {
+  color: var(--el-text-color-secondary);
+}
+.outcome-clickable {
+  cursor: pointer;
+}
+.outcome-clickable:hover {
+  border-color: var(--el-color-primary);
+}
+</style>

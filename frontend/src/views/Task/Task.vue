@@ -348,6 +348,8 @@ const exportTask = async (row: any) => {
 
 // 该任务期间的工具失败次数（用于弹窗顶部告警）
 const progressCmdFail = ref(0)
+// 当前查看进度的任务名（产出一栏点击跳转要用）
+const progressTaskName = ref('')
 
 // 按当前筛选批量删除：勾选跨页太慢，直接按筛选条件清
 // 安全：后端要求必须带搜索词或状态，且单次最多 200 条
@@ -394,6 +396,7 @@ const getProgressInfo = async (id) => {
   getProgressInfoID = id
   const row = (dataList.value || []).find((r: any) => r.id === id) as any
   progressCmdFail.value = (row?.cmdFail as number) || 0
+  progressTaskName.value = (row?.name as string) || ''
   progressDialogVisible.value = true
   setTimeout(() => {
     rowActionId.value = ''
@@ -997,6 +1000,7 @@ const setMaxHeight = () => {
       getProgressInfotype="scan"
       getProgressInforunnerid=""
       :cmdFail="progressCmdFail"
+      :taskName="progressTaskName"
     /></Dialog>
 </template>
 

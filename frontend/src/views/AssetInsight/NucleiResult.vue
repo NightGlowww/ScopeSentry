@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { reactive, ref, h, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   ElButton,
   ElCol,
@@ -65,7 +66,9 @@ const loadStatusStats = async () => {
   }
 }
 // 按任务筛选：一个任务扫完想直接看它的产出
-const taskNameFilter = ref('')
+// 从任务详情跳转过来时，用 query.taskName 预填筛选（闭环：任务 → 它的漏洞）
+const route = useRoute()
+const taskNameFilter = ref((route.query.taskName as string) || '')
 const templateId = ref('')
 const keyword = ref('')
 
