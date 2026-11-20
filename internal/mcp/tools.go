@@ -599,7 +599,7 @@ func listTasks(ctx context.Context, _ *mcp.CallToolRequest, input listTasksInput
 		input.PageSize = 20
 	}
 	c := ginContext(ctx)
-	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, nil)
+	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, nil, "")
 	if err != nil {
 		return errorResult("获取任务列表失败", err)
 	}
@@ -1045,7 +1045,26 @@ func listNodes(ctx context.Context, _ *mcp.CallToolRequest, input listNodesInput
 	if err != nil {
 		return errorResult("获取节点列表失败", err)
 	}
-	return jsonToolResult(ginH{"list": result})
+	// 顺带给出「该用哪台」：外部集成（如 huntdeck）只看 JSON，
+	// 没有 queueLen 判断就会一直往最忙的节点推，把队列塞满（2026-11-20 实测）。
+	// 规则：在线且队列最短者优先。
+	recommended := ""
+	best := int64(1 << 62)
+	for _, n := range result {
+		if fmt.Sprintf("%v", n.State) != "1" {
+			continue
+		}
+		if n.QueueLen < best {
+			best = n.QueueLen
+			recommended = n.Name
+		}
+	}
+	out := ginH{"list": result}
+	if recommended != "" {
+		out["recommended"] = recommended
+		out["recommendedQueueLen"] = best
+	}
+	return jsonToolResult(out)
 }
 
 func listPluginModules(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
