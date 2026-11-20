@@ -264,10 +264,25 @@ func (r *repository) RPushNodeTask(ctx context.Context, name string, data any) e
 	if json.Unmarshal(value, &probe) == nil && probe.ID != "" {
 		if items, lerr := r.redisClient.LRange(ctx, key, 0, -1).Result(); lerr == nil {
 			needle := fmt.Sprintf("\"id\":\"%s\"", probe.ID)
+			found := 0
+			var firstRaw string
 			for _, raw := range items {
 				if strings.Contains(raw, needle) {
-					return nil
+					found++
+					if firstRaw == "" {
+						firstRaw = raw
+					}
 				}
+			}
+			if found > 0 {
+				// 已经不在了就不要再加；顺手把历史遗留的多余副本清掉（只留一条）。
+				// 队列里的重复条目会让节点把同一个任务跑两遍（2026-11-20 实测仍有残留）。
+				if found > 1 {
+					if _, rerr := r.redisClient.LRem(ctx, key, int64(found-1), firstRaw).Result(); rerr == nil {
+						logger.Warn(fmt.Sprintf("queue %s: removed %d duplicate entr(ies) for task %s", key, found-1, probe.ID))
+					}
+				}
+				return nil
 			}
 		}
 	}
