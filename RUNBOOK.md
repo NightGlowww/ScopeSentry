@@ -232,3 +232,22 @@ python3 scripts/remote/queue-drain.py --prefix huntdeck- --apply   # 执行
 - Redis `HMSet`/`HSet` 对空字符串是**覆盖**，不是跳过 → 可选字段必须条件写入
 - `if err != nil` 兜底的前提是**被调方会返回 error**；会 panic 的调用要前置校验
 - 回滚二进制救不了数据面故障（配置已被清空），必须同时修数据
+### 节点配置下发是「热生效」，不需要重启（2026-11-20 实测）
+
+```
+服务端 POST /api/node/config/update  →  给节点投一个 refresh_config:<node> 列表项
+节点每 3 秒轮询该键，消费后立即应用（写本地配置 + 调各模块协程池）
+```
+
+实测（node-dev-02，maxGoroutineCount 3 → 2，vulnerabilityScan 2 → 1）：
+
+```
+投递后 refresh 键 len=1
+25 秒后：节点上报的 modulesConfig 已是 maxGoroutineCount: 2
+        refresh 键已消费（exists=0）
+        容器未重启
+```
+
+注意：界面上 `maxTaskNum` 显示的是**当前生效值**——如果容器内存 ≥90%，
+自动降压会把它压到 1，看起来像"配置没生效"。实际底层基准值已改成 2，
+内存回落后会自动恢复到 2。这一点在排查时容易被误读。
