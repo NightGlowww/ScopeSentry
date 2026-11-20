@@ -67,6 +67,8 @@ type Task struct {
 	CmdFail int64 `bson:"-" json:"cmdFail,omitempty"`
 	// QueuePos 在节点待领取队列中的位置（1 起，0 表示不在队列里）
 	QueuePos int `bson:"-" json:"queuePos,omitempty"`
+	// FailReason 失败原因：巡检判定失败时写入，界面直接显示（否则只看到「失败」两个字）
+	FailReason string `bson:"failReason,omitempty" json:"failReason,omitempty"`
 }
 
 // TaskProgress 任务进度模型
@@ -135,6 +137,8 @@ type ListRequest struct {
 	PageSize  int    `json:"pageSize" binding:"required,min=1" example:"10"`
 	// Status 过滤：-1/不传=全部，0未开始 1运行中 2暂停 3完成 4失败
 	Status *int `json:"status" binding:"omitempty,min=-1,max=4" example:"1"`
+	// Node 按节点筛选（任务 node 是数组，匹配包含即命中）
+	Node string `json:"node" binding:"omitempty" example:"node-sh-01"`
 }
 
 // ScheduledTask 计划任务模型

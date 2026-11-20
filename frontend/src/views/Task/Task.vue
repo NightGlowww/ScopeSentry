@@ -146,6 +146,14 @@ const taskColums = reactive<TableColumn[]>([
       // 工具失败和「当前在做什么」要同时看得到：
       // 以前 cmdFail>0 时直接 return，模块/目标/时长全被吞掉，
       // 恰恰在出问题时最需要知道它跑到哪一步（2026-11-20）。
+      // 失败任务：把巡检写入的原因显示出来，否则只有「失败」两个字没法排查
+      const failReason = (row.failReason as string) || ''
+      if (row.status === 4 && failReason) {
+        return h('div', { class: 'progress-cell' }, [
+          bar,
+          h('div', { class: 'progress-sub fail' }, failReason)
+        ])
+      }
       const cmdFail = (row.cmdFail as number) || 0
       const failLine =
         cmdFail > 0

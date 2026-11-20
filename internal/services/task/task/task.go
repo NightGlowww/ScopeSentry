@@ -106,13 +106,14 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 	}
 
 	projection := bson.M{
-		"_id":       1,
-		"status":    1,
-		"name":      1,
-		"taskNum":   1,
-		"progress":  1,
-		"creatTime": 1,
-		"endTime":   1,
+		"_id":        1,
+		"status":     1,
+		"name":       1,
+		"taskNum":    1,
+		"progress":   1,
+		"creatTime":  1,
+		"endTime":    1,
+		"failReason": 1,
 	}
 
 	// 分页查询
@@ -906,9 +907,12 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 			continue
 		}
 
+		reason := fmt.Sprintf("超过 %s 无进展，且不在任何节点队列里（最后活动 %s）；多半是节点重启/更新打断了执行",
+			staleAfter, ref.Format("2006-01-02 15:04:05"))
 		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": bson.M{
-			"status":  constants.TaskStatusFailed,
-			"endTime": helper.GetNowTimeString(),
+			"status":     constants.TaskStatusFailed,
+			"endTime":    helper.GetNowTimeString(),
+			"failReason": reason,
 		}}); err != nil {
 			logger.Error(fmt.Sprintf("sweep task %s failed: %v", id, err))
 			continue
