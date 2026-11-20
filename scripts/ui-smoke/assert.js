@@ -33,6 +33,44 @@
     const h = headers();
     add("包含工具失败列", h.includes("工具失败"), h.join("|"));
     add("节点非空", rows() > 0, rows() + " 节点");
+  } else if (mode === "listFilter") {
+    // 搜索闭环：填关键词 → 点搜索 → 断言列表真的被过滤（行数变化或出现空态）。
+    // 关键词用 __QUERY__ 指定，缺省一个几乎不可能命中的值。
+    const q = window.__QUERY__ || "zzz-no-such-" + Date.now();
+    // 选输入框：优先 placeholder 含「搜索」，否则取离「搜索」按钮最近的那个输入框
+    const searchBtn0 = [...document.querySelectorAll("button")].filter(vis).find(b => /^搜索$|^Search$|^검색$/.test(b.innerText.trim()));
+    const textInputs = [...document.querySelectorAll("input")].filter(vis).filter(i => !i.type || i.type === "text");
+    let input = textInputs.find(i => (i.placeholder || "").includes("搜索"));
+    if (!input && searchBtn0 && textInputs.length) {
+      const br = searchBtn0.getBoundingClientRect();
+      let best = null, bestD = Infinity;
+      for (const i of textInputs) {
+        const r = i.getBoundingClientRect();
+        const vOverlap = Math.min(r.bottom, br.bottom) - Math.max(r.top, br.top);
+        if (vOverlap <= 0) continue;
+        const d = Math.abs(br.left - r.right);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      input = best || textInputs[0];
+    }
+    if (!input && textInputs.length) input = textInputs[0];
+    add("搜索框存在", !!input, input ? (input.placeholder || "text-input") : "missing");
+    if (input) {
+      const before = rows();
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      setter.call(input, q);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise(r => setTimeout(r, 300));
+      const btn = [...document.querySelectorAll("button")].filter(vis).find(b => /^搜索$|^Search$|^검색$/.test(b.innerText.trim()));
+      add("搜索按钮存在", !!btn, btn ? "ok" : "missing");
+      if (btn) {
+        btn.click();
+        await new Promise(r => setTimeout(r, 2200));
+        const after = rows();
+        add("列表被过滤", after !== before || after === 0, before + " → " + after + " 行");
+        add("结果为空或减少", after === 0 || after < before, after + " 行 / 空态:" + (empties()[0] || "无"));
+      }
+    }
   } else if (mode === "saveFlow") {
     // 写操作闭环：点保存/提交 → 若有确认框则确定 → 断言出现成功提示。
     // 抓的是"保存按钮点了没反应 / 没反馈"（2026-11-20 修过多处）。
