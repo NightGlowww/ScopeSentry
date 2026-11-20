@@ -116,6 +116,8 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		"creatTime":  1,
 		"endTime":    1,
 		"failReason": 1,
+		"node":       1,
+		"allNode":    1,
 	}
 
 	// 分页查询

@@ -1000,6 +1000,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    node: '节点',
+    allNodes: '全部节点',
     listRefreshHintShort: '更新于 {t}',
     deleteOneDone: '已删除 {n} 个任务',
     deleteBatchDone: '已删除 {n} 个（选中 {want} 个）',

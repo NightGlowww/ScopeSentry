@@ -118,6 +118,17 @@ const taskColums = reactive<TableColumn[]>([
   },
   {
     field: 'taskNum',
+    label: t('task.node'),
+    width: 130,
+    formatter: (row: any) => {
+      // allNode 的任务会分发到多台，显示「全部节点」而不是某一个
+      if (row?.allNode) return t('task.allNodes')
+      const list = Array.isArray(row?.node) ? row.node : row?.node ? [row.node] : []
+      return list.length ? list.join(', ') : '-'
+    }
+  },
+  {
+    field: 'taskNum',
     label: t('task.taskCount'),
     width: 90,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {

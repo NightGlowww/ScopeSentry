@@ -1023,6 +1023,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    node: '노드',
+    allNodes: '모든 노드',
     listRefreshHintShort: '{t} 업데이트',
     deleteOneDone: '{n}개 작업 삭제됨',
     deleteBatchDone: '선택 {want}개 중 {n}개 삭제됨',

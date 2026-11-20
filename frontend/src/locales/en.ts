@@ -1031,6 +1031,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    node: 'Node',
+    allNodes: 'all nodes',
     listRefreshHintShort: 'updated {t}',
     deleteOneDone: 'Deleted {n} task(s)',
     deleteBatchDone: 'Deleted {n} of {want} selected',
