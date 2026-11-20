@@ -227,6 +227,38 @@ const clientGuides = computed(() => [
     ].join('\n')
   }
 ])
+// 三段可直接粘给 AI Agent 的提示词（工具名与 scope 对应我们的 MCP）
+const promptTemplates = computed(() => [
+  {
+    name: '资产梳理 / Asset profile',
+    body: [
+      '使用 scopesentry 的 get_asset_profile 分析目标 example.com：',
+      '1) 汇总子域数量、开放端口与服务、Web 指纹与标题',
+      '2) 列出已知漏洞（含等级）与敏感信息命中',
+      '3) 给出暴露面优先级建议：先处理哪些、为什么',
+      '只基于工具返回的数据下结论；数据缺失时明确说"未采集到"，不要推测。'
+    ].join('\n')
+  },
+  {
+    name: '跨库检索 / Search',
+    body: [
+      '用 search_assets 在库里检索关键词 "acme"，按类型分类返回命中数量与样本；',
+      '再对命中最多的那一类用 get_asset_profile 展开细节。',
+      '如果某类为 0，直接说"该类没有记录"，不要编造。'
+    ].join('\n')
+  },
+  {
+    name: '任务巡检 / Task triage',
+    body: [
+      '用 list_tasks + get_task_progress 巡检当前任务：',
+      '1) 列出运行中、待开始、失败的任务（各含名称与进度）',
+      '2) 对失败任务说明失败原因（failReason 字段）',
+      '3) 对待开始任务说明排队位置',
+      '不要自行启停任何任务，只汇报。'
+    ].join('\n')
+  }
+])
+
 const copiedName = ref('')
 const copyGuide = async (c: { name: string; body: string }) => {
   try {
@@ -274,6 +306,24 @@ const handleExport = async () => {
 
 <template>
   <ContentWrap>
+    <!-- 提示词模板：对齐 ARL-Next 的 prompt drawer——接好之后「让 Agent 干什么」才是关键 -->
+    <ElCard class="mb-12px" shadow="never">
+      <template #header>
+        <span>{{ t('mcp.promptTitle') }}</span>
+      </template>
+      <div class="guide-grid">
+        <div v-for="p in promptTemplates" :key="p.name" class="guide-item">
+          <div class="guide-head">
+            <span class="guide-name">{{ p.name }}</span>
+            <ElButton link type="primary" size="small" @click="copyGuide(p)">
+              {{ copiedName === p.name ? t('mcp.copied') : t('mcp.copy') }}
+            </ElButton>
+          </div>
+          <pre class="guide-code">{{ p.body }}</pre>
+        </div>
+      </div>
+    </ElCard>
+
     <!-- 客户端接入指引：对齐 ARL-Next 的 MCP 中心——光有工具列表不够，
          还得告诉人「怎么把它接到 Cursor / Claude Code 里」-->
     <ElCard class="mb-12px" shadow="never">

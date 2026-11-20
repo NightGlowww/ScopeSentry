@@ -1848,6 +1848,7 @@ export default {
   },
 
   mcp: {
+    promptTitle: '提示词模板',
     guideTitle: '客户端接入',
     copy: '复制',
     copied: '已复制'

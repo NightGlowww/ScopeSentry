@@ -1895,6 +1895,7 @@ export default {
     pluginFallback: 'Plugin-{id}'
   },
   mcp: {
+    promptTitle: 'Prompt templates',
     guideTitle: 'Client setup',
     copy: 'Copy',
     copied: 'Copied',

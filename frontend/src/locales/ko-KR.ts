@@ -1871,6 +1871,7 @@ export default {
     pluginFallback: '플러그인-{id}'
   },
   mcp: {
+    promptTitle: '프롬프트 템플릿',
     guideTitle: '클라이언트 연결',
     copy: '복사',
     copied: '복사됨',
