@@ -170,3 +170,64 @@ func searchAssets(ctx context.Context, _ *mcp.CallToolRequest, input searchAsset
 }
 
 var _ = fmt.Sprintf
+
+type enterpriseProfileInput struct {
+	Company string `json:"company,omitempty" jsonschema:"企业名（RootDomain.company），可留空"`
+	Domain  string `json:"domain,omitempty" jsonschema:"根域名，例如 example.com；与 company 二选一"`
+}
+
+// getEnterpriseProfile 按企业/根域聚合：子域、资产、URL、漏洞的总量与逐域明细。
+// 对齐 ARL-Next 的同名工具（2026-11-21）。我们的 RootDomain 里 company/icp 常为空，
+// 所以两种入口都支持：按 company 找根域，或直接给根域。
+func getEnterpriseProfile(ctx context.Context, _ *mcp.CallToolRequest, input enterpriseProfileInput) (*mcp.CallToolResult, any, error) {
+	if mongodb.DB == nil {
+		return errorResult("数据库未就绪", nil)
+	}
+	company := strings.TrimSpace(input.Company)
+	domain := normalizeTarget(input.Domain)
+	if company == "" && domain == "" {
+		return errorResult("company 或 domain 至少给一个", nil)
+	}
+	db := mongodb.DB
+
+	roots := []string{}
+	if domain != "" {
+		roots = append(roots, domain)
+	} else {
+		filter := bson.M{"company": bson.M{"$regex": escapeRegex(company), "$options": "i"}}
+		cur, err := db.Collection("RootDomain").Find(ctx, filter, options.Find().SetLimit(50).SetProjection(bson.M{"domain": 1, "_id": 0}))
+		if err != nil {
+			return errorResult("查询企业根域失败", err)
+		}
+		var rows []bson.M
+		_ = cur.All(ctx, &rows)
+		for _, r := range rows {
+			if d, ok := r["domain"].(string); ok && d != "" {
+				roots = append(roots, d)
+			}
+		}
+	}
+
+	totals := map[string]int64{"subdomains": 0, "assets": 0, "urls": 0, "vulnerabilities": 0}
+	detail := make([]bson.M, 0, len(roots))
+	for _, root := range roots {
+		subs, _ := db.Collection("subdomain").CountDocuments(ctx, hostFilter("host", root))
+		assets, _ := db.Collection("asset").CountDocuments(ctx, bson.M{"$or": []bson.M{hostFilter("host", root), hostFilter("url", root)}})
+		urls, _ := db.Collection("UrlScan").CountDocuments(ctx, hostFilter("output", root))
+		vulns, _ := db.Collection("vulnerability").CountDocuments(ctx, hostFilter("url", root))
+		totals["subdomains"] += subs
+		totals["assets"] += assets
+		totals["urls"] += urls
+		totals["vulnerabilities"] += vulns
+		detail = append(detail, bson.M{
+			"domain": root, "subdomains": subs, "assets": assets, "urls": urls, "vulnerabilities": vulns,
+		})
+	}
+
+	return jsonToolResult(map[string]interface{}{
+		"company": company,
+		"roots":   roots,
+		"totals":  totals,
+		"detail":  detail,
+	})
+}

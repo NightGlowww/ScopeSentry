@@ -942,6 +942,8 @@ export default {
     hasPermission: 'Please set the operation permission value'
   },
   dashboard: {
+    depOk: 'OK',
+    depDown: 'down',
     serverHealth: 'Server health',
     load: 'load',
     memAvailable: 'mem free',
@@ -1887,5 +1889,10 @@ export default {
     requestFailed: 'Request failed',
     networkError: 'Network error',
     pluginFallback: 'Plugin-{id}'
+  },
+  mcp: {
+    guideTitle: 'Client setup',
+    copy: 'Copy',
+    copied: 'Copied',
   }
 }

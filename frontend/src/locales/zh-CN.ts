@@ -911,6 +911,8 @@ export default {
     hasPermission: '请设置操作权限值'
   },
   dashboard: {
+    depOk: '正常',
+    depDown: '异常',
     serverHealth: '服务端健康',
     load: '负载',
     memAvailable: '内存可用',
@@ -1839,5 +1841,11 @@ export default {
     requestFailed: '请求失败',
     networkError: '网络错误',
     pluginFallback: '插件-{id}'
+  },
+
+  mcp: {
+    guideTitle: '客户端接入',
+    copy: '复制',
+    copied: '已复制'
   }
 }

@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import {
   ElButton,
 
@@ -182,6 +182,62 @@ const loadDeniedSummary = async () => {
 }
 onMounted(loadDeniedSummary)
 
+// 三种客户端的接入片段（端点取当前站点，密钥用占位符）
+const mcpEndpoint = computed(() => (typeof window !== 'undefined' ? window.location.origin : '') + '/mcp')
+const clientGuides = computed(() => [
+  {
+    name: 'Claude Code / Claude Desktop',
+    body: JSON.stringify(
+      {
+        mcpServers: {
+          scopesentry: {
+            type: 'http',
+            url: mcpEndpoint.value,
+            headers: { 'X-API-Key': 'ssk_你的密钥' }
+          }
+        }
+      },
+      null,
+      2
+    )
+  },
+  {
+    name: 'Cursor / Windsurf',
+    body: JSON.stringify(
+      {
+        mcpServers: {
+          scopesentry: {
+            url: mcpEndpoint.value,
+            headers: { 'X-API-Key': 'ssk_你的密钥' }
+          }
+        }
+      },
+      null,
+      2
+    )
+  },
+  {
+    name: 'curl（自测用）',
+    body: [
+      'curl -s ' + mcpEndpoint.value + ' \\',
+      '  -H "Content-Type: application/json" \\',
+      '  -H "Accept: application/json, text/event-stream" \\',
+      '  -H "X-API-Key: ssk_你的密钥" \\',
+      '  -d \'{"jsonrpc":"2.0","id":1,"method":"tools/list"}\''
+    ].join('\n')
+  }
+])
+const copiedName = ref('')
+const copyGuide = async (c: { name: string; body: string }) => {
+  try {
+    await navigator.clipboard.writeText(c.body)
+    copiedName.value = c.name
+    setTimeout(() => (copiedName.value = ''), 1500)
+  } catch {
+    copiedName.value = ''
+  }
+}
+
 const handleSearch = () => {
   currentPage.value = 1
   getList()
@@ -218,6 +274,25 @@ const handleExport = async () => {
 
 <template>
   <ContentWrap>
+    <!-- 客户端接入指引：对齐 ARL-Next 的 MCP 中心——光有工具列表不够，
+         还得告诉人「怎么把它接到 Cursor / Claude Code 里」-->
+    <ElCard class="mb-12px" shadow="never">
+      <template #header>
+        <span>{{ t('mcp.guideTitle') }}</span>
+      </template>
+      <div class="guide-grid">
+        <div v-for="c in clientGuides" :key="c.name" class="guide-item">
+          <div class="guide-head">
+            <span class="guide-name">{{ c.name }}</span>
+            <ElButton link type="primary" size="small" @click="copyGuide(c)">
+              {{ copiedName === c.name ? t('mcp.copied') : t('mcp.copy') }}
+            </ElButton>
+          </div>
+          <pre class="guide-code">{{ c.body }}</pre>
+        </div>
+      </div>
+    </ElCard>
+
     <ElAlert
       v-if="deniedCount > 0"
       type="warning"
@@ -320,6 +395,35 @@ const handleExport = async () => {
 </template>
 
 <style scoped>
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+.guide-item {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.guide-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.guide-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.guide-code {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--el-text-color-regular);
+}
+
 .mcp-ok {
   margin-bottom: 10px;
 }

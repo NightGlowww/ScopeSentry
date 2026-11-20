@@ -127,6 +127,11 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	}, getAssetProfile)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_enterprise_profile",
+		Description: "按企业（RootDomain.company）或根域聚合：旗下根域清单与子域/资产/URL/漏洞总量。",
+	}, getEnterpriseProfile)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "search_assets",
 		Description: "跨库检索：按关键词在子域、Web 资产、URL、漏洞、敏感信息里同时查找，返回每类命中数与样本。",
 	}, searchAssets)

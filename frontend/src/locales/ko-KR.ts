@@ -934,6 +934,8 @@ export default {
     hasPermission: '작업 권한 값을 설정하세요.'
   },
   dashboard: {
+    depOk: '정상',
+    depDown: '이상',
     serverHealth: '서버 상태',
     load: '부하',
     memAvailable: '가용 메모리',
@@ -1863,5 +1865,10 @@ export default {
     requestFailed: '요청에 실패했습니다.',
     networkError: '네트워크 오류',
     pluginFallback: '플러그인-{id}'
+  },
+  mcp: {
+    guideTitle: '클라이언트 연결',
+    copy: '복사',
+    copied: '복사됨',
   }
 }
