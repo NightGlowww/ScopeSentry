@@ -91,3 +91,55 @@ sg docker -c "docker logs --tail 100 scopesentry-scan"
 
 自测方式：临时放一个用 `computed()` 但没 import 的 .vue 到 `frontend/src/views/`，
 运行脚本应报 `Vue API: computed` 并返回 1。
+## 7. 外部集成（MCP / huntdeck）排障（2026-11-20）
+
+### 403 无原因 → 看响应头
+
+```
+X-ScopeSentry-Auth: API key is disabled
+X-ScopeSentry-Auth: API key has expired
+X-ScopeSentry-Auth: Invalid API key
+X-ScopeSentry-Auth: API key is required. Use X-API-Key header …
+```
+
+调用方（huntdeck）通常只打 HTTP 状态码，所以服务端把原因放进响应头，
+body 里也有 JSON-RPC error（`{"error":{"code":-32003,"message":"API key is disabled"}}`）。
+
+**关键**：key 被停用后，所有 `tools/call` 都是 403，看起来像「功能坏了」。
+检查 `api_key` 集合的 `enabled` 字段（`db.api_key.find({},{name:1,enabled:1})`）。
+
+### 队列满 → 用「迁移排队」而不是删任务
+
+单节点背压上限 5（`maxQueuedPerNode`）。积压后新派发被拒，报错形如：
+
+```
+节点 node-sh-01 队列已积压 5 个任务（上限 5），请等待当前任务完成后再提交
+```
+
+处理顺序：
+
+1. 节点页看各节点「队列」列，找空闲的
+2. 有积压节点 → 行操作「迁移排队」→ 选目标节点 → 只迁「待开始」的任务
+3. 三台都满 → 要么等，要么调低派发频率/每任务目标数
+
+对应接口：`POST /api/node/queue/rebalance {from,to,limit}`。
+
+### 让集成自己选空闲节点
+
+`list_nodes` 的返回里带两个字段：
+
+```json
+{ "recommended": "node-dev-02", "recommendedQueueLen": 0, "list": [...] }
+```
+
+客户端按 `recommended` 选节点，就不会一直往最忙的那台推。
+
+### 相关历史事故
+
+| 现象 | 根因 | 已修 |
+| --- | --- | --- |
+| 集成每分钟建一个任务，队列涨到 28 | 无创建频率限制 | 每分钟 10 个上限（v2.0.252） |
+| 同一任务在队列里出现 12 次 | 节点重复注册触发重复投递 | 投递前去重 + 加锁（v2.0.256） |
+| 403 但看不出原因 | 客户端只打状态码 | `X-ScopeSentry-Auth` 头（v2.0.264） |
+| 集成总往最忙节点推 | `list_nodes` 没有队列长度 | `recommended` 字段（v2.0.265） |
+| 队列堵死后只能手工改 Redis | 无迁移入口 | 节点页「迁移排队」（v2.0.267） |
