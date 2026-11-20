@@ -65,6 +65,8 @@ type Task struct {
 	Queued bool `bson:"-" json:"queued,omitempty"`
 	// CmdFail 本次任务期间外部工具失败次数（节点任务结束时上报）
 	CmdFail int64 `bson:"-" json:"cmdFail,omitempty"`
+	// QueuePos 在节点待领取队列中的位置（1 起，0 表示不在队列里）
+	QueuePos int `bson:"-" json:"queuePos,omitempty"`
 }
 
 // TaskProgress 任务进度模型

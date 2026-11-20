@@ -125,6 +125,9 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 
 	// 只给运行中的任务补「当前正在做什么」：长任务（目录扫描 7 分钟/目标）
 	// 只显示百分比会像卡死。运行中任务通常 1-2 个，N+1 查询可接受。
+	// 排队位置：任务在节点待领取队列里排第几（只对排队中的任务有意义）
+	queuePositions := s.taskRepo.TaskQueuePositions(ctx)
+
 	for i := range tasks {
 		// 工具失败数对所有任务都填：它是任务「结束后」才写回的，
 		// 只在运行中填等于永远看不到（2026-11-20 实测坑）。
@@ -139,6 +142,9 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		tasks[i].CurrentSince = since
 		// 没有任何活动但还在队列里 = 排队中（节点一次只跑一个任务）。
 		// 这类任务此前一直显示「运行中 0%」，让人误以为卡死。
+		if pos, ok := queuePositions[tasks[i].ID.Hex()]; ok {
+			tasks[i].QueuePos = pos
+		}
 		if mod == "" {
 			if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
 				tasks[i].Queued = true

@@ -80,6 +80,8 @@ type Repository interface {
 	TaskOutcome(ctx context.Context, taskName string) map[string]int64
 	// CountTasksCreatedSince 统计某时间之后创建的任务数
 	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
+	// TaskQueuePositions 任务在节点队列中的位置
+	TaskQueuePositions(ctx context.Context) map[string]int
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
 	CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string)
 	// 目标级暂停（issue #277）
@@ -519,4 +521,34 @@ func (r *repository) TaskOutcome(ctx context.Context, taskName string) map[strin
 // creatTime 是 "YYYY-MM-DD HH:MM:SS" 字符串，按字符串比较即可（同格式定长）。
 func (r *repository) CountTasksCreatedSince(ctx context.Context, since string) (int64, error) {
 	return r.db.Collection("task").CountDocuments(ctx, bson.M{"creatTime": bson.M{"$gte": since}})
+}
+
+// TaskQueuePositions 返回「任务 → 在节点待领取队列里的位置（1 起）」。
+// 队列是 Redis 列表 NodeTask:<node>，元素是任务 JSON（含 id 字段）。
+// 一次性把所有节点队列扫一遍，避免每个任务单查一次（2026-11-20）。
+func (r *repository) TaskQueuePositions(ctx context.Context) map[string]int {
+	out := map[string]int{}
+	keys, err := r.redisClient.Keys(ctx, "NodeTask:*").Result()
+	if err != nil {
+		return out
+	}
+	for _, key := range keys {
+		items, err := r.redisClient.LRange(ctx, key, 0, -1).Result()
+		if err != nil {
+			continue
+		}
+		for i, raw := range items {
+			var payload struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal([]byte(raw), &payload); err != nil || payload.ID == "" {
+				continue
+			}
+			// 同一个任务在多个节点队列里出现时取最靠前的位置
+			if prev, ok := out[payload.ID]; !ok || i+1 < prev {
+				out[payload.ID] = i + 1
+			}
+		}
+	}
+	return out
 }

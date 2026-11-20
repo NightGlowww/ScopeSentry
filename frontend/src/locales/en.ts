@@ -984,6 +984,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    queuePosHint: 'Queued ({n} ahead)',
     queueBacklog: '{n} task(s) queued (a node runs one task at a time)',
     elapsed: 'took',
     showAllModules: 'Show all modules',

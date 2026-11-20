@@ -135,9 +135,12 @@ const taskColums = reactive<TableColumn[]>([
       const mod = row.currentModule as string
       // 排队中：任务在节点队列里等，还没真正开跑（节点一次只跑一个任务）
       if (row.status === 1 && row.queued) {
+        // 排队位置：知道「前面还有几个」比单纯「排队中」有用得多
+        const pos = Number(row.queuePos) || 0
+        const hint = pos > 1 ? t('task.queuePosHint', { n: pos - 1 }) : t('task.queuedHint')
         return h('div', { class: 'progress-cell' }, [
           bar,
-          h('div', { class: 'progress-sub queued' }, t('task.queuedHint'))
+          h('div', { class: 'progress-sub queued' }, hint)
         ])
       }
       // 本次任务期间外部工具失败：直接标在进度下方，产出可信度一眼可见
