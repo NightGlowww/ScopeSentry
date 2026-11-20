@@ -49,6 +49,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { getProjectAllApi } from '@/api/project'
 import { getNodeDataApi } from '@/api/node'
 import { exportTaskApi } from '@/api/export'
+import { moduleStageLabel } from '@/utils/scanModules'
 import { deleteTaskByFilterApi } from '@/api/task'
 const { push } = useRouter()
 const searchicon = useIcon({ icon: 'iconoir:search' })
@@ -141,7 +142,7 @@ const taskColums = reactive<TableColumn[]>([
       }
       return h('div', { class: 'progress-cell' }, [
         bar,
-        h('div', { class: 'progress-sub' }, mod + ' @ ' + (row.currentTarget || '-') + elapsed)
+        h('div', { class: 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed)
       ])
     }
   },
