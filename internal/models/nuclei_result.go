@@ -15,6 +15,8 @@ type NucleiResultListRequest struct {
 	Keyword    string `json:"keyword" form:"keyword" binding:"max=255"`
 	// TaskName 按任务名筛选（扫描落库时带 taskName）
 	TaskName string `json:"taskName" form:"taskName" binding:"max=255"`
+	// Host 按主机名筛选：漏洞文档只存 url，用 url 正则匹配
+	Host string `json:"host" form:"host" binding:"max=255"`
 	// Status 处置状态过滤：0=全部，1未处理 2处理中 3忽略 4疑似 5确认 6已处理
 	Status    int `json:"status" form:"status" binding:"omitempty,min=0,max=6"`
 	PageIndex int `json:"pageIndex" form:"pageIndex" binding:"omitempty,min=0"`

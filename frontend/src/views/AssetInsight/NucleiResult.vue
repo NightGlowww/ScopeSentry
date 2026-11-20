@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { reactive, ref, h, computed } from 'vue'
+import { reactive, ref, h, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ElButton,
@@ -72,6 +72,12 @@ const goHostAssets = () => {
   drawerVisible.value = false
 }
 
+const clearHost = () => {
+  hostFilter.value = ''
+  router.replace({ path: route.path, query: route.query.taskName ? { taskName: route.query.taskName } : {} })
+  handleSearch()
+}
+
 const goTask = () => {
   router.push({ path: '/task-management/ScanTask', query: { search: taskNameFilter.value } })
 }
@@ -82,6 +88,7 @@ const loadStatusStats = async () => {
       project: project.value,
       severity: severity.value,
       taskName: taskNameFilter.value.trim(),
+      host: hostFilter.value.trim(),
       status: 0
     })
     statusStats.value = res?.data || {}
@@ -94,6 +101,21 @@ const loadStatusStats = async () => {
 const route = useRoute()
 const router = useRouter()
 const taskNameFilter = ref((route.query.taskName as string) || '')
+// 从资产页「看该主机漏洞」跳过来时带 host
+const hostFilter = ref((route.query.host as string) || '')
+// 页面是 keep-alive 的：再次带 query 进来时 ref 不会重建，必须监听 query 变化
+watch(
+  () => [route.query.taskName, route.query.host],
+  ([t, h]) => {
+    const nextTask = (t as string) || ''
+    const nextHost = (h as string) || ''
+    if (nextTask === taskNameFilter.value && nextHost === hostFilter.value) return
+    taskNameFilter.value = nextTask
+    hostFilter.value = nextHost
+    currentPage.value = 1
+    getList()
+  }
+)
 const templateId = ref('')
 const keyword = ref('')
 
@@ -162,6 +184,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
       severity: severity.value,
       status: statusFilter.value || 0,
       taskName: taskNameFilter.value.trim(),
+      host: hostFilter.value.trim(),
       templateId: templateId.value.trim(),
       keyword: keyword.value.trim(),
       pageIndex: currentPage.value,
@@ -324,6 +347,14 @@ const rowStyle = () => ({ cursor: 'pointer' })
       </ElCol>
       <ElCol :span="4">
         <ElInput
+          v-model="hostFilter"
+          :placeholder="t('nucleiResult.filterByHost')"
+          clearable
+          @keyup.enter="handleSearch"
+        />
+      </ElCol>
+      <ElCol :span="4">
+        <ElInput
           v-model="taskNameFilter"
           :placeholder="t('nucleiResult.filterByTask')"
           clearable
@@ -345,6 +376,12 @@ const rowStyle = () => ({ cursor: 'pointer' })
         <ElButton @click="handleReset">{{ t('common.reset') }}</ElButton>
       </ElCol>
     </ElRow>
+
+    <div v-if="hostFilter" class="task-link-bar">
+      <span class="task-link-label">{{ t('nucleiResult.filteredByHost') }}</span>
+      <ElTag type="warning" effect="plain" size="small">{{ hostFilter }}</ElTag>
+      <ElButton link type="primary" size="small" @click="clearHost">{{ t('nucleiResult.clearHost') }}</ElButton>
+    </div>
 
     <div v-if="taskNameFilter" class="task-link-bar">
       <span class="task-link-label">{{ t('nucleiResult.filteredByTask') }}</span>

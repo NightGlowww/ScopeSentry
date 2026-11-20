@@ -129,6 +129,11 @@ func BuildListFilter(req models.NucleiResultListRequest) bson.M {
 		conds = append(conds, bson.M{"taskName": bson.M{"$regex": regexp.QuoteMeta(taskName), "$options": "i"}})
 	}
 
+	// 按主机筛选：漏洞只存 url，用 url 包含主机名来匹配（资产页「看该主机漏洞」用）
+	if host := strings.TrimSpace(req.Host); host != "" {
+		conds = append(conds, bson.M{"url": bson.M{"$regex": regexp.QuoteMeta(host), "$options": "i"}})
+	}
+
 	if templateID := strings.TrimSpace(req.TemplateID); templateID != "" {
 		conds = append(conds, bson.M{"vulnid": primitive.Regex{
 			Pattern: regexp.QuoteMeta(templateID),

@@ -376,6 +376,9 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    filterByHost: 'Filter by host (domain/IP)',
+    filteredByHost: 'Filtered by host',
+    clearHost: 'Clear host filter',
     viewHostAssets: 'View host assets',
     filteredByTask: 'Filtered by task',
     backToTask: 'Back to task',

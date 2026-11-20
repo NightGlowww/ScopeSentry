@@ -373,6 +373,9 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    filterByHost: '호스트로 필터(도메인/IP)',
+    filteredByHost: '호스트 기준 필터',
+    clearHost: '호스트 필터 지우기',
     viewHostAssets: '호스트 자산 보기',
     filteredByTask: '작업 기준 필터',
     backToTask: '작업으로 돌아가기',

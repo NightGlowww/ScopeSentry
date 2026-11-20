@@ -366,6 +366,9 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    filterByHost: '按主机筛选（域名/IP）',
+    filteredByHost: '筛选自主机',
+    clearHost: '清除主机筛选',
     viewHostAssets: '查看该主机资产',
     filteredByTask: '筛选自任务',
     backToTask: '返回该任务',
