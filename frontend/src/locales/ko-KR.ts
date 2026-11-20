@@ -976,6 +976,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    listRefreshHint: '10초마다 자동 새로고침 · {t} 업데이트',
+    refreshJustNow: '방금',
     queuePosHint: '대기 중 (앞에 {n}개)',
     queueBacklog: '{n}개 작업이 대기 중입니다 (노드는 한 번에 하나만 실행)',
     elapsed: '소요',

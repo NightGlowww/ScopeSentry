@@ -953,6 +953,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    listRefreshHint: '每 10 秒自动刷新 · 更新于 {t}',
+    refreshJustNow: '刚刚',
     queuePosHint: '排队中（前面还有 {n} 个）',
     queueBacklog: '有 {n} 个任务在排队（节点一次只跑一个任务，后面的要等）',
     elapsed: '耗时',

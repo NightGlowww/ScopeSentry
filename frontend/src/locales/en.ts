@@ -984,6 +984,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    listRefreshHint: 'Auto-refresh every 10s · updated {t}',
+    refreshJustNow: 'just now',
     queuePosHint: 'Queued ({n} ahead)',
     queueBacklog: '{n} task(s) queued (a node runs one task at a time)',
     elapsed: 'took',

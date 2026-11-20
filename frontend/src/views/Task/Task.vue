@@ -466,12 +466,19 @@ const progresscloseDialog = () => {
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = tableState
+    // 表格自己发起的首次加载也走这里：时间戳必须在这一层更新，
+    // 否则只包 getList() 时首屏永远是「刚刚」（2026-11-20 实测）。
+    lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
     const res = await getTaskDataApi(
       search.value,
       currentPage.value,
       pageSize.value,
       statusFilter.value >= 0 ? statusFilter.value : undefined
     )
+    // 首次加载完也要评估是否该起自动刷新：
+    // 之前只在 getList() 包装里调 syncAutoList()，而表格首屏走的是这里，
+    // 导致有运行中任务时也不会自动刷新（2026-11-20 实测）。
+    setTimeout(() => syncAutoList(), 0)
     return {
       list: res.data.list,
       total: res.data.total
@@ -506,6 +513,8 @@ const loadNodeHealth = async () => {
 // 列表自动刷新：有任务在跑时每 10 秒静默刷新一次，
 // 用户不用反复点刷新按钮也能看到进度变化；全部结束后自动停止。
 const autoListTimer = ref<ReturnType<typeof setInterval> | null>(null)
+// 上次刷新时间：静默自动刷新时用户看不出数据是新的还是卡住了
+const lastRefreshAt = ref('')
 const hasRunning = computed(() =>
   (dataList.value || []).some((t: any) => t.status === 0 || t.status === 1)
 )
@@ -517,7 +526,7 @@ const syncAutoList = () => {
   if (hasRunning.value) {
     autoListTimer.value = setInterval(async () => {
       try {
-        await rawGetList()
+        await getList()
       } catch {
         // 静默：失败下一轮再试
       }
@@ -535,6 +544,8 @@ onUnmounted(() => {
 // 每次刷新列表后重置选择状态，避免"按钮可点但选中为空"
 const getList = async () => {
   const r = await rawGetList()
+  // 任何一次刷新（手动/自动）都更新时间戳
+  lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
   resetSelection()
   syncAutoList()
   // 顺手刷新节点健康度：页面被 keep-alive 缓存时 onMounted 不会再跑，
@@ -969,6 +980,9 @@ const setMaxHeight = () => {
         style="margin-bottom: 10px"
         :title="t('task.queueBacklog', { n: queuedTotal })"
       />
+      <div v-if="hasRunning" class="refresh-hint">
+        {{ t('task.listRefreshHint', { t: lastRefreshAt || t('task.refreshJustNow') }) }}
+      </div>
       <Table
         :tooltip-options="{
           offset: 1,
@@ -1048,6 +1062,12 @@ const setMaxHeight = () => {
 </template>
 
 <style scoped>
+.refresh-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 6px;
+}
+
 .time-cell__dur {
   font-size: 11px;
   color: var(--el-text-color-secondary);
