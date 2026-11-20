@@ -1896,6 +1896,7 @@ export default {
     pluginFallback: 'Plugin-{id}'
   },
   mcp: {
+    autoRefreshFollower: 'Another tab is refreshing; this one stays quiet',
     autoRefresh: 'Auto-refresh the call stream every 8s',
     refreshNow: 'Refresh now',
     promptTitle: 'Prompt templates',

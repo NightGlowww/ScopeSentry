@@ -1872,6 +1872,7 @@ export default {
     pluginFallback: '플러그인-{id}'
   },
   mcp: {
+    autoRefreshFollower: '다른 탭이 새로고침 중입니다(이 탭은 대기)',
     autoRefresh: '8초마다 호출 스트림 자동 새로고침',
     refreshNow: '지금 새로고침',
     promptTitle: '프롬프트 템플릿',

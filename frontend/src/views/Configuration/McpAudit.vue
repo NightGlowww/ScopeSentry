@@ -22,6 +22,7 @@ import { useTable } from '@/hooks/web/useTable'
 import { getMcpLogsApi, exportMcpLogsApi, getMcpConfigApi, updateMcpConfigApi } from '@/api/mcp'
 import { useUserStore } from '@/store/modules/user'
 import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import { formatTime } from '@/utils'
 
 const { t } = useI18n()
@@ -275,11 +276,17 @@ const copyGuide = async (c: { name: string; body: string }) => {
 // 审计是「看发生了什么」的页面，手动点刷新会错过突发调用（2026-11-21）。
 const autoRefresh = ref(true)
 const lastRefreshAt = ref('')
+// 多标签页只让一个轮询（其余标签显示「其他标签页正在刷新」），避免请求叠加
+const { isLeader } = useSingleTabLeader('mcp-audit')
 const stampNow = () => {
   lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }
 useVisibleInterval(() => {
   if (!autoRefresh.value) return
+  if (!isLeader.value) {
+    // 让位：另一个标签页在刷，这里不重复请求
+    return
+  }
   getList()
   stampNow()
 }, 8000)
@@ -361,7 +368,10 @@ const handleExport = async () => {
     <div class="stream-bar">
       <ElSwitch v-model="autoRefresh" size="small" />
       <span class="stream-hint">
-        {{ t('mcp.autoRefresh') }}{{ lastRefreshAt ? ' · ' + t('task.listRefreshHintShort', { t: lastRefreshAt }) : '' }}
+        <template v-if="!isLeader">{{ t('mcp.autoRefreshFollower') }}</template>
+        <template v-else>
+          {{ t('mcp.autoRefresh') }}{{ lastRefreshAt ? ' · ' + t('task.listRefreshHintShort', { t: lastRefreshAt }) : '' }}
+        </template>
       </span>
       <ElButton link type="primary" size="small" @click="getList(); stampNow()">
         {{ t('mcp.refreshNow') }}

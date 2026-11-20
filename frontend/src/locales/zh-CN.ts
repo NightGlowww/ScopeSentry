@@ -1849,6 +1849,7 @@ export default {
   },
 
   mcp: {
+    autoRefreshFollower: '另一个标签页正在刷新（本页暂停轮询）',
     autoRefresh: '每 8 秒自动刷新调用流',
     refreshNow: '立即刷新',
     promptTitle: '提示词模板',
