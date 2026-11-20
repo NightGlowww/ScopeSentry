@@ -278,13 +278,16 @@ func (s *service) CreateTaskScan(ctx context.Context, task models.Task, id strin
 		// 同前缀占用检查（见上）：队列里已有 maxPerPrefix 个同前缀任务就拒绝
 		if namePrefix != "" {
 			if same, cerr := s.taskRepo.CountQueuedByPrefix(ctx, n, namePrefix); cerr == nil && same >= maxPerPrefix {
+				bumpReject(RejectPrefix)
 				return 0, fmt.Errorf("节点 %s 队列里已有 %d 个「%s*」任务（上限 %d），为避免单一来源占满队列，请稍后再提交或换节点", n, same, namePrefix, maxPerPrefix)
 			}
 		}
 		if mem := nodeMem[n]; mem >= containerMemLimit && nodeRunning[n] >= 1 {
+			bumpReject(RejectMemory)
 			return 0, fmt.Errorf("节点 %s 容器内存已用 %.1f%%（接近上限）且正在执行任务，为避免压死节点本次不派发；可换节点或等当前任务结束", n, mem)
 		}
 		if q, qerr := s.taskRepo.NodeQueueLen(ctx, n); qerr == nil && q >= int64(maxQueuedPerNode) {
+			bumpReject(RejectQueue)
 			return 0, fmt.Errorf("节点 %s 队列已积压 %d 个任务（上限 %d），请等待当前任务完成后再提交", n, q, maxQueuedPerNode)
 		}
 		template.Target = ""

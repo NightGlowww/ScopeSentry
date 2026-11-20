@@ -920,6 +920,12 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    rejectTitle: '派发被拒（自启动起）',
+    rejectPrefix: '前缀占满',
+    rejectQueue: '队列满',
+    rejectMem: '内存高',
+    rejectRate: '限流',
+    rejectName: '重名',
     throttling: '降压中：{names}（容器内存高，并发已下调，已跑的任务不打断）',
     containerMem: '容器 {n}%',
     heartbeatDelayed: '心跳稍有延迟（仍在运行）',

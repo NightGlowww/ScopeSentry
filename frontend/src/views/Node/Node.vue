@@ -14,6 +14,7 @@ import { BaseButton } from '@/components/Button'
 import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
 import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi } from '@/api/node'
+import { getDispatchRejectStatsApi } from '@/api/task'
 const { t } = useI18n()
 // 离线原因推断：把「最后心跳多久前」翻译成可行动的判断
 const offlineReason = (row: any, state: string): string => {
@@ -257,6 +258,30 @@ const healedTargets = computed(() => {
 // 用 10 分钟窗口——节点本来就按这个粒度上报 cmdFail10m。
 // 降压中：节点因容器内存高把并发降下来了，但已经在跑的任务不会被打断，
 // 所以会出现「并发上限 1、当前在跑 2」。这不是异常，界面上要说清楚（2026-11-20）。
+// 派发拒绝统计：外部集成反复撞闸时一眼看出来（进程内累计，重启归零）
+const rejectStats = ref<Record<string, number>>({})
+const loadRejectStats = async () => {
+  try {
+    const res: any = await getDispatchRejectStatsApi()
+    rejectStats.value = res?.data || {}
+  } catch {
+    rejectStats.value = {}
+  }
+}
+const rejectSummary = computed(() => {
+  const s = rejectStats.value || {}
+  const label: Record<string, string> = {
+    prefix_quota: t('node.rejectPrefix'),
+    queue_full: t('node.rejectQueue'),
+    container_mem: t('node.rejectMem'),
+    rate_limited: t('node.rejectRate'),
+    name_exists: t('node.rejectName')
+  }
+  return Object.keys(label)
+    .filter((k) => (s[k] || 0) > 0)
+    .map((k) => label[k] + ' ' + s[k])
+})
+
 const throttledNodes = computed(() =>
   (dataList.value || []).filter((n: any) => {
     const max = Number(n.maxTaskNum) || 0
@@ -348,6 +373,8 @@ const clearQueue = async (name: string) => {
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const res = await getNodeDataApi()
+    // 顺带刷新「派发被拒」统计：它和节点列表一起看才有意义
+    loadRejectStats()
     return {
       list: res.data.list
     }
@@ -523,6 +550,18 @@ const closepluginDialogVisible = () => {
       </BaseButton>
     </div>
     <div>
+      <div v-if="rejectSummary.length" class="node-health">
+        <ElTag type="info" size="small" effect="plain">
+          {{ t('node.rejectTitle') }}：{{ rejectSummary.join(' · ') }}
+        </ElTag>
+      </div>
+
+      <div v-if="rejectSummary.length" class="node-health">
+        <ElTag type="info" size="small" effect="plain">
+          {{ t('node.rejectTitle') }}：{{ rejectSummary.join(' · ') }}
+        </ElTag>
+      </div>
+
       <div v-if="throttledNodes.length" class="node-health">
         <ElTag type="warning" size="small" effect="plain">
           {{ t('node.throttling', { names: throttledNodes.map((n: any) => n.name).join(' · ') }) }}

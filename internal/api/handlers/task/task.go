@@ -406,3 +406,9 @@ func DeleteByFilter(c *gin.Context) {
 	}
 	response.Success(c, map[string]interface{}{"deleted": n}, "api.success")
 }
+
+// DispatchRejectStats 返回各道派发闸门的拒绝次数（进程内累计，重启归零）。
+// 用途：外部集成反复撞闸时一眼看出来，不用翻日志。
+func DispatchRejectStats(c *gin.Context) {
+	response.Success(c, common.RejectStats(), "api.success")
+}

@@ -943,6 +943,12 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    rejectTitle: '발송 거부(시작 이후)',
+    rejectPrefix: '접두사 한도',
+    rejectQueue: '대기열 가득',
+    rejectMem: '메모리 높음',
+    rejectRate: '속도 제한',
+    rejectName: '이름 중복',
     throttling: '감속 중: {names} (컨테이너 메모리 높음, 동시성 하향)',
     containerMem: '컨테이너 {n}%',
     heartbeatDelayed: '하트비트 지연(계속 실행 중)',

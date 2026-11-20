@@ -951,6 +951,12 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    rejectTitle: 'Dispatch rejected (since start)',
+    rejectPrefix: 'prefix quota',
+    rejectQueue: 'queue full',
+    rejectMem: 'high memory',
+    rejectRate: 'rate limited',
+    rejectName: 'duplicate name',
     throttling: 'Throttling: {names} (container memory high; concurrency lowered, running tasks continue)',
     containerMem: 'container {n}%',
     heartbeatDelayed: 'heartbeat slightly late (still running)',

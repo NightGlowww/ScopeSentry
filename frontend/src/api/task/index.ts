@@ -18,9 +18,10 @@ export const getTaskDataApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  status?: number
+  status?: number,
+  node?: string
 ): Promise<IResponse<TaskDataResponse>> => {
-  return request.post({ url: '/api/task/', data: { search, pageIndex, pageSize, status } })
+  return request.post({ url: '/api/task/', data: { search, pageIndex, pageSize, status, node } })
 }
 
 export const stopTaskApi = (ids: string[]): Promise<IResponse<TaskDataResponse>> => {
@@ -346,3 +347,7 @@ export const deleteTaskByFilterApi = (
   status?: number
 ): Promise<IResponse<any>> =>
   request.post({ url: '/api/task/deleteByFilter', data: { search, pageIndex: 1, pageSize: 10, status } })
+
+// 各道派发闸门的拒绝次数（进程内累计，重启归零）
+export const getDispatchRejectStatsApi = (): Promise<IResponse<Record<string, number>>> =>
+  request.post({ url: '/api/task/dispatch-stats', data: {} })
