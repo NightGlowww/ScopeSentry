@@ -203,10 +203,34 @@ const taskColums = reactive<TableColumn[]>([
           }
         }
       }
+      // 粗估剩余时间：progress ≥ 5% 且有创建时间才算，否则不出（避免「约剩 0 分钟」这类噪音）
+      let etaText = ''
+      const prog = Number(row.progress) || 0
+      if (prog >= 5 && row.creatTime) {
+        const started = new Date(String(row.creatTime).replace(/-/g, '/')).getTime()
+        const usedMs = Date.now() - started
+        if (usedMs > 5 * 60000) {
+          const remainMs = (usedMs * (100 - prog)) / prog
+          const remainMin = Math.round(remainMs / 60000)
+          if (remainMin >= 1 && remainMin <= 24 * 60) {
+            const hPart = Math.floor(remainMin / 60)
+            const mPart = remainMin % 60
+            etaText =
+              hPart > 0
+                ? t('task.etaHours', { h: hPart, m: mPart })
+                : t('task.etaMinutes', { m: mPart })
+          }
+        }
+      }
       return h('div', { class: 'progress-cell' }, [
         bar,
         failLine,
         h('div', { class: slow ? 'progress-sub progress-sub--slow' : 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed),
+        // 预计剩余：按「已用时间 ÷ 已完成比例」线性外推。
+        // 百分比本身回答不了「还要多久」，这是最常见的追问（2026-11-21）。
+        etaText
+          ? h('div', { class: 'progress-sub progress-sub--dim' }, etaText)
+          : null,
         // 目标进度：光看百分比不知道「一共多少个目标、现在第几个」
         (row.taskNum as number) > 0
           ? h(

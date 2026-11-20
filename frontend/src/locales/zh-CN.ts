@@ -1000,6 +1000,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    etaMinutes: '约剩 {m} 分钟',
+    etaHours: '约剩 {h} 小时 {m} 分',
     node: '节点',
     allNodes: '全部节点',
     listRefreshHintShort: '更新于 {t}',

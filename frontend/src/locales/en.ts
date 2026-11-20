@@ -1031,6 +1031,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    etaMinutes: '~{m} min left',
+    etaHours: '~{h}h {m}m left',
     node: 'Node',
     allNodes: 'all nodes',
     listRefreshHintShort: 'updated {t}',

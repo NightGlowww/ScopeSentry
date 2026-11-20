@@ -1023,6 +1023,8 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    etaMinutes: '약 {m}분 남음',
+    etaHours: '약 {h}시간 {m}분 남음',
     node: '노드',
     allNodes: '모든 노드',
     listRefreshHintShort: '{t} 업데이트',
