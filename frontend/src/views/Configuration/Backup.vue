@@ -54,7 +54,11 @@ const loadStatus = async () => {
 
 const startPolling = () => {
   stopPolling()
-  timer = window.setInterval(loadStatus, 2500)
+  // 后台标签页不轮询：备份可能要几分钟，用户切走后没必要一直打接口
+  timer = window.setInterval(() => {
+    if (document.hidden) return
+    loadStatus()
+  }, 2500)
 }
 
 const stopPolling = () => {

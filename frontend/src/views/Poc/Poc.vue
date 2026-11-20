@@ -331,6 +331,8 @@ const startImportPoll = () => {
   let sawRunning = false
   let attempts = 0
   importTimer = setInterval(async () => {
+    // 后台标签页先不查：导入跑完与否不依赖这里，回来会立刻补一次
+    if (document.hidden) return
     attempts++
     try {
       const res: any = await getImportStatusApi()

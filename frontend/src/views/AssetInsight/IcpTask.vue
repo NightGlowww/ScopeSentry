@@ -476,6 +476,7 @@ const stopPoll = () => {
 const startPoll = () => {
   stopPoll()
   pollTimer = window.setInterval(async () => {
+    if (document.hidden) return
     if (!drawerVisible.value || !currentTask.value) {
       stopPoll()
       return
