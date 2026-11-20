@@ -152,8 +152,16 @@ func handleMessage(ctx context.Context, payload string) error {
 	return nil
 }
 
+// checkNodeTaskMu 串行化 checkNodeTask：
+// 节点启动时可能连续产生多条 Register Success，并发执行会让每个调用都在
+// 「队列还是空的」时刻读到同样的状态，于是同一个任务被推 3 次（2026-11-20 实测）。
+// 加锁后再做队列去重才真正有效。
+var checkNodeTaskMu sync.Mutex
+
 // checkNodeTask 检查节点任务并推送任务数据
 func checkNodeTask(ctx context.Context, nodeName string) error {
+	checkNodeTaskMu.Lock()
+	defer checkNodeTaskMu.Unlock()
 	// 查询未完成且处于待开始/运行中的任务。
 	// 待开始（0）的任务同样需要推送给节点，否则节点上线后永远领不到任务。见 issue #288。
 	filter := bson.M{
@@ -184,8 +192,27 @@ func checkNodeTask(ctx context.Context, nodeName string) error {
 	// 获取任务服务
 	taskService := common.NewService()
 
+	// 去重：节点每次上报 Register Success 都会走到这里，
+	// 不去重就会把同一任务重复塞进队列（2026-11-20 实测一个任务被推了 12 次，
+	// 队列 28 条里只有 9 个不同任务，既浪费 Redis 也让「排队数」失真）。
+	alreadyQueued := map[string]bool{}
+	nodeTaskKey := fmt.Sprintf("NodeTask:%s", nodeName)
+	if items, lerr := redisdb.Client.LRange(ctx, nodeTaskKey, 0, -1).Result(); lerr == nil {
+		for _, raw := range items {
+			var payload struct {
+				ID string `json:"id"`
+			}
+			if json.Unmarshal([]byte(raw), &payload) == nil && payload.ID != "" {
+				alreadyQueued[payload.ID] = true
+			}
+		}
+	}
+
 	// 处理每个任务
 	for _, taskDoc := range tasks {
+		if alreadyQueued[taskDoc.ID.Hex()] {
+			continue
+		}
 		// 获取任务模板数据
 		scanTemplate, err := taskService.GetScanTemplate(context.Background(), &taskDoc)
 		if err != nil {
@@ -200,8 +227,7 @@ func checkNodeTask(ctx context.Context, nodeName string) error {
 			continue
 		}
 
-		// 推送到 Redis
-		nodeTaskKey := fmt.Sprintf("NodeTask:%s", nodeName)
+		// 推送到 Redis（nodeTaskKey 已在循环外算好）
 		if err := redisdb.Client.RPush(ctx, nodeTaskKey, taskDataJSON).Err(); err != nil {
 			logger.Error("Failed to push node task", zap.String("node", nodeName), zap.Error(err))
 			continue
