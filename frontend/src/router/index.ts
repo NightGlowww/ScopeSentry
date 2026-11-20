@@ -44,6 +44,17 @@ export const constantRouterMap: AppRouteRecordRaw[] = [
       noTagsView: true
     }
   },
+  // 常见首页别名：直接输 /index、/home 时不应该看到 404（2026-11-20 实测踩到）
+  {
+    path: '/index',
+    redirect: '/dashboard/index',
+    meta: { hidden: true }
+  },
+  {
+    path: '/home',
+    redirect: '/dashboard/index',
+    meta: { hidden: true }
+  },
   {
     path: '/404',
     component: () => import('@/views/Error/404.vue'),
