@@ -29,6 +29,7 @@ eval({ tabId, expression: <scripts/ui-smoke/result-page.js 的内容> })
 | `task-page.js` | 任务列表 | 工具栏按钮齐全、状态筛选存在、列表有数据、新建弹窗可打开 |
 | `result-page.js` | 漏洞结果 | 处置进度条有数字、按任务筛选框、行点击打开详情且含 POC 模板、批量按钮 |
 | `node-page.js` | 节点管理 | 「工具失败」「队列」列存在、节点非空、日志弹窗打开、错误摘要块、行数计数 |
+| `task-vuln-loop.js` | 任务 ↔ 结果 闭环 | 产出栏出现、漏洞标签可点、跳转带 taskName、结果页显示来源、返回带 search |
 
 ## 最近一次实测（2026-11-20, 2.0.226）
 
