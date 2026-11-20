@@ -959,6 +959,11 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    outcome: '산출물',
+    outSubdomain: '서브도메인',
+    outUrl: 'URL',
+    outAsset: '자산',
+    outVuln: '취약점',
     deleteFilter: '필터로 삭제',
     deleteFilterNeedCond: '먼저 검색어나 상태를 지정하세요',
     deleteFilterSearch: '(검색: {q})',

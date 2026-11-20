@@ -967,6 +967,11 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    outcome: 'Outcome',
+    outSubdomain: 'Subdomains',
+    outUrl: 'URLs',
+    outAsset: 'Assets',
+    outVuln: 'Vulnerabilities',
     deleteFilter: 'Delete by filter',
     deleteFilterNeedCond: 'Enter a keyword or pick a status first',
     deleteFilterSearch: '(keyword: {q})',

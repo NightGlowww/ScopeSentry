@@ -76,6 +76,8 @@ type Repository interface {
 	NodeQueueLen(ctx context.Context, node string) (int64, error)
 	// TaskCmdFail 任务期间工具失败总数
 	TaskCmdFail(ctx context.Context, taskID string) int64
+	// TaskOutcome 任务产出统计（按任务名计数）
+	TaskOutcome(ctx context.Context, taskName string) map[string]int64
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
 	CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string)
 	// 目标级暂停（issue #277）
@@ -484,4 +486,29 @@ func (r *repository) TaskCmdFail(ctx context.Context, taskID string) int64 {
 		}
 	}
 	return total
+}
+
+// TaskOutcome 统计某个任务名在各集合里的产出数量（任务详情页用）。
+// 走 taskName 索引；集合缺字段或不存在时按 0 处理，不阻断页面。
+func (r *repository) TaskOutcome(ctx context.Context, taskName string) map[string]int64 {
+	out := map[string]int64{"subdomain": 0, "url": 0, "asset": 0, "vulnerability": 0}
+	if strings.TrimSpace(taskName) == "" {
+		return out
+	}
+	specs := []struct {
+		key  string
+		coll string
+	}{
+		{"subdomain", "subdomain"},
+		{"url", "UrlScan"},
+		{"asset", "asset"},
+		{"vulnerability", "vulnerability"},
+	}
+	for _, s := range specs {
+		n, err := r.db.Collection(s.coll).CountDocuments(ctx, bson.M{"taskName": taskName})
+		if err == nil {
+			out[s.key] = n
+		}
+	}
+	return out
 }

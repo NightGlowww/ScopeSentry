@@ -424,6 +424,8 @@ func (s *service) GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pa
 		// 任务期间外部工具失败次数：弹窗顶部据此显示红色告警。
 		// 走接口返回而不是前端从列表行传参，避免 keep-alive 缓存导致的陈旧值。
 		"cmdFail": s.taskRepo.TaskCmdFail(ctx, taskID),
+		// 任务产出统计：任务结束点开详情能直接看到战果
+		"outcome": s.taskRepo.TaskOutcome(ctx, task.Name),
 	}, nil
 }
 

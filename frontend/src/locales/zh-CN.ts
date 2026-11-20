@@ -936,6 +936,11 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    outcome: '产出',
+    outSubdomain: '子域',
+    outUrl: 'URL',
+    outAsset: '资产',
+    outVuln: '漏洞',
     deleteFilter: '按筛选删除',
     deleteFilterNeedCond: '需先输入搜索词或选择状态',
     deleteFilterSearch: '（搜索：{q}）',

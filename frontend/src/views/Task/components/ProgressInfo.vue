@@ -423,6 +423,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
     const res = await getTaskProgressApi(props.getProgressInfoID, currentPage.value, pageSize.value)
     // 顺带取任务级工具失败数（接口已返回），不再依赖父组件传参
     cmdFail.value = (res.data as any).cmdFail || 0
+    outcome.value = (res.data as any).outcome || {}
     return {
       total: res.data.total,
       list: res.data.list
@@ -456,7 +457,10 @@ const toggleTarget = async (row: Recordable) => {
 
 // 自动刷新：任务进度是动态的，弹窗打开期间每 5 秒静默刷新一次，
 // 用户不用手动点、也看不到整表闪白（Table 的 loading 只在新查询时置位）。
+const outcomeLabels: Record<string, string> = { subdomain: t("task.outSubdomain"), url: t("task.outUrl"), asset: t("task.outAsset"), vulnerability: t("task.outVuln") }
 const cmdFail = ref(0)
+// 任务产出统计（子域/URL/资产/漏洞）
+const outcome = ref<Record<string, number>>({})
 const lastRefresh = ref('')
 const autoRefresh = ref(true)
 let timer: ReturnType<typeof setInterval> | null = null
@@ -507,6 +511,12 @@ onUnmounted(stopAuto)
     style="margin-bottom: 8px"
     :title="t('task.cmdFailBanner', { n: cmdFail })"
   />
+  <div v-if="Object.values(outcome).some(v => v > 0)" class="outcome-bar">
+    <span class="outcome-title">{{ t("task.outcome") }}</span>
+    <ElTag v-for="(label, key) in outcomeLabels" :key="key" v-show="(outcome as any)[key]" size="small" type="info" effect="plain">
+      {{ label }} {{ (outcome as any)[key] }}
+    </ElTag>
+  </div>
   <div class="progress-hint">
     <span class="hint-text">
       {{ t('task.autoRefreshHint') }}
