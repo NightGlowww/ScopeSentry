@@ -920,6 +920,7 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    throttling: '降压中：{names}（容器内存高，并发已下调，已跑的任务不打断）',
     containerMem: '容器 {n}%',
     heartbeatDelayed: '心跳稍有延迟（仍在运行）',
     healPending: '已迁移 {n} 个任务，但 {name} 未响应重启指令（多半被压住），请在主机上手工 docker restart scopesentry-scan',

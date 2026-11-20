@@ -943,6 +943,7 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    throttling: '감속 중: {names} (컨테이너 메모리 높음, 동시성 하향)',
     containerMem: '컨테이너 {n}%',
     heartbeatDelayed: '하트비트 지연(계속 실행 중)',
     healPending: '{n}개 작업을 이동했지만 {name} 이(가) 재시작 명령에 응답하지 않았습니다. 호스트에서 직접 docker restart scopesentry-scan 하세요',

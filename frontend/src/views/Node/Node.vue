@@ -255,6 +255,16 @@ const healedTargets = computed(() => {
 })
 // 节点健康一眼可见：只看「在线/离线」会漏掉「在线但工具一直在失败」。
 // 用 10 分钟窗口——节点本来就按这个粒度上报 cmdFail10m。
+// 降压中：节点因容器内存高把并发降下来了，但已经在跑的任务不会被打断，
+// 所以会出现「并发上限 1、当前在跑 2」。这不是异常，界面上要说清楚（2026-11-20）。
+const throttledNodes = computed(() =>
+  (dataList.value || []).filter((n: any) => {
+    const max = Number(n.maxTaskNum) || 0
+    const run = Number(n.running) || 0
+    return max > 0 && run > max
+  })
+)
+
 const healthSummary = computed(() => {
   const list = dataList.value || []
   if (!list.length) return null
@@ -513,6 +523,12 @@ const closepluginDialogVisible = () => {
       </BaseButton>
     </div>
     <div>
+      <div v-if="throttledNodes.length" class="node-health">
+        <ElTag type="warning" size="small" effect="plain">
+          {{ t('node.throttling', { names: throttledNodes.map((n: any) => n.name).join(' · ') }) }}
+        </ElTag>
+      </div>
+
       <div v-if="healthSummary" class="node-health">
         <ElTag v-if="healthSummary.offline > 0" type="danger" size="small" effect="plain">
           {{ healthSummary.offline }}/{{ healthSummary.total }} 台节点离线

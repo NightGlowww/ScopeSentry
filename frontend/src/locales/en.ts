@@ -951,6 +951,7 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    throttling: 'Throttling: {names} (container memory high; concurrency lowered, running tasks continue)',
     containerMem: 'container {n}%',
     heartbeatDelayed: 'heartbeat slightly late (still running)',
     healPending: 'Moved {n} task(s), but {name} did not act on the restart (likely starved). Restart it by hand: docker restart scopesentry-scan',
