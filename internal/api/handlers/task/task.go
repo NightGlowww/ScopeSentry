@@ -9,6 +9,7 @@ package task
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -117,6 +118,16 @@ func AddTask(c *gin.Context) {
 	var req models.Task
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+
+	// 防刷：一分钟内创建任务过多通常是外部集成失控（2026-11-20 实测
+	// huntdeck 集成每分钟建一个任务，把节点队列塞满）。这里挡一道，
+	// 并把阈值写清楚，便于对方调整调用节奏。
+	const TaskCreateRateLimit = 10
+	since := time.Now().Add(-1 * time.Minute).Format("2006-01-02 15:04:05")
+	if n, cerr := taskService.CountTasksCreatedSince(c.Request.Context(), since); cerr == nil && n >= TaskCreateRateLimit {
+		response.BadRequest(c, "api.task.rate_limited", fmt.Errorf("每分钟最多创建 %d 个任务，当前已创建 %d 个", TaskCreateRateLimit, n))
 		return
 	}
 

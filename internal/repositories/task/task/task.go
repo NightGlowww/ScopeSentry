@@ -78,6 +78,8 @@ type Repository interface {
 	TaskCmdFail(ctx context.Context, taskID string) int64
 	// TaskOutcome 任务产出统计（按任务名计数）
 	TaskOutcome(ctx context.Context, taskName string) map[string]int64
+	// CountTasksCreatedSince 统计某时间之后创建的任务数
+	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
 	CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string)
 	// 目标级暂停（issue #277）
@@ -511,4 +513,10 @@ func (r *repository) TaskOutcome(ctx context.Context, taskName string) map[strin
 		}
 	}
 	return out
+}
+
+// CountTasksCreatedSince 统计某时间点之后创建的任务数（防刷用）。
+// creatTime 是 "YYYY-MM-DD HH:MM:SS" 字符串，按字符串比较即可（同格式定长）。
+func (r *repository) CountTasksCreatedSince(ctx context.Context, since string) (int64, error) {
+	return r.db.Collection("task").CountDocuments(ctx, bson.M{"creatTime": bson.M{"$gte": since}})
 }

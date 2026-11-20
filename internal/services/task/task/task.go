@@ -38,6 +38,8 @@ type Service interface {
 	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int) ([]models.Task, int64, error)
 	// DeleteByFilter 按筛选批量删除，返回条数
 	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
+	// CountTasksCreatedSince 统计某时间之后创建的任务数（防刷）
+	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
 	CheckTaskNameExists(ctx *gin.Context, name string) (bool, error)
 	GetTaskDetail(ctx *gin.Context, taskID string) (*models.Task, error)
 	GetTasksByIDs(ctx *gin.Context, ids []string) ([]models.Task, error)
@@ -982,4 +984,9 @@ func (s *service) DeleteByFilter(ctx *gin.Context, search string, status *int) (
 		return 0, err
 	}
 	return len(ids), nil
+}
+
+// CountTasksCreatedSince 统计某时间之后创建的任务数。
+func (s *service) CountTasksCreatedSince(ctx context.Context, since string) (int64, error) {
+	return s.taskRepo.CountTasksCreatedSince(ctx, since)
 }
