@@ -278,3 +278,30 @@ python3 scripts/remote/queue-drain.py --prefix huntdeck- --apply   # 执行
 `https://test.ustc.edu.cn/` 的后端接口做了来源校验，curl 直接打 `/backend/garbage.php` 返回
 `500 not ustc`（带 `Referer`/`Origin` 也一样）。要测服务器带宽请用上面两个独立来源交叉验证，
 不要依赖单一测速站的接口。
+### 容量实测：一台节点跑一个任务就能吃满 2GB（2026-11-21）
+
+节点反复"心跳停 → 判离线 → 重启"的根因不是任务太多，而是**单任务内存**：
+
+```
+node-tx-sh-02   容器上限 2.0GB   maxGoroutineCount 3 → 2 → 仍 100%
+                最后只剩 1 个任务在跑（running=1）时，内存依然 99.9%
+node-dev-02     容器上限 1.17GB  maxGoroutineCount 1，长期 88-100%
+node-sh-01      容器上限 2.44GB  maxGoroutineCount 3，74-82%
+```
+
+**结论：降任务并发几乎无效**——瓶颈是单个任务内部的内存（nuclei 模板库 + 端口扫描缓冲）。
+真正有效的手段只有两个：
+
+```
+① 提高容器内存上限（2GB → 4GB），或
+② 降单任务内部并发：vulnerabilityScan.goroutineCount（已对 tx-02 设 1）
+```
+
+已做的两次调整（都可热回滚）：
+
+```
+node-tx-sh-02  maxGoroutineCount: 3 → 2
+node-tx-sh-02  vulnerabilityScan.goroutineCount: 2 → 1
+```
+
+回滚方式：同样的 `POST /api/node/config/update` 把数值改回去，3 秒热生效，不需要重启节点。
