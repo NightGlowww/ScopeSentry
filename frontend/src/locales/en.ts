@@ -376,6 +376,10 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    emptyHost: 'No vulnerabilities found on {host}',
+    emptyTask: 'Task {task} produced no vulnerabilities',
+    emptyFiltered: 'No results match the current filters',
+    resetFilters: 'Clear all filters',
     filterByHost: 'Filter by host (domain/IP)',
     filteredByHost: 'Filtered by host',
     clearHost: 'Clear host filter',

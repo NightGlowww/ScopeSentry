@@ -366,6 +366,10 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    emptyHost: '该主机（{host}）暂无漏洞命中',
+    emptyTask: '该任务（{task}）未扫出漏洞',
+    emptyFiltered: '当前筛选条件下没有漏洞结果',
+    resetFilters: '清除全部筛选',
     filterByHost: '按主机筛选（域名/IP）',
     filteredByHost: '筛选自主机',
     clearHost: '清除主机筛选',

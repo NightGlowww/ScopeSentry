@@ -72,6 +72,37 @@ const goHostAssets = () => {
   drawerVisible.value = false
 }
 
+// 空状态说人话：带筛选进来时告诉用户「是这个条件没有结果」，而不是通用提示
+const emptyText = computed(() => {
+  if (hostFilter.value) return t('nucleiResult.emptyHost', { host: hostFilter.value })
+  if (taskNameFilter.value) return t('nucleiResult.emptyTask', { task: taskNameFilter.value })
+  if (keyword.value || templateId.value || severity.value || statusFilter.value || project.value) {
+    return t('nucleiResult.emptyFiltered')
+  }
+  return t('nucleiResult.empty')
+})
+const hasAnyFilter = computed(
+  () =>
+    !!hostFilter.value ||
+    !!taskNameFilter.value ||
+    !!keyword.value ||
+    !!templateId.value ||
+    !!severity.value ||
+    !!statusFilter.value ||
+    !!project.value
+)
+const resetAllFilters = () => {
+  hostFilter.value = ''
+  taskNameFilter.value = ''
+  keyword.value = ''
+  templateId.value = ''
+  severity.value = ''
+  statusFilter.value = 0
+  project.value = ''
+  router.replace({ path: route.path, query: {} })
+  handleSearch()
+}
+
 const clearHost = () => {
   hostFilter.value = ''
   router.replace({ path: route.path, query: route.query.taskName ? { taskName: route.query.taskName } : {} })
@@ -427,7 +458,12 @@ const rowStyle = () => ({ cursor: 'pointer' })
       @row-click="onRowClick"
     >
       <template #empty>
-        <div class="empty-state">{{ t('nucleiResult.empty') }}</div>
+        <div class="empty-state">
+          <div>{{ emptyText }}</div>
+          <ElButton v-if="hasAnyFilter" link type="primary" size="small" @click="resetAllFilters">
+            {{ t('nucleiResult.resetFilters') }}
+          </ElButton>
+        </div>
       </template>
     </Table>
   </ContentWrap>

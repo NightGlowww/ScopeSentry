@@ -373,6 +373,10 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    emptyHost: '{host} 에서 취약점이 발견되지 않았습니다',
+    emptyTask: '작업 {task} 에서 취약점이 없습니다',
+    emptyFiltered: '현재 필터 조건에 맞는 결과가 없습니다',
+    resetFilters: '모든 필터 지우기',
     filterByHost: '호스트로 필터(도메인/IP)',
     filteredByHost: '호스트 기준 필터',
     clearHost: '호스트 필터 지우기',
