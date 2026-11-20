@@ -984,6 +984,10 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    emptyFilteredTitle: 'No tasks match the filters',
+    filterByName: 'search: {q}',
+    filterByStatus: 'status: {s}',
+    clearFilters: 'Clear filters',
     listRefreshHint: 'Auto-refresh every 10s · updated {t}',
     refreshJustNow: 'just now',
     queuePosHint: 'Queued ({n} ahead)',

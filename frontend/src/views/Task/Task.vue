@@ -384,6 +384,30 @@ const progressCmdFail = ref(0)
 const progressTaskName = ref('')
 // 队列积压：节点一次只跑一个任务，队列深说明后面要等；把总数摆出来免得用户以为卡住
 const queuedTotal = ref(0)
+// 空状态区分「还没有任务」和「当前筛选没结果」——否则筛完看到"还没有扫描任务"+新建按钮很误导
+const hasTaskFilter = computed(() => !!search.value.trim() || statusFilter.value >= 0)
+const taskFilterSummary = computed(() => {
+  const parts: string[] = []
+  if (search.value.trim()) parts.push(t('task.filterByName', { q: search.value.trim() }))
+  if (statusFilter.value >= 0) {
+    const map: Record<number, string> = {
+      1: t('task.statusRunning'),
+      2: t('task.statusPaused'),
+      3: t('task.statusFinished'),
+      4: t('task.statusFailed')
+    }
+    parts.push(t('task.filterByStatus', { s: map[statusFilter.value] || String(statusFilter.value) }))
+  }
+  return parts.join(' · ')
+})
+const clearTaskFilters = () => {
+  search.value = ''
+  statusFilter.value = -1
+  sessionStorage.removeItem(SEARCH_KEY)
+  sessionStorage.removeItem(STATUS_KEY)
+  currentPage.value = 1
+  getList()
+}
 
 // 按当前筛选批量删除：勾选跨页太慢，直接按筛选条件清
 // 安全：后端要求必须带搜索词或状态，且单次最多 200 条
@@ -1019,9 +1043,16 @@ const setMaxHeight = () => {
       >
         <template #empty>
           <div class="empty-block">
-            <div class="empty-title">{{ t('task.emptyTitle') }}</div>
-            <div class="empty-desc">{{ t('task.emptyDesc') }}</div>
-            <ElButton type="primary" @click="addTask">{{ t('task.addTask') }}</ElButton>
+            <template v-if="hasTaskFilter">
+              <div class="empty-title">{{ t('task.emptyFilteredTitle') }}</div>
+              <div class="empty-desc">{{ taskFilterSummary }}</div>
+              <ElButton @click="clearTaskFilters">{{ t('task.clearFilters') }}</ElButton>
+            </template>
+            <template v-else>
+              <div class="empty-title">{{ t('task.emptyTitle') }}</div>
+              <div class="empty-desc">{{ t('task.emptyDesc') }}</div>
+              <ElButton type="primary" @click="addTask">{{ t('task.addTask') }}</ElButton>
+            </template>
           </div>
         </template>
       </Table>

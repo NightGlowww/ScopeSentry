@@ -976,6 +976,10 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    emptyFilteredTitle: '현재 조건에 맞는 작업이 없습니다',
+    filterByName: '검색: {q}',
+    filterByStatus: '상태: {s}',
+    clearFilters: '필터 지우기',
     listRefreshHint: '10초마다 자동 새로고침 · {t} 업데이트',
     refreshJustNow: '방금',
     queuePosHint: '대기 중 (앞에 {n}개)',

@@ -953,6 +953,10 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    emptyFilteredTitle: '当前筛选没有任务',
+    filterByName: '搜索：{q}',
+    filterByStatus: '状态：{s}',
+    clearFilters: '清除筛选',
     listRefreshHint: '每 10 秒自动刷新 · 更新于 {t}',
     refreshJustNow: '刚刚',
     queuePosHint: '排队中（前面还有 {n} 个）',
