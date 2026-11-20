@@ -373,6 +373,8 @@ export default {
     assetsEmpty: '이 기술을 쓰는 자산 기록이 아직 없습니다'
   },
   nucleiResult: {
+    filteredByTask: '작업 기준 필터',
+    backToTask: '작업으로 돌아가기',
     totalVuln: '총 {n}건',
     filterByTask: '작업명으로 필터',
     pocTemplate: 'POC 템플릿',

@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { reactive, ref, h, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ElButton,
   ElCol,
@@ -52,6 +52,11 @@ const statusStats = ref<Record<string, number>>({})
 const totalVuln = computed(() =>
   Object.values(statusStats.value || {}).reduce((a: number, b: any) => a + Number(b || 0), 0)
 )
+// 从任务跳过来后要能回去：带上任务名，任务页会自动搜索
+const goTask = () => {
+  router.push({ path: '/task-management/ScanTask', query: { search: taskNameFilter.value } })
+}
+
 const loadStatusStats = async () => {
   try {
     const res: any = await getNucleiStatusStatsApi({
@@ -68,6 +73,7 @@ const loadStatusStats = async () => {
 // 按任务筛选：一个任务扫完想直接看它的产出
 // 从任务详情跳转过来时，用 query.taskName 预填筛选（闭环：任务 → 它的漏洞）
 const route = useRoute()
+const router = useRouter()
 const taskNameFilter = ref((route.query.taskName as string) || '')
 const templateId = ref('')
 const keyword = ref('')
@@ -321,6 +327,12 @@ const rowStyle = () => ({ cursor: 'pointer' })
       </ElCol>
     </ElRow>
 
+    <div v-if="taskNameFilter" class="task-link-bar">
+      <span class="task-link-label">{{ t('nucleiResult.filteredByTask') }}</span>
+      <ElTag type="primary" effect="plain" size="small">{{ taskNameFilter }}</ElTag>
+      <ElButton link type="primary" size="small" @click="goTask">{{ t('nucleiResult.backToTask') }}</ElButton>
+    </div>
+
     <div class="triage-bar">
       <span class="triage-total">{{ t('nucleiResult.totalVuln', { n: totalVuln }) }}</span>
       <ElTag v-if="statusStats['1']" type="info" size="small">
@@ -494,6 +506,17 @@ const rowStyle = () => ({ cursor: 'pointer' })
 
 .detail-block {
   margin-bottom: 16px;
+}
+
+.task-link-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.task-link-label {
+  color: var(--el-text-color-secondary);
 }
 
 .triage-bar {

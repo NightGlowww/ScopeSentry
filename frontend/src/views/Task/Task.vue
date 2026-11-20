@@ -45,7 +45,7 @@ import { BaseButton } from '@/components/Button'
 import { DisableHint } from '@/components/DisableHint'
 import AddTask from './components/AddTask.vue'
 import ProgressInfo from './components/ProgressInfo.vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { getProjectAllApi } from '@/api/project'
 import { getNodeDataApi } from '@/api/node'
 import { exportTaskApi } from '@/api/export'
@@ -55,7 +55,9 @@ const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 // 搜索词记忆：切走再回来不用重输（sessionStorage，同一标签页内有效）
 const SEARCH_KEY = 'task:search'
-const search = ref(sessionStorage.getItem(SEARCH_KEY) || '')
+const route = useRoute()
+// 从漏洞结果页「返回该任务」跳回来时用 query.search 覆盖记忆值
+const search = ref((route.query.search as string) || sessionStorage.getItem(SEARCH_KEY) || '')
 // 状态筛选：-1=全部。任务堆积时（几十个暂停任务）只靠名字搜很难找
 const STATUS_KEY = 'task:status'
 const statusFilter = ref<number>(Number(sessionStorage.getItem(STATUS_KEY) ?? -1))

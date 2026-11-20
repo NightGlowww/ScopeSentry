@@ -366,6 +366,8 @@ export default {
     assetsEmpty: '该技术下还没有资产记录'
   },
   nucleiResult: {
+    filteredByTask: '筛选自任务',
+    backToTask: '返回该任务',
     totalVuln: '共 {n} 条',
     filterByTask: '按任务筛选（任务名）',
     pocTemplate: 'POC 模板',

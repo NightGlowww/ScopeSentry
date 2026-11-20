@@ -376,6 +376,8 @@ export default {
     assetsEmpty: 'No asset uses this technology yet'
   },
   nucleiResult: {
+    filteredByTask: 'Filtered by task',
+    backToTask: 'Back to task',
     totalVuln: '{n} total',
     filterByTask: 'Filter by task name',
     pocTemplate: 'POC template',
