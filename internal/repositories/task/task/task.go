@@ -365,7 +365,7 @@ func (r *repository) Del(ctx context.Context, keys ...string) error {
 // ProgressSummary 见接口注释。节点从不写 TaskInfo:tmp:<id>，真正的进度在逐目标 hash 里，
 // 之前服务端只认 tmp 集合，导致任务进度永远是 0。
 func (r *repository) ProgressSummary(ctx context.Context, taskID string) (int, int, float64, string, error) {
-	keys, err := r.redisClient.Keys(ctx, fmt.Sprintf("TaskInfo:progress:%s:*", taskID)).Result()
+	keys, err := r.scanKeys(ctx, fmt.Sprintf("TaskInfo:progress:%s:*", taskID))
 	if err != nil {
 		return 0, 0, 0, "", fmt.Errorf("failed to list progress keys: %w", err)
 	}
@@ -439,7 +439,7 @@ func (r *repository) ProgressSummary(ctx context.Context, taskID string) (int, i
 // HasQueuedTask 判断该任务是否还躺在任一节点的 NodeTask 队列里（还没被领取）。
 // 用于僵尸判定：既没有进度 hash、又不在队列里 = 没有任何节点会再跑它。
 func (r *repository) HasQueuedTask(ctx context.Context, taskID string) (bool, error) {
-	keys, err := r.redisClient.Keys(ctx, "NodeTask:*").Result()
+	keys, err := r.scanKeys(ctx, "NodeTask:*")
 	if err != nil {
 		return false, err
 	}
@@ -463,7 +463,7 @@ func (r *repository) HasQueuedTask(ctx context.Context, taskID string) (bool, er
 // 这里从逐目标进度 hash 里找「有 _start、没有 _end」的最新模块，
 // 用它的开始时间算已执行时长，让界面能显示「正在目录扫描 xxx，已 7 分钟」。
 func (r *repository) CurrentActivity(ctx context.Context, taskID string) (module string, target string, since string) {
-	keys, err := r.redisClient.Keys(ctx, fmt.Sprintf("TaskInfo:progress:%s:*", taskID)).Result()
+	keys, err := r.scanKeys(ctx, fmt.Sprintf("TaskInfo:progress:%s:*", taskID))
 	if err != nil {
 		return "", "", ""
 	}
@@ -553,7 +553,7 @@ func (r *repository) CountTasksCreatedSince(ctx context.Context, since string) (
 // 一次性把所有节点队列扫一遍，避免每个任务单查一次（2026-11-20）。
 func (r *repository) TaskQueuePositions(ctx context.Context) map[string]int {
 	out := map[string]int{}
-	keys, err := r.redisClient.Keys(ctx, "NodeTask:*").Result()
+	keys, err := r.scanKeys(ctx, "NodeTask:*")
 	if err != nil {
 		return out
 	}
@@ -576,4 +576,24 @@ func (r *repository) TaskQueuePositions(ctx context.Context) map[string]int {
 		}
 	}
 	return out
+}
+
+// scanKeys 用 SCAN 迭代代替 KEYS。
+// KEYS 是 O(N) 且会阻塞 Redis（单线程），任务列表每刷一次都调（TaskQueuePositions）
+// 等于每次都扫全库；键一多就是肉眼可见的卡顿。SCAN 增量迭代、不阻塞（2026-11-20）。
+func (r *repository) scanKeys(ctx context.Context, pattern string) ([]string, error) {
+	var keys []string
+	var cursor uint64
+	for {
+		batch, next, err := r.redisClient.Scan(ctx, cursor, pattern, 200).Result()
+		if err != nil {
+			return keys, err
+		}
+		keys = append(keys, batch...)
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	return keys, nil
 }
