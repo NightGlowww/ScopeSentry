@@ -919,6 +919,10 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    heartbeatAgo: '心跳 {ago} 前',
+    offlineBusy: '离线 · 心跳 {ago} 前，仍有任务在跑（容器可能被压住）',
+    offlineJustNow: '离线 · 刚刚失联（{ago}）',
+    offlineLong: '离线 · 已 {ago} 无心跳（容器可能未启动）',
     rebalance: '迁移排队',
     rebalanceMsg: '把排队的待开始任务迁到空闲节点',
     rebalanceMsgDetail: '把 {name} 队列里的待开始任务迁到另一台节点（运行中的任务不动）',

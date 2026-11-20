@@ -15,6 +15,21 @@ import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
 import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi } from '@/api/node'
 const { t } = useI18n()
+// 离线原因推断：把「最后心跳多久前」翻译成可行动的判断
+const offlineReason = (row: any, state: string): string => {
+  if (state === '2') return ''
+  const t0 = new Date(String(row?.updateTime || '').replace(/-/g, '/')).getTime()
+  if (!isFinite(t0) || t0 <= 0) return ''
+  const sec = Math.round((Date.now() - t0) / 1000)
+  if (sec < 0) return ''
+  const ago = sec < 60 ? sec + 's' : sec < 3600 ? Math.round(sec / 60) + 'm' : Math.round(sec / 3600) + 'h'
+  const running = Number(row?.running) || 0
+  if (state === '1') return t('node.heartbeatAgo', { ago })
+  if (running > 0) return t('node.offlineBusy', { ago })
+  if (sec < 180) return t('node.offlineJustNow', { ago })
+  return t('node.offlineLong', { ago })
+}
+
 const nodeColums = reactive<TableColumn[]>([
   {
     field: 'selection',
@@ -113,9 +128,9 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('node.nodeStatus'),
-    width: 110,
-    formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
-      return h(
+    width: 150,
+    formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
+      const tag = h(
         ElTag,
         {
           type: cellValue === '1' ? 'success' : cellValue === '2' ? 'warning' : 'danger',
@@ -129,6 +144,11 @@ const nodeColums = reactive<TableColumn[]>([
               ? t('node.statusStop')
               : t('node.statusError')
       )
+      // 「离线」有两种完全不同的处理：容器挂了（要重启）vs 被压得没空上报（要减负载）。
+      // 只给一个红标签看不出区别，所以补一行「最后心跳」与推断。
+      const hint = offlineReason(row, cellValue)
+      if (!hint) return tag
+      return h('div', { class: 'node-state-cell' }, [tag, h('div', { class: 'node-state-hint' }, hint)])
     }
   },
   {
@@ -617,6 +637,15 @@ const closepluginDialogVisible = () => {
     transform: rotate(360deg);
   }
 }
+.node-state-cell {
+  line-height: 1.25;
+}
+.node-state-hint {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
+}
+
 .log-empty {
   padding: 24px 0;
   text-align: center;

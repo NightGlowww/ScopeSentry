@@ -942,6 +942,10 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    heartbeatAgo: '하트비트 {ago} 전',
+    offlineBusy: '오프라인 · {ago} 전 하트비트, 작업 실행 중(컨테이너 과부하 의심)',
+    offlineJustNow: '오프라인 · 방금 끊김({ago})',
+    offlineLong: '오프라인 · {ago} 동안 하트비트 없음(컨테이너 중지 의심)',
     rebalance: '대기 작업 이동',
     rebalanceMsg: '대기 중인 작업을 유휴 노드로 이동',
     rebalanceMsgDetail: '{name} 대기열의 미시작 작업을 다른 노드로 이동합니다(실행 중 작업 제외)',

@@ -950,6 +950,10 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    heartbeatAgo: 'heartbeat {ago} ago',
+    offlineBusy: 'offline · last heartbeat {ago}, tasks still running (container likely starved)',
+    offlineJustNow: 'offline · just dropped ({ago})',
+    offlineLong: 'offline · no heartbeat for {ago} (container likely down)',
     rebalance: 'Rebalance',
     rebalanceMsg: 'Move queued tasks to an idle node',
     rebalanceMsgDetail: 'Move pending tasks off {name} to another node (running tasks are left alone)',
