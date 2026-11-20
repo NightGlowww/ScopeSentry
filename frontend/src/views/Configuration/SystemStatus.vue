@@ -4,6 +4,7 @@ import { ElAlert, ElButton, ElCard, ElCol, ElRow, ElTag, ElDescriptions, ElDescr
 import { ContentWrap } from '@/components/ContentWrap'
 import { getConsoleInfoApi, type ConsoleInfo } from '@/api/dashboard'
 import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
+import { useSingleTabLeader } from "@/hooks/web/useSingleTabLeader"
 
 const info = ref<ConsoleInfo | null>(null)
 const loading = ref(false)
@@ -31,7 +32,11 @@ const depTag = (dep?: { connected: boolean; latencyMs: number; error?: string })
 
 onMounted(() => {
   load()
-  useVisibleInterval(load, 15000)
+  const { isLeader: statusLeader } = useSingleTabLeader('system-status')
+  useVisibleInterval(() => {
+    if (!statusLeader.value) return
+    load()
+  }, 15000)
 })
 
 </script>

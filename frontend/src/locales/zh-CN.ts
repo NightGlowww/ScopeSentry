@@ -11,6 +11,7 @@ export default {
     system: { version: { success: '版本信息获取成功' } }
   },
   common: {
+    pollFollower: '另一个标签页正在刷新（本页暂停轮询）',
     close: '关闭',
     emptyFilteredHint: '当前筛选没有结果（搜索：{q}）',
     selectPoc: '选择 POC',

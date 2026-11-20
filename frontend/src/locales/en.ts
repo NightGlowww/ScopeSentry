@@ -11,6 +11,7 @@ export default {
     system: { version: { success: 'Version information retrieved' } }
   },
   common: {
+    pollFollower: 'Another tab is refreshing; this one stays quiet',
     close: 'Close',
     emptyFilteredHint: 'No results for current filters (search: {q})',
     selectPoc: 'Select POC',

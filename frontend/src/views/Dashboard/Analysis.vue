@@ -12,6 +12,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { UPDATEsYSTEMApi, getVersionDataApi } from '@/api/dashboard/analysis'
 import { checkKeyApi } from '@/api/plugins'
 import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
+import { useSingleTabLeader } from "@/hooks/web/useSingleTabLeader"
 
 const { t } = useI18n()
 
@@ -37,6 +38,10 @@ const loadRatio = computed(() => {
 const loading = ref(true)
 // 首屏就取一次服务端健康（/healthz 是公开接口，不需要登录态）
 loadServerHealth()
+// 每 30 秒刷新：健康是要"盯"的指标，进来一次就不动等于没有
+useVisibleInterval(() => {
+  loadServerHealth()
+}, 30000)
 
 const nodeColumns = reactive<TableColumn[]>([
   {
@@ -303,7 +308,11 @@ const getAllApi = async () => {
 }
 getVersionData()
 getAllApi()
-useVisibleInterval(getAllApi, 10000)
+const { isLeader: dashLeader } = useSingleTabLeader('dashboard')
+useVisibleInterval(() => {
+  if (!dashLeader.value) return
+  getAllApi()
+}, 10000)
 
 
 
@@ -357,6 +366,13 @@ async function handleSubmit() {
       </ElTag>
       <ElTag size="small" effect="plain" :type="healthTone(100 - (serverHealth.host?.diskFreePercent || 100), 80, 92)">
         {{ t('dashboard.diskFree') }} {{ (serverHealth.host?.diskFreePercent || 0).toFixed(0) }}%
+      </ElTag>
+      <!-- 依赖状态：宿主健康但 Mongo/Redis 挂了，服务端一样不能用 -->
+      <ElTag size="small" effect="plain" :type="serverHealth.checks?.mongo?.ok ? 'success' : 'danger'">
+        MongoDB {{ serverHealth.checks?.mongo?.ok ? t('dashboard.depOk') : t('dashboard.depDown') }}
+      </ElTag>
+      <ElTag size="small" effect="plain" :type="serverHealth.checks?.redis?.ok ? 'success' : 'danger'">
+        Redis {{ serverHealth.checks?.redis?.ok ? t('dashboard.depOk') : t('dashboard.depDown') }}
       </ElTag>
     </div>
   </ElCard>

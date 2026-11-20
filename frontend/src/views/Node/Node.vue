@@ -16,6 +16,7 @@ import plugin from './components/plugin.vue'
 import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi, getMemPeaksApi } from '@/api/node'
 import { getDispatchRejectStatsApi, getDispatchRecentApi } from '@/api/task'
 import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 const { t } = useI18n()
 // 离线原因推断：把「最后心跳多久前」翻译成可行动的判断
 const offlineReason = (row: any, state: string): string => {
@@ -438,7 +439,10 @@ const { getList, getElTableExpose } = tableMethods
 // 节点页也有「实时性」需求（排队、内存、在线状态一直在变），和任务页保持一致：
 // 可见时每 15 秒刷一次，后台不刷，回来补一次（2026-11-20）。
 const lastRefreshAt = ref('')
+// 多标签页只让一个轮询（避免 N 个标签页把节点列表接口刷 N 倍）
+const { isLeader: nodeLeader } = useSingleTabLeader('nodes')
 useVisibleInterval(() => {
+  if (!nodeLeader.value) return
   getList()
   lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
 }, 15000)
@@ -611,7 +615,10 @@ const closepluginDialogVisible = () => {
     </div>
     <div>
       <div class="refresh-hint">
-        {{ t('node.autoRefreshHint', { t: lastRefreshAt || t('task.refreshJustNow') }) }}
+        <template v-if="!nodeLeader">{{ t('common.pollFollower') }}</template>
+        <template v-else>
+          {{ t('node.autoRefreshHint', { t: lastRefreshAt || t('task.refreshJustNow') }) }}
+        </template>
       </div>
 
       <div v-if="hasRejectInfo" class="node-health">

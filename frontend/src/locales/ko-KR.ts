@@ -11,6 +11,7 @@ export default {
     system: { version: { success: '버전 정보를 조회했습니다.' } }
   },
   common: {
+    pollFollower: '다른 탭이 새로고침 중입니다(이 탭은 대기)',
     close: '닫기',
     emptyFilteredHint: '현재 조건에 결과가 없습니다 (검색: {q})',
     selectPoc: 'POC 선택',
