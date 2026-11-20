@@ -85,3 +85,20 @@
    而不是正则解析源码
 
 命名对照：`common.confirmed` 是状态标签「确认」，确认按钮统一用 `confirmButtonText: OK`。
+## 七、节点重启期间的任务恢复（2026-11-20 实测）
+
+场景：任务跑到 71% 时 `docker restart scopesentry-scan`（模拟更新/崩溃）。
+
+实测时间线（node-sh-01，任务 resume-1795134614）：
+
+```
+08:30:23  Task begin: resume-…            ← 正常开始
+08:30:58  Register Success:node-sh-01     ← 重启后重新注册
+08:31:01  Task begin: resume-…            ← 同一任务被自动重新领取
+08:36:11  Task end:   resume-…            ← 完成
+```
+
+结果：status=3、progress=100%，**无需人工干预**；总耗时 360s（正常 285–300s），
+恢复开销约 60–75s，主要花在容器重启 + 重新注册 + 重新领取任务。
+
+回归脚本：`scripts/remote/resilience-test.py`（会真的重启节点容器，只在测试环境跑）。
