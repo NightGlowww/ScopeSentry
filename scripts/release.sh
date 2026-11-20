@@ -145,10 +145,19 @@ else
   "
 fi
 
-echo "== [6.5/7] 清理历史产物（保留最近 3 个）"
+echo "== [6.5/7] 清理历史产物与镜像（保留最近 3 个）"
 if [[ "${DRY_RUN:-0}" != "1" ]]; then
   # 每次发布留一份 ~100MB 二进制；不清理会把系统盘写满（2026-11-19 事故）
   ssh -o BatchMode=yes "$PROD_HOST" "ls -t $DEPLOY_DIR/ScopeSentry-v* 2>/dev/null | tail -n +4 | xargs -r rm -f" || true
+
+  # docker commit 每个版本生成一条 ~10GB 镜像层链：不清理会长到几十 GB（实测 461 个/42GB）
+  # 具体逻辑在服务器 /opt/scopesentry/prune-images.sh（保留最近 3 个 tag 供回滚）。
+  # 新机器上还没有这个脚本时先装一份（仓库 scripts/remote/prune-images.sh）
+  if ! ssh -o BatchMode=yes "$PROD_HOST" "test -x /opt/scopesentry/prune-images.sh" 2>/dev/null; then
+    scp -q -o BatchMode=yes scripts/remote/prune-images.sh "$PROD_HOST:/opt/scopesentry/prune-images.sh" || true
+    ssh -o BatchMode=yes "$PROD_HOST" "chmod +x /opt/scopesentry/prune-images.sh" || true
+  fi
+  ssh -o BatchMode=yes "$PROD_HOST" "bash /opt/scopesentry/prune-images.sh $IMAGE_PREFIX 3" 2>&1 | sed "s/^/   /" || true
 fi
 
 echo "== [7/7] 收尾与版本断言"
