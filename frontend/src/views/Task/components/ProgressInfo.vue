@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, h, ref, onMounted, onUnmounted } from 'vue'
+import { reactive, h, ref, computed, onMounted, onUnmounted } from 'vue'
 import { Table, TableColumn } from '@/components/Table'
 import { getTaskProgressApi, pauseTaskTargetApi, resumeTaskTargetApi } from '@/api/task'
 import { useTable } from '@/hooks/web/useTable'
@@ -13,7 +13,8 @@ import {
   ElPagination,
   ElTag,
   ElTooltip,
-  ElAlert
+  ElAlert,
+  ElCheckbox
 } from 'element-plus'
 import { Icon } from '@/components/Icon'
 const { t } = useI18n()
@@ -435,6 +436,23 @@ const { tableRegister, tableState, tableMethods } = useTable({
   immediate: false
 })
 const { loading, dataList, total, currentPage, pageSize } = tableState
+
+// 模块列默认只显示「真的有数据」的那些：任务没跑到的模块留空列只会拉长横向滚动。
+// 想看全部就打开「显示全部模块」。
+const showAllModules = ref(false)
+const visibleColumns = computed(() => {
+  // 还没拿到数据时不能折叠：否则列数组变空，表格渲染不出来（实测首屏空白）
+  if (showAllModules.value || !(dataList.value || []).length) return progressColums
+  return progressColums.filter((c: any) => {
+    const f = c.field
+    if (!f || f === 'target' || f === 'node' || f === 'action') return true
+    return (dataList.value || []).some((row: any) => {
+      const v = row[f]
+      if (Array.isArray(v)) return v.some((x: string) => x !== '' && x !== undefined && x !== null)
+      return !!v
+    })
+  })
+})
 const { getList } = tableMethods
 
 // 暂停/恢复单个目标（issue #277）：暂停前确认一次，恢复直接执行
@@ -530,6 +548,11 @@ onUnmounted(stopAuto)
     style="margin-bottom: 8px"
     :title="t('task.cmdFailBanner', { n: cmdFail })"
   />
+  <div class="module-toggle">
+    <ElCheckbox v-model="showAllModules" size="small">{{ t('task.showAllModules') }}</ElCheckbox>
+    <span class="module-toggle__hint">{{ t('task.moduleColumnsHint', { n: visibleColumns.length - 2 }) }}</span>
+  </div>
+
   <div v-if="Object.values(outcome).some(v => v > 0)" class="outcome-bar">
     <span class="outcome-title">{{ t("task.outcome") }}</span>
     <ElTag
@@ -558,7 +581,7 @@ onUnmounted(stopAuto)
     v-model:pageSize="pageSize"
     v-model:currentPage="currentPage"
     @register="tableRegister"
-    :columns="progressColums"
+    :columns="visibleColumns"
     :data="dataList"
     rowKey="_id"
     :loading="loading"
@@ -593,6 +616,17 @@ onUnmounted(stopAuto)
 </template>
 
 <style scoped>
+.module-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.module-toggle__hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
 .outcome-bar {
   display: flex;
   align-items: center;

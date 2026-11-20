@@ -953,6 +953,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    showAllModules: '显示全部模块',
+    moduleColumnsHint: '当前显示 {n} 个模块列',
     outcome: '产出',
     outSubdomain: '子域',
     outUrl: 'URL',

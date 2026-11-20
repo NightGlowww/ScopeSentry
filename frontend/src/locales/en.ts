@@ -984,6 +984,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    showAllModules: 'Show all modules',
+    moduleColumnsHint: '{n} module columns shown',
     outcome: 'Outcome',
     outSubdomain: 'Subdomains',
     outUrl: 'URLs',
