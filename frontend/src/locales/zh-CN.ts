@@ -1393,6 +1393,10 @@ export default {
     contentMsg: '请输入poc内容'
   },
   apiKey: {
+    edit: '编辑',
+    saved: '已保存',
+    toolsHint: '留空=允许全部工具，多个用英文逗号分隔',
+    expiresAt: '过期日期',
     nameRequired: '请输入密钥名称',
     createTitle: '新建 API Key',
     keyCreatedTitle: 'API Key 已创建',

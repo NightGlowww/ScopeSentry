@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -15,7 +15,10 @@ import {
   ElMessageBox,
   ElCheckboxGroup,
   ElCheckbox,
-  ElInputNumber
+  ElInputNumber,
+  ElSelect,
+  ElOption,
+  ElDatePicker
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { Dialog } from '@/components/Dialog'
@@ -25,7 +28,8 @@ import {
   createMcpKeyApi,
   deleteMcpKeyApi,
   getMcpKeysApi,
-  setMcpKeyStatusApi
+  setMcpKeyStatusApi,
+  updateMcpKeyApi
 } from '@/api/apikey'
 import { useClipboard } from '@/hooks/web/useClipboard'
 import { formatTime } from '@/utils'
@@ -135,6 +139,7 @@ const columns = reactive<TableColumn[]>([
     width: 190,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
+        <BaseButton type="primary" onClick={() => openEditDialog(row)}>{t('apiKey.edit')}</BaseButton>
         <BaseButton type={row.enabled ? 'warning' : 'success'} onClick={() => handleToggle(row)}>
           {row.enabled ? '禁用' : '启用'}
         </BaseButton>
@@ -201,6 +206,45 @@ const handleCreate = async () => {
   }
 }
 
+// 编辑治理字段：建好后原本只能启停/删除，改权限得重建一把 key（2026-11-21）
+const editDialogVisible = ref(false)
+const editLoading = ref(false)
+const editingId = ref('')
+const editForm = ref({ name: '', scope: [], tools: '', rateLimitPerMin: 0, expiresAt: '' })
+
+const openEditDialog = (row) => {
+  editingId.value = row.id
+  editForm.value = {
+    name: row.name || '',
+    scope: Array.isArray(row.scope) ? [...row.scope] : [],
+    tools: Array.isArray(row.tools) ? row.tools.join(', ') : '',
+    rateLimitPerMin: Number(row.rateLimitPerMin) || 0,
+    expiresAt: row.expiresAt ? String(row.expiresAt).slice(0, 10) : ''
+  }
+  editDialogVisible.value = true
+}
+
+const handleSaveEdit = async () => {
+  if (!editingId.value) return
+  editLoading.value = true
+  try {
+    await updateMcpKeyApi(editingId.value, {
+      name: editForm.value.name,
+      scope: editForm.value.scope,
+      tools: String(editForm.value.tools || '').split(',').map((x) => x.trim()).filter(Boolean),
+      rateLimitPerMin: Number(editForm.value.rateLimitPerMin) || 0,
+      expiresAt: editForm.value.expiresAt || null
+    })
+    ElMessage.success(t('apiKey.saved'))
+    editDialogVisible.value = false
+    getList()
+  } catch (e) {
+    ElMessage.error((e && e.message) || t('common.operateFailed'))
+  } finally {
+    editLoading.value = false
+  }
+}
+
 const handleCopyKey = () => {
   copy(createdKey.value)
 }
@@ -260,6 +304,40 @@ const closeKeyDialog = () => {
       :headerCellStyle="tableHeaderColor"
     />
   </ContentWrap>
+
+  <Dialog
+    v-model="editDialogVisible"
+    :title="t('apiKey.edit')"
+    center
+    style="border-radius: 15px"
+    :maxHeight="560"
+  >
+    <ElForm label-width="110px" @submit.prevent>
+      <ElFormItem :label="t('common.name')">
+        <ElInput v-model="editForm.name" maxlength="64" show-word-limit />
+      </ElFormItem>
+      <ElFormItem label="Scope">
+        <ElSelect v-model="editForm.scope" multiple filterable style="width: 100%">
+          <ElOption v-for="o in SCOPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+        </ElSelect>
+      </ElFormItem>
+      <ElFormItem label="tools">
+        <ElInput v-model="editForm.tools" :placeholder="t('apiKey.toolsHint')" />
+      </ElFormItem>
+      <ElFormItem label="限速/分">
+        <ElInputNumber v-model="editForm.rateLimitPerMin" :min="0" :max="100000" controls-position="right" />
+      </ElFormItem>
+      <ElFormItem :label="t('apiKey.expiresAt')">
+        <ElDatePicker v-model="editForm.expiresAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+      </ElFormItem>
+    </ElForm>
+    <template #footer>
+      <div style="text-align: right">
+        <ElButton @click="editDialogVisible = false">{{ t('common.cancel') }}</ElButton>
+        <ElButton type="primary" :loading="editLoading" @click="handleSaveEdit">{{ t('common.save') }}</ElButton>
+      </div>
+    </template>
+  </Dialog>
 
   <Dialog
     v-model="createDialogVisible"

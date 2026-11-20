@@ -1417,6 +1417,10 @@ export default {
     contentMsg: 'POC 내용을 입력하세요.'
   },
   apiKey: {
+    edit: '편집',
+    saved: '저장됨',
+    toolsHint: '비우면 모든 도구 허용, 쉼표로 구분',
+    expiresAt: '만료일',
     nameRequired: '키 이름을 입력하세요',
     createTitle: 'API Key 생성',
     keyCreatedTitle: 'API Key 생성 완료',

@@ -1431,6 +1431,10 @@ export default {
     contentMsg: 'Please enter poc content'
   },
   apiKey: {
+    edit: 'Edit',
+    saved: 'Saved',
+    toolsHint: 'empty = all tools; separate names with commas',
+    expiresAt: 'Expires',
     nameRequired: 'Enter a key name',
     createTitle: 'Create API Key',
     keyCreatedTitle: 'API Key Created',
