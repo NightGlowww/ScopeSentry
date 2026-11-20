@@ -57,6 +57,9 @@ const loadConfig = async () => {
     cfg.rateLimitPerMin = data.rateLimitPerMin || 0
     cfg.logRetention = data.logRetention || 100000
     cfg.allowedTools = data.allowedTools || []
+  } catch (e: any) {
+    // 配置读取失败此前静默：页面显示默认值，用户会以为配置就是空的
+    ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
     cfgLoading.value = false
   }

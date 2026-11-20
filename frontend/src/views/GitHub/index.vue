@@ -184,6 +184,9 @@ const submitCreate = async () => {
     createVisible.value = false
     ElMessage.success('任务已创建')
     getTaskList()
+  } catch (e: any) {
+    // 创建失败此前只关 loading，对话框留在原地不给任何原因
+    ElMessage.error(e?.message || '创建失败')
   } finally {
     createLoading.value = false
   }
