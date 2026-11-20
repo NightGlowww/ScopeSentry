@@ -20,6 +20,8 @@
     { "name": "弹窗-POC新建", "hash": "#/poc-management/index", "assert": "dialogOpens", "label": "新建" },
     { "name": "弹窗-指纹新建", "hash": "#/fingerprint-management", "assert": "dialogOpens", "label": "新建" },
     { "name": "弹窗-敏感规则新建", "hash": "#/sensitive-information-rules", "assert": "dialogOpens", "label": "新建" },
-    { "name": "弹窗-项目新建", "hash": "#/project-management", "assert": "dialogOpens", "label": "新建项目" }
+    { "name": "弹窗-项目新建", "hash": "#/project-management", "assert": "dialogOpens", "label": "新建项目" },
+    { "name": "保存-系统配置", "hash": "#/configuration/system", "assert": "saveFlow", "label": "保存" },
+    { "name": "保存-去重配置", "hash": "#/configuration/system", "assert": "saveFlow", "label": "提交", "index": 1 }
   ]
 }

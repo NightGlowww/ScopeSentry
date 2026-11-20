@@ -33,6 +33,30 @@
     const h = headers();
     add("包含工具失败列", h.includes("工具失败"), h.join("|"));
     add("节点非空", rows() > 0, rows() + " 节点");
+  } else if (mode === "saveFlow") {
+    // 写操作闭环：点保存/提交 → 若有确认框则确定 → 断言出现成功提示。
+    // 抓的是"保存按钮点了没反应 / 没反馈"（2026-11-20 修过多处）。
+    const label = window.__LABEL__ || "保存";
+    // 同页可能有多个同名按钮（配置页有「通知」和「去重」两个提交）：
+    // 用 window.__INDEX__ 指定第几个（0 起），缺省 0。
+    const matches = [...document.querySelectorAll("button")].filter(vis).filter(b => b.innerText.replace(/\s+/g, "") === label);
+    const idx = window.__INDEX__ || 0;
+    const btn = matches[idx];
+    add("保存按钮存在", !!btn, btn ? label + "#" + idx + "/" + matches.length : "missing");
+    if (btn) {
+      btn.click();
+      await new Promise(r => setTimeout(r, 900));
+      const confirmBtn = [...document.querySelectorAll(".el-message-box button")].filter(vis)
+        .find(b => ["OK", "确定", "确认"].includes(b.innerText.trim()));
+      if (confirmBtn) {
+        confirmBtn.click();
+        add("确认框已确认", true, "ok");
+      }
+      await new Promise(r => setTimeout(r, 2400));
+      const msgs = [...document.querySelectorAll(".el-message__content")].filter(vis).map(m => m.innerText.trim());
+      add("出现结果提示", msgs.length > 0, msgs.join("|") || "no toast");
+      add("提示为成功", msgs.some(m => /成功|success|저장/i.test(m)), msgs.join("|") || "none");
+    }
   } else if (mode === "dialogOpens") {
     // 点「新建/新建 X」按钮，断言弹窗真的出现（抓"按钮在但点了没反应"）。
     // 标签通过 window.__LABEL__ 指定，缺省依次尝试常见文案。
