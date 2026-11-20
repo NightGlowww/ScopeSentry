@@ -45,3 +45,32 @@ node-page:   ok  3 个节点  /  错误摘要（3）  /  日志 661/661
 - 探针假设已登录（会话失效时会返回 checks 全 false，先重新登录）
 - 探针只读 + 打开/关闭弹窗，不提交写操作（不会改动数据）
 - 页面结构改版后需要同步更新探针里的选择器
+## 矩阵验证（cases.json + assert.js）
+
+`cases.json` 列出「页面 × 参数 × 断言」，`assert.js` 是按断言名分派的通用检查器。
+执行方式（agent）：
+
+1. 读 `cases.json`，逐条打开 `hash`（把 `__none__` 换成不存在的名字）
+2. `eval({tabId, expression: "window.__ASSERT__ = \"<assert名>\"; \"ok\""})`
+3. `eval({tabId, expression: <assert.js 全文>})`，看返回的 `ok`
+
+**注意**：`ensure_tab` 的 `taskKey` 必须每次唯一（同 key 不同 URL 会报 `TASK_URL_CONFLICT`）。
+
+### 支持的模式
+
+| assert | 断言内容 |
+| --- | --- |
+| `tableOrEmpty` | 表格有数据，或存在明确的空状态 |
+| `contextualEmpty` | 列表为空 **且** 空状态说明了原因（两套文案都认：资产页「当前筛选…」/ 结果页「该任务…未扫出漏洞」） |
+| `hasToolbar` | 工具栏有「新建任务」「按筛选删除」，列表非空 |
+| `hasColumns` | 节点表含「工具失败」列，节点非空 |
+| `hasButtons` | 存在「保存」按钮，页面正文足够长 |
+
+### 最近一次全量结果（2026-11-20, 2.0.243）
+
+```
+13/13 通过
+漏洞结果-默认 / 任务空 / 主机空
+资产-资产Tab / 子域空 / IP空 / 漏洞Tab空
+任务列表 / 节点列表 / POC / 指纹 / 敏感规则 / 系统配置
+```

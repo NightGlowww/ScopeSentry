@@ -1,0 +1,18 @@
+{
+  "_comment": "UI 矩阵用例：name=用例名，hash=路由，assert=要检查的断言名，见 assert.js",
+  "cases": [
+    { "name": "漏洞结果-默认", "hash": "#/asset-information/nuclei-result", "assert": "tableOrEmpty" },
+    { "name": "漏洞结果-任务空", "hash": "#/asset-information/nuclei-result?taskName=__none__", "assert": "contextualEmpty" },
+    { "name": "漏洞结果-主机空", "hash": "#/asset-information/nuclei-result?host=__none__", "assert": "contextualEmpty" },
+    { "name": "资产-资产Tab", "hash": "#/asset-information/index?tab=asset", "assert": "tableOrEmpty" },
+    { "name": "资产-子域Tab空", "hash": "#/asset-information/index?tab=subdomain&search=task%3D%3D%22__none__%22", "assert": "contextualEmpty" },
+    { "name": "资产-IP Tab空", "hash": "#/asset-information/index?tab=ip&search=task%3D%3D%22__none__%22", "assert": "contextualEmpty" },
+    { "name": "资产-漏洞Tab空", "hash": "#/asset-information/index?tab=vul&search=task%3D%3D%22__none__%22", "assert": "contextualEmpty" },
+    { "name": "任务列表", "hash": "#/task-management/ScanTask", "assert": "hasToolbar" },
+    { "name": "节点列表", "hash": "#/node-management/index", "assert": "hasColumns" },
+    { "name": "POC管理", "hash": "#/poc-management/index", "assert": "tableOrEmpty" },
+    { "name": "指纹管理", "hash": "#/fingerprint-management", "assert": "tableOrEmpty" },
+    { "name": "敏感信息规则", "hash": "#/sensitive-information-rules", "assert": "tableOrEmpty" },
+    { "name": "系统配置", "hash": "#/configuration/system", "assert": "hasButtons" }
+  ]
+}
