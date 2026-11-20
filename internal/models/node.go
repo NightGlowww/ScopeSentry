@@ -18,6 +18,8 @@ type NodeData struct {
 	CmdFail int64 `json:"cmdFail"`
 	// CmdFail10m 最近 10 分钟内的工具失败次数：判断"这批任务产出可不可信"用它
 	CmdFail10m int64 `json:"cmdFail10m"`
+	// Stale 心跳刚过期但还没到「判定死亡」的时长：界面应显示「心跳延迟」而不是「离线」
+	Stale bool `json:"stale,omitempty"`
 }
 
 type Message struct {

@@ -88,9 +88,15 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 		}
 
 		if nodeData.State == "1" && !lv.Alive {
-			// 异步更新节点状态，避免阻塞列表
-			go s.updateNodeState(context.Background(), nodeData.Name)
-			nodeData.State = "3"
+			// 心跳刚过期（<2 倍超时）不判定离线：服务端忙一下、节点 GC 抖一下都会让
+			// 单次心跳晚几秒，直接把 state 改成 3 会来回闪（2026-11-20 实测：节点容器
+			// 健康、任务在跑，列表却短暂显示「离线」）。这段时间只标 stale。
+			if lv.TimeDiff > 2*timeout {
+				go s.updateNodeState(context.Background(), nodeData.Name)
+				nodeData.State = "3"
+			} else {
+				nodeData.Stale = true
+			}
 		}
 
 		if online && nodeData.State != "1" {

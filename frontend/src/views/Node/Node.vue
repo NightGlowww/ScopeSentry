@@ -146,7 +146,7 @@ const nodeColums = reactive<TableColumn[]>([
       )
       // 「离线」有两种完全不同的处理：容器挂了（要重启）vs 被压得没空上报（要减负载）。
       // 只给一个红标签看不出区别，所以补一行「最后心跳」与推断。
-      const hint = offlineReason(row, cellValue)
+      const hint = row?.stale ? t('node.heartbeatDelayed') : offlineReason(row, cellValue)
       if (!hint) return tag
       return h('div', { class: 'node-state-cell' }, [tag, h('div', { class: 'node-state-hint' }, hint)])
     }
