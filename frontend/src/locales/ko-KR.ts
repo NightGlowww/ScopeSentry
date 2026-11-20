@@ -943,6 +943,8 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    rejectRecentOnly: '최근 거부 기록(클릭하여 보기)',
+    recentRejectEmpty: '거부 기록 없음',
     rejectTitle: '발송 거부(시작 이후)',
     rejectPrefix: '접두사 한도',
     rejectQueue: '대기열 가득',

@@ -920,6 +920,8 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    rejectRecentOnly: '最近有拒绝记录（点击查看）',
+    recentRejectEmpty: '暂无拒绝记录',
     rejectTitle: '派发被拒（自启动起）',
     rejectPrefix: '前缀占满',
     rejectQueue: '队列满',

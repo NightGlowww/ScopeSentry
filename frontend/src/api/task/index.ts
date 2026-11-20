@@ -351,3 +351,7 @@ export const deleteTaskByFilterApi = (
 // 各道派发闸门的拒绝次数（进程内累计，重启归零）
 export const getDispatchRejectStatsApi = (): Promise<IResponse<Record<string, number>>> =>
   request.post({ url: '/api/task/dispatch-stats', data: {} })
+
+// 最近 N 条派发拒绝记录（持久化，跨重启可查）
+export const getDispatchRecentApi = (limit = 5): Promise<IResponse<any[]>> =>
+  request.post({ url: '/api/task/dispatch-recent?limit=' + limit, data: {} })

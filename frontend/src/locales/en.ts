@@ -951,6 +951,8 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    rejectRecentOnly: 'recent rejections (click to view)',
+    recentRejectEmpty: 'No rejections recorded',
     rejectTitle: 'Dispatch rejected (since start)',
     rejectPrefix: 'prefix quota',
     rejectQueue: 'queue full',

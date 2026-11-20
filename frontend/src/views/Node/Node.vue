@@ -14,7 +14,7 @@ import { BaseButton } from '@/components/Button'
 import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
 import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi } from '@/api/node'
-import { getDispatchRejectStatsApi } from '@/api/task'
+import { getDispatchRejectStatsApi, getDispatchRecentApi } from '@/api/task'
 const { t } = useI18n()
 // 离线原因推断：把「最后心跳多久前」翻译成可行动的判断
 const offlineReason = (row: any, state: string): string => {
@@ -268,6 +268,35 @@ const loadRejectStats = async () => {
     rejectStats.value = {}
   }
 }
+// 最近拒绝记录（持久化）：点开看具体是哪个任务、哪个闸门、什么时间
+const recentRejections = ref<any[]>([])
+const showRecentRejections = ref(false)
+const loadRecentRejections = async () => {
+  try {
+    const res: any = await getDispatchRecentApi(5)
+    recentRejections.value = res?.data || []
+  } catch {
+    recentRejections.value = []
+  }
+}
+const toggleRecentRejections = async () => {
+  showRecentRejections.value = !showRecentRejections.value
+  if (showRecentRejections.value) await loadRecentRejections()
+}
+// 服务端重启后进程内计数归零，但库里还有最近的拒绝记录——
+// 只要任一非空就要显示入口，否则「重启后看不见有人撞闸」（2026-11-20）。
+const hasRejectInfo = computed(() => rejectSummary.value.length > 0 || recentRejections.value.length > 0)
+const gateLabel = (gate: string) => {
+  const map: Record<string, string> = {
+    prefix_quota: t('node.rejectPrefix'),
+    queue_full: t('node.rejectQueue'),
+    container_mem: t('node.rejectMem'),
+    rate_limited: t('node.rejectRate'),
+    name_exists: t('node.rejectName')
+  }
+  return map[gate] || gate
+}
+
 const rejectSummary = computed(() => {
   const s = rejectStats.value || {}
   const label: Record<string, string> = {
@@ -373,8 +402,9 @@ const clearQueue = async (name: string) => {
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const res = await getNodeDataApi()
-    // 顺带刷新「派发被拒」统计：它和节点列表一起看才有意义
+    // 顺带刷新「派发被拒」统计与最近记录：和节点列表一起看才有意义
     loadRejectStats()
+    loadRecentRejections()
     return {
       list: res.data.list
     }
@@ -550,10 +580,21 @@ const closepluginDialogVisible = () => {
       </BaseButton>
     </div>
     <div>
-      <div v-if="rejectSummary.length" class="node-health">
-        <ElTag type="info" size="small" effect="plain">
-          {{ t('node.rejectTitle') }}：{{ rejectSummary.join(' · ') }}
+      <div v-if="hasRejectInfo" class="node-health">
+        <ElTag type="info" size="small" effect="plain" style="cursor: pointer" @click="toggleRecentRejections">
+          {{ t('node.rejectTitle') }}：{{ rejectSummary.length ? rejectSummary.join(' · ') : t('node.rejectRecentOnly') }}
+          <span style="margin-left: 4px">{{ showRecentRejections ? '▲' : '▼' }}</span>
         </ElTag>
+      </div>
+      <div v-if="showRecentRejections" class="recent-reject">
+        <div v-if="!recentRejections.length" class="recent-reject__empty">{{ t('node.recentRejectEmpty') }}</div>
+        <div v-for="r in recentRejections" :key="r._id" class="recent-reject__row">
+          <span class="recent-reject__time">{{ String(r.at).slice(11, 19) }}</span>
+          <ElTag size="small" type="warning" effect="plain">{{ gateLabel(r.gate) }}</ElTag>
+          <span class="recent-reject__node">{{ r.node }}</span>
+          <span class="recent-reject__task">{{ r.taskName }}</span>
+          <span class="recent-reject__detail">{{ r.detail }}</span>
+        </div>
       </div>
 
       <div v-if="throttledNodes.length" class="node-health">
@@ -774,6 +815,25 @@ const closepluginDialogVisible = () => {
     transform: rotate(360deg);
   }
 }
+.recent-reject {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--el-fill-color-lighter);
+  font-size: 12px;
+}
+.recent-reject__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 2px 0;
+}
+.recent-reject__time { color: var(--el-text-color-secondary); }
+.recent-reject__node { color: var(--el-text-color-secondary); }
+.recent-reject__task { font-family: monospace; }
+.recent-reject__detail { color: var(--el-text-color-secondary); }
+.recent-reject__empty { color: var(--el-text-color-secondary); }
+
 .node-mem-cell {
   line-height: 1.2;
 }
