@@ -42,9 +42,11 @@ axiosInstance.interceptors.response.use(
       }
       const responseData = error.response.data as { message: string; data: string }
       // 显示后端返回的具体错误消息
+      // data 是后端给的具体原因时直接用它：拼上 message（常常只是「api.error」这种键）
+      // 会变成「api.error:节点队列已积压…」，前缀纯属噪音（2026-11-20 实测）
       const errorMsg =
         responseData.data && responseData.data !== ''
-          ? translateApiMessage(responseData.message) + ':' + responseData.data
+          ? String(responseData.data)
           : translateApiMessage(responseData.message)
       ElMessage.error(errorMsg || useI18n().t('localization.requestFailed'))
     } else {
