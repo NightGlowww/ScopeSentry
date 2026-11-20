@@ -66,6 +66,9 @@ func MCPAPIKeyMiddleware() gin.HandlerFunc {
 				Error:      reason,
 				CreatedAt:  time.Now(),
 			})
+			// 客户端（如 huntdeck）常常只打印 HTTP 状态码，把原因也放进响应头，
+			// 这样即使它不解析 JSON-RPC body，日志里也能看出是「key 被停用」而不是笼统 403。
+			c.Header("X-ScopeSentry-Auth", reason)
 			writeJSONRPCError(c, httpStatus, rpcID, code, reason)
 			c.Abort()
 		}
