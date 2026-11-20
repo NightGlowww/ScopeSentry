@@ -14,6 +14,8 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
+	"strconv"
+
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 	"github.com/gin-gonic/gin"
@@ -411,4 +413,15 @@ func DeleteByFilter(c *gin.Context) {
 // 用途：外部集成反复撞闸时一眼看出来，不用翻日志。
 func DispatchRejectStats(c *gin.Context) {
 	response.Success(c, common.RejectStats(), "api.success")
+}
+
+// RecentRejections 返回最近 N 条派发拒绝记录（持久化，重启不丢）。
+func RecentRejections(c *gin.Context) {
+	limit, _ := strconv.ParseInt(c.DefaultQuery("limit", "10"), 10, 64)
+	rows, err := common.RecentRejections(limit)
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, rows, "api.success")
 }

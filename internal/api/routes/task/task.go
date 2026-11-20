@@ -68,6 +68,11 @@ func registerTaskRoutes() models.RouteGroup {
 			},
 			{
 				Method:      "POST",
+				Path:        "dispatch-recent",
+				Handler:     taskHandler.RecentRejections,
+				Middlewares: common.WithAuth(),
+			}, {
+				Method:      "POST",
 				Path:        "dispatch-stats",
 				Handler:     taskHandler.DispatchRejectStats,
 				Middlewares: common.WithAuth(),
