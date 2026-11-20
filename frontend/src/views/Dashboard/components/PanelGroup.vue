@@ -112,16 +112,12 @@ const cards = computed(() => [
 </script>
 
 <template>
-  <ElRow :class="prefixCls" :gutter="16" justify="space-between">
-    <ElCol
-      v-for="card in cards"
-      :key="card.key"
-      :xs="24"
-      :sm="12"
-      :md="8"
-      :lg="card.key === 'vul' ? 4 : 5"
-    >
-      <ElCard shadow="never" :class="`${prefixCls}__card`" class="mb-16px">
+  <!-- 用 grid 而不是 ElCol 的 5/5/5/5/4：栅格总和卡在 24，最后一列被压窄；
+       而「漏洞」卡片多一行处置分布，比其它卡高，看着就不齐（2026-11-20 截图反馈）。
+       grid 保证等宽等高，窄屏自动换行。 -->
+  <div :class="prefixCls">
+    <div v-for="card in cards" :key="card.key" :class="`${prefixCls}__col`">
+      <ElCard shadow="never" :class="`${prefixCls}__card`">
         <ElSkeleton :loading="loading" animated :rows="2">
           <template #default>
             <div
@@ -147,14 +143,38 @@ const cards = computed(() => [
           </template>
         </ElSkeleton>
       </ElCard>
-    </ElCol>
-  </ElRow>
+    </div>
+  </div>
 </template>
 
 <style lang="less" scoped>
 @prefix-cls: ~'@{namespace}-panel';
 
 .@{prefix-cls} {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+
+  &__col {
+    display: flex;
+    min-width: 0;
+  }
+
+  &__card {
+    width: 100%;
+  }
+
   &__sub {
     margin-top: 2px;
     font-size: 11px;
