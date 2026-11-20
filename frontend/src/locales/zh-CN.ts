@@ -919,6 +919,17 @@ export default {
     taskInfo: '任务信息'
   },
   node: {
+    rebalance: '迁移排队',
+    rebalanceMsg: '把排队的待开始任务迁到空闲节点',
+    rebalanceMsgDetail: '把 {name} 队列里的待开始任务迁到另一台节点（运行中的任务不动）',
+    rebalanceFrom: '源节点',
+    rebalanceTo: '目标节点',
+    rebalancePick: '选择目标节点',
+    rebalanceCount: '迁移数量',
+    rebalanceHint: '只迁移「待开始」的任务；运行中的任务已经在原节点上跑，不迁移。',
+    rebalanceNeedTarget: '请选择目标节点',
+    rebalanceDone: '已迁移 {n} 个任务',
+    queueShort: '队列 {n}',
     cmdFailTip: '外部工具（子域/爬虫/目录扫描）非零退出 {total} 次，其中最近 10 分钟 {recent} 次。失败会静默减少资产产出。',
     cmdFail: '工具失败',
     logErrorSummary: '错误摘要',
@@ -954,6 +965,7 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    filterByNode: '按节点筛选',
     emptyFilteredTitle: '当前筛选没有任务',
     filterByName: '搜索：{q}',
     filterByStatus: '状态：{s}',

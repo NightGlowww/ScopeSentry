@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
-import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText } from 'element-plus'
+import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText, ElDialog, ElSelect, ElOption, ElInputNumber } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, h, computed } from 'vue'
@@ -190,6 +190,11 @@ const nodeColums = reactive<TableColumn[]>([
           <BaseButton type="primary" size="small" onClick={() => openConfig(row)}>
             {t('common.config')}
           </BaseButton>
+          <ElTooltip content={t('node.rebalanceMsg')}>
+            <BaseButton type="warning" size="small" onClick={() => openRebalance(row)}>
+              {t('node.rebalance')}
+            </BaseButton>
+          </ElTooltip>
           <ElTooltip content={t('node.clearQueueMsg')}>
             <BaseButton type="info" size="small" onClick={() => clearQueue(row.name)}>
               {t('node.clearQueue')}
@@ -205,6 +210,32 @@ const nodeColums = reactive<TableColumn[]>([
     }
   }
 ])
+// 迁移排队任务：某节点积压超上限（新任务被拒）而其他节点空转时用
+const rebalanceVisible = ref(false)
+const rebalanceFrom = ref('')
+const rebalanceTo = ref('')
+const rebalanceLimit = ref(5)
+const openRebalance = (row: any) => {
+  rebalanceFrom.value = row?.name || ''
+  rebalanceTo.value = ''
+  rebalanceLimit.value = Math.max(1, Math.min(Number(row?.queueLen) || 5, 20))
+  rebalanceVisible.value = true
+}
+const submitRebalance = async () => {
+  if (!rebalanceFrom.value || !rebalanceTo.value) {
+    ElMessage.warning(t('node.rebalanceNeedTarget'))
+    return
+  }
+  try {
+    const res: any = await rebalanceNodeQueueApi(rebalanceFrom.value, rebalanceTo.value, rebalanceLimit.value)
+    ElMessage.success(t('node.rebalanceDone', { n: res?.data?.moved ?? 0 }))
+    rebalanceVisible.value = false
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  }
+}
+
 // 清空节点待领取队列：任务洪泛时不用再登服务器 redis-cli
 const clearQueue = async (name: string) => {
   try {
@@ -483,6 +514,35 @@ const closepluginDialogVisible = () => {
       <BaseButton @click="closeLogDialogVisible">{{ t('common.off') }}</BaseButton>
     </template>
   </Dialog>
+
+  <ElDialog v-model="rebalanceVisible" :title="t('node.rebalance')" width="420px">
+    <div class="rebalance-body">
+      <div class="rebalance-row">
+        <span class="rebalance-label">{{ t('node.rebalanceFrom') }}</span>
+        <ElTag type="info">{{ rebalanceFrom }}</ElTag>
+      </div>
+      <div class="rebalance-row">
+        <span class="rebalance-label">{{ t('node.rebalanceTo') }}</span>
+        <ElSelect v-model="rebalanceTo" :placeholder="t('node.rebalancePick')" style="width: 220px">
+          <ElOption
+            v-for="n in dataList.filter((x) => x.name !== rebalanceFrom)"
+            :key="n.name"
+            :label="n.name + '（' + t('node.queueShort', { n: n.queueLen || 0 }) + '）'"
+            :value="n.name"
+          />
+        </ElSelect>
+      </div>
+      <div class="rebalance-row">
+        <span class="rebalance-label">{{ t('node.rebalanceCount') }}</span>
+        <ElInputNumber v-model="rebalanceLimit" :min="1" :max="20" />
+      </div>
+      <div class="rebalance-hint">{{ t('node.rebalanceHint') }}</div>
+    </div>
+    <template #footer>
+      <BaseButton @click="rebalanceVisible = false">{{ t('common.cancel') }}</BaseButton>
+      <BaseButton type="primary" @click="submitRebalance">OK</BaseButton>
+    </template>
+  </ElDialog>
 
   <Dialog
     v-model="pluginDialogVisible"

@@ -950,6 +950,17 @@ export default {
     taskInfo: 'Task Information'
   },
   node: {
+    rebalance: 'Rebalance',
+    rebalanceMsg: 'Move queued tasks to an idle node',
+    rebalanceMsgDetail: 'Move pending tasks off {name} to another node (running tasks are left alone)',
+    rebalanceFrom: 'From',
+    rebalanceTo: 'To',
+    rebalancePick: 'Pick a target node',
+    rebalanceCount: 'Count',
+    rebalanceHint: 'Only pending tasks move; running ones stay on their node.',
+    rebalanceNeedTarget: 'Pick a target node first',
+    rebalanceDone: 'Moved {n} task(s)',
+    queueShort: 'queue {n}',
     cmdFailTip: 'External tools (subdomain/crawler/dirscan) exited non-zero {total} times, {recent} in last 10 min. Failures silently reduce asset output.',
     cmdFail: 'Tool failures',
     logErrorSummary: 'Error summary',
@@ -985,6 +996,7 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    filterByNode: 'Filter by node',
     emptyFilteredTitle: 'No tasks match the filters',
     filterByName: 'search: {q}',
     filterByStatus: 'status: {s}',

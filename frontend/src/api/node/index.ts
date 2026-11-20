@@ -62,3 +62,7 @@ export const getPluginInfoApi = (name: string): Promise<IResponse<pluginInfoData
 // 清空节点待领取队列
 export const clearNodeQueueApi = (name: string): Promise<IResponse<any>> =>
   request.post({ url: '/api/node/queue/clear', data: { name } })
+
+// 把待开始任务从积压节点迁到空闲节点
+export const rebalanceNodeQueueApi = (from: string, to: string, limit = 10): Promise<IResponse<any>> =>
+  request.post({ url: '/api/node/queue/rebalance', data: { from, to, limit } })

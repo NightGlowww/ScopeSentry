@@ -30,6 +30,8 @@ type Service interface {
 	RestartNode(ctx context.Context, nodeName string) error
 	// ClearNodeQueue 清空节点待领取队列，返回清掉的条数
 	ClearNodeQueue(ctx context.Context, nodeName string) (int64, error)
+	// MoveQueuedTasks 把待开始任务从积压节点迁到空闲节点
+	MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error)
 }
 
 // ClearNodeQueue 清空节点待领取队列。
@@ -169,4 +171,9 @@ func (s *service) RestartNode(ctx context.Context, nodeName string) error {
 		Content: "",
 	}
 	return s.RefreshConfig(ctx, msg)
+}
+
+// MoveQueuedTasks 把待开始任务从一个节点迁到另一个节点（缓解队列积压）。
+func (s *service) MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error) {
+	return s.nodeRepo.MoveQueuedTasks(ctx, from, to, limit)
 }

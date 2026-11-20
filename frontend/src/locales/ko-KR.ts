@@ -942,6 +942,17 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    rebalance: '대기 작업 이동',
+    rebalanceMsg: '대기 중인 작업을 유휴 노드로 이동',
+    rebalanceMsgDetail: '{name} 대기열의 미시작 작업을 다른 노드로 이동합니다(실행 중 작업 제외)',
+    rebalanceFrom: '원본 노드',
+    rebalanceTo: '대상 노드',
+    rebalancePick: '대상 노드 선택',
+    rebalanceCount: '이동 개수',
+    rebalanceHint: '미시작 작업만 이동합니다. 실행 중 작업은 그대로 둡니다.',
+    rebalanceNeedTarget: '대상 노드를 선택하세요',
+    rebalanceDone: '{n}개 작업을 이동했습니다',
+    queueShort: '대기 {n}',
     cmdFailTip: '외부 도구(서브도메인/크롤러/디렉터리) 비정상 종료 {total}회, 최근 10분 {recent}회. 실패하면 자산 산출이 조용히 줄어듭니다.',
     cmdFail: '도구 실패',
     logErrorSummary: '오류 요약',
@@ -977,6 +988,7 @@ export default {
     restartMsg: 'Docker만 지원합니다.'
   },
   task: {
+    filterByNode: '노드로 필터',
     emptyFilteredTitle: '현재 조건에 맞는 작업이 없습니다',
     filterByName: '검색: {q}',
     filterByStatus: '상태: {s}',

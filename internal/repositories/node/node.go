@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	redisdriver "github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -30,6 +32,8 @@ type Repository interface {
 	NodeQueueLen(ctx context.Context, name string) (int64, error)
 	// ClearNodeQueue 清空节点待领取队列
 	ClearNodeQueue(ctx context.Context, name string) (int64, error)
+	// MoveQueuedTasks 把待开始任务从一个节点的队列迁到另一个节点
+	MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error)
 }
 
 type repository struct {
@@ -220,4 +224,56 @@ func (r *repository) ClearNodeQueue(ctx context.Context, name string) (int64, er
 		return 0, nil
 	}
 	return n, r.redisClient.Del(ctx, key).Err()
+}
+
+// MoveQueuedTasks 把 from 节点待领取队列里的「待开始」任务迁到 to 节点。
+// 场景：某节点积压（超过背压上限后新任务被拒），而其他节点空转，
+// 手工改 Mongo+Redis 才能搬——2026-11-20 实测堵死过一次。
+// 只迁 status=0（待开始）的任务：运行中的任务已经在该节点上跑，不能换。
+func (r *repository) MoveQueuedTasks(ctx context.Context, from, to string, limit int) (int, error) {
+	if from == "" || to == "" || from == to {
+		return 0, fmt.Errorf("源节点和目标节点必须是两个不同的节点")
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 50
+	}
+	srcKey := "NodeTask:" + from
+	dstKey := "NodeTask:" + to
+	items, err := r.redisClient.LRange(ctx, srcKey, 0, -1).Result()
+	if err != nil {
+		return 0, err
+	}
+	moved := 0
+	for _, raw := range items {
+		if moved >= limit {
+			break
+		}
+		var payload struct {
+			ID string `json:"id"`
+		}
+		if json.Unmarshal([]byte(raw), &payload) != nil || payload.ID == "" {
+			continue
+		}
+		oid, oerr := primitive.ObjectIDFromHex(payload.ID)
+		if oerr != nil {
+			continue
+		}
+		// 只搬还在排队（未开始）的任务
+		res, uerr := mongodb.DB.Collection("task").UpdateOne(ctx,
+			bson.M{"_id": oid, "status": 0},
+			bson.M{"$set": bson.M{"node": []string{to}}})
+		if uerr != nil || res.ModifiedCount == 0 {
+			continue
+		}
+		if _, lerr := r.redisClient.LRem(ctx, srcKey, 1, raw).Result(); lerr != nil {
+			continue
+		}
+		if perr := redislist.PushQueued(ctx, r.redisClient, dstKey, 30*time.Minute, raw); perr != nil {
+			// 推失败就回滚 Mongo，避免任务既不在队列也不在原节点
+			_, _ = mongodb.DB.Collection("task").UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"node": []string{from}}})
+			continue
+		}
+		moved++
+	}
+	return moved, nil
 }

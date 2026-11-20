@@ -242,3 +242,23 @@ func RestartNode(c *gin.Context) {
 func init() {
 	nodeService = node.NewService()
 }
+
+// RebalanceQueue 把待开始任务从积压节点迁到空闲节点。
+// 只迁 status=0 的任务：运行中的任务已在原节点上跑，换节点会丢进度。
+func RebalanceQueue(c *gin.Context) {
+	var req struct {
+		From  string `json:"from" binding:"required"`
+		To    string `json:"to" binding:"required"`
+		Limit int    `json:"limit"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	moved, err := nodeService.MoveQueuedTasks(c.Request.Context(), req.From, req.To, req.Limit)
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, map[string]interface{}{"moved": moved}, "api.success")
+}
