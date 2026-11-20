@@ -206,6 +206,9 @@ const taskColums = reactive<TableColumn[]>([
       // 粗估剩余时间：progress ≥ 5% 且有创建时间才算，否则不出（避免「约剩 0 分钟」这类噪音）
       let etaText = ''
       const prog = Number(row.progress) || 0
+      // 有 startedAt 的是「本次启动时间」，估算可信；老任务没有该字段，只能拿创建时间凑，
+      // 期间可能暂停过，所以前面加 ≈ 表示粗略（2026-11-21）
+      const preciseEta = !!row.startedAt
       const startRef = row.startedAt || row.creatTime
       if (prog >= 5 && startRef) {
         const started = new Date(String(startRef).replace(/-/g, '/')).getTime()
@@ -216,10 +219,11 @@ const taskColums = reactive<TableColumn[]>([
           if (remainMin >= 1 && remainMin <= 24 * 60) {
             const hPart = Math.floor(remainMin / 60)
             const mPart = remainMin % 60
-            etaText =
+            const base =
               hPart > 0
                 ? t('task.etaHours', { h: hPart, m: mPart })
                 : t('task.etaMinutes', { m: mPart })
+            etaText = preciseEta ? base : '≈ ' + base
           }
         }
       }
