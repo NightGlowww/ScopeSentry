@@ -34,8 +34,38 @@ func bumpReject(kind string) {
 	rejectMu.Unlock()
 }
 
+// 同一个任务在极短时间内被同一条闸门拒两次（实测 23ms 内两条），
+// 说明调用链上有重复尝试；计数和记录都只保留第一次，避免数字虚高。
+var (
+	lastRejectMu   sync.Mutex
+	lastRejectSeen = map[string]time.Time{}
+)
+
+func shouldRecord(key string, window time.Duration) bool {
+	lastRejectMu.Lock()
+	defer lastRejectMu.Unlock()
+	now := time.Now()
+	if t, ok := lastRejectSeen[key]; ok && now.Sub(t) < window {
+		return false
+	}
+	lastRejectSeen[key] = now
+	// 顺手清掉过期项，避免长期运行后 map 无限增长
+	if len(lastRejectSeen) > 512 {
+		for k, t := range lastRejectSeen {
+			if now.Sub(t) > window {
+				delete(lastRejectSeen, k)
+			}
+		}
+	}
+	return true
+}
+
 // noteReject 一次拒绝：计数 + 落库（异步，失败只记日志，不影响派发主流程）。
 func noteReject(kind, node, taskName, detail string) {
+	// 2 秒内同一 (闸门, 节点, 任务) 只记一次
+	if !shouldRecord(kind+"|"+node+"|"+taskName, 2*time.Second) {
+		return
+	}
 	bumpReject(kind)
 	go func() {
 		defer func() { _ = recover() }()

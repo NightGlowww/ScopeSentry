@@ -830,7 +830,23 @@ func createIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create mcp_call_logs indexes: %v", err)
 	}
 
-	// 操作审计同样保留 30 天\n	auditLogs := db.Collection("audit_logs")\n	if _, err := auditLogs.Indexes().CreateOne(context.Background(), mongo.IndexModel{\n		Keys:    bson.D{{Key: "at", Value: 1}},\n		Options: options.Index().SetExpireAfterSeconds(30 * 24 * 3600).SetName("at_ttl30d"),\n	}); err != nil {\n		return fmt.Errorf("failed to create audit_logs ttl index: %v", err)\n	}\n\n	// API Key 列表按 createdAt 倒序分页（keyHash 唯一索引由 apikey.EnsureIndexes 负责，
+	// 调度拒绝记录保留 30 天（每次撞闸一条，长期会无限增长）
+	rejections := db.Collection("dispatch_rejections")
+	if _, err := rejections.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "at", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(30 * 24 * 3600).SetName("at_ttl30d"),
+	}); err != nil {
+		return fmt.Errorf("failed to create dispatch_rejections ttl index: %v", err)
+	}
+
+	// 操作审计同样保留 30 天
+	auditLogs := db.Collection("audit_logs")
+	if _, err := auditLogs.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "at", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(30 * 24 * 3600).SetName("at_ttl30d"),
+	}); err != nil {
+		return fmt.Errorf("failed to create audit_logs ttl index: %v", err)
+	}
 	// 这里不重复创建，避免历史库里存在重复 keyHash 时启动直接失败）
 	apiKeyCollection := db.Collection("api_key")
 	if _, err := apiKeyCollection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
