@@ -122,6 +122,16 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	names := make([]string, 0, 32)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_asset_profile",
+		Description: "获取某个目标（域名/IP/URL）的综合资产画像：子域数量与样本、端口与服务指纹、URL 数量、漏洞与敏感信息。用于一次回答「这个目标到底有什么」。",
+	}, getAssetProfile)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "search_assets",
+		Description: "跨库检索：按关键词在子域、Web 资产、URL、漏洞、敏感信息里同时查找，返回每类命中数与样本。",
+	}, searchAssets)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_projects",
 		Description: "获取按标签分组的项目列表",
 	}, listProjects)
