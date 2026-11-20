@@ -250,8 +250,17 @@ const healOne = async () => {
       await rebalanceNodeQueueApi(bad.name, target, moveCount)
     }
     await restartNodeApi(bad.name)
+    // 重启指令要节点自己来领：被压住的节点恰恰领不到（2026-11-20 实测 node-tx-sh-02
+    // 内存 97%、load 12，重启指令排队没人取，容器 Up 6h 纹丝不动）。
+    // 所以等一会儿再看，没回来就明说要在主机上手工处理，而不是假装成功。
+    await new Promise((r) => setTimeout(r, 12000))
+    await getList()
+    const still = (dataList.value || []).find((n: any) => n.name === bad.name)
+    if (still && String(still.state) === '3') {
+      ElMessage.warning(t('node.healPending', { name: bad.name }))
+      return
+    }
     ElMessage.success(t('node.healDone', { name: bad.name, n: moveCount, to: target || '-' }))
-    getList()
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.operateFailed'))
   }
