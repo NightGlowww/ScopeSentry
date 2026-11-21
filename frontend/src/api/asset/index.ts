@@ -116,11 +116,20 @@ export const getSubdomainApi = (
   filter: Record<string, any>,
   // 发现时间范围（可选）：对齐 ARL-Next v1.5.1
   timeFrom?: string,
-  timeTo?: string
+  timeTo?: string,
+  timeSort?: string
 ): Promise<IResponse<SubdomainDataResponse>> => {
   return request.post({
     url: '/api/assets/subdomain',
-    data: { search, pageIndex, pageSize, filter, timeFrom: timeFrom || undefined, timeTo: timeTo || undefined }
+    data: {
+      search,
+      pageIndex,
+      pageSize,
+      filter,
+      timeFrom: timeFrom || undefined,
+      timeTo: timeTo || undefined,
+      sort: timeSort ? { time: timeSort } : undefined
+    }
   })
 }
 
@@ -134,11 +143,12 @@ export const getURLApi = (
   pageIndex: number,
   pageSize: number,
   filter: Record<string, any>,
-  sort: Record<string, any>
+  sort: Record<string, any>,
+  timeFrom?: string
 ): Promise<IResponse<URLDataResponse>> => {
   return request.post({
     url: '/api/assets/url',
-    data: { search, pageIndex, pageSize, filter, sort }
+    data: { search, pageIndex, pageSize, filter, sort, timeFrom: timeFrom || undefined }
   })
 }
 
@@ -170,11 +180,20 @@ export const getSensitiveResultApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  timeFrom?: string,
+  timeSort?: string
 ): Promise<IResponse<SensitiveDataResponse>> => {
   return request.post({
     url: '/api/assets/sensitive',
-    data: { search, pageIndex, pageSize, filter }
+    data: {
+      search,
+      pageIndex,
+      pageSize,
+      filter,
+      timeFrom: timeFrom || undefined,
+      sort: timeSort ? { time: timeSort } : undefined
+    }
   })
 }
 
@@ -232,11 +251,12 @@ export const getDirScanApi = (
   pageIndex: number,
   pageSize: number,
   filter: Record<string, any>,
-  sort: Record<string, any>
+  sort: Record<string, any>,
+  timeFrom?: string
 ): Promise<IResponse<DirScanDataResponse>> => {
   return request.post({
     url: '/api/assets/dirscan',
-    data: { search, pageIndex, pageSize, filter, sort }
+    data: { search, pageIndex, pageSize, filter, sort, timeFrom: timeFrom || undefined }
   })
 }
 

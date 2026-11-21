@@ -92,6 +92,14 @@ func (s *service) GetURLs(ctx context.Context, query models.SearchRequest) ([]mo
 	}
 	// 构建排序
 	sortBy := bson.D{{Key: "_id", Value: -1}}
+	// 发现时间排序优先（时间筛选条上的「新→旧 / 旧→新」）
+	if val, ok := query.Sort["time"]; ok {
+		dir := -1
+		if val == "asc" || val == "ascending" {
+			dir = 1
+		}
+		sortBy = bson.D{{Key: "time", Value: dir}}
+	}
 	if val, ok := query.Sort["length"]; ok {
 		dir := -1
 		if val == "ascending" {

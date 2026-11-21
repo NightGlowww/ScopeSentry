@@ -1214,6 +1214,9 @@ export default {
     PassiveScan: '패시브 스캔'
   },
   asset: {
+    sortHint: '발견 시각 정렬',
+    sortNewest: '최신순',
+    sortOldest: '오래된순',
     discoveryTime: '발견 시각',
     timeAll: '전체',
     timeToday: '오늘',

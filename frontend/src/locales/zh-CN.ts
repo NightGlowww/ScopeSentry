@@ -1189,6 +1189,9 @@ export default {
     PassiveScan: '被动扫描'
   },
   asset: {
+    sortHint: '按发现时间排序',
+    sortNewest: '新→旧',
+    sortOldest: '旧→新',
     discoveryTime: '发现时间',
     timeAll: '全部',
     timeToday: '今天',

@@ -4,6 +4,7 @@ import { useEmptyHint } from '@/hooks/web/useEmptyHint'
 import { computed, h, nextTick, reactive, Ref, ref } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
+import TimeRangeFilter from './TimeRangeFilter.vue'
 import {
   ElCard,
   ElPagination,
@@ -433,7 +434,9 @@ const { tableRegister, tableState, tableMethods } = useTable({
       searchParams.value,
       currentPage.value,
       pageSize.value,
-      filter
+      filter,
+      timeFrom.value,
+      timeSort.value
     )
     return {
       list: res.data.list,
@@ -442,6 +445,19 @@ const { tableRegister, tableState, tableMethods } = useTable({
   },
   immediate: false
 })
+
+// 发现时间筛选（对齐 ARL-Next v1.5.1）
+const timeRange = ref<string>('all')
+const timeSort = ref<string>('desc')
+const timeFrom = computed(() => {
+  if (timeRange.value === 'all') return ''
+  const n = Number(timeRange.value)
+  if (!n) return ''
+  const d = new Date(Date.now() - n * 24 * 3600 * 1000)
+  const pad = (x: number) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
+})
+
 const { loading, dataList, total, currentPage, pageSize } = tableState
 const { getList, getElTableExpose } = tableMethods
 
@@ -611,6 +627,7 @@ const drawerAggregationData = computed<SensitiveAggregation[]>(() => {
     :sensitiveAllNumber="allNumber"
     :getFilter="getFilter"
   />
+  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="handleSearch" />
   <ElRow>
     <div style="display: flex; width: 100%">
       <!-- 左侧目录栏，高度与表格一致，内容可滚动 -->

@@ -57,7 +57,7 @@ func (s *service) GetSensitiveInfo(ctx context.Context, query models.SearchReque
 		SetProjection(projection).
 		SetSkip(int64((query.PageIndex - 1) * query.PageSize)).
 		SetLimit(int64(query.PageSize)).
-		SetSort(bson.D{{Key: "time", Value: -1}})
+		SetSort(bson.D{{Key: "time", Value: helper.TimeSortDir(query)}})
 
 	result, err := s.repo.FindWithPagination(ctx, filter, opts)
 	if err != nil {

@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
 import { useEmptyHint } from '@/hooks/web/useEmptyHint'
-import { h, nextTick, reactive, Ref, ref } from 'vue'
+import { h, nextTick, reactive, Ref, ref, computed } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
 import {ElCard, ElPagination, ElCol, ElRow, ElDescriptions, ElDescriptionsItem, ElText, ElButton, ElInput, ElTag, InputInstance, ElSelect, ElOption, ElScrollbar} from 'element-plus'
@@ -375,7 +375,9 @@ const { tableRegister, tableState, tableMethods } = useTable({
       searchParams.value,
       currentPage.value,
       pageSize.value,
-      filter
+      filter,
+      timeFrom.value,
+      timeSort.value
     )
     return {
       list: res.data.list,
@@ -384,6 +386,19 @@ const { tableRegister, tableState, tableMethods } = useTable({
   },
   immediate: false
 })
+
+// 发现时间筛选（对齐 ARL-Next v1.5.1）
+const timeRange = ref<string>('all')
+const timeSort = ref<string>('desc')
+const timeFrom = computed(() => {
+  if (timeRange.value === 'all') return ''
+  const n = Number(timeRange.value)
+  if (!n) return ''
+  const d = new Date(Date.now() - n * 24 * 3600 * 1000)
+  const pad = (x: number) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
+})
+
 const { loading, dataList, total, currentPage, pageSize } = tableState
 const { getList, getElTableExpose } = tableMethods
 pageSize.value = 20
@@ -551,6 +566,7 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
+  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="handleSearch" />
   <ElRow>
     <ElCol>
       <ElCard>

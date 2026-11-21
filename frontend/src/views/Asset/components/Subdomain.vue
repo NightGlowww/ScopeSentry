@@ -20,6 +20,7 @@ import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getSubdomainApi, totalDataApi } from '@/api/asset'
 import Csearch from '../search/Csearch.vue'
+import TimeRangeFilter from './TimeRangeFilter.vue'
 import { RowState } from '@/api/asset/types'
 import { Icon } from '@/components/Icon'
 import { HostValueCell } from '@/components/HostValueCell'
@@ -87,6 +88,7 @@ const emptyHint = computed(() => {
 // 发现时间范围：对齐 ARL-Next v1.5.1 的时间筛选（2026-11-22）
 // 只做"最近 N 天"这类粗粒度，够回答「这两天新出现了什么」；精确区间留给搜索表达式
 const timeRange = ref<string>('all')
+const timeSort = ref<string>('desc')
 const timeParams = computed(() => {
   const v = timeRange.value
   if (v === 'all') return { from: '', to: '' }
@@ -361,7 +363,8 @@ const { tableRegister, tableState, tableMethods } = useTable({
       pageSize.value,
       filter,
       timeParams.value.from,
-      timeParams.value.to
+      timeParams.value.to,
+      timeSort.value
     )
     return {
       list: res.data.list,
@@ -456,17 +459,7 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
-  <ElRow class="time-range-row">
-    <ElCol>
-      <span class="time-range-label">{{ t('asset.discoveryTime') }}</span>
-      <ElRadioGroup v-model="timeRange" size="small" @change="handleSearch">
-        <ElRadioButton label="all">{{ t('asset.timeAll') }}</ElRadioButton>
-        <ElRadioButton label="1">{{ t('asset.timeToday') }}</ElRadioButton>
-        <ElRadioButton label="7">{{ t('asset.time7d') }}</ElRadioButton>
-        <ElRadioButton label="30">{{ t('asset.time30d') }}</ElRadioButton>
-      </ElRadioGroup>
-    </ElCol>
-  </ElRow>
+  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="handleSearch" />
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">

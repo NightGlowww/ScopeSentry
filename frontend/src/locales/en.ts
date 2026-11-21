@@ -1224,6 +1224,9 @@ export default {
     PassiveScan: 'PassiveScan'
   },
   asset: {
+    sortHint: 'Sort by discovery time',
+    sortNewest: 'Newest',
+    sortOldest: 'Oldest',
     discoveryTime: 'Discovered',
     timeAll: 'All',
     timeToday: 'Today',

@@ -85,7 +85,7 @@ func (s *service) GetIPAssets(ctx *gin.Context, query models.SearchRequest) (*mo
 			SetProjection(projection).
 			SetSkip(int64((query.PageIndex - 1) * query.PageSize)).
 			SetLimit(int64(query.PageSize)).
-			SetSort(bson.D{{Key: "time", Value: -1}})
+			SetSort(bson.D{{Key: "time", Value: helper.TimeSortDir(query)}})
 
 		assets, err = s.repo.Find(reqCtx, filter, opts)
 		if err != nil {

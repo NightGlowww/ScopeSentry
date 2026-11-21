@@ -20,15 +20,18 @@ import (
 )
 
 // indexHasTimeField 哪些索引有 "time"（发现时间）字段——时间范围筛选只对它们生效。
+// 只列**实测确实有 time 字段**的集合（2026-11-22 逐集合 countDocuments 核过）：
+// DirScanResult / PageMonitoring / app / mp 的 time 全是 0 条，放进来会让时间筛选
+// 恒返回空——那种"静默空结果"比不做筛选更糟。
 var indexHasTimeField = map[string]bool{
 	"subdomain":       true,
 	"asset":           true,
 	"UrlScan":         true,
 	"vulnerability":   true,
-	"DirScanResult":   true,
 	"SensitiveResult": true,
 	"crawler":         true,
-	"PageMonitoring":  true,
+	"IPAsset":         true,
+	"RootDomain":      true,
 }
 
 // SearchKey 定义了不同类型数据的字段映射关系
@@ -656,4 +659,17 @@ func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 	}
 
 	return result, nil
+}
+
+// TimeSortDir 返回按 time 排序的方向：默认 -1（新→旧），
+// 请求里 sort.time == "asc" 时返回 1（旧→新）——对齐 ARL-Next v1.5.1 的排序切换。
+func TimeSortDir(req models.SearchRequest) int {
+	if req.Sort != nil {
+		if v, ok := req.Sort["time"]; ok {
+			if strings.EqualFold(strings.TrimSpace(v), "asc") {
+				return 1
+			}
+		}
+	}
+	return -1
 }

@@ -14,11 +14,20 @@ export const getVulResultDataApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  timeFrom?: string,
+  timeSort?: string
 ): Promise<IResponse<vulResultDataResponse>> => {
   return request.post({
     url: '/api/assets/vulnerability',
-    data: { search, pageIndex, pageSize, filter }
+    data: {
+      search,
+      pageIndex,
+      pageSize,
+      filter,
+      timeFrom: timeFrom || undefined,
+      sort: timeSort ? { time: timeSort } : undefined
+    }
   })
 }
 

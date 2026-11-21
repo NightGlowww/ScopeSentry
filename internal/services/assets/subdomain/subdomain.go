@@ -96,7 +96,7 @@ func (s *service) GetSubdomains(ctx context.Context, query models.SearchRequest)
 		SetProjection(projection).
 		SetSkip(int64((query.PageIndex - 1) * query.PageSize)).
 		SetLimit(int64(query.PageSize)).
-		SetSort(bson.D{{Key: "time", Value: -1}})
+		SetSort(bson.D{{Key: "time", Value: helper.TimeSortDir(query)}})
 
 	return s.repo.FindWithPagination(ctx, filter, opts)
 }
