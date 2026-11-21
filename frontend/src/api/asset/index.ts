@@ -414,11 +414,12 @@ export const totalDataApi = (
   pageIndex: number,
   pageSize: number,
   filter: Record<string, any>,
-  index: string
+  index: string,
+  timeFrom?: string
 ): Promise<IResponse<TotalDataResponse>> => {
   return request.post({
     url: '/api/assets/common/total',
-    data: { search, pageIndex, pageSize, filter, index }
+    data: { search, pageIndex, pageSize, filter, index, timeFrom: timeFrom || undefined }
   })
 }
 

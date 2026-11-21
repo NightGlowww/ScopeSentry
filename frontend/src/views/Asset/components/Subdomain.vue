@@ -382,7 +382,8 @@ const getTotal = async (
   pageSize: number,
   filter: Record<string, any>
 ) => {
-  let res = await totalDataApi(search, pageIndex, pageSize, filter, index)
+  // 带时间范围：否则「共 N 条」永远是全量，和筛选后的列表对不上
+  let res = await totalDataApi(search, pageIndex, pageSize, filter, index, timeFrom.value)
   total.value = res.data.total
 }
 

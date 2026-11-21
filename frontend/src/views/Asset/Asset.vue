@@ -80,45 +80,45 @@ const handleTabClick = (tab: any) => {
   <!-- 资产族数量总览：一行统计卡片（asset/subdomain/url/app/mp/vulnerability/sensitive/cert/cip） -->
   <AssetOverviewCards />
   <ElTabs v-model="activeTab" type="border-card" @tab-click="handleTabClick" @tab-change="onTabChange">
-    <ElTabPane name="asset" :label="t('asset.assetName')"
+    <ElTabPane lazy name="asset" :label="t('asset.assetName')"
       ><AssetInfo2 :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane name="ip" :label="t('asset.IP')"
+    <ElTabPane lazy name="ip" :label="t('asset.IP')"
       ><IP :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane name="rootdomain" :label="t('rootDomain.rootDomainName')">
+    <ElTabPane lazy name="rootdomain" :label="t('rootDomain.rootDomainName')">
       <RootDomain :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="subdomain" :label="t('subdomain.subdomainName')">
+    <ElTabPane lazy name="subdomain" :label="t('subdomain.subdomainName')">
       <Subdomain :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="takeover" :label="t('task.subdomainTakeover')">
+    <ElTabPane lazy name="takeover" :label="t('task.subdomainTakeover')">
       <SubdomainTakeover :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="app" :label="t('app.appName')">
+    <ElTabPane lazy name="app" :label="t('app.appName')">
       <APP :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="mp" :label="t('miniProgram.miniProgramName')">
+    <ElTabPane lazy name="mp" :label="t('miniProgram.miniProgramName')">
       <MP :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="url" :label="t('URL.URLName')"
+    <ElTabPane lazy name="url" :label="t('URL.URLName')"
       ><URL :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane name="crawler" :label="t('crawler.crawlerName')"
+    <ElTabPane lazy name="crawler" :label="t('crawler.crawlerName')"
       ><Crawler :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane name="sensitive" :label="t('sensitiveInformation.sensitiveInformationName')">
+    <ElTabPane lazy name="sensitive" :label="t('sensitiveInformation.sensitiveInformationName')">
       <SensitiveInformation :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="dirscan" :label="t('dirScan.dirScanName')"
+    <ElTabPane lazy name="dirscan" :label="t('dirScan.dirScanName')"
       ><DirScan :projectList="projectList" :taskList="taskList"
     /></ElTabPane>
-    <ElTabPane name="vul" :label="t('vulnerability.vulnerabilityName')">
+    <ElTabPane lazy name="vul" :label="t('vulnerability.vulnerabilityName')">
       <vul :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane name="pagemonitoring" :label="t('PageMonitoring.pageMonitoringName')">
+    <ElTabPane lazy name="pagemonitoring" :label="t('PageMonitoring.pageMonitoringName')">
       <PageMonitoring :projectList="projectList" :taskList="taskList" />
     </ElTabPane>
-    <ElTabPane :label="t('localization.map')" name="map" />
+    <ElTabPane lazy :label="t('localization.map')" name="map" />
   </ElTabs>
 </template>
