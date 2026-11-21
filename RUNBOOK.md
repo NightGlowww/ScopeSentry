@@ -421,3 +421,26 @@ prod-02  update.googleapis.com -> 🇭🇰 香港 02 / Fallback / MESL
 ```bash
 sg docker -c "docker rm -f scopesentry-scan && docker rename scopesentry-scan-old-<ts> scopesentry-scan && docker start scopesentry-scan"
 ```
+### 容器内存规格统一到 ≥2GB（2026-11-22 00:30）
+
+```
+prod-tx-sh-app-01  node-sh-01   2.62GB（未动，本来就 > 2G）
+prod-tx-sh-app-02  node-tx-sh-02 2.00GB
+dev-tx-sh-app-02   node-dev-02  1.17GB → 2.00GB   ← 本次调整
+```
+
+调整方式（不改容器，运行时生效）：
+
+```bash
+sg docker -c "docker update --memory 2g --memory-swap 4g scopesentry-scan"
+sg docker -c "docker restart scopesentry-scan"   # 必须重启，Go 软上限在启动时按 cgroup 计算
+```
+
+重启后日志确认：`memory limit: container=2048MiB soft-limit=1433MiB`。
+
+**背景**：dev-02 原先 1.17GB，Go 进程 ~1.0GB + chrome 爬虫 ~0.48GB 就已超限，
+看门狗因此每 1-1.5 小时触发一次重启（RestartCount 25），正在跑的任务被打断。
+提到 2GB 后软上限 1433MB、看门狗阈值 1.95GB，留出足够余量。
+
+注意：`docker update` 只改容器运行参数，**容器被删除重建时要重新带上 `--memory`**
+（`scripts/proxyfy3.sh` 这类重建脚本已经从旧容器读取该值）。
