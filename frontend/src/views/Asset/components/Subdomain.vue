@@ -114,6 +114,9 @@ const onTimeFilterChange = (v?: string) => {
   // 直接用事件带过来的值，避免 v-model 尚未落定时读到旧值
   if (v) timeRange.value = v
   handleSearch(searchParams.value || '')
+  // 本页的「共 N 条」由独立的 getTotal 维护，handleSearch 不会触发它
+  // （只有搜索词/列筛选变化时才刷新），所以这里显式刷一次，否则总数停在旧值（2026-11-22）
+  getTotal(searchParams.value || '', currentPage.value, pageSize.value, filter)
 }
 const rowStateMap = reactive<Record<string, RowState>>({})
 const crudSchemas = reactive<CrudSchema[]>([

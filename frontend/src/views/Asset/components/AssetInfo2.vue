@@ -863,7 +863,7 @@ const getTotal = async (
   pageSize: number,
   filter: Record<string, any>
 ) => {
-  let res = await totalDataApi(search, pageIndex, pageSize, filter, index)
+  let res = await totalDataApi(search, pageIndex, pageSize, filter, index, timeFrom.value)
   total.value = res.data.total
 }
 function tableHeaderColor() {

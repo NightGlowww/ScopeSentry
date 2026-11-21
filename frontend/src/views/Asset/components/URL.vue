@@ -367,7 +367,7 @@ const getTotal = async (
   pageSize: number,
   filter: Record<string, any>
 ) => {
-  let res = await totalDataApi(search, pageIndex, pageSize, filter, index)
+  let res = await totalDataApi(search, pageIndex, pageSize, filter, index, timeFrom.value)
   total.value = res.data.total
 }
 
@@ -397,6 +397,10 @@ const onTimeFilterChange = (v?: string) => {
   // 直接用事件带过来的值，避免 v-model 尚未落定时读到旧值
   if (v) timeRange.value = v
   handleSearch(searchParams.value || '')
+  // 「共 N 条」由独立的 getTotal 维护，时间变化时也要刷新（否则总数停在旧值）
+  if (typeof getTotal === 'function') {
+    getTotal(searchParams.value || '', currentPage.value, pageSize.value, filter)
+  }
 }
 const sortChange = async (column: any) => {
   const key = column.prop
