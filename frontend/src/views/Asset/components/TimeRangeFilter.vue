@@ -19,13 +19,15 @@ const { t } = useI18n()
 const days = computed(() => props.modelValue || 'all')
 const sortDir = computed(() => props.sort || 'desc')
 
+// 把新值一起带出去：父组件的 v-model 更新是异步生效的，
+// 如果 change 里立刻取 timeFrom，可能还是旧值（2026-11-22 实测根域名页不发 timeFrom）
 const setDays = (v: string | number | boolean | undefined) => {
   emit('update:modelValue', String(v))
-  emit('change')
+  emit('change', String(v))
 }
 const setSort = (v: string | number | boolean | undefined) => {
   emit('update:sort', String(v))
-  emit('change')
+  emit('change', days.value)
 }
 
 // 把「最近 N 天」换算成后端能比较的起始时间串
@@ -34,7 +36,7 @@ const from = computed(() => {
   if (v === 'all') return ''
   const n = Number(v)
   if (!n) return ''
-  const d = new Date(Date.now() - n * 24 * 3600 * 1000)
+  const d = new Date(Date.now() - (n - 1) * 24 * 3600 * 1000) // 「今天」= 今天 00:00，不是昨天
   const pad = (x: number) => String(x).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
 })
@@ -42,7 +44,7 @@ defineExpose({ from })
 </script>
 
 <template>
-  <div class="time-range-row">
+  <div class="time-range-row" :data-from="from" :data-days="days" :data-sort="sortDir">
     <span class="time-range-label">{{ t('asset.discoveryTime') }}</span>
     <ElRadioGroup :model-value="days" size="small" @change="setDays">
       <ElRadioButton label="all">{{ t('asset.timeAll') }}</ElRadioButton>

@@ -94,7 +94,8 @@ const timeParams = computed(() => {
   if (v === 'all') return { from: '', to: '' }
   const days = Number(v)
   if (!days) return { from: '', to: '' }
-  const d = new Date(Date.now() - days * 24 * 3600 * 1000)
+  // 「今天」= 今天 00:00（days=1 时不能减满 24 小时，否则变成昨天）
+  const d = new Date(Date.now() - (days - 1) * 24 * 3600 * 1000)
   const pad = (n: number) => String(n).padStart(2, '0')
   const from = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
   return { from, to: '' }
@@ -106,6 +107,13 @@ const handleSearch = (data: any) => {
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
   getList()
+}
+
+// 时间筛选变化：保留当前搜索表达式，只重新取数
+const onTimeFilterChange = (v?: string) => {
+  // 直接用事件带过来的值，避免 v-model 尚未落定时读到旧值
+  if (v) timeRange.value = v
+  handleSearch(searchParams.value || '')
 }
 const rowStateMap = reactive<Record<string, RowState>>({})
 const crudSchemas = reactive<CrudSchema[]>([
@@ -460,7 +468,7 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
-  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="handleSearch" />
+  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="onTimeFilterChange" />
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">

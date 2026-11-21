@@ -11,6 +11,9 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
 cd "$ROOT"
 
 echo "[build] frontend"
+# Vite 不清空 outDir 时会累积历史 chunk（实测 dist-pro 里堆了 23 个 index-*.js），
+# 既浪费体积也容易让 index.html 指向旧入口。构建前先清掉。
+rm -rf frontend/dist-pro
 (cd frontend && pnpm build:pro)
 
 echo "[build] backup /map assets"

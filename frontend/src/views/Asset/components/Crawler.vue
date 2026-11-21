@@ -299,10 +299,17 @@ const timeFrom = computed(() => {
   if (timeRange.value === 'all') return ''
   const n = Number(timeRange.value)
   if (!n) return ''
-  const d = new Date(Date.now() - n * 24 * 3600 * 1000)
+  const d = new Date(Date.now() - (n - 1) * 24 * 3600 * 1000) // 「今天」= 今天 00:00，不是昨天
   const pad = (x: number) => String(x).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
 })
+
+// 时间筛选变化：保留当前搜索表达式，只重新取数（handleSearch 需要参数，直接绑会清空搜索）
+const onTimeFilterChange = (v?: string) => {
+  // 直接用事件带过来的值，避免 v-model 尚未落定时读到旧值
+  if (v) timeRange.value = v
+  handleSearch(searchParams.value || '')
+}
 
 const { loading, dataList, total, currentPage, pageSize } = tableState
 const { getList, getElTableExpose } = tableMethods
@@ -377,7 +384,7 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
-  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="handleSearch" />
+  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="onTimeFilterChange" />
   <ElRow>
     <ElCol>
       <ElCard>
