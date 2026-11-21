@@ -1,9 +1,10 @@
 <script setup lang="tsx">
 import { useI18n } from '@/hooks/web/useI18n'
 import { useEmptyHint } from '@/hooks/web/useEmptyHint'
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { onMounted, onUnmounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
+import TimeRangeFilter from './TimeRangeFilter.vue'
 import { ElCard, ElPagination, ElRow, ElCol, ElTag, ElTooltip } from 'element-plus'
 import { Icon } from '@/components/Icon'
 import { copyText } from '@/utils/clipboard'
@@ -187,7 +188,14 @@ const { allSchemas } = useCrudSchemas(crudSchemas)
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = tableState
-    const res = await getIPAssetApi(searchParams.value, currentPage.value, pageSize.value, filter)
+    const res = await getIPAssetApi(
+      searchParams.value,
+      currentPage.value,
+      pageSize.value,
+      filter,
+      timeFrom.value,
+      timeSort.value
+    )
     return {
       list: res.data.list,
       total: res.data.total
@@ -195,6 +203,19 @@ const { tableRegister, tableState, tableMethods } = useTable({
   },
   immediate: false
 })
+
+// 发现时间筛选（对齐 ARL-Next v1.5.1）
+const timeRange = ref<string>('all')
+const timeSort = ref<string>('desc')
+const timeFrom = computed(() => {
+  if (timeRange.value === 'all') return ''
+  const n = Number(timeRange.value)
+  if (!n) return ''
+  const d = new Date(Date.now() - n * 24 * 3600 * 1000)
+  const pad = (x: number) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
+})
+
 const { loading, dataList, total, currentPage, pageSize } = tableState
 // 单独设置 IP 组件的 pageSize 默认值
 pageSize.value = 10 // 可以根据需要修改为你想要的默认值
@@ -304,6 +325,7 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
+  <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="handleSearch" />
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">

@@ -27,9 +27,14 @@ export const getAssetApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  timeFrom?: string,
+  timeSort?: string
 ): Promise<IResponse<AssetDataResponse>> => {
-  return request.post({ url: '/api/assets/asset', data: { search, pageIndex, pageSize, filter } })
+  return request.post({
+    url: '/api/assets/asset',
+    data: { search, pageIndex, pageSize, filter, timeFrom: timeFrom || undefined, sort: timeSort ? { time: timeSort } : undefined }
+  })
 }
 
 export const getAssetCardApi = (
@@ -161,9 +166,21 @@ export const getCrawlerApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  timeFrom?: string,
+  timeSort?: string
 ): Promise<IResponse<CrawlerDataResponse>> => {
-  return request.post({ url: '/api/assets/crawler', data: { search, pageIndex, pageSize, filter } })
+  return request.post({
+    url: '/api/assets/crawler',
+    data: {
+      search,
+      pageIndex,
+      pageSize,
+      filter,
+      timeFrom: timeFrom || undefined,
+      sort: timeSort ? { time: timeSort } : undefined
+    }
+  })
 }
 
 interface SensitiveDataResponse {
@@ -409,11 +426,13 @@ export const getRootDomainApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  timeFrom?: string,
+  timeSort?: string
 ): Promise<IResponse<SubdomainDataResponse>> => {
   return request.post({
     url: '/api/assets/root_domain',
-    data: { search, pageIndex, pageSize, filter }
+    data: { search, pageIndex, pageSize, filter, timeFrom: timeFrom || undefined, sort: timeSort ? { time: timeSort } : undefined }
   })
 }
 
@@ -445,10 +464,19 @@ export const getIPAssetApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  timeFrom?: string,
+  timeSort?: string
 ): Promise<IResponse<SubdomainDataResponse>> => {
   return request.post({
     url: '/api/assets/ip',
-    data: { search, pageIndex, pageSize, filter }
+    data: {
+      search,
+      pageIndex,
+      pageSize,
+      filter,
+      timeFrom: timeFrom || undefined,
+      sort: timeSort ? { time: timeSort } : undefined
+    }
   })
 }
