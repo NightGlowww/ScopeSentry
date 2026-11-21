@@ -3,6 +3,7 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { Ref, computed, h, nextTick, onMounted, reactive, ref } from 'vue'
 import { useWindowSize } from '@vueuse/core'
 import { useTable } from '@/hooks/web/useTable'
+import TimeRangeFilter from './TimeRangeFilter.vue'
 import { Dialog } from '@/components/Dialog'
 import {
   ElRow,
@@ -819,7 +820,14 @@ const { tableRegister, tableState, tableMethods } = useTable({
       lastSearchParams.value = searchParams.value
       lastFilter = { ...filter }
     }
-    const res = await getAssetApi(searchParams.value, currentPage.value, pageSize.value, filter)
+    const res = await getAssetApi(
+      searchParams.value,
+      currentPage.value,
+      pageSize.value,
+      filter,
+      timeFrom.value,
+      timeSort.value
+    )
     return {
       list: res.data.list,
       flag: true
@@ -827,6 +835,18 @@ const { tableRegister, tableState, tableMethods } = useTable({
   },
   immediate: false
 })
+// 发现时间筛选（对齐 ARL-Next v1.5.1）
+const timeRange = ref<string>('all')
+const timeSort = ref<string>('desc')
+const timeFrom = computed(() => {
+  if (timeRange.value === 'all') return ''
+  const n = Number(timeRange.value)
+  if (!n) return ''
+  const d = new Date(Date.now() - n * 24 * 3600 * 1000)
+  const pad = (x: number) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
+})
+
 const { loading, dataList, total, currentPage, pageSize } = tableState
 const { getList, getElTableExpose } = tableMethods
 
@@ -1035,6 +1055,12 @@ const confirmSelectedIcons = () => {
     v-model="addAssetDialogVisible"
     :projectList="$props.projectList"
     @saved="getList"
+  />
+  <TimeRangeFilter
+    v-if="activeSegment == 'tableSegment'"
+    v-model="timeRange"
+    v-model:sort="timeSort"
+    @change="handleSearch"
   />
   <ElRow :gutter="3" v-if="activeSegment == 'tableSegment'">
     <ElCol

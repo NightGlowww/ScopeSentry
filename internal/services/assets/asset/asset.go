@@ -241,11 +241,8 @@ func (s *service) GetAssets(ctx *gin.Context, query models.SearchRequest) ([]mod
 	limit := query.PageSize
 
 	// 构建排序
-	sort := bson.D{
-		{
-			Key: "time", Value: -1,
-		},
-	}
+	// 发现时间排序：默认新→旧，sort.time=asc 时旧→新（对齐 ARL-Next v1.5.1）
+	sort := bson.D{{Key: "time", Value: helper.TimeSortDir(query)}}
 
 	// 构建投影
 	projection := bson.M{
@@ -359,11 +356,8 @@ func (s *service) GetAssetCardData(ctx *gin.Context, query models.SearchRequest)
 	limit := query.PageSize
 
 	// 构建排序
-	sort := bson.D{
-		{
-			Key: "time", Value: -1,
-		},
-	}
+	// 发现时间排序：默认新→旧，sort.time=asc 时旧→新（对齐 ARL-Next v1.5.1）
+	sort := bson.D{{Key: "time", Value: helper.TimeSortDir(query)}}
 
 	// 构建投影
 	projection := bson.M{
