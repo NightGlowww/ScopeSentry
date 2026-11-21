@@ -382,3 +382,42 @@ node-dev-02  97.3% → 88.1%   (soft 840MB，容器只有 1.17GB)
 
 判断「是不是卡住」的正确方式是**点开「任务进度」看逐目标的模块时间戳**，
 而不是盯着百分比。20 分钟内不动属正常。
+## 12. 扫描出站走代理（2026-11-21 上午，按用户要求改）
+
+**背景**：腾讯云对两台扫描机的「对外攻击行为（TCP:80）」告警，根因是扫描器直接以云 IP 出站。
+用户决定：扫描必须走代理，且**不使用 Chimon（x4.cio.bz）的节点**，改用新订阅：
+
+```
+MESL          https://em.mesl.cloud/ems/get?token=…
+oxycontinon   https://3732feba743a.oxycontinon.com/osubscribe.php?sid=21814&token=…
+```
+
+### 做了什么
+
+1. 三台主机都加了这两个订阅（`clashctl sub add`），并把**活动订阅切成 MESL**（`clashctl sub use 3`）
+2. 扫描容器的环境变量加代理：
+
+```
+HTTP_PROXY / HTTPS_PROXY / ALL_PROXY = http://127.0.0.1:7890
+NO_PROXY = localhost,127.0.0.1,10/8,172.16/12,192.168/16,1.15.46.212,111.229.44.240
+```
+
+3. 容器重建方式（保留可回滚）：`docker commit` 当前容器 → 用同参数 + 代理环境变量 `docker run` 新容器，
+   旧容器改名 `scopesentry-scan-old-<ts>` 保留，不删。
+
+### 验证（clash 连接链）
+
+```
+dev-02   squaretrade.eu        -> 🇭🇰 香港 02 / Fallback / MESL
+prod-01  webdisk.us.auth0.com -> 🇭🇰 香港 03 / Fallback / MESL
+prod-02  update.googleapis.com -> 🇭🇰 香港 02 / Fallback / MESL
+```
+
+扫描流量全部经 **MESL** 组出站；huntdeck 的平台请求仍走 `HUNTDECK-AUTO`（未受影响）。
+出站 IP 从 `172.81.111.248`（x4 机房）变为住宅段（`125.103.212.107` / `216.236.32.2`）。
+
+### 回滚
+
+```bash
+sg docker -c "docker rm -f scopesentry-scan && docker rename scopesentry-scan-old-<ts> scopesentry-scan && docker start scopesentry-scan"
+```
