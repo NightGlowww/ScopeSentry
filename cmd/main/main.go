@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/scheduler/jobs"
 	"io/fs"
+	"strconv"
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/worker"
@@ -158,7 +159,15 @@ func main() {
 			if err := svc.TaskProgress(ctx); err != nil {
 				logger.Warn("task progress tick failed", zap.Error(err))
 			}
-			if n, err := svc.SweepStaleTasks(ctx, 15*time.Minute); err == nil && n > 0 {
+			// 90 分钟：实测单模块（nuclei 全量模板）跑 20-60 分钟，15 分钟会把正常扫描打成失败。
+			// 需要更激进/更保守可用 STALE_TASK_MINUTES 覆盖。
+			staleAfter := 90 * time.Minute
+			if v := strings.TrimSpace(os.Getenv("STALE_TASK_MINUTES")); v != "" {
+				if mins, perr := strconv.Atoi(v); perr == nil && mins >= 15 && mins <= 720 {
+					staleAfter = time.Duration(mins) * time.Minute
+				}
+			}
+			if n, err := svc.SweepStaleTasks(ctx, staleAfter); err == nil && n > 0 {
 				logger.Info("stale tasks marked failed", zap.Int("count", n))
 			}
 			cancel()

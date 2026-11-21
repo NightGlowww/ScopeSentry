@@ -933,6 +933,14 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 				ref = t
 			}
 		}
+		// 关键：单个模块跑 20-60 分钟是常态（nuclei 全量模板），这段时间里没有「模块结束」事件。
+		// 只看 lastEnd 会把「正在正常扫描」误判成「无进展」——2026-11-21 下午就是这么
+		// 一次性把十几条任务打成失败的。用「当前模块的开始时间」作为存活信号。
+		if _, _, since := s.taskRepo.CurrentActivity(ctx, id); since != "" {
+			if t, terr := time.ParseInLocation("2006-01-02 15:04:05", since, time.Local); terr == nil && t.After(ref) {
+				ref = t
+			}
+		}
 		if now.Sub(ref) < staleAfter {
 			continue
 		}
