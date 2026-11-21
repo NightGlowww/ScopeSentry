@@ -377,9 +377,11 @@ const { tableRegister, tableState, tableMethods } = useTable({
       timeParams.value.to,
       timeSort.value
     )
+    // 与 root_domain 等页同一契约：只返回 {list,total}。
+    // 之前多带一个 flag:true，实测导致 total 不被采纳（分页一直显示 0 条）。
     return {
       list: res.data.list,
-      flag: true
+      total: (res.data as any).total
     }
   },
   immediate: false

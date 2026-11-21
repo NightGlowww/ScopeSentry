@@ -37,7 +37,16 @@ func GetSubdomains(c *gin.Context) {
 		return
 	}
 
+	// 一并返回 total：前端分页条与「共 N 条」都要它，且必须跟着同一套筛选（含发现时间）。
+	// 只靠 /assets/common/total 那个独立入口，时间筛选后计数不会刷新（2026-11-22）。
+	total, err := subdomainService.CountSubdomains(c, query)
+	if err != nil {
+		response.InternalServerError(c, "api.subdomain.list.failed", err)
+		return
+	}
+
 	response.Success(c, gin.H{
-		"list": subdomains,
+		"list":  subdomains,
+		"total": total,
 	}, "api.subdomain.list.success")
 }

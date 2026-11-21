@@ -16,6 +16,7 @@ import (
 // Service 定义子域名服务接口
 type Service interface {
 	GetSubdomains(ctx context.Context, query models.SearchRequest) ([]models.Subdomain, error)
+	CountSubdomains(ctx context.Context, query models.SearchRequest) (int64, error)
 	GetTaskTarget(ctx context.Context, query models.SearchRequest) (string, error)
 	GetTaskTargetByIDs(ctx context.Context, ids []string) (string, error)
 }
@@ -99,6 +100,17 @@ func (s *service) GetSubdomains(ctx context.Context, query models.SearchRequest)
 		SetSort(bson.D{{Key: "time", Value: helper.TimeSortDir(query)}})
 
 	return s.repo.FindWithPagination(ctx, filter, opts)
+}
+
+// CountSubdomains 与列表同一套过滤条件（含 timeFrom/timeTo），供分页条与「共 N 条」使用。
+// 之前只有 /assets/common/total 一个入口，时间筛选时前端那个计数不会被刷新（2026-11-22）。
+func (s *service) CountSubdomains(ctx context.Context, query models.SearchRequest) (int64, error) {
+	query.Index = "subdomain"
+	searchQuery, err := helper.GetSearchQuery(query)
+	if err != nil {
+		return 0, err
+	}
+	return s.repo.CountDocuments(ctx, bson.M(searchQuery))
 }
 
 func (s *service) GetTaskTarget(ctx context.Context, query models.SearchRequest) (string, error) {
