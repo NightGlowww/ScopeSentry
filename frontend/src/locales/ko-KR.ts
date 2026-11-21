@@ -1214,6 +1214,11 @@ export default {
     PassiveScan: '패시브 스캔'
   },
   asset: {
+    discoveryTime: '발견 시각',
+    timeAll: '전체',
+    timeToday: '오늘',
+    time7d: '7일',
+    time30d: '30일',
     viewHostVulns: '호스트 취약점',
     noProducerHint: '이 자산 유형은 아직 기록 주체가 없어(노드 측 미구현) 목록이 항상 비어 있습니다. 사용하려면 먼저 생산자를 추가하세요.',
     assetName: '자산',

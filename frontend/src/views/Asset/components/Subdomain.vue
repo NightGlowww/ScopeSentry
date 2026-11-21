@@ -12,7 +12,9 @@ import {
   ElTag,
   ElInput,
   ElButton,
-  ElTooltip
+  ElTooltip,
+  ElRadioGroup,
+  ElRadioButton
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
@@ -80,6 +82,20 @@ const emptyHint = computed(() => {
   if (domain) return t('smartEmpty.domain', { v: domain[1] })
   if (s) return t('smartEmpty.filtered')
   return t('common.noData')
+})
+
+// 发现时间范围：对齐 ARL-Next v1.5.1 的时间筛选（2026-11-22）
+// 只做"最近 N 天"这类粗粒度，够回答「这两天新出现了什么」；精确区间留给搜索表达式
+const timeRange = ref<string>('all')
+const timeParams = computed(() => {
+  const v = timeRange.value
+  if (v === 'all') return { from: '', to: '' }
+  const days = Number(v)
+  if (!days) return { from: '', to: '' }
+  const d = new Date(Date.now() - days * 24 * 3600 * 1000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const from = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
+  return { from, to: '' }
 })
 
 const SEARCH_KEY = 'asset:subdomain:search'
@@ -339,7 +355,14 @@ const { tableRegister, tableState, tableMethods } = useTable({
       lastSearchParams.value = searchParams.value
       lastFilter = { ...filter }
     }
-    const res = await getSubdomainApi(searchParams.value, currentPage.value, pageSize.value, filter)
+    const res = await getSubdomainApi(
+      searchParams.value,
+      currentPage.value,
+      pageSize.value,
+      filter,
+      timeParams.value.from,
+      timeParams.value.to
+    )
     return {
       list: res.data.list,
       flag: true
@@ -433,6 +456,17 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
+  <ElRow class="time-range-row">
+    <ElCol>
+      <span class="time-range-label">{{ t('asset.discoveryTime') }}</span>
+      <ElRadioGroup v-model="timeRange" size="small" @change="handleSearch">
+        <ElRadioButton label="all">{{ t('asset.timeAll') }}</ElRadioButton>
+        <ElRadioButton label="1">{{ t('asset.timeToday') }}</ElRadioButton>
+        <ElRadioButton label="7">{{ t('asset.time7d') }}</ElRadioButton>
+        <ElRadioButton label="30">{{ t('asset.time30d') }}</ElRadioButton>
+      </ElRadioGroup>
+    </ElCol>
+  </ElRow>
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">
@@ -471,6 +505,16 @@ const getFilter = () => {
 </template>
 
 <style lang="less" scoped>
+.time-range-row {
+  margin-bottom: 8px;
+  align-items: center;
+}
+.time-range-label {
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+  margin-right: 10px;
+}
+
 .el-button {
   margin-top: 10px;
 }

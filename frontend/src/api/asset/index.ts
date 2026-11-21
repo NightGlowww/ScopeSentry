@@ -113,11 +113,14 @@ export const getSubdomainApi = (
   search: string,
   pageIndex: number,
   pageSize: number,
-  filter: Record<string, any>
+  filter: Record<string, any>,
+  // 发现时间范围（可选）：对齐 ARL-Next v1.5.1
+  timeFrom?: string,
+  timeTo?: string
 ): Promise<IResponse<SubdomainDataResponse>> => {
   return request.post({
     url: '/api/assets/subdomain',
-    data: { search, pageIndex, pageSize, filter }
+    data: { search, pageIndex, pageSize, filter, timeFrom: timeFrom || undefined, timeTo: timeTo || undefined }
   })
 }
 

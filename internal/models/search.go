@@ -32,4 +32,8 @@ type SearchRequest struct {
 	FuzzyQuery map[string]string `json:"-"`
 	Sort       map[string]string `json:"sort"`
 	Sid        string            `json:"sid"`
+	// TimeFrom / TimeTo 发现时间范围（"2006-01-02 15:04:05"，字符串比较即可，格式天然有序）
+	// 对齐 ARL-Next v1.5.1 的「发现时间筛选」（2026-11-22）
+	TimeFrom string `json:"timeFrom,omitempty"`
+	TimeTo   string `json:"timeTo,omitempty"`
 }

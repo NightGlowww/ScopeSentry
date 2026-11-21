@@ -1224,6 +1224,11 @@ export default {
     PassiveScan: 'PassiveScan'
   },
   asset: {
+    discoveryTime: 'Discovered',
+    timeAll: 'All',
+    timeToday: 'Today',
+    time7d: '7 days',
+    time30d: '30 days',
     viewHostVulns: 'Host vulns',
     noProducerHint: 'This asset type has no writer yet (node side not implemented), so the list stays empty. Add a producer before enabling this page.',
     assetName: 'Asset',

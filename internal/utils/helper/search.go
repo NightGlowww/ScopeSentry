@@ -19,6 +19,18 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 )
 
+// indexHasTimeField 哪些索引有 "time"（发现时间）字段——时间范围筛选只对它们生效。
+var indexHasTimeField = map[string]bool{
+	"subdomain":       true,
+	"asset":           true,
+	"UrlScan":         true,
+	"vulnerability":   true,
+	"DirScanResult":   true,
+	"SensitiveResult": true,
+	"crawler":         true,
+	"PageMonitoring":  true,
+}
+
 // SearchKey 定义了不同类型数据的字段映射关系
 var SearchKey = map[string]map[string]string{
 	"SensitiveResult": {
@@ -581,6 +593,24 @@ func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 				}
 			}
 		}
+	}
+
+	// 发现时间范围：只对确实有时间字段的索引生效，避免给没有该字段的集合加条件导致恒空。
+	// time 存的是 "2006-01-02 15:04:05" 字符串，字典序等于时间序，直接 $gte/$lte。
+	if (req.TimeFrom != "" || req.TimeTo != "") && indexHasTimeField[req.Index] {
+		rng := map[string]interface{}{}
+		if req.TimeFrom != "" {
+			rng["$gte"] = req.TimeFrom
+		}
+		if req.TimeTo != "" {
+			rng["$lte"] = req.TimeTo
+		}
+		if _, ok := result["$and"]; !ok {
+			result["$and"] = make([]map[string]interface{}, 0, 2)
+		}
+		result["$and"] = append(result["$and"].([]map[string]interface{}), map[string]interface{}{
+			"time": rng,
+		})
 	}
 
 	// 处理模糊查询
