@@ -592,3 +592,45 @@ prod-01 的 DIRECT 连接 全部 127.0.0.1（clash 自身 API / redis）
 第一次改端口用 sed 把脚本里所有 `--to-ports 7892` 换成 7893，**连删除循环也换了**，
 旧 7892 规则没删掉、继续匹配（计数 41541），新规则轮不到。
 现在脚本对 7892/7893 都做幂等清理。
+## 19. 扫描出口混用 MESL + YTOO（2026-11-22 19:20）
+
+原先把扫描固定钉在 `MESL` 一个组上。实际上这台机器有**两个订阅**：
+
+```
+profiles/1.yaml   YTOO（212 KB）
+profiles/3.yaml   MESL（当前 active）
+```
+
+clashctl 同一时刻只加载一个订阅（`sub use`），所以 runtime 里只有 MESL 的 172 个节点，
+YTOO 的节点根本没进配置。**混用需要把 YTOO 作为 proxy-provider 引入**：
+
+```yaml
+proxy-providers:
+  ytoo:
+    type: file
+    path: ./profiles/1.yaml
+    health-check: {enable: true, url: "http://www.gstatic.com/generate_204", interval: 300}
+
+proxy-groups:
+  - name: SCAN-OUT
+    type: url-test          # 自动挑当前最快且健康的出口
+    url: http://www.gstatic.com/generate_204
+    interval: 300
+    tolerance: 50
+    proxies: [MESL]         # MESL 组整体作为成员
+    use: [ytoo]             # 再把 YTOO 的节点全拉进来
+```
+
+扫描监听器的 `proxy:` 从 `MESL` 改成 `SCAN-OUT`。
+
+### 验证
+
+```
+SCAN-OUT 成员数     91（MESL 组 + YTOO 90 个节点）
+延迟实测           SCAN-OUT 380ms，MESL 168ms（url-test 会在两者间挑选）
+7893 计数增长      prod-01 6832→7538，prod-02 22414→22879
+DIRECT 且端口 80    两台均 0
+```
+
+两个订阅同时用之后，出口从 174 个变成 265 个左右，单节点被目标封掉时会自动切到另一家。
+`proxy-providers` / `proxy-groups` 同样写进了 `mixin.yaml`，regenerate 不会丢。
