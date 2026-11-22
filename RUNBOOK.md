@@ -506,3 +506,47 @@ http://100.115.186.92:8082          # prod-tx-sh-app-01 的 tailnet IP
 ### 别的端口
 
 Redis 6379、Mongo 27017 等未改动；如需同样收敛，照这个 unit 加一条 `--dport`。
+## 17. 主机卡死事故与完整加固（2026-11-22 17:00-18:00）
+
+**现象**：prod-tx-sh-app-01（1.15.46.212 / 10.0.8.4）整机失联——TCP 22 能连上但 SSH 握手超时，
+8082 无响应，从 prod-02 测同样超时。内核活着，用户态进程没有调度机会。
+
+### 恢复路径（重要：这些机器是 Lighthouse，不是 CVM）
+
+```bash
+# cvm DescribeInstances 返回 0 是正常的——它们是轻量应用服务器
+tccli --profile dreamfly lighthouse DescribeInstances --region ap-shanghai
+tccli --profile dreamfly lighthouse RebootInstances --region ap-shanghai --InstanceIds '["lhins-lmcxuhgq"]'
+```
+
+四台实例：
+
+```
+lhins-lmcxuhgq  prod-tx-sh-app-01  1.15.46.212 / 10.0.8.4
+lhins-hwoloayw  prod-tx-sh-app-02  111.229.44.240
+lhins-8x0vseqw  dev-tx-sh-app-02   43.142.188.143
+lhins-mlegt826  dev-tx-sh-app-01   43.143.38.5
+```
+
+重启后 8082 恢复 200。
+
+### 重启后发现的隐患
+
+```
+scopesentry-scan-old-1795230334   Up 3 minutes   ← 昨天改代理时留下的旧容器
+```
+
+加代理时用「停旧容器 + 起新容器 + 旧容器改名保留」的方式，但旧容器带 `--restart always`，
+**机器一重启它就自动起来**：没有代理环境变量（裸 TCP 直连）、与正式容器同时吃内存。三台的残留已全部删除。
+
+### 加固清单（都已落地并验证）
+
+| 项 | 内容 | 验证 |
+|---|---|---|
+| 主机采样器 | `/usr/local/bin/ss-host-sampler.sh` + `ss-host-sampler.timer`，30s 一次记 load/内存/各容器占用，保留 7 天 | `/var/log/ss-host/sample-*.csv` 已有 127 行 |
+| 容器限额 | huntdeck `--cpus 2 --memory 3g`；prod-01 的 scan 节点 `--cpus 2` | `docker inspect` 已生效 |
+| 旧容器清理 | 三台 `scopesentry-scan-old-*` 全部删除 | 每台只剩一个 scan 容器 |
+| 心跳看门狗 | 3 分钟上报不了心跳就 `exit(1)`，让 Docker 重启 | **实测：封掉节点到 Redis(10.0.8.4:6379) 的流量，3 分 20 秒后容器重启，RestartCount 1→2** |
+
+心跳看门狗需要它而不是只靠内存看门狗的原因：内存看门狗在「进程卡死」时自己也跑不动，
+而心跳时间戳反映主循环是否还在推进——卡住就自杀重启。
