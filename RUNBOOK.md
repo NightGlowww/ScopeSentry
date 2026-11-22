@@ -753,3 +753,37 @@ ss-tproxy-watch.timer              active
 external_direct（排掉 127.0.0.1）   0
 节点 3/3 · app 2.0.369 ok
 ```
+## 23. 出站审计：一次性把所有容器都兜住（2026-11-23 02:15）
+
+### 清单与现状
+
+| 对象 | 正常出站方式 | 兜底 | 实测 |
+|---|---|---|---|
+| scopesentry-scan | nat → clash 7893（SCAN-OUT 强制代理） | 独立链 SS_GUARD：内网/环回/三台服务器 RETURN，其余 Web 端口 DROP | drop 稳定、nat 持续增长 |
+| huntdeck | HTTP 代理 172.17.0.1:17890 → clash | 同上链 | drop=0，healthz 200 |
+| scope-sentry | 无外呼 | 同上链 | drop=0 |
+| mongo / redis | 仅内网 | — | — |
+| 1Panel-openresty | 只监听，不出站 | — | — |
+| 宿主进程 | mihomo / tailscaled / tat_agent | — | 属预期 |
+
+### 这次修的四个「还会漏」
+
+```
+① 只靠 nat 重定向 → 规则缺失就直连        → 加 filter 兜底 DROP
+② 兜底 DROP 用 ! -d 127.0.0.0/8 误伤内网  → 改独立链，内网/环回/服务器 IP 先 RETURN
+③ 规则可能悄悄消失                        → ss-tproxy-watch.timer 60s 检查式重装
+④ 只有扫描容器有兜底                      → huntdeck / scope-sentry 也挂同一条链
+```
+
+### 验证
+
+```
+容器内裸 TCP  :80 → OPEN（经代理）  :8080 → OPEN（经代理）
+三台 nat 计数 持续增长（prod-01 两分钟 12359→28160）
+三台 drop     prod-01 874（历史窗口，之后不再增长）· prod-02 0 · dev-02 0
+服务          app=200 · huntdeck=200 · 节点 3/3
+```
+
+### 非扫描类出站（不属滥用）
+
+mihomo → 代理节点、tailscaled → DERP/控制面、docker pull/系统更新：低并发固定目的地，不会触发判定。
