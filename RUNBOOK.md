@@ -481,3 +481,28 @@ iptables -t nat -A OUTPUT -m cgroup --path "$CG" -p tcp -j REDIRECT --to-ports 7
 redirect 计数器：prod-01 4252 包 / dev-02 8114 包  → 确有流量经此转发
 节点 3/3 在线，控制面（Redis/Mongo）未受影响
 ```
+## 16. 访问方式改为 Tailscale（2026-11-22）
+
+**不再需要 SSH 隧道。** 直接访问：
+
+```
+http://100.115.186.92:8082          # prod-tx-sh-app-01 的 tailnet IP
+```
+
+实测：本机（经 Surge 的 tailscale 出站）200；prod-02 经 tailnet 200；公网 IP 000（不可达）。
+
+### 做了什么
+
+1. **`~/.ssh/config` 四台主机改指 tailnet IP**（原公网 IP 保留为 `<host>-pub` 回退入口，备份 `~/.ssh/config.config.bak-202611221414`）
+   ```
+   prod-tx-sh-app-01   1.15.46.212    → 100.115.186.92
+   prod-tx-sh-app-02   111.229.44.240 → 100.72.154.12
+   dev-tx-sh-app-02    43.142.188.143 → 100.118.145.73
+   dev-tx-sh-app-01    43.143.38.5    → 100.124.31.96
+   ```
+2. **8082 只允许 tailnet**（`/usr/local/bin/ss-web-tailnet.sh` + `ss-web-tailnet.service`，enabled）：
+   `-s 100.64.0.0/10 ACCEPT` / `-s 127.0.0.1 ACCEPT` / 其余 `DROP`
+
+### 别的端口
+
+Redis 6379、Mongo 27017 等未改动；如需同样收敛，照这个 unit 加一条 `--dport`。
