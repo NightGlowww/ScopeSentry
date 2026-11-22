@@ -706,3 +706,50 @@ ss-tproxy / sampler 三台 active
 ### 没动的
 
 `dev-tx-sh-app-01` 上 4 个 `artex-ci-pg-*` 容器（ARTEX CI 数据库，跑 4-6 天）与 ScopeSentry 无关，未触碰。
+## 22. 扫描出站 fail-closed（2026-11-23）
+
+**事故**：prod-02（111.229.44.240）被腾讯判定「对 TCP:8080 的攻击」。
+
+### 机制
+
+8080 是扫描里最常见的 Web 备选端口。只要有一条路径让扫描流量**没进 clash**、或进了 clash 却命中
+`GEOIP,CN,DIRECT`，就会以云主机 IP 直连出去。19:20 之前用的 7892 是按规则选路，就属于这种情况。
+
+（告警没有时间戳，我无法证明它发生在修复前还是修复后；但当下状态可以量化验证——见下。）
+
+### 这一轮改的：fail-closed
+
+```
+nat OUTPUT   扫描容器 TCP → clash 7893（强制 SCAN-OUT）
+filter OUTPUT 扫描容器 TCP dport 80,443,8080,8443,8000,8888（非 127.0.0.0/8）→ DROP
+```
+
+**为什么这样是安全的**：REDIRECT 之后目的端口已经变成 7893，filter 里的 dports 匹配不到，
+所以正常代理路径不受影响；只有「没被重定向」的流量才会撞上 DROP——宁可扫不动，也不直连出去。
+
+### 证明它会失败一次
+
+在 prod-02 上人为删掉 REDIRECT 规则 30 秒：
+
+```
+DROP 计数   0 → 161 包 / 9.6 KB   ← 这段时间本该直连出去的流量被拦住了
+恢复 REDIRECT 后扫描恢复正常
+```
+
+### 守护：规则不可能悄悄消失
+
+`ss-tproxy-watch.timer`（60s）跑 `/usr/local/bin/ss-tproxy-check.sh`：**只在规则缺失时才重装**。
+第一版是每分钟无条件重装，副作用是 iptables 计数每分钟归零、且删/加瞬间会漏包——改成检查式后：
+
+```
+7893 计数   652 → 894（90 秒内持续增长，不再归零）
+```
+
+### 三台当前状态
+
+```
+nat 7893 规则 / filter DROP 规则   都存在
+ss-tproxy-watch.timer              active
+external_direct（排掉 127.0.0.1）   0
+节点 3/3 · app 2.0.369 ok
+```
