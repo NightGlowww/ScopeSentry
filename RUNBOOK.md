@@ -444,3 +444,40 @@ sg docker -c "docker restart scopesentry-scan"   # 必须重启，Go 软上限�
 
 注意：`docker update` 只改容器运行参数，**容器被删除重建时要重新带上 `--memory`**
 （`scripts/proxyfy3.sh` 这类重建脚本已经从旧容器读取该值）。
+## 15. 扫描出站全覆盖：裸 TCP 也走代理（2026-11-22 腾讯封 80 事故后）
+
+**事故**：111.229.44.240 的 TCP:80 出站被腾讯封禁 24 小时。
+上一轮只把 **HTTP** 走了代理（`HTTP_PROXY` 环境变量），两条流量完全绕过：
+
+```
+端口扫描（rustscan/naabu）   裸 TCP socket，不读 HTTP_PROXY
+chrome 无头浏览器            rod 拉起子进程，只认 --proxy-server
+```
+
+### 修法一：chrome 走代理（代码）
+
+`libs/httpx/runner/headless.go` 与 `libs/nuclei/pkg/protocols/headless/engine/engine.go`：
+没显式给 proxy 时回落到 `HTTP_PROXY` 环境变量，再传给 `launcher.Proxy()`。
+
+### 修法二：裸 TCP 透明代理（iptables + clash redir）
+
+clash 开 `redir-port: 7892`，再按**容器 cgroup** 把该容器的 TCP 全部 REDIRECT 过去：
+
+```bash
+CG="system.slice/docker-<容器ID>.scope"    # cgroup v2 路径，不能带前导斜杠
+# 放行：环回/内网/三台服务器
+iptables -t nat -A OUTPUT -m cgroup --path "$CG" -d 1.15.46.212/32 -j RETURN
+# 其余 TCP 全重定向到 clash redir
+iptables -t nat -A OUTPUT -m cgroup --path "$CG" -p tcp -j REDIRECT --to-ports 7892
+```
+
+脚本 `/usr/local/bin/ss-tproxy.sh` + systemd `ss-tproxy.service`（enabled）落地；
+**容器重建后 cgroup 变，必须重挂**——已在 `deploy-node.sh` 的 restart 之后自动重启该 unit。
+
+### 验证
+
+```
+封禁中的 prod-02：容器内裸 TCP 连 93.184.216.34:80  → OPEN（直连本应超时）
+redirect 计数器：prod-01 4252 包 / dev-02 8114 包  → 确有流量经此转发
+节点 3/3 在线，控制面（Redis/Mongo）未受影响
+```
