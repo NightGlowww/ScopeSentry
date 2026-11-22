@@ -634,3 +634,42 @@ DIRECT 且端口 80    两台均 0
 
 两个订阅同时用之后，出口从 174 个变成 265 个左右，单节点被目标封掉时会自动切到另一家。
 `proxy-providers` / `proxy-groups` 同样写进了 `mixin.yaml`，regenerate 不会丢。
+## 20. clash 配置的可重复生成（2026-11-22 20:10）
+
+今天在 mixin.yaml 上踩了两个「静默失效」的坑，同一类问题：**改了配置，合并时被忽略或互相覆盖**。
+
+### 坑 1：裸 `proxy-groups` 列表不生效
+
+`_merge_config` 对 `proxy-groups` 只认 `prefix` / `override` / `suffix`：
+
+```yaml
+proxy-groups:
+  prefix: [ ... ]      # 加到订阅组之前
+  override: [ ... ]    # 按 name 覆盖已有组
+  suffix: [ ... ]      # 加到之后
+```
+
+直接写 `proxy-groups: [ {...} ]` 会被丢弃。
+
+### 坑 2：同名键重复，前者被后者覆盖
+
+prod-01 的 mixin 曾出现**两个** `proxy-groups:` 段，YAML 取最后一个 → 加进去的和以为还在的都可能失效。
+
+### 现在
+
+三台 mixin 都重写为唯一一份：listeners(scan-out→SCAN-OUT)、proxy-providers(ytoo)、proxy-groups.prefix（SCAN-OUT；prod-01 另含 JEV/HUNTDECK/HUNTDECK-AUTO）。
+脚本入库：`scripts/remote/clash-scanout.py`（prod-01 版）与 `clash-scanout-simple.py`。
+
+### 合并后验证（三台均跑 _merge_config + 重启）
+
+```
+groups          prod-01 37 个，含 SCAN-OUT/HUNTDECK/HUNTDECK-AUTO/JEV/MESL
+                prod-02·dev-02 均含 SCAN-OUT（91 成员，now=MESL）
+7893 监听       三台都在；计数增长 prod-01 21946→22582，prod-02 32363→32660
+DIRECT 且 80    三台均 0
+节点/应用        3/3 · 2.0.368 ok · huntdeck healthy
+```
+
+### 顺带加固
+
+`deploy-node.sh` 每次部署先删 `scopesentry-scan-old-*`；主机采样器已铺到三台（30 秒一条，留 7 天）。
