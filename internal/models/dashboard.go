@@ -20,13 +20,13 @@ type DashboardStats struct {
 	Asset         int64  `json:"asset"`
 	Subdomain     int64  `json:"subdomain"`
 	URL           int64  `json:"url"`
-	Vulnerability int64  `json:"vulnerability"`
+	Vulnerability int64  `json:"vulnerability"` // 全部候选记录，包含各处置状态
 	Sensitive     int64  `json:"sensitive"`
 	Task          int64  `json:"task"`
 	// 漏洞处置分布：让首页能看出「待处理多少 / 已忽略多少」，而不只是一个总数
 	VulnPending   int64  `json:"vulnPending"`
 	VulnIgnored   int64  `json:"vulnIgnored"`
-	VulnConfirmed int64  `json:"vulnConfirmed"`
+	VulnConfirmed int64  `json:"vulnConfirmed"` // 已标记确认存在（status=5）
 	TaskRunning   int64  `json:"taskRunning"`
 	TaskFinished  int64  `json:"taskFinished"`
 	Node          int64  `json:"node"`
@@ -50,7 +50,7 @@ type DashboardTrendRequest struct {
 type DashboardTrendPoint struct {
 	Date          string `json:"date"`          // 2006-01-02
 	Asset         int64  `json:"asset"`         // 当天新增资产
-	Vulnerability int64  `json:"vulnerability"` // 当天新增漏洞
+	Vulnerability int64  `json:"vulnerability"` // 当天新增候选记录（所有处置状态）
 	Task          int64  `json:"task"`          // 当天完成的任务
 }
 

@@ -372,7 +372,7 @@ getAllApi()
                 </ElCol>
                 <ElCol :span="8">
                   <ElStatistic
-                    :title="t('vulnerability.vulnerabilityName')"
+                    :title="t('dashboard.scanCandidates')"
                     :value="projectAssetCount.vulCount"
                   />
                 </ElCol>

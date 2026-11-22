@@ -212,7 +212,13 @@ func TestDashboardAndConsoleRoutes(t *testing.T) {
 		t.Fatalf("stats.url = %d, want 1", got)
 	}
 	if got := numOf(stats, "vulnerability"); got != 1 {
-		t.Fatalf("stats.vulnerability = %d, want 1", got)
+		t.Fatalf("stats.vulnerability = %d, want 1 raw candidate", got)
+	}
+	if got := numOf(stats, "vulnPending"); got != 1 {
+		t.Fatalf("stats.vulnPending = %d, want 1", got)
+	}
+	if got := numOf(stats, "vulnConfirmed"); got != 0 {
+		t.Fatalf("stats.vulnConfirmed = %d, want 0 for a pending result", got)
 	}
 	if got := numOf(stats, "sensitive"); got != 1 {
 		t.Fatalf("stats.sensitive = %d, want 1", got)

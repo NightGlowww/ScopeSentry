@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ElRow, ElCol, ElCard, ElSkeleton } from 'element-plus'
+import { ElCard, ElSkeleton } from 'element-plus'
 import { CountTo } from '@/components/CountTo'
 import { useDesign } from '@/hooks/web/useDesign'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, ref, reactive } from 'vue'
 import { getAssetStatisticsApi } from '@/api/dashboard/analysis'
-import { getDashboardStatsApi } from '@/api/dashboard'
+import { getDashboardStatsApi, type DashboardStats } from '@/api/dashboard'
 import type { DashboardTotalTypes } from '@/api/dashboard/analysis/types'
 
 const { t } = useI18n()
@@ -16,33 +16,33 @@ const prefixCls = getPrefixCls('panel')
 
 const loading = ref(true)
 
-let totalState = reactive<DashboardTotalTypes>({
+const totalState = reactive<Omit<DashboardTotalTypes, 'vulnerabilityCount'>>({
   asetCount: 0,
   subdomainCount: 0,
   sensitiveCount: 0,
-  urlCount: 0,
-  vulnerabilityCount: 0
+  urlCount: 0
 })
 
-// 漏洞处置分布：首页从「一个总数」升级成「待处理 / 已忽略」
-const vulnPending = ref(0)
-const vulnIgnored = ref(0)
+const vulnLoading = ref(true)
+const vulnStats = ref<DashboardStats | null>(null)
 const vulnBreakdown = computed(() => {
-  if (!vulnPending.value && !vulnIgnored.value) return ''
+  const stats = vulnStats.value
+  if (!stats) return ''
   return t('dashboard.vulnBreakdown', {
-    pending: vulnPending.value,
-    ignored: vulnIgnored.value
+    candidates: stats.vulnerability,
+    pending: stats.vulnPending,
+    ignored: stats.vulnIgnored
   })
 })
 
-const getVulnBreakdown = async () => {
+const getVulnStats = async () => {
   try {
-    const res: any = await getDashboardStatsApi()
-    const d = res?.data || {}
-    vulnPending.value = d.vulnPending ?? 0
-    vulnIgnored.value = d.vulnIgnored ?? 0
+    const res = await getDashboardStatsApi()
+    if (typeof res?.data?.vulnConfirmed === 'number') vulnStats.value = res.data
   } catch {
-    // 静默：首页不能因为这一块失败而白屏
+    // 保留不可用状态，避免把统计失败显示成确认数为零。
+  } finally {
+    vulnLoading.value = false
   }
 }
 
@@ -55,7 +55,6 @@ const getCount = async () => {
     totalState.subdomainCount = res.data.subdomainCount
     totalState.sensitiveCount = res.data.sensitiveCount
     totalState.urlCount = res.data.urlCount
-    totalState.vulnerabilityCount = res.data.vulnerabilityCount
   } catch {
     // ignore
   } finally {
@@ -64,7 +63,7 @@ const getCount = async () => {
 }
 
 getCount()
-getVulnBreakdown()
+getVulnStats()
 
 // 五个指标卡：颜色只做“识别”，不做装饰
 const cards = computed(() => [
@@ -103,8 +102,8 @@ const cards = computed(() => [
   {
     key: 'vul',
     icon: 'ant-design:bug-filled',
-    label: t('vulnerability.vulnerabilityName'),
-    value: totalState.vulnerabilityCount || 0,
+    label: t('dashboard.confirmedVulnerabilities'),
+    value: vulnStats.value?.vulnConfirmed ?? null,
     tone: '#d97706',
     soft: 'rgb(217 119 6 / 12%)'
   }
@@ -118,7 +117,7 @@ const cards = computed(() => [
   <div :class="prefixCls">
     <div v-for="card in cards" :key="card.key" :class="`${prefixCls}__col`">
       <ElCard shadow="never" :class="`${prefixCls}__card`">
-        <ElSkeleton :loading="loading" animated :rows="2">
+        <ElSkeleton :loading="card.key === 'vul' ? vulnLoading : loading" animated :rows="2">
           <template #default>
             <div
               :class="`${prefixCls}__item`"
@@ -130,11 +129,15 @@ const cards = computed(() => [
               <div :class="`${prefixCls}__meta`">
                 <div :class="`${prefixCls}__label`">{{ card.label }}</div>
                 <CountTo
+                  v-if="card.value !== null"
                   :class="`${prefixCls}__value`"
                   :start-val="0"
                   :end-val="card.value"
                   :duration="1600"
                 />
+                <div v-else :class="`${prefixCls}__value`">
+                  {{ t('dashboard.statsUnavailable') }}
+                </div>
                 <div v-if="card.key === 'vul' && vulnBreakdown" :class="`${prefixCls}__sub`">
                   {{ vulnBreakdown }}
                 </div>
@@ -179,7 +182,6 @@ const cards = computed(() => [
     margin-top: 2px;
     font-size: 11px;
     color: var(--el-text-color-secondary);
-    white-space: nowrap;
   }
 
   &__card {

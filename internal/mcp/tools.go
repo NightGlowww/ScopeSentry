@@ -254,7 +254,7 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "get_dashboard_stats",
-		Description: "看板统计：七类资产总量 + 节点/任务数量，可按项目过滤",
+		Description: "按项目查询看板计数。vulnerability 为全部扫描候选记录，包含各处置状态；vulnConfirmed 为状态已确认为存在的记录数。汇报已确认漏洞数时使用 vulnConfirmed。",
 	}, getDashboardStats)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{

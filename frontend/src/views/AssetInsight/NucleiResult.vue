@@ -2,6 +2,7 @@
 import { reactive, ref, h, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  ElAlert,
   ElButton,
   ElCol,
   ElDescriptions,
@@ -459,6 +460,14 @@ const rowStyle = () => ({ cursor: 'pointer' })
   >
     <div v-loading="detailLoading" class="detail-body">
       <template v-if="detail">
+        <ElAlert
+          v-if="!detail.request?.trim() || !detail.response?.trim()"
+          :title="t('nucleiResult.incompleteEvidence')"
+          type="warning"
+          class="mb-12px"
+          show-icon
+          :closable="false"
+        />
         <ElDescriptions :border="true" :column="2" class="detail-descriptions">
           <ElDescriptionsItem :label="t('nucleiResult.severity')">
             <ElTag :type="severityTagType(detail.severity)" effect="light" size="small">
