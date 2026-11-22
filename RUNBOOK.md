@@ -550,3 +550,45 @@ scopesentry-scan-old-1795230334   Up 3 minutes   ← 昨天改代理时留下的
 
 心跳看门狗需要它而不是只靠内存看门狗的原因：内存看门狗在「进程卡死」时自己也跑不动，
 而心跳时间戳反映主循环是否还在推进——卡住就自杀重启。
+## 18. 扫描出站为什么会直连：clash 的 GEOIP,CN,DIRECT（2026-11-22 18:50）
+
+**事故**：1.15.46.212 的 TCP:80 被腾讯封 24 小时。此前已给扫描容器做透明代理（iptables → clash redir 7892），
+但**流量进了 clash 之后仍可能被判 DIRECT**：
+
+```
+  - GEOSITE,cn,DIRECT
+  - GEOIP,CN,DIRECT      ← 扫到中国 IP 就从云主机直接出去
+  - MATCH,Final
+```
+
+所以「扫描走代理」只对境外目标成立；国内目标命中 GEOIP,CN 就裸 TCP 从 1.15.46.212 出去，
+正是腾讯判定的「对外攻击：TCP:80」。
+
+### 修法：给扫描一条强制代理的独立入口
+
+```yaml
+listeners:
+  - name: scan-out
+    type: redir
+    port: 7893
+    listen: 127.0.0.1
+    proxy: MESL          # 固定走 MESL，不再经过 rules
+```
+
+iptables 改为 REDIRECT → 7893（脚本 `scripts/remote/ss-tproxy.sh`，主机上 `/usr/local/bin/ss-tproxy.sh`）；
+`listeners` 同时写进 mixin.yaml，避免 clashctl 重新生成 runtime 时丢失。
+
+### 验证
+
+```
+7893 计数增长          prod-01 34→133 / prod-02 852→2044
+连接链                prod-02 全部 82 条 → 香港 02（MESL）
+DIRECT 且目的端口 80   prod-01: 0 / prod-02: 0
+prod-01 的 DIRECT 连接 全部 127.0.0.1（clash 自身 API / redis）
+```
+
+### 踩到的坑
+
+第一次改端口用 sed 把脚本里所有 `--to-ports 7892` 换成 7893，**连删除循环也换了**，
+旧 7892 规则没删掉、继续匹配（计数 41541），新规则轮不到。
+现在脚本对 7892/7893 都做幂等清理。
