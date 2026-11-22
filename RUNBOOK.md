@@ -673,3 +673,36 @@ DIRECT 且 80    三台均 0
 ### 顺带加固
 
 `deploy-node.sh` 每次部署先删 `scopesentry-scan-old-*`；主机采样器已铺到三台（30 秒一条，留 7 天）。
+## 21. 全量重启与残留清理（2026-11-22 19:30）
+
+### 重启范围
+
+```
+prod-01  容器 redis → mongo → scope-sentry → scopesentry-scan → huntdeck → 1Panel-openresty
+         unit  mihomo / ss-tproxy / ss-web-tailnet / ss-host-sampler.timer
+prod-02  容器 scopesentry-scan；unit mihomo / ss-tproxy / sampler
+dev-02   容器 scopesentry-scan；unit mihomo / ss-tproxy / sampler
+```
+
+### 清掉的残留
+
+```
+prod-02  3 个两天前旧容器（scope-sentry v2.0.148 / mongo / redis）→ 删除
+prod-02  旧镜像 → 回收 5.83 GB
+dev-02   旧镜像 → 回收 1.11 GB
+prod-01  scopesentry v2.0.366/367、huntdeck:local-v1.12.34、scan 1.9.10/1.9.20、ghcr huntdeck:latest
+         → 回收约 8 GB，磁盘 64G→56G
+```
+
+### 重启后验证（三台）
+
+```
+app 2.0.368 ok · 节点 3/3 · tailnet 200
+非运行容器 0 · iptables cgroup 与当前容器一致 · DIRECT 且 80 口 0
+ss-tproxy / sampler 三台 active
+任务 10 运行 / 22 待开始 / 42 完成 / 26 失败，模块在推进
+```
+
+### 没动的
+
+`dev-tx-sh-app-01` 上 4 个 `artex-ci-pg-*` 容器（ARTEX CI 数据库，跑 4-6 天）与 ScopeSentry 无关，未触碰。
