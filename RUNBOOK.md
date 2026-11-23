@@ -907,3 +907,43 @@ dev-02 → prod-02 (10.0.8.13)   16 秒
 待下次扫描拉起 chrome 再看 cmdline。
 
 **不影响防护**：UDP 443/80 已在 SS_GUARD 链被丢弃（§26），QUIC 出不去。
+## 28. 僵尸进程清理（2026-11-23 17:50）
+
+**现象**：三台扫描容器里累积 chrome 僵尸进程——prod-02 曾达 **614 个**，prod-01 14 个，dev-02 4 个。
+僵尸本身不吃内存，但占 PID 槽位（默认上限 4096），持续增长会让容器 fork 失败。
+
+### 根因
+
+node 进程拉起 chrome（rod / leakless）后没有 `wait()`，子进程退出后变成 defunct；
+原容器没有 init 进程，孤儿僵尸没人回收。
+
+### 修法
+
+重建容器并加 `--init`（tini 作为 PID 1 回收孤儿）+ `--pids-limit 2048`：
+
+```bash
+docker run -d --name scopesentry-scan --restart always --init --pids-limit 2048 \\
+  --network host --memory <保持原值> -v <保持原挂载> \\
+  -e NodeName=<原值> -e HTTP_PROXY=http://127.0.0.1:7894 ... <原镜像>
+```
+
+脚本入库：`scripts/remote/ss-recreate-scan-init.sh`（保留 node 名/内存/挂载/代理环境，重建后自动重挂
+ss-tproxy 与 SS_GUARD）。
+
+### 结果
+
+```
+三台 PID1   = docker-init
+僵尸数      prod-01 0 · prod-02 0（重建时）→ 3（运行中，tini 会回收孤儿）· dev-02 0
+节点        3/3 在线
+```
+
+### 监控
+
+主机采样器加了 `zombies` 列（`/var/log/ss-host/sample-*.csv`），每 30 秒记录扫描容器的僵尸数，
+超过阈值时可以直接从曲线看出来。
+
+### 已知限制
+
+`--init` 只回收**孤儿**（父进程已退出）。如果 node 自己持有未 wait 的子进程，tini 看不到它们。
+彻底解决需要在节点代码里保证每个 exec 都有 `Wait()`——那是 rod/leakless 内部行为，未改。
