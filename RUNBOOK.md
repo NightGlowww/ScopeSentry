@@ -888,3 +888,22 @@ QUIC 被丢后浏览器自动回落 TCP，而 TCP 已在 nat 被重定向到 789
 `scripts/remote/ss-egress-guard.sh` 升到 v2（TCP 端口 + UDP 443/80），三台已装并对
 scan / scope-sentry / huntdeck 重新挂链；节点 3/3 在线；上一轮 rustscan+tcpdump 的
 「线路零直连包」结论仍然成立。
+## 27. QUIC 二进制最终部署（2026-11-23 16:10）
+
+那条 156MB 上传其实成功了（`ec7eaa34`，与本地一致）——后台日志 110 分钟后才回。
+**改走 VPC 内中转**：
+
+```
+dev-02 → prod-01 (10.0.8.4)    1.2 秒
+dev-02 → prod-02 (10.0.8.13)   16 秒
+```
+
+三台 `/tmp/ss-node-new` 均为 `ec7eaa34`（164,090,040 字节）。逐台：stop → docker cp → start →
+重启 ss-tproxy → 重挂 SS_GUARD。结果：三台容器内二进制均为 **Nov 23 16:05**，节点 3/3 在线。
+
+### disable-quic 的验证状态
+
+容器内当前 chrome 全是 `[chrome] <defunct>`（僵尸残留），没有活跃实例，**无法在无扫描时验证该 flag**；
+待下次扫描拉起 chrome 再看 cmdline。
+
+**不影响防护**：UDP 443/80 已在 SS_GUARD 链被丢弃（§26），QUIC 出不去。
