@@ -833,3 +833,38 @@ prod-02 空闲 · external_direct 0
 ### 教训
 
 「流量进了 clash」≠「流量走了代理」。判断泄漏看 **chains 首位是不是 DIRECT**，不是看 iptables 计数。
+## 25. 端到端证明：扫描流量确实不再直连（2026-11-23 13:50）
+
+连续被投告警（80 → 8080 → 443 → 80），这次不靠推断，用**线上真实扫描器 + 抓包**验证。
+
+### 方法
+
+在 prod-02（当时已封 80 口）上：
+
+```bash
+tcpdump -ni eth0 "tcp dst port 80 and src host 111.229.44.240"
+docker exec scopesentry-scan /apps/ext/rustscan/rustscan -a 180.101.50.242 -p 80
+```
+
+### 结果
+
+```
+rustscan 正常执行（输出了 batch size 提示）
+tcpdump 捕获：0 packets      ← 本机一个包都没出去
+```
+
+连接走的是 nat → 7893 → SCAN-OUT → 代理节点，本机 IP 只出现在到代理节点的那条链上。
+
+### 同时验证
+
+```
+prod-02 150 秒连续抓包（dst port 80）    0 packets
+SS_GUARD 链 drop 计数                    0（连"尝试直连"都没有）
+三台 clash connections external_direct    0
+```
+
+### 结论与限制
+
+- **当前扫描路径是干净的**。
+- **无法证明告警对应流量发生在我修复之后**：三次告警都没有时间戳，腾讯侧可能滞后数小时。
+- 唯一未闭环的缺口是 **UDP**（chrome QUIC）：`--disable-quic` 已改代码并构建，**尚未部署**。
