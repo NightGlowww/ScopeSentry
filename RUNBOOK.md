@@ -787,3 +787,49 @@ external_direct（排掉 127.0.0.1）   0
 ### 非扫描类出站（不属滥用）
 
 mihomo → 代理节点、tailscaled → DERP/控制面、docker pull/系统更新：低并发固定目的地，不会触发判定。
+## 24. 根因：HTTP_PROXY 指向 7890（按规则）——443/80 直连的真凶（2026-11-23）
+
+**告警**：prod-02 对 TCP:443 的攻击。
+
+### 为什么前面几层兜底没拦住
+
+前面的做法：nat 重定向（裸 TCP→7893）、filter 兜底 DROP、60s 守护。覆盖的是「不走代理的裸连接」。
+但 nuclei / katana / httpx 读环境变量：
+
+```
+HTTP_PROXY=http://127.0.0.1:7890     ← 容器环境一直是这个
+```
+
+它们的流量目标是 127.0.0.1:7890 —— 属于「已经在走代理」，nat 不重定向、filter 不 DROP。
+而 7890 按 **rules** 选路，规则里有 `GEOSITE,cn,DIRECT` / `GEOIP,CN,DIRECT`：
+
+**扫到国内目标 → clash 判 DIRECT → 从云主机 IP 直连 443/80。**
+这解释了为什么每次封的端口不同（80 → 8080 → 443），而兜底一直"看起来正常"。
+
+### 修法
+
+```yaml
+listeners:
+  - name: scan-http
+    type: mixed          # 给 HTTP_PROXY 用的标准代理端口
+    port: 7894
+    listen: 127.0.0.1
+    proxy: SCAN-OUT      # 固定走 MESL+YTOO，不看 rules
+```
+
+三台扫描容器的 `HTTP_PROXY/HTTPS_PROXY/ALL_PROXY` 由 7890 改为 **7894**（需重建容器，
+脚本 `scripts/remote/ss-force-http-proxy.sh`）。
+
+### 验证
+
+```
+dev-02  env 含 7894（3 处）· 314 条连接 → 209 香港04 / 98 香港01 / 7 香港02，DIRECT 0
+prod-01 9 条（5 日本家宽=HUNTDECK / 4 香港）· external_direct 0
+prod-02 空闲 · external_direct 0
+三台 nat 7893 + SS_GUARD 链 已按新容器 ID 重挂 · 旧容器已删
+节点 3/3 · app=200
+```
+
+### 教训
+
+「流量进了 clash」≠「流量走了代理」。判断泄漏看 **chains 首位是不是 DIRECT**，不是看 iptables 计数。
