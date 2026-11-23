@@ -868,3 +868,23 @@ SS_GUARD 链 drop 计数                    0（连"尝试直连"都没有）
 - **当前扫描路径是干净的**。
 - **无法证明告警对应流量发生在我修复之后**：三次告警都没有时间戳，腾讯侧可能滞后数小时。
 - 唯一未闭环的缺口是 **UDP**（chrome QUIC）：`--disable-quic` 已改代码并构建，**尚未部署**。
+## 26. UDP（QUIC）缺口：网络层丢弃闭合，不依赖二进制部署（2026-11-23 15:50）
+
+最后一个缺口：chrome 的 QUIC 走 **UDP:443**，iptables 原先只覆盖 TCP。
+原计划 `--disable-quic` + 部署二进制，但 156MB 走 tailnet（≈17Mbps）两次上传都在
+110~132 分钟后被 "lost connection" 截断（远端 164,081,848 vs 本地 164,090,040 字节），不可用。
+
+### 换个做法：网络层丢 QUIC
+
+```bash
+iptables -A SS_GUARD_<id> -p udp -m multiport --dports 443,80 -j DROP
+```
+
+QUIC 被丢后浏览器自动回落 TCP，而 TCP 已在 nat 被重定向到 7893（SCAN-OUT 强制代理）。
+**等价于 disable-quic，且不需要动二进制。**
+
+### 落地与验证
+
+`scripts/remote/ss-egress-guard.sh` 升到 v2（TCP 端口 + UDP 443/80），三台已装并对
+scan / scope-sentry / huntdeck 重新挂链；节点 3/3 在线；上一轮 rustscan+tcpdump 的
+「线路零直连包」结论仍然成立。
