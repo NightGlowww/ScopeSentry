@@ -959,7 +959,13 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 		if task.AutoResumeCount < maxAutoResume {
 			task.IsStart = true
 			if _, rerr := s.commonService.CreateTaskScan(ctx, task, id, true); rerr != nil {
-				logger.Error(fmt.Sprintf("auto-resume task %s failed, marking failed: %v", id, rerr))
+				// 进不了队列（背压/同前缀上限）不等于任务有问题：回落成「待开始」，
+				// 让界面显示真实状态，下一轮巡检还能再试。原来会一路落到 failed，
+				// 界面上就出现「36 个运行中实际只跑 1 个」的假象（2026-11-24）。
+				_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{
+					"$set": bson.M{"status": constants.TaskStatusPending, "failReason": rerr.Error()},
+				})
+				logger.Info(fmt.Sprintf("auto-resume task %s deferred to pending: %v", id, rerr))
 			} else {
 				if uerr := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{
 					"$set":   bson.M{"status": constants.TaskStatusRunning, "failReason": reason},
