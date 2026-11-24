@@ -1062,7 +1062,15 @@ docker update --restart=always scopesentry-scan && docker start scopesentry-scan
 | 证据明确不成立 | 写入 `vulnerabilityQuarantine` 后删除主表与明细 |
 | 算不出来（DSL/binary/解析失败） | `verifyState=skipped`，**保留**，不猜 |
 
-支持 `status` / `word` / `regex` 三类 matcher，`matchers-condition` 支持 and/or；`part` 支持 body/header/all。
+支持 `status` / `word` / `regex` / `dsl` 四类 matcher，`matchers-condition` 支持 and/or；`part` 支持 body/header/all。
+
+`dsl` 只算**单响应**表达式（`status_code`、`contains(body,…)`、`regex(pat, body)`、`len(body)`、`&&`/`||`/`!`/括号）。
+引用 `body_2..N` / `status_code_2..N` 的多请求模板判「不可算」，保留不动。
+2026-11-24 全量统计：14379 个模板里 3836 个用 dsl，其中 **3365 个是单响应**（可算），471 个多请求（不可算）。
+
+**弱判据**：判据只有状态码（`type: status`，或 dsl 里只出现 `status_code`）的模板，即使状态命中也不当已确认，
+标 `verifyState=weak` 等人工复核——这正是用友那批误报的同源问题。
+
 DSL 一律判为不可算——Open Proxy 那种 `contains(body_N, …)` 的模板会被跳过，不会被误删，也不会被当成通过。
 
 ### 开关

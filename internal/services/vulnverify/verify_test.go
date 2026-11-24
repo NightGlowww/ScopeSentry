@@ -44,15 +44,30 @@ http:
 	}
 }
 
-func TestDSLTemplateIsNotJudged(t *testing.T) {
+func TestDSLSingleResponseIsJudged(t *testing.T) {
 	tpl := `
+http:
+  - matchers:
+      - type: dsl
+        dsl: ["status_code == 200 && contains(body, \"ok\")"]
+`
+	v := Check(tpl, "HTTP/1.1 200 OK\r\n\r\nok")
+	if !v.Evaluable || !v.Verified || v.Weak {
+		t.Fatalf("content dsl must be judged and strong, got %+v", v)
+	}
+	if v2 := Check(tpl, "HTTP/1.1 403 Forbidden\r\n\r\nno"); !v2.Evaluable || v2.Verified {
+		t.Fatalf("want rejected, got %+v", v2)
+	}
+
+	statusOnly := `
 http:
   - matchers:
       - type: dsl
         dsl: ["status_code == 200"]
 `
-	if v := Check(tpl, "HTTP/1.1 200 OK\r\n\r\nok"); v.Evaluable {
-		t.Fatalf("dsl must be unevaluable, got %+v", v)
+	weak := Check(statusOnly, "HTTP/1.1 200 OK\r\n\r\nok")
+	if !weak.Evaluable || !weak.Weak {
+		t.Fatalf("status-only matcher must be weak, got %+v", weak)
 	}
 }
 

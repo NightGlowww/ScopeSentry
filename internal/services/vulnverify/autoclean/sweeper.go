@@ -1,4 +1,4 @@
-package vulnverify
+package autoclean
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
 )
 
 // SweepOnce 复验一批未标记的漏洞记录：证据不成立的隔离后删除，成立的打上 verified。
@@ -49,10 +50,14 @@ func SweepOnce(ctx context.Context, limit int64) (checked, removed, verified, sk
 			skipped++
 			continue
 		}
-		v := Check(content, detail.Response)
+		v := vulnverify.Check(content, detail.Response)
 		switch {
 		case !v.Evaluable:
 			mark(ctx, d, "skipped", v.Reason, dry)
+			skipped++
+		case v.Weak:
+			// 判据只有状态码：成立也不构成证据，标 weak 待人工复核，不删也不当已确认。
+			mark(ctx, d, "weak", v.Reason, dry)
 			skipped++
 		case v.Verified:
 			mark(ctx, d, "verified", v.Reason, dry)

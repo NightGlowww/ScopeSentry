@@ -19,7 +19,10 @@ type Verdict struct {
 	// Evaluable 本次是否真的算出了结论；false 表示模板用了不支持的 matcher，
 	// 此时 Verified 无意义，调用方必须保留记录。
 	Evaluable bool
-	Reason    string
+	// Weak 表示模板的判据只有状态码（没有任何正文/头部判据），这种「成立」不构成证据，
+	// 只能标待复核，不能当已确认。2026-11-24 用友那批误报的同源问题。
+	Weak   bool
+	Reason string
 }
 
 type template struct {
@@ -35,6 +38,7 @@ type rawMatcher struct {
 	Words     []string `yaml:"words"`
 	Regex     []string `yaml:"regex"`
 	Status    []int    `yaml:"status"`
+	DSL       []string `yaml:"dsl"`
 	Condition string   `yaml:"condition"`
 }
 
@@ -77,16 +81,47 @@ func Check(templateContent, rawResponse string) Verdict {
 		return Verdict{Evaluable: true, Verified: false, Reason: "response is not HTTP"}
 	}
 	// 有任何一个请求块整体成立，就算证据成立（nuclei 命中其中一路就会报）。
+	weak := true
+	for _, blk := range t.HTTP {
+		if blockHasContentMatcher(blk.Matchers) {
+			weak = false
+		}
+	}
+
 	for _, block := range t.HTTP {
 		ok, evaluable, reason := evalBlock(block.MatchersCondition, block.Matchers, r)
 		if !evaluable {
 			return Verdict{Evaluable: false, Reason: reason}
 		}
 		if ok {
-			return Verdict{Evaluable: true, Verified: true, Reason: "matcher satisfied"}
+			return Verdict{Evaluable: true, Verified: true, Weak: weak, Reason: "matcher satisfied"}
 		}
 	}
-	return Verdict{Evaluable: true, Verified: false, Reason: "no http block matcher satisfied"}
+	return Verdict{Evaluable: true, Verified: false, Weak: weak, Reason: "no http block matcher satisfied"}
+}
+
+// blockHasContentMatcher 判断这个请求块里是否有「内容级」判据（word/regex，
+// 或引用了 body/header 的 dsl）。只有状态码的块不算。
+func blockHasContentMatcher(ms []rawMatcher) bool {
+	for _, m := range ms {
+		switch m.Type {
+		case "word":
+			if len(m.Words) > 0 {
+				return true
+			}
+		case "regex":
+			if len(m.Regex) > 0 {
+				return true
+			}
+		case "dsl":
+			for _, e := range m.DSL {
+				if strings.Contains(e, "body") || strings.Contains(e, "header") {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func evalBlock(cond string, ms []rawMatcher, r Response) (bool, bool, string) {
@@ -142,6 +177,25 @@ func evalMatcher(m rawMatcher, r Response) (bool, bool, string) {
 			}
 		}
 		return false, true, ""
+	case "dsl":
+		if len(m.DSL) == 0 {
+			return false, false, "dsl matcher without expressions"
+		}
+		anyExpr := strings.EqualFold(m.Condition, "or")
+		passed := 0
+		for _, e := range m.DSL {
+			v, ok := EvalDSL(e, r)
+			if !ok {
+				return false, false, "dsl not evaluable: " + e
+			}
+			if v {
+				passed++
+			}
+		}
+		if anyExpr {
+			return passed > 0, true, ""
+		}
+		return passed == len(m.DSL), true, ""
 	default:
 		return false, false, fmt.Sprintf("unsupported matcher type %q", m.Type)
 	}
