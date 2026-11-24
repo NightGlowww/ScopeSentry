@@ -1,0 +1,110 @@
+// Package jev 接 TypeSafe 的 Jev（System One）模型做「第二裁判」。
+//
+// 为什么需要它：机械复验（vulnverify）只能回答「模板的 matcher 在真实响应上是否成立」，
+// 回答不了「这算不算一个漏洞」。像 "Next.js Public ENV Exposure" 这种，matcher 百分百成立，
+// 但三分类器一眼就该判 NQ。反过来，某些模板的 matcher 是 DSL/多响应，机械复验只能 skipped，
+// 可它们恰恰是真洞。
+//
+// Jev 是「给结构化判断」的模型：发 state + 带类型的问题，回 0..1 的概率和分布，不用解析文本。
+// 所以本包只做一件事：把一条候选漏洞的证据整理成 state，问三个问题，把答案回写成业务状态。
+package jev
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"time"
+)
+
+const endpoint = "https://api.typesafe.ai/v1/systemone"
+
+// Question 是一个带类型的问题。type 取 noul / score / choice。
+type Question struct {
+	Type         string      `json:"type"`
+	Instructions string      `json:"instructions"`
+	Criteria     interface{} `json:"criteria,omitempty"`
+}
+
+// Answer 是模型回的结构化答案。三种问题各自的字段都在这。
+type Answer struct {
+	Type          string             `json:"type"`
+	Noul          float64            `json:"noul"`
+	Score         float64            `json:"score"`
+	Choice        string             `json:"choice"`
+	Confidence    float64            `json:"confidence"`
+	Probabilities map[string]float64 `json:"probabilities"`
+}
+
+// Response 是整次调用的返回。
+type Response struct {
+	Model   string            `json:"model"`
+	Answers map[string]Answer `json:"answers"`
+	Usage   struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+	} `json:"usage"`
+}
+
+// Enabled 是否配置可用；JEAV=off 强制关闭。
+func Enabled() bool {
+	if os.Getenv("JEV") == "off" {
+		return false
+	}
+	return os.Getenv("JEV_API_KEY") != ""
+}
+
+func model() string {
+	if m := os.Getenv("JEV_MODEL"); m != "" {
+		return m
+	}
+	return "jev-latest"
+}
+
+var client = &http.Client{Timeout: 45 * time.Second}
+
+// Ask 发一次 System One 请求。state 是要判断的内容，questions 是问题集合。
+func Ask(ctx context.Context, state string, questions map[string]Question) (*Response, error) {
+	key := os.Getenv("JEV_API_KEY")
+	if key == "" {
+		return nil, fmt.Errorf("JEV_API_KEY not set")
+	}
+	payload, err := json.Marshal(map[string]interface{}{
+		"state":     state,
+		"model":     model(),
+		"questions": questions,
+	})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("jev http %d: %s", resp.StatusCode, string(body[:min(len(body), 300)]))
+	}
+	var out Response
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("jev decode: %w", err)
+	}
+	return &out, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

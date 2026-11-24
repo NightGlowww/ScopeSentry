@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
+	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
@@ -306,6 +307,8 @@ func main() {
 	if _, _, err := vulnverify.PromoteOnce(context.Background()); err != nil {
 		logger.Error("vulnverify promote: " + err.Error())
 	}
+	// Jev 第二裁判：机械复验判不了的候选（skipped/weak）交给它按概率落状态。
+	jev.Start(context.Background())
 
 	// 在 goroutine 中启动服务器
 	go func() {
