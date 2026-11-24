@@ -43,3 +43,19 @@ http:
 		t.Fatal("status matcher is single-response")
 	}
 }
+func TestTemplateWithoutMatchersIsNotBlocked(t *testing.T) {
+	tpl := `
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/"
+    extractors:
+      - type: regex
+        part: body
+        regex:
+          - "v[0-9.]+"
+`
+	if UnverifiableTemplate(tpl) {
+		t.Fatal("template without matchers must not be excluded")
+	}
+}

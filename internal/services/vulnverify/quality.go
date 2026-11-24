@@ -19,14 +19,26 @@ func UnverifiableTemplate(content string) bool {
 	if err := yaml.Unmarshal([]byte(content), &t); err != nil {
 		return false
 	}
+	blocks := t.blocks()
+	if len(blocks) == 0 {
+		// 解析不出请求块不等于「不可复验」：宁可放过，也不能把能跑的模板挡在门外。
+		return false
+	}
 	decidableBlocks := 0
-	for _, blk := range t.HTTP {
+	blocksWithMatchers := 0
+	for _, blk := range blocks {
 		if len(blk.Matchers) == 0 {
 			continue
 		}
+		blocksWithMatchers++
 		if !blockNeedsMultiResponse(blk.Matchers) {
 			decidableBlocks++
 		}
+	}
+	if blocksWithMatchers == 0 {
+		// 没有任何 matcher（只有 extractor/flow）的模板不是「不可复验」，是「没有判据」。
+		// 2026-11-24 实测：不加这条会把 Backdrop/Memos 这类纯 extractor 模板误排 203 个。
+		return false
 	}
 	return decidableBlocks == 0
 }

@@ -67,11 +67,19 @@ func Start(ctx context.Context) {
 		ticker := time.NewTicker(6 * time.Hour)
 		defer ticker.Stop()
 		for {
-			checked, blocked, err := RunOnce(ctx, 500)
-			if err != nil {
-				logger.Error("pocquality: classify failed: " + err.Error())
-			} else if checked > 0 {
-				logger.Info(fmt.Sprintf("pocquality: checked=%d excluded=%d", checked, blocked))
+			// 一次启动要把存量扫完：14379 个模板按 500/批要 29 轮，只跑一轮等于没标。
+			for {
+				checked, blocked, err := RunOnce(ctx, 500)
+				if err != nil {
+					logger.Error("pocquality: classify failed: " + err.Error())
+					break
+				}
+				if checked > 0 {
+					logger.Info(fmt.Sprintf("pocquality: checked=%d excluded=%d", checked, blocked))
+				}
+				if checked == 0 {
+					break
+				}
 			}
 			select {
 			case <-ctx.Done():

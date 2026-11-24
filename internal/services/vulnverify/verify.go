@@ -25,11 +25,22 @@ type Verdict struct {
 	Reason string
 }
 
+type httpBlock struct {
+	MatchersCondition string       `yaml:"matchers-condition"`
+	Matchers          []rawMatcher `yaml:"matchers"`
+}
+
 type template struct {
-	HTTP []struct {
-		MatchersCondition string       `yaml:"matchers-condition"`
-		Matchers          []rawMatcher `yaml:"matchers"`
-	} `yaml:"http"`
+	HTTP     []httpBlock `yaml:"http"`
+	Requests []httpBlock `yaml:"requests"`
+}
+
+// blocks 合并 http: 与 requests: 两种写法（nuclei 两者等价）。
+func (t template) blocks() []httpBlock {
+	out := make([]httpBlock, 0, len(t.HTTP)+len(t.Requests))
+	out = append(out, t.HTTP...)
+	out = append(out, t.Requests...)
+	return out
 }
 
 type rawMatcher struct {
@@ -73,7 +84,8 @@ func Check(templateContent, rawResponse string) Verdict {
 	if err := yaml.Unmarshal([]byte(templateContent), &t); err != nil {
 		return Verdict{Evaluable: false, Reason: "template parse: " + err.Error()}
 	}
-	if len(t.HTTP) == 0 {
+	blocks := t.blocks()
+	if len(blocks) == 0 {
 		return Verdict{Evaluable: false, Reason: "template has no http blocks"}
 	}
 	r := ParseResponse(rawResponse)
@@ -82,13 +94,13 @@ func Check(templateContent, rawResponse string) Verdict {
 	}
 	// 有任何一个请求块整体成立，就算证据成立（nuclei 命中其中一路就会报）。
 	weak := true
-	for _, blk := range t.HTTP {
+	for _, blk := range blocks {
 		if blockHasContentMatcher(blk.Matchers) {
 			weak = false
 		}
 	}
 
-	for _, block := range t.HTTP {
+	for _, block := range blocks {
 		ok, evaluable, reason := evalBlock(block.MatchersCondition, block.Matchers, r)
 		if !evaluable {
 			return Verdict{Evaluable: false, Reason: reason}
