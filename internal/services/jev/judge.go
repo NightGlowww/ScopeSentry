@@ -152,7 +152,12 @@ func RunOnce(ctx context.Context) (confirmed, rejected, kept int, err error) {
 			}
 		default:
 			jevDoc["decision"] = "needs_human"
-			_, _ = mongodb.DB.Collection("vulnerability").UpdateOne(ctx, sel, bson.M{"$set": bson.M{"jev": jevDoc}})
+			// 把判断依据写进 verifyReason：界面原本就展示这个字段，不用改前端就能看到
+			// 「模型认为像 NQ（by_design 0.43）、但置信不够，留给人看」。
+			_, _ = mongodb.DB.Collection("vulnerability").UpdateOne(ctx, sel, bson.M{"$set": bson.M{
+				"jev":          jevDoc,
+				"verifyReason": fmt.Sprintf("jev: isVuln=%.2f evidence=%.2f nq=%s(%.2f) -> needs human", isVuln, evidence, nq.Choice, veto),
+			}})
 			kept++
 		}
 	}
