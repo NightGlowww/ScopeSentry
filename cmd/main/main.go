@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
 	"github.com/Autumn-27/ScopeSentry/internal/worker"
@@ -296,6 +297,7 @@ func main() {
 	// 2026-11-24 起：76 条历史发现按判据复验全部不成立，人工清了；这里让后续自动清。
 	autoclean.Start(context.Background())
 	pocquality.Start(context.Background())
+	assetcollapse.Start(context.Background())
 
 	// 在 goroutine 中启动服务器
 	go func() {
