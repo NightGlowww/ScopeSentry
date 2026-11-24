@@ -71,6 +71,10 @@ type Task struct {
 	FailReason string `bson:"failReason,omitempty" json:"failReason,omitempty"`
 	// StartedAt 本次启动/恢复的时间：用来算「已用时间」，暂停期间不该计入（2026-11-21）
 	StartedAt string `bson:"startedAt,omitempty" json:"startedAt,omitempty"`
+	// AutoResumeCount 因「节点重启/发布打断」被自动重投的次数。
+	// 2026-11-24：以前巡检直接把这类任务判失败，用户只能手动重开；
+	// 现在先自动重投，超过上限才落 failed，避免死循环。
+	AutoResumeCount int `bson:"autoResumeCount,omitempty" json:"autoResumeCount,omitempty"`
 }
 
 // TaskProgress 任务进度模型

@@ -899,6 +899,10 @@ func (s *service) GetAllTaskNames(ctx *gin.Context) ([]models.Task, error) {
 // SweepStaleTasks 巡检僵尸任务：状态仍是运行中、进度未满，但创建时间已超过 staleAfter，
 // 且 Redis 里既没有待处理目标队列（TaskInfo:<id>）也没有进度集合（TaskInfo:tmp:<id>），
 // 判定为 failed。此前没有 failed 态，节点挂掉后任务会永久停在「运行中」。
+// maxAutoResume 同一个任务因「重启打断」被自动重投的上限：
+// 超过就落 failed，避免某条永远跑不完的任务被无限重投（2026-11-24）。
+const maxAutoResume = 3
+
 func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration) (int, error) {
 	filter := bson.M{
 		"status":   constants.TaskStatusRunning,
@@ -947,6 +951,32 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 
 		reason := fmt.Sprintf("超过 %s 无进展，且不在任何节点队列里（最后活动 %s）；多半是节点重启/更新打断了执行",
 			staleAfter, ref.Format("2006-01-02 15:04:05"))
+
+		// 2026-11-24：这类「没进展、也没人排队」绝大多数是发布/重启打断，不是扫描本身失败。
+		// 以前直接落 failed（实测一次攒了 61 条），用户只能手动重开。
+		// 现在先自动重投，沿用已有目标列表（IsStart=true 不重建），
+		// 只有连续 maxAutoResume 次都没跑起来才判失败，避免无限循环。
+		if task.AutoResumeCount < maxAutoResume {
+			task.IsStart = true
+			if _, rerr := s.commonService.CreateTaskScan(ctx, task, id, true); rerr != nil {
+				logger.Error(fmt.Sprintf("auto-resume task %s failed, marking failed: %v", id, rerr))
+			} else {
+				if uerr := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{
+					"$set":   bson.M{"status": constants.TaskStatusRunning, "failReason": reason},
+					"$inc":   bson.M{"autoResumeCount": 1},
+					"$unset": bson.M{"endTime": ""},
+				}); uerr != nil {
+					logger.Error(fmt.Sprintf("mark auto-resume %s failed: %v", id, uerr))
+					continue
+				}
+				swept++
+				logger.Info(fmt.Sprintf("stale task auto-resumed (%d/%d): %s (%s), last activity %s",
+					task.AutoResumeCount+1, maxAutoResume, task.Name, id, ref.Format("2006-01-02 15:04:05")))
+				continue
+			}
+		}
+
+		reason = fmt.Sprintf("%s；已自动重投 %d 次仍未跑起来", reason, task.AutoResumeCount)
 		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": bson.M{
 			"status":     constants.TaskStatusFailed,
 			"endTime":    helper.GetNowTimeString(),
@@ -956,7 +986,7 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 			continue
 		}
 		swept++
-		logger.Info(fmt.Sprintf("stale task marked failed: %s (%s), last activity %s", task.Name, id, ref.Format("2006-01-02 15:04:05")))
+		logger.Info(fmt.Sprintf("stale task marked failed after %d auto-resumes: %s (%s)", task.AutoResumeCount, task.Name, id))
 	}
 	return swept, nil
 }

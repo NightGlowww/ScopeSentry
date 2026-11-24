@@ -1,1 +1,0 @@
-import{a as r}from"./vendor-element-COMA8i7f.js";import"./vendor-SJ1lc2KN.js";const t=async(t,a="已复制",e="复制失败")=>{if(t)try{await navigator.clipboard.writeText(t),r.success(a)}catch{r.error(e)}};export{t as c};
