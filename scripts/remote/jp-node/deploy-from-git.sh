@@ -24,7 +24,14 @@ COMMIT=$(git -C "$SRC" rev-parse --short HEAD)
 echo "   commit=$COMMIT"
 
 echo "== [2/5] 构建 linux/amd64 二进制 =="
-docker run --rm -v "$SRC":/app -w /app -e GOPROXY=https://goproxy.cn,direct -e GOOS=linux -e GOARCH=amd64 -e CGO_ENABLED=0 golang:1.24 go build -trimpath -ldflags "-s -w" -o /app/ScopeSentry-Scan ./cmd/ScopeSentry/main.go
+# Go 模块缓存挂出来：首次要下 ~2 GB，之后重建只做编译（几分钟）。
+mkdir -p /opt/scopesentry/gomod /opt/scopesentry/gocache
+docker run --rm -v "$SRC":/app -w /app \
+  -v /opt/scopesentry/gomod:/go/pkg/mod \
+  -v /opt/scopesentry/gocache:/root/.cache/go-build \
+  -e GOPROXY=https://goproxy.cn,direct \
+  -e GOOS=linux -e GOARCH=amd64 -e CGO_ENABLED=0 \
+  golang:1.24 go build -trimpath -ldflags "-s -w" -o /app/ScopeSentry-Scan ./cmd/ScopeSentry/main.go
 SHA=$(sha256sum "$SRC/ScopeSentry-Scan" | cut -d" " -f1)
 echo "   sha=${SHA:0:16} size=$(stat -c %s "$SRC/ScopeSentry-Scan")"
 
