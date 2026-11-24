@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
+	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
 	"github.com/Autumn-27/ScopeSentry/internal/worker"
 
 	"github.com/Autumn-27/ScopeSentry/internal/bootstrap"
@@ -294,6 +295,7 @@ func main() {
 	// 漏洞证据复验：把模板 matcher 对着已存响应重算，不成立的隔离后删除。
 	// 2026-11-24 起：76 条历史发现按判据复验全部不成立，人工清了；这里让后续自动清。
 	autoclean.Start(context.Background())
+	pocquality.Start(context.Background())
 
 	// 在 goroutine 中启动服务器
 	go func() {

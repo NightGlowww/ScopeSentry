@@ -1,0 +1,1 @@
+import{f as t}from"./dateUtil-BsKBmNHQ.js";const r=r=>{if(!r)return"-";const n=t(r);return"Invalid Date"===n?"-":n},n=r=>{if(!r)return"-";const n=t(r,"YYYY-MM-DD");return"Invalid Date"===n?"-":n};export{n as d,r as t};
