@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# 在东京节点本机从 GitHub 拉源码并构建扫描二进制 —— 不走上海上行。
-#
-# 背景（2026-11-24）：上海到东京的 Tailscale 只有 30–100 KB/s，传 164 MB 二进制要一两小时，
-# 还经常传到一半断。而东京到 GitHub 实测 4.2 MB/s（快 40–140 倍），到 Docker Hub 也正常。
-# 所以二进制改由东京本机构建，上海只负责推代码，结果回传走 Mongo（数据量很小）。
+# 东京本机构建扫描端：git pull → go build → docker build → compose 切换。
+# 上海上行只有 30-100 KB/s，传不了 164 MB 二进制；东京到 GitHub 有 4 MB/s。
 set -euo pipefail
 
 REPO="${REPO:-https://github.com/NightGlowww/ScopeSentry-Scan.git}"
@@ -24,14 +21,8 @@ COMMIT=$(git -C "$SRC" rev-parse --short HEAD)
 echo "   commit=$COMMIT"
 
 echo "== [2/5] 构建 linux/amd64 二进制 =="
-# Go 模块缓存挂出来：首次要下 ~2 GB，之后重建只做编译（几分钟）。
 mkdir -p /opt/scopesentry/gomod /opt/scopesentry/gocache
-docker run --rm -v "$SRC":/app -w /app \
-  -v /opt/scopesentry/gomod:/go/pkg/mod \
-  -v /opt/scopesentry/gocache:/root/.cache/go-build \
-  -e GOPROXY=https://goproxy.cn,direct \
-  -e GOOS=linux -e GOARCH=amd64 -e CGO_ENABLED=0 \
-  golang:1.24 go build -trimpath -ldflags "-s -w" -o /app/ScopeSentry-Scan ./cmd/ScopeSentry/main.go
+docker run --rm -v "$SRC":/app -w /app -v /opt/scopesentry/gomod:/go/pkg/mod -v /opt/scopesentry/gocache:/root/.cache/go-build -e GOPROXY=https://goproxy.cn,direct -e GOOS=linux -e GOARCH=amd64 -e CGO_ENABLED=0 golang:1.24 go build -trimpath -ldflags "-s -w" -o /app/ScopeSentry-Scan ./cmd/ScopeSentry/main.go
 SHA=$(sha256sum "$SRC/ScopeSentry-Scan" | cut -d" " -f1)
 echo "   sha=${SHA:0:16} size=$(stat -c %s "$SRC/ScopeSentry-Scan")"
 
