@@ -947,3 +947,145 @@ ss-tproxy 与 SS_GUARD）。
 
 `--init` 只回收**孤儿**（父进程已退出）。如果 node 自己持有未 wait 的子进程，tini 看不到它们。
 彻底解决需要在节点代码里保证每个 exec 都有 `Wait()`——那是 rod/leakless 内部行为，未改。
+
+---
+
+## 29. 东京扫描节点上线、国内节点临时停用（2026-11-24）
+
+### 拓扑
+
+| 角色 | 主机 | 节点名 | 状态 |
+| --- | --- | --- | --- |
+| 控制面（server + Mongo + Redis + huntdeck） | `prod-tx-sh-app-01`（腾讯上海） | — | 不变 |
+| 扫描节点 | `prod-cb-tyo-app-01`（Contabo 东京，Tailscale `100.65.237.20`） | `node-jp-01` | 唯一在跑 |
+| 扫描节点（停用） | prod-01 / prod-02 / dev-02 | `node-sh-01` / `node-tx-sh-02` / `node-dev-02` | 容器已停、`restart=no`、Redis `state=2` |
+
+### 东京节点
+
+- 运行定义与烟测脚本在 `scripts/remote/jp-node/`（compose/Dockerfile/healthcheck/fixture/provision/README）。
+- 基础镜像 `autumn27/scopesentry-scan@sha256:55f803d7…` 由日本机自行拉取；扫描二进制走 Tailscale 私网从控制面容器取出（sha256 `ec7eaa34…`，与国内三节点一致），构建上下文 73 MB，构建日志里可见 `transferring context: 73.02MB`。
+- Mongo 用专属账号 `scopesentry_scan_jp01`（仅 `readWrite@ScopeSentry`），口令只存在节点 `config/config.yaml`（0600）与 Redis 口令文件 `/run/secrets/redis.json`（0600）。
+- 资源：`init: true`、`cpus 4.0`、`mem_limit 12g`、`memswap_limit 12g`、`pids_limit 2048`、`shm 1g`、日志 `20m×5`。容器内 PID1 是 `docker-init`，实测僵尸 0。
+- 并发：`modules.yaml` 的 `maxGoroutineCount: 1`，端口扫描 1、URLScan 2、探洞 1；心跳 `maxTaskNum=1`。
+
+### 验证（实测，非推断）
+
+1. 注册：`Register Success:node-jp-01 - version 1.9.20`，Redis `node:node-jp-01` 心跳持续刷新。
+2. 端到端一：任务 `jp-owned-smoke-1795454038`（target `127.0.0.1`）→ 夹具记录 `ua=Go-http-client/1.1`，任务 100% 完成。
+3. 端到端二：任务 `jp-owned-tailnet-1795454136`（target `100.65.237.20`）→ 夹具记录 `host=100.65.237.20:18765`，任务 100% 完成（57 秒）。
+4. 重启恢复：改 `state: 1` 后 `docker compose up -d --force-recreate`，容器自动回到 running、心跳恢复、`node:node-jp-01` state=1。
+5. 真实任务：`huntdeck-intigriti-redcare-pharmacy-sites-20261123-172308` 由 `scan-handoff` 创建，落在 `node-jp-01`，节点日志出现 `Task begin`。
+
+### huntdeck 侧
+
+- `/scan` 配置已改为：`enabled=1`、`node_name=node-jp-01`、模板 `6afaa875b7221f4aa7eabff4`（default）、`per_task=2`、`kinds=domain`。
+- 页面按钮 `POST /scan/now` 会带上决策模型意见，模型给 `confirm_first` 时**不会**创建任务；带操作员确认的入口是命令行：
+
+```bash
+docker exec -e HUNTDECK_DATA_DIR=/data huntdeck-huntdeck-1 /huntdeck scan-handoff
+docker exec -e HUNTDECK_DATA_DIR=/data huntdeck-huntdeck-1 /huntdeck scan-handoff --targets a.example.com,b.example.com
+```
+
+`--targets` 会置 `ConfirmedBy`，`confirm_first` 视为操作员已确认；不带 `--targets` 走"下一批"，模型给 `confirm_first` 时会被拒。
+
+### 停用国内节点的正确做法
+
+`state: 2` **不是**暂停闸：`internal/node/node.go` 首次注册硬写 `state=1`，`checkNodeTask` 只按任务归属节点过滤，不看节点状态。只能停容器：
+
+```bash
+docker update --restart=no scopesentry-scan
+docker stop --time 90 scopesentry-scan
+# 恢复：
+docker update --restart=always scopesentry-scan && docker start scopesentry-scan
+```
+
+停用后 Redis 心跳停在停机时刻，`list_nodes` 里这些节点不再 `Online()`，huntdeck 的 `chooseNode` 也不会选它们。
+
+### 配置加载的两个坑（已实测确认）
+
+1. **只靠 Compose 环境变量不够**：`internal/config/config.go:23-33` 只在 `/apps/config/config.yaml` 不存在时才读 env，且 env 分支只认 `NodeName/MONGODB_*/REDIS_*/TimeZoneName/DEBUG`。真正生效的是挂载进去的 `./config/config.yaml`（0600）。缺这个文件会生成随机 NodeName 并在 `config.go:70` 直接 fatal。
+2. **模块并发以 Redis 为准**：`configupdater.Initialize()` 先 `UpdateGlobalModulesConfig()` 再 `UpdateNodeModulesConfig()`，后者从 `node:<name>.modulesConfig` 覆盖 `/apps/config/modules.yaml`。所以改并发要改 Redis 那条 hash（或用界面改），只改本机文件会在下次启动被覆盖。
+
+实测：容器内 `/apps/config/config.yaml` 的 `NodeName` 为 `node-jp-01`，`/apps/config/modules.yaml` 的 `maxGoroutineCount` 为 1，与预置一致。
+
+---
+
+## 30. 漏洞发现精准度：0/76 与整改（2026-11-24）
+
+### 测量
+
+导出 `vulnerability` 全量（76 条）与 `vulnerabilityDetail` 的原始响应，按各模板自己声称的判据离线复验：
+
+| 模板 | 命中 | 真 | 误报 | 根因 |
+| --- | --- | --- | --- | --- |
+| Yonyou U8 CRM 任意文件读取 | 44 | 0 | 44 | 正则 `(?i)[fonts]` 是字符类，匹配任意 f/o/n/t/s 字母 |
+| Open Proxy To Internal Network | 28 | 0 | 28 | DSL 只看正文片段，CloudFront 的 400/403 也算命中 |
+| Seeyon OA A6 | 2 | 0 | 2 | 无 sessionid/jdbc 标记 |
+| Node.js Express 开发模式 | 1 | 0 | 1 | 状态码 400 |
+| Exposed JSON 配置 | 1 | 0 | 1 | 无密钥字段 |
+
+整改前 precision = 0%。不是"扫描没跑"，而是"跑了、写库了，但判据不成立"。
+
+### 整改
+
+1. 两条 Yonyou 模板正则改成字面量匹配（YAML 里写 `(?i)\[fonts\]`），复验 76 条历史响应：0 条再命中。
+2. `Open Proxy To Internal Network` 移出 `PocList`，原文备份到 `PocListBackupFP20261124`。它依赖"回源页 vs 直连页"差分，当前写法做不到，改写前不启用。
+3. 76 条历史误报置 `status=3`（已忽略）+ `tags=[auto-fp-20261124]`。
+4. 扫描端源码加闸（未发布）：`modules/vulnerabilityscan/nuclei/nuclei.go` 的 `responseStatus()`，4xx/5xx 直接丢弃（保留 401/403，避免误伤未授权访问类），`go vet` 通过。
+
+### 复发防线
+
+`scripts/precision/lint_templates.py` 对导出的模板集做三类静态检查：
+
+- R1 字面量被写成字符类（`(?i)[fonts]` 这种）— 当前 2 条，已修
+- R2 只有 `status` matcher、无任何内容判据 — 当前 18 条（多为云枚举，信息级）
+- R3 唯一内容判据是 `admin`/`login`/`error` 这类常见词 — 当前 9 条
+
+全量 14379 条模板的检查结果随 `scripts/precision/README.md` 存档；新模板入库前先跑一遍。
+
+---
+
+## 31. 误报自动清除：证据复验常驻（2026-11-24）
+
+### 为什么不是「标记已忽略」
+
+标记只是让人看不见，记录还在，导出、计数、下游消费都还会带上。既然判据明确不成立，就应当隔离后删除，
+需要追溯时去隔离集合捞。
+
+### 机制
+
+`internal/services/vulnverify`：把模板的 matcher 对着**已存响应**重算一遍。
+
+| 结论 | 动作 |
+| --- | --- |
+| 证据成立 | `verifyState=verified`，保留 |
+| 证据明确不成立 | 写入 `vulnerabilityQuarantine` 后删除主表与明细 |
+| 算不出来（DSL/binary/解析失败） | `verifyState=skipped`，**保留**，不猜 |
+
+支持 `status` / `word` / `regex` 三类 matcher，`matchers-condition` 支持 and/or；`part` 支持 body/header/all。
+DSL 一律判为不可算——Open Proxy 那种 `contains(body_N, …)` 的模板会被跳过，不会被误删，也不会被当成通过。
+
+### 开关
+
+| 变量 | 作用 |
+| --- | --- |
+| `VULN_VERIFY=off` | 关闭常驻复验 |
+| `VULN_VERIFY_DRY=1` | 只标记不删除（灰度用） |
+
+默认每 5 分钟跑一批（200 条），启动时先跑一次。
+
+### 测试
+
+`go test ./internal/services/vulnverify/` 覆盖五个用例：
+
+1. 用友模板 + 不含 `[fonts]` 的真实误报响应 → 判不成立
+2. 同一模板 + 真含 `[fonts]` 的响应 → 判成立（正控）
+3. 只有状态码的模板 + 403 → 判不成立
+4. DSL 模板 → 不可算
+5. 非 HTTP 响应 → 判不成立
+
+`scripts/preflight.sh` 已把它加进无 DB 依赖的测试集，发版前会跑。
+
+
+
+

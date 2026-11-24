@@ -23,12 +23,14 @@ package main
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/scheduler/jobs"
 	"io/fs"
 	"strconv"
 	"strings"
 
+	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
 	"github.com/Autumn-27/ScopeSentry/internal/worker"
 
 	"github.com/Autumn-27/ScopeSentry/internal/bootstrap"
@@ -52,8 +54,10 @@ import (
 
 	_ "github.com/Autumn-27/ScopeSentry/internal/bootstrap"
 
+	imageRoutes "github.com/Autumn-27/ScopeSentry/internal/api/handlers/images"
 	"github.com/Autumn-27/ScopeSentry/internal/api/routes"
 	scopesentrymcp "github.com/Autumn-27/ScopeSentry/internal/mcp"
+	iconrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/assets/icon"
 	dictionarysvc "github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	redisLogSubscriber "github.com/Autumn-27/ScopeSentry/internal/services/redis_log_subscriber"
@@ -64,6 +68,7 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
 )
 
@@ -229,8 +234,9 @@ func main() {
 		c.Data(http.StatusOK, "image/x-icon", data)
 	})
 
-	// 注册上传文件静态路由（/images 映射到外部 uploads 目录）
-	router.Static("/images", config.GlobalConfig.System.ImgDir) // /uploads 对应上传的图片文件
+	// /images 下截图走本地目录；网站图标由扫描节点写进共享 MongoDB（icon 集合），
+	// 服务端在首次请求时回源并缓存，见 internal/api/handlers/images。
+	imageRoutes.RegisterRoutes(router, config.GlobalConfig.System.ImgDir, loadIconContent)
 
 	// 注册根路径路由，直接返回文件内容，避免重定向
 	router.GET("/", func(c *gin.Context) {
@@ -285,6 +291,10 @@ func main() {
 	// 运行资产处理
 	worker.Run()
 
+	// 漏洞证据复验：把模板 matcher 对着已存响应重算，不成立的隔离后删除。
+	// 2026-11-24 起：76 条历史发现按判据复验全部不成立，人工清了；这里让后续自动清。
+	vulnverify.Start(context.Background())
+
 	// 在 goroutine 中启动服务器
 	go func() {
 		logger.Info("Starting server", zap.Int("port", config.GlobalConfig.Server.Port))
@@ -314,6 +324,22 @@ func main() {
 func Banner() {
 	banner := "   _____                         _____            _              \n  / ____|                       / ____|          | |             \n | (___   ___ ___  _ __   ___  | (___   ___ _ __ | |_ _ __ _   _ \n  \\___ \\ / __/ _ \\| '_ \\ / _ \\  \\___ \\ / _ \\ '_ \\| __| '__| | | |\n  ____) | (_| (_) | |_) |  __/  ____) |  __/ | | | |_| |  | |_| |\n |_____/ \\___\\___/| .__/ \\___| |_____/ \\___|_| |_|\\__|_|   \\__, |\n                  | |                                       __/ |\n                  |_|                                      |___/ "
 	fmt.Println(banner)
+}
+
+// loadIconContent 把仓库层的「没有这条记录」翻译成 HTTP 层的 404。
+//
+// 扫描节点（ScopeSentry-Scan）与服务端不共享文件系统：favicon 只会写进共享 MongoDB 的
+// icon 集合，服务端磁盘上的 images/icon 目录长期是空的。查询在
+// internal/repositories/assets/icon，解码与缓存策略在 internal/api/handlers/images。
+func loadIconContent(ctx context.Context, hash string) (string, error) {
+	content, err := iconrepo.NewRepository().FindContent(ctx, hash)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", imageRoutes.ErrIconNotFound
+		}
+		return "", err
+	}
+	return content, nil
 }
 
 func PrintPlugin() {

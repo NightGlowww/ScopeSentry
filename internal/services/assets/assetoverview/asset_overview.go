@@ -53,7 +53,6 @@ func (s *service) Count(ctx context.Context, project string) (*models.AssetOverv
 		{"UrlScan", &out.URL, 2},
 		{"app", &out.App, 3},
 		{"mp", &out.MP, 4},
-		{"vulnerability", &out.Vulnerability, 5},
 		{"SensitiveResult", &out.Sensitive, 6},
 	}
 	for _, item := range physical {
@@ -70,6 +69,15 @@ func (s *service) Count(ctx context.Context, project string) (*models.AssetOverv
 			*item.assign, errs[item.slot] = s.common.EstimatedDocumentCount(ctx, item.collection)
 		}()
 	}
+
+	// 漏洞卡片只算「还需要人看」的：status=3 是已忽略（含 2026-11-24 批量判定的误报），
+	// 把它们算进去会让总览上的数字比列表里待处理的多，读起来像漏了 76 条没处理。
+	// 这一族不能走 EstimatedDocumentCount——它只读集合元数据，带条件会被忽略。
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		out.Vulnerability, errs[5] = s.common.Count(ctx, "vulnerability", bson.M{"status": bson.M{"$ne": 3}})
+	}()
 
 	wg.Add(2)
 	go func() {

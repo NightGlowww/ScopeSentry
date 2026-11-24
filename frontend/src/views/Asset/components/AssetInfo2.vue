@@ -382,7 +382,18 @@ let crudSchemas = reactive<CrudSchema[]>([
       return (
         <ElRow gutter={20}>
           <ElCol span={2}>
-            <img src={st} alt="Icon" style="width: 20px; height: 20px" />
+            <img
+            src={st}
+            alt="Icon"
+            style="width: 20px; height: 20px"
+            // 图标文件是按 favicon 哈希缓存到 /images/icon/ 的，没抓到时就是 404；
+            // 浏览器原生会把 404 渲染成破图（2026-11-24 截图：标题列一列破图）。
+            // 抓不到就隐藏，标题本身仍然可读。
+            onError={(e: Event) => {
+              const img = e.target as HTMLImageElement | null
+              if (img) img.style.display = 'none'
+            }}
+          />
           </ElCol>
           <ElCol span={18}>
             <ElText size="small" class="w-200px mb-2" truncated>

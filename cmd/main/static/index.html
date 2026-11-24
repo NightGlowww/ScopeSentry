@@ -4,9 +4,47 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 让浏览器原生控件/表单/滚动条在 JS 执行前就按系统配色渲染 -->
+    <meta name="color-scheme" content="light dark" />
+    <!-- 首屏防闪烁：在样式/脚本加载前就应用主题（日间 / 夜间 / 跟随系统） -->
+    <script>
+      ;(function () {
+        try {
+          var readValue = function (key) {
+            var raw = window.localStorage.getItem(key)
+            if (raw === null) return null
+            try {
+              var parsed = JSON.parse(raw)
+              if (parsed && typeof parsed === 'object' && 'value' in parsed) return parsed.value
+              return parsed
+            } catch (e) {
+              return raw
+            }
+          }
+          // 只认 themeMode。旧版的 isDark 是旧代码按系统状态写入的机器值，
+          // 拿来当“用户显式选择”会把升级用户永久钉在浅色/深色，故忽略。
+          var mode = readValue('themeMode')
+          if (mode !== 'light' && mode !== 'dark' && mode !== 'auto') mode = 'auto'
+          var prefersDark =
+            typeof window.matchMedia === 'function' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches
+          var isDark = mode === 'dark' || (mode === 'auto' && prefersDark)
+          var root = document.documentElement
+          root.classList.add(isDark ? 'dark' : 'light')
+          root.style.colorScheme = isDark ? 'dark' : 'light'
+        } catch (e) {
+          /* localStorage 不可用时按日间渲染 */
+        }
+      })()
+    </script>
     <title>Scope Sentry</title>
-    <script type="module" crossorigin src="/assets/index-CjjzTDyG.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BLpnHwzH.css">
+    <script type="module" crossorigin src="/assets/index-YzDofuNy.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-DcDkQ-Co.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-vue-CZ6tLWbU.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-element-BkKFaUgs.js">
+    <link rel="stylesheet" crossorigin href="/assets/vendor-U7snkwmU.css">
+    <link rel="stylesheet" crossorigin href="/assets/vendor-element-v5EW-w1X.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-BO_YmJqB.css">
   </head>
   <body>
     <div id="app">
@@ -19,6 +57,14 @@
           align-items: center;
           flex-direction: column;
           background: #f0f2f5;
+        }
+
+        html.dark .app-loading {
+          background: #141414;
+        }
+
+        html.dark .app-loading .app-loading-title {
+          color: #e5eaf3;
         }
 
         .app-loading .app-loading-wrap {
@@ -109,6 +155,6 @@
           </div>
         </div>
       </div>
-    </div>
+    </div>
   </body>
 </html>

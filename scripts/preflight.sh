@@ -14,7 +14,7 @@ step "[2/5] go vet"
 GOPROXY=https://goproxy.cn,direct go vet ./... 2>&1 | head -10 || true
 
 step "[3/5] 单元测试（无 DB 依赖的包）"
-GOPROXY=https://goproxy.cn,direct go test -count=1   ./internal/utils/diskguard/... ./internal/utils/hoststat/...   ./internal/api/handlers/health/... ./internal/services/mcpguard/...   ./internal/services/task/taskpolicy/... ./internal/services/task/taskstate/...   ./internal/services/task/tasksnapshot/... ./internal/services/task/taskmsg/...   ./internal/services/dashboard/... 2>&1 | tail -12 || fail=1
+GOPROXY=https://goproxy.cn,direct go test -count=1   ./internal/utils/diskguard/... ./internal/utils/hoststat/...   ./internal/api/handlers/health/... ./internal/services/mcpguard/...   ./internal/services/task/taskpolicy/... ./internal/services/task/taskstate/...   ./internal/services/task/tasksnapshot/... ./internal/services/task/taskmsg/...   ./internal/services/dashboard/...   ./internal/services/vulnverify/... 2>&1 | tail -12 || fail=1
 
 step "[4/5] UI 审计门禁"
 python3 scripts/check-ui-audit.py docs/ui-audit-baseline.json || fail=1

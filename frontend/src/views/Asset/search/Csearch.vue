@@ -137,6 +137,13 @@ function tableHeaderColor() {
 }
 // 支持外部预填（例如从任务详情跳过来带 task=="名字"）
 const searchParams = ref(props.initialSearch || '')
+// 图标文件没抓到时 /images/icon/<hash>.png 是 404，浏览器原生会画破图；
+// 隐藏掉，标签文字照常显示。
+const hideBrokenIcon = (e: Event) => {
+  const img = e.target as HTMLImageElement | null
+  if (img) img.style.display = 'none'
+}
+
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const help = useIcon({ icon: 'tdesign:chat-bubble-help' })
 const elDropdownicon = useIcon({ icon: 'ri:arrow-drop-down-line' })
@@ -615,6 +622,7 @@ const openCreateTask = async () => {
                 :src="'/images/icon/' + tag.split('=')[1] + '.png'"
                 :alt="tag"
                 style="width: 20px; height: 20px; vertical-align: middle"
+                @error="hideBrokenIcon"
               />
             </template>
             <template v-else>

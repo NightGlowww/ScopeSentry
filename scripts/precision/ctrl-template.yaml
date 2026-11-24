@@ -1,0 +1,34 @@
+id: ctrl-yonyou-literal-20261124
+
+info:
+  name: CTRL Yonyou Literal Matcher Control
+  author: internal-control
+  severity: info
+  description: 精准度对照模板，只打自有夹具。
+  tags: control,internal
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/fixture-winini"
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)\[fonts\]'
+      - type: status
+        status:
+          - 200
+  - method: GET
+    path:
+      - "{{BaseURL}}/fixture-plain"
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - '(?i)\[fonts\]'
+      - type: status
+        status:
+          - 200

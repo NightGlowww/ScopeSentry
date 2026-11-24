@@ -1,0 +1,1 @@
+const t=t=>{const r=Number(t);if(!Number.isFinite(r)||r<=0)return"-";const e=["B","KB","MB","GB","TB"];let n=r,o=0;for(;n>=1024&&o<e.length-1;)n/=1024,o++;return`${n>=100?Math.round(n).toString():n.toFixed(1)} ${e[o]}`};export{t as f};
