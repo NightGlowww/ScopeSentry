@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# 在东京节点本机从 GitHub 拉源码并构建扫描二进制 —— 不走上海上行。
+#
+# 背景（2026-11-24）：上海到东京的 Tailscale 只有 30–100 KB/s，传 164 MB 二进制要一两小时，
+# 还经常传到一半断。而东京到 GitHub 实测 4.2 MB/s（快 40–140 倍），到 Docker Hub 也正常。
+# 所以二进制改由东京本机构建，上海只负责推代码，结果回传走 Mongo（数据量很小）。
+set -euo pipefail
+
+REPO="${REPO:-https://github.com/NightGlowww/ScopeSentry-Scan.git}"
+BRANCH="${BRANCH:-main}"
+SRC=/opt/scopesentry/src/ScopeSentry-Scan
+BUILD=/opt/scopesentry/scan/build
+STAMP=$(date +%Y%m%d-%H%M)
+
+echo "== [1/5] 同步源码 =="
+if [ -d "$SRC/.git" ]; then
+  git -C "$SRC" fetch --depth 1 origin "$BRANCH"
+  git -C "$SRC" reset --hard "origin/$BRANCH"
+else
+  mkdir -p "$(dirname "$SRC")"
+  git clone --depth 1 -b "$BRANCH" "$REPO" "$SRC"
+fi
+COMMIT=$(git -C "$SRC" rev-parse --short HEAD)
+echo "   commit=$COMMIT"
+
+echo "== [2/5] 构建 linux/amd64 二进制 =="
+docker run --rm -v "$SRC":/app -w /app -e GOPROXY=https://goproxy.cn,direct -e GOOS=linux -e GOARCH=amd64 -e CGO_ENABLED=0 golang:1.24 go build -trimpath -ldflags "-s -w" -o /app/ScopeSentry-Scan ./cmd/ScopeSentry/main.go
+SHA=$(sha256sum "$SRC/ScopeSentry-Scan" | cut -d" " -f1)
+echo "   sha=${SHA:0:16} size=$(stat -c %s "$SRC/ScopeSentry-Scan")"
+
+echo "== [3/5] 组装构建上下文 =="
+mkdir -p "$BUILD"
+cp "$SRC/ScopeSentry-Scan" "$BUILD/ScopeSentry-Scan"
+chmod 0755 "$BUILD/ScopeSentry-Scan"
+cp /opt/scopesentry/scan/state/healthcheck.py "$BUILD/healthcheck.py"
+
+echo "== [4/5] 构建镜像 =="
+TAG="scopesentry-scan-jp:git-${COMMIT}-${STAMP}"
+docker build --network none -t "$TAG" "$BUILD" >/dev/null
+echo "   image=$TAG"
+
+echo "== [5/5] 切换并重启 =="
+cd /opt/scopesentry/scan
+cp compose.yaml "compose.yaml.bak-${STAMP}"
+sed -i "s|image: scopesentry-scan-jp:.*|image: ${TAG}|" compose.yaml
+docker compose up -d scan
+echo "   已切换到 $TAG"
