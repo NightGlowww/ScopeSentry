@@ -100,6 +100,15 @@ func mark(ctx context.Context, d bson.M, state, reason string, dry bool) {
 	_, _ = mongodb.DB.Collection("vulnerability").UpdateOne(ctx, bson.M{"_id": d["_id"]}, bson.M{
 		"$set": bson.M{"verifyState": state, "verifyReason": reason, "verifiedAt": time.Now().Format("2006-01-02 15:04:05")},
 	})
+	// 复核通过即进「已确认」：只推 status 缺失或为 1 的记录，人工改成忽略/已处理的不动。
+	// 模板是否已被排除（NQ/不可复验）由 vulnverify.PromoteOnce 统一处理并隔离。
+	if state == "verified" {
+		_, _ = mongodb.DB.Collection("vulnerability").UpdateOne(ctx,
+			bson.M{"_id": d["_id"], "statusSource": bson.M{"$ne": "human"},
+				"$or": []bson.M{{"status": 1}, {"status": bson.M{"$exists": false}}}},
+			bson.M{"$set": bson.M{"status": 5, "confirmedBy": "auto:vulnverify",
+				"confirmedAt": time.Now().Format("2006-01-02 15:04:05")}})
+	}
 }
 
 func quarantineAndDelete(ctx context.Context, d bson.M, reason string) error {
@@ -131,6 +140,10 @@ func Start(ctx context.Context) {
 				logger.Error("vulnverify: sweep failed: " + err.Error())
 			} else if checked > 0 {
 				logger.Info(fmt.Sprintf("vulnverify: checked=%d removed=%d verified=%d skipped=%d", checked, removed, verified, skipped))
+			}
+			// 复核完立刻把结果推进业务状态（已确认 / 隔离），否则看板永远是 0。
+			if _, _, perr := vulnverify.PromoteOnce(ctx); perr != nil {
+				logger.Error("vulnverify: promote failed: " + perr.Error())
 			}
 			select {
 			case <-ctx.Done():

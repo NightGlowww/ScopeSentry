@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
+	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
 	"github.com/Autumn-27/ScopeSentry/internal/services/wafcontext"
@@ -300,6 +301,11 @@ func main() {
 	pocquality.Start(context.Background())
 	assetcollapse.Start(context.Background())
 	wafcontext.Start(context.Background())
+	// 复核结果推进业务状态：把已 verified 的记录标成「已确认」，把模板已排除的挪进隔离区。
+	// 与 autoclean 的循环里那次调用是幂等的，这里保证即使 VULN_VERIFY=off 也能跑一次。
+	if _, _, err := vulnverify.PromoteOnce(context.Background()); err != nil {
+		logger.Error("vulnverify promote: " + err.Error())
+	}
 
 	// 在 goroutine 中启动服务器
 	go func() {
