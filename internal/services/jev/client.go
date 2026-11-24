@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -64,7 +65,23 @@ func model() string {
 	return "jev-latest"
 }
 
-var client = &http.Client{Timeout: 45 * time.Second}
+// TypeSafe 对部分地区返回 451，所以允许配一个出口代理（JEV_PROXY）。
+// 形如 http://user:pass@host:port 或 socks5://host:port。
+var client = newClient()
+
+func newClient() *http.Client {
+	tr := &http.Transport{
+		MaxIdleConns:        4,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 15 * time.Second,
+	}
+	if p := os.Getenv("JEV_PROXY"); p != "" {
+		if u, err := url.Parse(p); err == nil {
+			tr.Proxy = http.ProxyURL(u)
+		}
+	}
+	return &http.Client{Timeout: 45 * time.Second, Transport: tr}
+}
 
 // Ask 发一次 System One 请求。state 是要判断的内容，questions 是问题集合。
 func Ask(ctx context.Context, state string, questions map[string]Question) (*Response, error) {
