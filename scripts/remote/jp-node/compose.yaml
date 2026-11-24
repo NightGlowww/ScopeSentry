@@ -1,16 +1,18 @@
 name: scopesentry-jp
 services:
   scan:
-    image: scopesentry-scan-jp:1.9.20-ec7eaa34-20261124
+    image: scopesentry-scan-jp:1.9.20-p09aab930-20261124
     pull_policy: never
     container_name: scopesentry-scan
     hostname: node-jp-01
     network_mode: host
     init: true
     restart: unless-stopped
-    cpus: "4.0"
-    mem_limit: 12g
-    memswap_limit: 12g
+    # 8 核实测只用 39%，4 核限额下 30 秒被节流 25 秒；提到 6 核后降到 7 秒。
+    # 留 2 核给 docker/ssh/tailscale/系统。
+    cpus: "6.0"
+    mem_limit: 16g
+    memswap_limit: 16g
     pids_limit: 2048
     shm_size: 1g
     stop_grace_period: 60s
@@ -21,8 +23,11 @@ services:
       - SYS_ADMIN
     environment:
       TZ: Asia/Shanghai
-      GOMAXPROCS: "4"
-      GOMEMLIMIT: 8GiB
+      # 与 cpus 对齐：Go 1.24 不读 cgroup 的 CPU 限额，GOMAXPROCS 必须显式给，
+      # 否则限额提到 6 核而 Go 仍按 4 线程调度，多出来的配额用不上。
+      GOMAXPROCS: "6"
+      # 约为 mem_limit 的 70%，留给 chrome/katana 等子进程。
+      GOMEMLIMIT: 11GiB
       NCC_BATCH: "10"
       NCC_CONC: "2"
       HTTP_PROXY: ""
@@ -36,6 +41,9 @@ services:
       - ./config:/apps/config
       - ./data:/apps/data
       - ./state/redis.json:/run/secrets/redis.json:ro
+      # 健康检查脚本挂载而非烤进镜像：容器里是 Python 3.7，
+      # 上一版用了 3.9+ 的 zoneinfo，导致健康检查从未成功过（FailingStreak 38）。
+      - ./state/healthcheck.py:/usr/local/libexec/scopesentry-healthcheck.py:ro
     ulimits:
       core:
         soft: 0
