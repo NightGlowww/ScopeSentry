@@ -33,6 +33,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
+	"github.com/Autumn-27/ScopeSentry/internal/services/wafcontext"
 	"github.com/Autumn-27/ScopeSentry/internal/worker"
 
 	"github.com/Autumn-27/ScopeSentry/internal/bootstrap"
@@ -298,6 +299,7 @@ func main() {
 	autoclean.Start(context.Background())
 	pocquality.Start(context.Background())
 	assetcollapse.Start(context.Background())
+	wafcontext.Start(context.Background())
 
 	// 在 goroutine 中启动服务器
 	go func() {
