@@ -17,6 +17,7 @@ HERMETIC_PKGS := \
 	./internal/services/project/ \
 	./internal/api/handlers/sensitiveRule/ \
 	./internal/api/middleware/compress/ \
+	./internal/api/handlers/images/ \
 	./internal/utils/redislist/ \
 	./internal/services/export/exportfilter/ \
 	./internal/utils/tagpalette/ \
