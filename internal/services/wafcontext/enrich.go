@@ -23,9 +23,10 @@ import (
 
 // Profile waf_profile 集合里的一条记录（只取这里要用的字段）。
 type Profile struct {
-	Host     string   `bson:"host"`
-	Vendor   string   `bson:"vendor"`
-	Bypasses []string `bson:"bypasses"`
+	Host      string   `bson:"host"`
+	Vendor    string   `bson:"vendor"`
+	Bypasses  []string `bson:"bypasses"`
+	WafActive bool     `bson:"wafActive"`
 }
 
 func disabled() bool {
@@ -100,8 +101,10 @@ func RunOnce(ctx context.Context) (int, error) {
 	for _, r := range rows {
 		h := hostOf(r.URL)
 		p, ok := byHost[h]
-		if !ok {
+		if !ok || !p.WafActive {
 			// 没有画像不是错误：该主机可能没跑过 wafscan（非 HTTP 资产、或模块关闭）。
+			// wafActive=false 的画像（一次拦截都没观测到）也不写：那台主机要么没挂 WAF，
+			// 要么是 catch-all，bypasses 不可信。
 			continue
 		}
 		_, err := mongodb.UpdateOne("vulnerability", bson.M{"hash": r.Hash}, bson.M{"$set": bson.M{
