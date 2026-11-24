@@ -234,6 +234,24 @@ pre-commit 会做两件事：
   加 `{time:-1}` 后 **3ms / stage=LIMIT / docsExamined=20**。除延迟外，大集合的 blocking sort 还有 100MB 内存上限风险。
 - 索引在 `initdb.createIndexes` 创建；`initdb_integration_test.go` 会断言这六个集合都有 `time` 索引，防止以后漏掉。
 
+## 网站图标（favicon）的读写链路
+
+- **写入方只有扫描节点。** `ScopeSentry-Scan` 把 favicon 以 base64 写进共享 MongoDB 的 `icon` 集合（`fav3` → `content`），
+  随后把资产文档里的 `iconcontent` 清空。节点与服务端是两个容器，**不共享文件系统**。
+- **服务端不能假设磁盘上有图。** `/images/icon/<faviconmmh3>.png` 以前直接 `router.Static` 指向 `$EXEDIR/images/icon`；
+  该目录只有 1.8 升级脚本（`internal/update/update18.go`）会写一次，新扫描数据从不落盘，
+  结果是资产详情「图标」面板整列破图（数量角标正常，因为统计直接读 MongoDB）。
+- **现在的行为（`internal/api/handlers/images`）**：请求命中磁盘就直接回；未命中且路径是 `icon/<hash>.png` 时，
+  按 hash 回源 `icon` 集合，解码校验（只放行 PNG/JPEG/GIF/WEBP/ICO/SVG，限制 8MB base64 / 6MB 解码）后原子写入缓存目录，
+  再以哈希对应的正确 `Content-Type` 返回。第二次请求是纯磁盘读。
+- **404 与 503 分工**：两处数据源都没有 → 404（正常，前端就是破图/空态）；MongoDB 异常 → 503，
+  排障时能在网络面板里一眼区分「没有图标」和「服务坏了」。
+- **缓存位置与失效**：`$EXEDIR/images/icon`（compose 挂载在 `./data/images`）。文件名即内容哈希，可长期缓存；
+  某个图标需要重新拉取时删掉对应 `.png` 即可。0 字节的历史残留文件会被自动重新回源。
+- **顺带兼容旧数据**：`icon` 集合未命中时再查 `asset.iconcontent`（1.8 之前未迁移完的实例）。
+- 回归测试在 `internal/api/handlers/images/images_test.go`（回源、缓存命中、负值哈希、data URI、脏数据、路径穿越、HEAD），
+  该包不依赖 Mongo/Redis，已加入 `make test-hermetic`。
+
 ## 仓库规范
 
 - `.editorconfig`：Go 用 tab，其余 2 空格；LF。

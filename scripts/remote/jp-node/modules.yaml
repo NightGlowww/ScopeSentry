@@ -1,0 +1,25 @@
+maxGoroutineCount: 1
+subdomainScan:
+  goroutineCount: 2
+subdomainSecurity:
+  goroutineCount: 2
+assetMapping:
+  goroutineCount: 2
+assetHandle:
+  goroutineCount: 5
+portScanPreparation:
+  goroutineCount: 5
+portScan:
+  goroutineCount: 1
+portFingerprint:
+  goroutineCount: 3
+URLScan:
+  goroutineCount: 2
+URLSecurity:
+  goroutineCount: 2
+webCrawler:
+  goroutineCount: 1
+dirScan:
+  goroutineCount: 1
+vulnerabilityScan:
+  goroutineCount: 1

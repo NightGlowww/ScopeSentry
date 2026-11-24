@@ -13,3 +13,6 @@ frontend/dist-pro/
 .cursor/
 data/
 tools/
+
+# go build ./cmd/main/ 的默认输出（113MB）
+/main
