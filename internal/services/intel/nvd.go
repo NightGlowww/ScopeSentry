@@ -129,7 +129,12 @@ func fetchFromNVD(ctx context.Context, tech string, sinceDays, limit int) ([]cac
 	// 所以按 120 天切片，从最近往前翻，攒够 limit 就停。
 	remaining := sinceDays
 	end := now
-	for remaining > 0 && len(out) < limit {
+	// 每个窗口一次 NVD 请求、间隔 6 秒。since_days 很大（例如 3650）会变成 31 次请求、
+	// 三分钟起步，调用方早就超时了。情报的时效性也用不上十年前的 CVE，
+	// 所以最多回溯 4 个窗口（480 天），并在返回里如实体现。
+	windows := 0
+	for remaining > 0 && len(out) < limit && windows < 4 {
+		windows++
 		span := 120
 		if remaining < span {
 			span = remaining
