@@ -3,7 +3,6 @@
 // 为什么需要它：intel_for_assets 的价值全在 stats.with_version 上。
 // 实测 eToro 项目 12 台 Nginx 资产 with_version=0——存量响应头里根本没有版本号，
 // 于是每条 CVE 都只能判 unknown，下游（ARTEX planner）会全部驳回。
-// 与其把「查不到」解释给调用方，不如自己去把版本读回来。
 //
 // 做法：对目标发一次 GET，从 Server / X-Powered-By / 正文里按技术名抠版本，
 // 结果写回 asset.techVersions（TTL 7 天），intel 读资产时直接用。
@@ -27,17 +26,15 @@ import (
 )
 
 const (
-	// 一批多少台；太小补得慢，太大一次把出口打满。
-	batchSize   = 50
-	probeConc   = 8
-	probeTTL    = 7 * 24 * time.Hour
-	bodyLimit   = 16 * 1024
-	probeTimout = 10 * time.Second
+	batchSize  = 50
+	probeConc  = 8
+	probeTTL   = 7 * 24 * time.Hour
+	bodyLimit  = 16 * 1024
+	probeTimeo = 10 * time.Second
 )
 
 var httpClient = &http.Client{
-	Timeout: probeTimout,
-	// 版本探测要能穿过自签证书的资产；只读一次响应头/正文，不跟随跨站跳转。
+	Timeout: probeTimeo,
 	Transport: &http.Transport{
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
 		MaxIdleConnsPerHost: 2,
@@ -59,10 +56,10 @@ type assetRow struct {
 // RunOnce 补一批版本，返回（探测台数, 新拿到版本的台数）。
 func RunOnce(ctx context.Context) (int, int, error) {
 	if mongodb.DB == nil {
+		logger.Warn("versionprobe: mongodb not ready, skip")
 		return 0, 0, nil
 	}
 	col := mongodb.DB.Collection("asset")
-	// 只捞「有指纹、但 techVersions 为空或过期」的资产
 	cutoff := time.Now().Add(-probeTTL)
 	filter := bson.M{
 		"technologies": bson.M{"$exists": true, "$ne": []string{}},
@@ -79,16 +76,33 @@ func RunOnce(ctx context.Context) (int, int, error) {
 		return 0, 0, err
 	}
 	defer cur.Close(ctx)
+	// 诊断：连「匹配到几台」「第一条解码错在哪」一起打出来，
+	// 否则 rows=0 时分不清是查询没命中还是解码失败（2026-11-25 踩过）。
+	if n, cerr := col.CountDocuments(ctx, filter); cerr == nil {
+		logger.Info(fmt.Sprintf("versionprobe: matched=%d", n))
+	}
 	var rows []assetRow
+	decodeErr := ""
 	for cur.Next(ctx) {
 		var r assetRow
-		if err := cur.Decode(&r); err == nil && len(r.Technologies) > 0 {
+		if derr := cur.Decode(&r); derr != nil {
+			if decodeErr == "" {
+				decodeErr = derr.Error()
+			}
+			continue
+		}
+		if len(r.Technologies) > 0 {
 			rows = append(rows, r)
 		}
 	}
+	if decodeErr != "" {
+		logger.Warn("versionprobe: decode error: " + decodeErr)
+	}
 	if len(rows) == 0 {
+		logger.Info("versionprobe: tick rows=0")
 		return 0, 0, nil
 	}
+	logger.Info(fmt.Sprintf("versionprobe: tick rows=%d", len(rows)))
 
 	var (
 		mu     sync.Mutex
@@ -120,9 +134,7 @@ func RunOnce(ctx context.Context) (int, int, error) {
 		}(row)
 	}
 	wg.Wait()
-	if gotVer > 0 {
-		logger.Info(fmt.Sprintf("versionprobe: probed=%d withVersion=%d", probed, gotVer))
-	}
+	logger.Info(fmt.Sprintf("versionprobe: done probed=%d withVersion=%d", probed, gotVer))
 	return probed, gotVer, nil
 }
 
@@ -195,9 +207,7 @@ func matchVersion(key, headers, body string) string {
 }
 
 func clean(v string) string {
-	v = strings.TrimSpace(v)
-	v = strings.TrimSuffix(v, ".")
-	return v
+	return strings.TrimSuffix(strings.TrimSpace(v), ".")
 }
 
 func normalizeKey(t string) string {
@@ -218,6 +228,7 @@ func Start(ctx context.Context, disabled bool) {
 		logger.Info("versionprobe: disabled")
 		return
 	}
+	logger.Info("versionprobe: started (batch=50, every 20m)")
 	go func() {
 		t := time.NewTicker(20 * time.Minute)
 		defer t.Stop()

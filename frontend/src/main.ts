@@ -4,6 +4,11 @@ import '@/plugins/unocss'
 // 导入全局的svg图标
 import '@/plugins/svgIcon'
 
+// Iconify 离线集合：只装源码里真正引用到的图标（构建前由 scripts/collect-icons.mjs 生成）。
+// 不装的话 @iconify/vue 会在运行时去 api.iconify.design 拉图标，
+// 受限网络下静默失败——菜单图标变空白且不报错（2026-11-25 实测）。
+import '@/plugins/iconifyOffline'
+
 // 初始化多语言
 import { setupI18n } from '@/plugins/vueI18n'
 
