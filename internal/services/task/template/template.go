@@ -3,6 +3,7 @@ package template
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 
@@ -87,7 +88,47 @@ func (s *service) Detail(ctx *gin.Context, id string) (*models.ScanTemplate, err
 }
 
 // Save 保存模板
+// coreModules 是「缺了就会静默降级覆盖」的模块。
+//
+// 背景（2026-11-26 实测）：6 个扫描模板里 5 个的模块是 null，其中 light/deep 连 WebCrawler、
+// DirScan 都没有。结果是任务照常跑、界面照常出资产，但 122 个 URL 里 0 个 API 端点、
+// 0 条目录扫描结果——**覆盖缺口完全不可见**，只能靠人去看「资产怎么这么少」才发现。
+//
+// 这里在保存时硬拦：核心模块没有插件就拒绝保存，并列出缺哪些。
+// 可选模块（TargetHandler / SubdomainSecurity / PortScanPreparation / PassiveScan）
+// 视目标类型而定，不强制。
+var coreModules = []string{
+	"SubdomainScan", "PortScan", "PortFingerprint", "AssetMapping", "AssetHandle",
+	"URLScan", "WebCrawler", "URLSecurity", "DirScan", "VulnerabilityScan",
+}
+
+func missingCoreModules(t *models.ScanTemplate) []string {
+	pairs := map[string][]string{
+		"SubdomainScan":     t.SubdomainScan,
+		"PortScan":          t.PortScan,
+		"PortFingerprint":   t.PortFingerprint,
+		"AssetMapping":      t.AssetMapping,
+		"AssetHandle":       t.AssetHandle,
+		"URLScan":           t.URLScan,
+		"WebCrawler":        t.WebCrawler,
+		"URLSecurity":       t.URLSecurity,
+		"DirScan":           t.DirScan,
+		"VulnerabilityScan": t.VulnerabilityScan,
+	}
+	var missing []string
+	for _, m := range coreModules {
+		if len(pairs[m]) == 0 {
+			missing = append(missing, m)
+		}
+	}
+	return missing
+}
+
 func (s *service) Save(ctx context.Context, id string, result *models.ScanTemplate) (string, error) {
+	// 保存前先做完整性校验：缺核心模块直接拒绝，避免又一次「跑完了才发现没测接口面」。
+	if missing := missingCoreModules(result); len(missing) > 0 {
+		return "", fmt.Errorf("模板不完整：以下核心模块没有选择插件 —— %s（这些模块缺失会让扫描静默降级，且界面上看不出来）", strings.Join(missing, "、"))
+	}
 	if id == "" {
 		// 插入新模板
 		insertId, err := s.repo.InsertOne(ctx, result)
