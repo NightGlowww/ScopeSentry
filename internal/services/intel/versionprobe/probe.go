@@ -26,8 +26,10 @@ import (
 )
 
 const (
-	batchSize  = 50
-	probeConc  = 8
+	// 9480 台待补，50 台/20 分钟要跑 63 小时——太慢。
+	// 300 台/5 分钟、并发 24 ≈ 2.6 小时铺完一遍，之后靠 7 天 TTL 滚动。
+	batchSize  = 300
+	probeConc  = 24
 	probeTTL   = 7 * 24 * time.Hour
 	bodyLimit  = 16 * 1024
 	probeTimeo = 10 * time.Second
@@ -237,9 +239,9 @@ func Start(ctx context.Context, disabled bool) {
 		logger.Info("versionprobe: disabled")
 		return
 	}
-	logger.Info("versionprobe: started (batch=50, every 20m)")
+	logger.Info("versionprobe: started (batch=300, every 5m)")
 	go func() {
-		t := time.NewTicker(20 * time.Minute)
+		t := time.NewTicker(5 * time.Minute)
 		defer t.Stop()
 		for {
 			if _, _, err := RunOnce(ctx); err != nil {
