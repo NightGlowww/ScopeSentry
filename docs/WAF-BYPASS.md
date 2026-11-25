@@ -110,3 +110,65 @@ nuclei 支持多模板并行，命中即记 `viaCarrier=json-gzip`。
 2. DataDome / PerimeterX 这类 bot 管理不在本模块射程内——它们拦的是 TLS 指纹和 IP 信誉，
    要 `impersonate` 或换出口，属于另一层。
 3. 一次画像 156 个请求，对敏感目标应先确认 scope 允许主动测试。
+
+## 10. 与 waf-harness/wafprobe 对齐（2026-11-25）
+
+另一条线（`~/Workspaces/security_workspace/waf-harness`）已经把 WAF 绕过做到 48 域 / 9 运营方 / 15 部署的规模，
+其判定纪律比本模块最初的三态模型严格。这里把能直接落地的部分移植了过来。
+
+### 10.1 载体矩阵：10 → 20
+
+| 类别 | 载体 |
+| --- | --- |
+| 压缩 | `json-gzip`、`json-deflate`、`json-gzip-deflate`（嵌套）、`form-gzip`、`xml-gzip`、`json-chunked` |
+| 编码 | `json-utf16be`、`json-gzip-u16` |
+| 明文 body | `json`、`form`、`xml`、`text-plain`、`mp-field`、`mp-file` |
+| 请求头 | `header-ua`、`header-referer`、`header-xff`、`header-cookie`、`header-xfh`、`header-origurl`、`header-xfilename` |
+| query | `query` |
+
+**未纳入：brotli（`br`）**——需要第三方库，当前构建里没有。这是明确的已知缺口，不是「测过没问题」。
+
+### 10.2 六态判定
+
+| 状态 | 含义 |
+| --- | --- |
+| `inspected` | benign 放行、payload 被拦 → 该载体被检查 |
+| `not_inspected` | 两者都放行 → 该载体不被检查（可绕过） |
+| `inconclusive` | benign 就被拦 → 无法归因 |
+| `app_rejected` | 两者同状态且非 2xx → 应用拒绝 |
+| `carrier_divergent` | **同一载荷换编码后 benign 自己就变了 → 差分不可归因于 WAF** |
+| `origin_rejects_encoding` | **源站直接拒收该编码（benign 压缩就被 403/406/501）** |
+
+后两个是这次新加的。没有它们，会把「源站对压缩请求本来就返回别的东西」误判成「WAF 没检查」。
+
+### 10.3 跨编码守卫
+
+每个压缩载体都带一个 `Plain` 指向同族明文载体（`json-gzip → json`、`form-gzip → form`、`xml-gzip → xml`、
+`json-gzip-u16 → json-utf16be`）。判定时比较两者 **benign** 的状态码与长度：
+
+```
+同形（状态码相同 且 长度差 <= max(200B, 2%)）→ 差分可信，保留 not_inspected
+不同形                                        → carrier_divergent，从 bypasses 里剔除
+```
+
+容差来自 wafprobe 的实测：benign 响应逐字节稳定（5 轮 × 6 台，极差 0），
+容差是为了吸收「应用回显载荷」造成的长度差，实测上限 20 字节。
+
+### 10.4 落库字段
+
+`waf_profile` 每条新增：
+
+| 字段 | 内容 |
+| --- | --- |
+| `gapType` | `compression` / `compression+header+query` / `header` / `partial-body`（`+` 组合） |
+| `evidence` | `L2`（明文被检查 + 压缩未检查）；空表示证据不足 |
+| `diverged` | 被守卫剔除的载体数（用于发现「编码本身有问题」的主机） |
+
+### 10.5 还没移植的
+
+| wafprobe 的能力 | 为什么没搬 |
+| --- | --- |
+| brotli / zstd 载体 | 需要第三方压缩库 |
+| L2+（源站解析证明） | 需要构造畸形 JSON 并比对解析错误，属独立一轮 |
+| 四格复验的新鲜度管理 | 那是「已确认目标」的保鲜机制，属 waf-harness 侧 |
+| 127 条基线 / 48 域名单 | 那是独立项目的产出，不并入扫描器 |
