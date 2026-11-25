@@ -73,6 +73,8 @@ type nucleiDoc struct {
 	Hash             string   `bson:"hash"`
 	Request          string   `bson:"request"`
 	Response         string   `bson:"response"`
+	Jev              bson.M   `bson:"jev"`
+	VerifyReason     string   `bson:"verifyReason"`
 }
 
 // listProjection 列表只取展示字段：request/response 是大字段，只在详情端点取。
@@ -91,6 +93,9 @@ var listProjection = bson.D{
 	{Key: "status", Value: 1},
 	{Key: "time", Value: 1},
 	{Key: "hash", Value: 1},
+	// LLM 判定结果要出现在列表里（否则只能进详情页看），字段很小不增加负担。
+	{Key: "jev", Value: 1},
+	{Key: "verifyReason", Value: 1},
 }
 
 // listSort 按 time 倒序：vulnerability 上已有 {time:-1} 以及
@@ -146,20 +151,22 @@ func (r *repository) List(ctx context.Context, filter bson.M, pageIndex, pageSiz
 	items := make([]models.NucleiResultItem, 0, len(docs))
 	for _, d := range docs {
 		items = append(items, models.NucleiResultItem{
-			ID:         d.ID.Hex(),
-			TemplateID: d.VulnID,
-			Name:       d.effectiveVulName(),
-			Severity:   d.Level,
-			URL:        d.URL,
-			Host:       hostFromURL(d.URL),
-			Matched:    d.Matched,
-			Project:    d.Project,
-			RootDomain: d.effectiveRootDomain(),
-			TaskName:   d.TaskName,
-			Tags:       normalizeTags(d.Tags),
-			Status:     d.Status,
-			MatchedAt:  d.Time,
-			Hash:       d.Hash,
+			ID:           d.ID.Hex(),
+			TemplateID:   d.VulnID,
+			Name:         d.effectiveVulName(),
+			Severity:     d.Level,
+			URL:          d.URL,
+			Host:         hostFromURL(d.URL),
+			Matched:      d.Matched,
+			Project:      d.Project,
+			RootDomain:   d.effectiveRootDomain(),
+			TaskName:     d.TaskName,
+			Tags:         normalizeTags(d.Tags),
+			Status:       d.Status,
+			MatchedAt:    d.Time,
+			Hash:         d.Hash,
+			Jev:          d.Jev,
+			VerifyReason: d.VerifyReason,
 		})
 	}
 	return items, total, nil

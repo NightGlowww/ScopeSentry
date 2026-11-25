@@ -1,5 +1,7 @@
 package models
 
+import "go.mongodb.org/mongo-driver/bson"
+
 // NucleiResultListRequest Nuclei 结果列表查询参数（对标 ARL-Next assetNucleiResult）。
 //
 // 字段映射（vulnerability 集合现成字段 -> ARL 口径）：
@@ -39,6 +41,10 @@ type NucleiResultItem struct {
 	Status     int      `json:"status" bson:"status"`
 	MatchedAt  string   `json:"matchedAt" bson:"matchedAt"`
 	Hash       string   `json:"hash" bson:"hash"`
+	// LLM 判定结果（jev.decision / isVuln / evidence / nq）与判定理由，
+	// 列表里直接显示「模型怎么看这条洞」，不用点进详情。
+	Jev          bson.M `json:"jev,omitempty" bson:"jev,omitempty"`
+	VerifyReason string `json:"verifyReason,omitempty" bson:"verifyReason,omitempty"`
 }
 
 // NucleiResultListResult 列表返回结构

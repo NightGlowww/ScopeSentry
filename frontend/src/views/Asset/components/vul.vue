@@ -354,6 +354,24 @@ const crudSchemas = reactive<CrudSchema[]>([
     minWidth: 200
   },
   {
+    // LLM 判定结果直接进列表：不用点进详情就知道模型怎么看这条洞。
+    // 数据来自 vulnerability.jev（后台批量裁判或按需判定写入）。
+    field: 'jev',
+    label: 'LLM 判定',
+    formatter: (row: any) => {
+      const j = row?.jev
+      if (!j || !j.decision) return '—'
+      const map: Record<string, { text: string; type: string }> = {
+        confirmed: { text: '确认', type: 'success' },
+        rejected: { text: '驳回', type: 'danger' },
+        needs_human: { text: '待人工', type: 'warning' }
+      }
+      const m = map[j.decision] || { text: String(j.decision), type: 'info' }
+      return h(ElTag, { type: m.type, size: 'small' }, () => `${m.text} ${Number(j.isVuln ?? 0).toFixed(2)}`)
+    },
+    minWidth: 110
+  },
+  {
     field: 'action',
     label: t('tableDemo.action'),
     formatter: (row, __: TableColumn, _: number) => {
