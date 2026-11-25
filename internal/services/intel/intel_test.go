@@ -5,12 +5,15 @@ import (
 )
 
 // 判定纪律的三条，全部用合成数据钉住：
-//   1. 拿不到版本 → unknown，绝不 confirmed；
-//   2. 版本在区间内 → confirmed；
-//   3. 版本不在区间内 → unknown（不是 confirmed，也不是 likely）。
+//  1. 拿不到版本 → unknown，绝不 confirmed；
+//  2. 版本在区间内 → confirmed；
+//  3. 版本不在区间内 → unknown（不是 confirmed，也不是 likely）。
 func TestJudgeUnknownWhenNoVersion(t *testing.T) {
 	rec := CVERecord{CVE: "CVE-TEST-1", Ranges: []VersionRange{{Product: "nginx", VersionEndIncl: "1.25.0"}}}
-	a := judge(rec, "a.example.com", "Nginx", versionHit{})
+	a, include := judge(rec, "a.example.com", "Nginx", versionHit{})
+	if !include {
+		t.Fatalf("unknown 分支必须收录（它是「无法判定」，不是阴性）")
+	}
 	if a.Applicability != "unknown" {
 		t.Fatalf("无版本必须 unknown，得到 %q", a.Applicability)
 	}
@@ -24,7 +27,10 @@ func TestJudgeUnknownWhenNoVersion(t *testing.T) {
 
 func TestJudgeConfirmedInRange(t *testing.T) {
 	rec := CVERecord{CVE: "CVE-TEST-2", Ranges: []VersionRange{{Product: "nginx", VersionEndIncl: "1.25.0"}}}
-	a := judge(rec, "b.example.com", "Nginx", versionHit{Version: "1.24.0", Source: "header"})
+	a, include := judge(rec, "b.example.com", "Nginx", versionHit{Version: "1.24.0", Source: "header"})
+	if !include {
+		t.Fatalf("confirmed 必须收录")
+	}
 	if a.Applicability != "confirmed" {
 		t.Fatalf("1.24.0 <= 1.25.0 应 confirmed，得到 %q (%s)", a.Applicability, a.Reason)
 	}
@@ -38,7 +44,10 @@ func TestJudgeConfirmedInRange(t *testing.T) {
 
 func TestJudgeOutOfRangeIsNotConfirmed(t *testing.T) {
 	rec := CVERecord{CVE: "CVE-TEST-3", Ranges: []VersionRange{{Product: "nginx", VersionEndIncl: "1.25.0"}}}
-	a := judge(rec, "c.example.com", "Nginx", versionHit{Version: "1.27.3", Source: "banner"})
+	a, include := judge(rec, "c.example.com", "Nginx", versionHit{Version: "1.27.3", Source: "banner"})
+	if include {
+		t.Fatalf("版本明确超出区间 = 阴性对照，不应收录进 affected")
+	}
 	if a.Applicability == "confirmed" {
 		t.Fatalf("1.27.3 超出 <=1.25.0，不得 confirmed")
 	}
@@ -50,12 +59,12 @@ func TestJudgeOutOfRangeIsNotConfirmed(t *testing.T) {
 func TestJudgeLikelyOnlyWhenVersionKnown(t *testing.T) {
 	// 产品匹配但没有版本区间 → likely（因为版本是已知的）；
 	rec := CVERecord{CVE: "CVE-TEST-4", Products: []string{"nginx"}}
-	a := judge(rec, "d.example.com", "Nginx", versionHit{Version: "1.20.0", Source: "body"})
+	a, _ := judge(rec, "d.example.com", "Nginx", versionHit{Version: "1.20.0", Source: "body"})
 	if a.Applicability != "likely" {
 		t.Fatalf("有版本但无区间应为 likely，得到 %q", a.Applicability)
 	}
 	// 无版本时同样是这条 CVE，必须 unknown 而不是 likely。
-	b := judge(rec, "e.example.com", "Nginx", versionHit{})
+	b, _ := judge(rec, "e.example.com", "Nginx", versionHit{})
 	if b.Applicability != "unknown" {
 		t.Fatalf("无版本不得降级为 likely，得到 %q", b.Applicability)
 	}

@@ -154,11 +154,19 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 					continue
 				}
 				seenHost[host] = true
-				aff := judge(rec, host, techDisplay[key], hit)
-				if aff.Applicability == "unknown" {
+				aff, include := judge(rec, host, techDisplay[key], hit)
+				if !include {
+					continue
+				}
+				// unmatched_hosts 只收「有该技术但拿不到版本」的资产。
+				if aff.Version == nil {
 					item.Unmatched = append(item.Unmatched, host)
 				}
 				item.Affected = append(item.Affected, aff)
+			}
+			if len(item.Affected) == 0 {
+				// 全部资产都能确定「不受影响」——这条 CVE 对本次范围没有情报价值，不入列表。
+				continue
 			}
 			sort.Slice(item.Affected, func(i, j int) bool { return item.Affected[i].Host < item.Affected[j].Host })
 			sort.Strings(item.Unmatched)
@@ -173,11 +181,15 @@ type versionHit struct {
 	Source  string
 }
 
-func judge(rec CVERecord, host, tech string, hit versionHit) Affected {
+// judge 返回判定结果与「是否收录」。
+// 版本明确落在区间之外 = 阴性对照，不是「无法判定」——
+// 把它放进 affected 会让调用方误以为有 12 台机器可疑（2026-11-25 实测：
+// IIS 10.0 对不上 WhatsUp 的 CVE，却整批出现在 affected 里）。
+func judge(rec CVERecord, host, tech string, hit versionHit) (Affected, bool) {
 	a := Affected{Host: host, Tech: tech, Applicability: "unknown"}
 	if hit.Version == "" {
 		a.Reason = "该资产暴露了 " + tech + " 指纹，但响应头/正文/banner 均未给出版本号，无法与受影响范围比对"
-		return a
+		return a, true
 	}
 	v := hit.Version
 	src := hit.Source
@@ -191,11 +203,12 @@ func judge(rec CVERecord, host, tech string, hit versionHit) Affected {
 	case rangeMiss:
 		a.Applicability = "unknown"
 		a.Reason = "实测版本 " + v + "（来源 " + src + "）不在该 CVE 声明的受影响区间内；不构成命中"
+		return a, false
 	default:
 		a.Applicability = "likely"
 		a.Reason = "实测版本 " + v + "（来源 " + src + "），该 CVE 只给了产品级匹配、未声明可比对的版本区间"
 	}
-	return a
+	return a, true
 }
 
 type rangeResult int
