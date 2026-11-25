@@ -121,17 +121,15 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 
 	for _, key := range names {
 		hosts := obs[key]
-		withV, withoutV := 0, 0
-		for _, h := range hosts {
-			if h.Version != "" {
-				withV++
-			} else {
-				withoutV++
+		// 逐技术名累加会把「一台机器命中两个技术名」算成两台，
+		// 下游拿这个数推断覆盖率就错了。这里只记「哪些宿主拿到过版本」，最后按宿主去重。
+		for h, hit := range hosts {
+			if hit.Version != "" {
+				hostWithVersion[h] = true
+			} else if _, ok := hostWithVersion[h]; !ok {
+				hostWithVersion[h] = false
 			}
 		}
-		report.Stats.AssetsScanned += len(hosts)
-		report.Stats.WithVersion += withV
-		report.Stats.WithoutVersion += withoutV
 
 		searchName := strings.Fields(techDisplay[key])
 		cveQuery := techDisplay[key]
