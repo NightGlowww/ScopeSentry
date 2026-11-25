@@ -1,6 +1,7 @@
 package task
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -102,6 +103,12 @@ func Save(c *gin.Context) {
 
 	_, err := templateService.Save(c.Request.Context(), req.ID, &req.Result)
 	if err != nil {
+		// 模板不完整是「填得不对」，返回 400 让前端能直接把缺失模块显示出来；
+		// 其它错误才是 500。
+		if errors.Is(err, template.ErrIncompleteTemplate) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

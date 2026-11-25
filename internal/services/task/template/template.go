@@ -2,6 +2,7 @@ package template
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -124,10 +125,15 @@ func missingCoreModules(t *models.ScanTemplate) []string {
 	return missing
 }
 
+// ErrIncompleteTemplate 表示模板缺核心模块。handler 据此返回 400 而不是 500——
+// 这是「你填得不对」，不是「服务端出错」。
+var ErrIncompleteTemplate = errors.New("模板不完整")
+
 func (s *service) Save(ctx context.Context, id string, result *models.ScanTemplate) (string, error) {
 	// 保存前先做完整性校验：缺核心模块直接拒绝，避免又一次「跑完了才发现没测接口面」。
 	if missing := missingCoreModules(result); len(missing) > 0 {
-		return "", fmt.Errorf("模板不完整：以下核心模块没有选择插件 —— %s（这些模块缺失会让扫描静默降级，且界面上看不出来）", strings.Join(missing, "、"))
+		return "", fmt.Errorf("%w：以下核心模块没有选择插件 —— %s（这些模块缺失会让扫描静默降级，且界面上看不出来）",
+			ErrIncompleteTemplate, strings.Join(missing, "、"))
 	}
 	if id == "" {
 		// 插入新模板
