@@ -32,6 +32,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
 	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
+	taskreconcile "github.com/Autumn-27/ScopeSentry/internal/services/task/reconcile"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
@@ -309,6 +310,8 @@ func main() {
 	}
 	// Jev 第二裁判：机械复验判不了的候选（skipped/weak）交给它按概率落状态。
 	jev.Start(context.Background())
+	// 任务状态对账：把「排队中 / 孤儿」从「运行中」里摘出来。
+	taskreconcile.Start(context.Background())
 
 	// 在 goroutine 中启动服务器
 	go func() {

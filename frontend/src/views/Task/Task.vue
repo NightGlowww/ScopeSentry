@@ -326,7 +326,7 @@ const taskColums = reactive<TableColumn[]>([
     label: t('tableDemo.action'),
     /* 操作列固定在右侧：横向空间不足时用户仍能直接点到按钮，
        不必拖滚动条。其余列宽收紧，总宽控制在 1280 内尽量不出现横向滚动。 */
-    width: 268,
+    width: 190,
     fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
@@ -346,12 +346,23 @@ const taskColums = reactive<TableColumn[]>([
             ids.value.push(row.id)
             startTask(ids.value)
             break
+          // 导出与任务进度从行内按钮收进下拉：一行放 4 个按钮 + 下拉，
+          // 268px 根本放不下，最后一个会被裁掉（2026-11-25 截图复现）。
+          case 'export':
+            exportTask(row)
+            break
+          case 'progress':
+            getProgressInfo(row.id)
+            break
         }
       }
       const retestAndDeleteDropdown = h(
         ElDropdown,
         {
-          onCommand: handleCommand
+          onCommand: handleCommand,
+          // 表格单元格有 overflow 裁切，下拉必须传送到 body，否则菜单被切一半。
+          teleported: true,
+          trigger: 'click'
         },
         {
           default: () =>
@@ -374,6 +385,8 @@ const taskColums = reactive<TableColumn[]>([
               // 根据 row.status 渲染不同的菜单项
               if (row.status === 3) {
                 return [
+                  h(ElDropdownItem, { command: 'export' }, () => t('task.exportTask')),
+                  h(ElDropdownItem, { command: 'progress' }, () => t('task.taskProgress')),
                   h(ElDropdownItem, { command: 'retest' }, () => t('task.retest')),
                   h(ElDropdownItem, { command: 'delete' }, () => t('common.delete'))
                 ]
@@ -381,6 +394,8 @@ const taskColums = reactive<TableColumn[]>([
                 return [
                   h(ElDropdownItem, { command: 'start' }, () => t('task.start')),
                   h(ElDropdownItem, { command: 'stop' }, () => t('task.stop')), // 如果是运行中，显示“停止”按钮
+                  h(ElDropdownItem, { command: 'export' }, () => t('task.exportTask')),
+                  h(ElDropdownItem, { command: 'progress' }, () => t('task.taskProgress')),
                   h(ElDropdownItem, { command: 'retest' }, () => t('task.retest')),
                   h(ElDropdownItem, { command: 'delete' }, () => t('common.delete'))
                 ]
@@ -405,28 +420,7 @@ const taskColums = reactive<TableColumn[]>([
           >
             {t('common.view')}
           </BaseButton>
-          <ElButton
 
-            type="info"
-
-            link
-
-            loading={exportingId.value === row.id}
-
-            onClick={() => exportTask(row)}
-
-          >
-
-            {t('task.exportTask')}
-
-          </ElButton>
-          <ElButton
-            type="warning"
-            loading={rowActionId.value === row.id}
-            onClick={() => getProgressInfo(row.id)}
-          >
-            {t('task.taskProgress')}
-          </ElButton>
         </>
       )
     }
