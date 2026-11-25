@@ -18,7 +18,10 @@ Mac ──git push──▶ GitHub                                    （改代�
          docker cp → mv → restart → healthz
 ```
 
-**端到端 29 秒**（实测 `TOTAL=29s`）：拉源码+构建 2s、压缩 1s、传输 19s、解压+重启+健康检查 7s。
+**端到端 27 秒**（实测 `TOTAL=27s result=PASS`）：拉源码+构建 2s、压缩 1s、传输 20s、替换 1s、冒烟 3s。
+
+部署末尾带**冒烟 + 自动回滚**：冒烟四项（healthz / 版本号 / Mongo / 节点数）任一不过，
+自动把 `/home/ubuntu/ScopeSentry.prev` 换回去、重启、再冒烟一次。
 
 > 传输是唯一的大头，所以**二进制在开发机 zstd -9 压缩后再传**：100 MB → 27.5 MB（3x），
 > 传输从 73 秒降到 19 秒。档位实测见下。
@@ -67,6 +70,8 @@ ssh dev-tx-sh-app-01 ~/ss-build/deploy.sh <branch> # 部署指定分支
 | 远端 heredoc 必须 `<<'REMOTE'` 加引号 | 不加引号 `$c`/`$(seq)` 会在本地展开，远端脚本直接崩 |
 | 用 `mv` 而不是 `cp` 覆盖运行中的二进制 | `cp` 就地重写会让正在运行的进程被内核 SIGKILL |
 | 版本号不加 `v` 前缀 | UI 会自己加，否则 `vv2.0.387` |
+| 冒烟必须**轮询** healthz（最多 120s） | 刚 restart 时端口还没监听，单发一次 curl 拿到 `000` —— 我因此误触发了第一次回滚 |
+| 冒烟结论用 `SMOKE_RESULT=PASS\|FAIL` 传递，不看退出码 | 实测 `sudo -n bash -c "exit 1"` 经 ssh 回来仍是 `0`，退出码不可靠 |
 
 ## 备用路径：生产机本机构建
 
