@@ -92,6 +92,8 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 	}
 
 	report := &Report{Items: []Item{}}
+	// host → 是否拿到过版本（同一宿主多技术名只算一次）
+	hostWithVersion := map[string]bool{}
 	// tech -> host -> 观测到的版本
 	obs := map[string]map[string]versionHit{}
 	techDisplay := map[string]string{}
@@ -177,6 +179,17 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 			report.Items = append(report.Items, item)
 		}
 	}
+	// 统计口径：按「宿主」而不是「技术名 × 宿主」。
+	// 一台机器同时命中 Nginx 和 Tengine 时，逐技术名累加会把它算成两台，
+	// 下游拿这个数去推断覆盖率就错了。
+	report.Stats.AssetsScanned = len(hostWithVersion)
+	for _, ok := range hostWithVersion {
+		if ok {
+			report.Stats.WithVersion++
+		}
+	}
+	report.Stats.WithoutVersion = report.Stats.AssetsScanned - report.Stats.WithVersion
+
 	return report, nil
 }
 

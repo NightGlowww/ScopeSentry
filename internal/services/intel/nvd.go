@@ -27,7 +27,10 @@ const (
 	// 无 key 时 NVD 是 5 次/30s。串行 + 6 秒间隔 + 6 小时缓存，正常量级够用。
 	nvdMinInterval = 6 * time.Second
 	cacheTTL       = 6 * time.Hour
-	cacheColl      = "cve_cache"
+	// 空结果只缓存 15 分钟：NVD 抖动/限流一次就「6 小时查不到任何 CVE」，
+	// 下游会把它当事实（2026-11-25 实测踩过：404 被当成空结果并缓存满 6 小时）。
+	emptyCacheTTL = 15 * time.Minute
+	cacheColl     = "cve_cache"
 )
 
 var (
@@ -80,7 +83,7 @@ func FetchCVE(ctx context.Context, tech string, sinceDays, limit int) ([]CVEReco
 	if mongodb.DB != nil {
 		var doc cacheDoc
 		err := mongodb.DB.Collection(cacheColl).FindOne(ctx, bson.M{"tech": strings.ToLower(tech), "sinceDays": sinceDays}).Decode(&doc)
-		if err == nil && time.Since(doc.FetchedAt) < cacheTTL {
+		if err == nil && cacheFresh(doc, time.Now()) {
 			return toRecords(tech, doc.Items, limit), true, nil
 		}
 	}
@@ -95,6 +98,16 @@ func FetchCVE(ctx context.Context, tech string, sinceDays, limit int) ([]CVEReco
 			options.Replace().SetUpsert(true))
 	}
 	return toRecords(tech, items, limit), false, nil
+}
+
+// cacheFresh 判断缓存是否还能用。空结果用更短的 TTL，
+// 避免一次上游抖动把「查不到」固化 6 小时。
+func cacheFresh(doc cacheDoc, now time.Time) bool {
+	ttl := cacheTTL
+	if len(doc.Items) == 0 {
+		ttl = emptyCacheTTL
+	}
+	return now.Sub(doc.FetchedAt) < ttl
 }
 
 func toRecords(tech string, items []cacheItem, limit int) []CVERecord {
