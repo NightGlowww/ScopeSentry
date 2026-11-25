@@ -65,8 +65,20 @@ func check(ctx context.Context) {
 		"endTime": bson.M{"$gte": ts(now.Add(-2 * time.Hour))},
 		"status":  bson.M{"$in": []int{3, 4}},
 	})
-	setAlert(ctx, alerts, "tasks_stalled", queued > 0 && finished2h == 0,
-		"队列里有 "+itoa(queued)+" 个任务，但 2 小时内没有任何任务完成——节点可能卡在某个模块或反复重启")
+	// 「有任务在跑」不算停滞：大目标本来就可能跑几小时。
+	// 真正的停滞是「队列有货 + 所有节点空闲」——那才是调度或链路卡住。
+	busy := false
+	if redis.Client != nil {
+		if keys, err := redis.Client.Keys(ctx, "node:*:currentTask").Result(); err == nil {
+			for _, k := range keys {
+				if v, err := redis.Client.Get(ctx, k).Result(); err == nil && v != "" {
+					busy = true
+				}
+			}
+		}
+	}
+	setAlert(ctx, alerts, "tasks_stalled", queued > 0 && !busy && finished2h == 0,
+		"队列里有 "+itoa(queued)+" 个任务，但没有任何节点在跑、且 2 小时内无任务完成——调度或链路卡住了")
 
 	// 2) 无产出：6h 完成 >=3 个任务但 0 新漏洞
 	finished6h, _ := task.CountDocuments(ctx, bson.M{
