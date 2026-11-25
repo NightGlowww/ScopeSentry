@@ -8,8 +8,11 @@ package system
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/constants"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -103,10 +106,17 @@ func GetSystemVersion(c *gin.Context) {
 	}
 	for _, key := range keys {
 		name := key[5:]
+		// node:<name> 是 hash，但同一个前缀下还有别的类型：
+		// 例如 node:<name>:currentTask 是 string（扫描端声明「当前在跑哪个任务」）。
+		// 以前不分类型直接 HGetAll，遇到它整页 500：「WRONGTYPE ... wrong kind of value」。
+		if strings.Contains(name, ":") {
+			continue
+		}
 		hashData, err := redis.Client.HGetAll(ctx, key).Result()
 		if err != nil {
-			response.InternalServerError(c, "api.system.version.redis_hash_error", err)
-			return
+			// 单个节点的键类型异常不该让整个版本接口失败。
+			logger.Error(fmt.Sprintf("system version: skip key %s: %v", key, err))
+			continue
 		}
 		resultList = append(resultList, VersionInfo{
 			Name:     name,

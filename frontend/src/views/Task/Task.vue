@@ -622,6 +622,10 @@ const { getList: rawGetList, getElTableExpose } = tableMethods
 const rowActionId = ref('')
 const nodeOnline = ref(0)
 const nodeTotal = ref(0)
+// 暂停的节点不算离线：state=2 是「主动停用」，不参与调度是预期行为，
+// 以前把暂停也计成离线，于是永远挂一条「节点离线」警告（2026-11-25 实测 1/4）。
+const nodePaused = ref(0)
+const nodeOffline = computed(() => Math.max(0, nodeTotal.value - nodeOnline.value - nodePaused.value))
 const loadNodeHealth = async () => {
   try {
     // 直接用节点列表接口（与节点管理页同源、已验证可用），按 state 统计在线数
@@ -630,6 +634,7 @@ const loadNodeHealth = async () => {
     const list: any[] = Array.isArray(raw) ? raw : []
     nodeTotal.value = list.length
     nodeOnline.value = list.filter((n) => String(n?.state) === '1').length
+    nodePaused.value = list.filter((n) => String(n?.state) === '2').length
     queuedTotal.value = list.reduce((sum: number, n: any) => sum + (Number(n?.queueLen) || 0), 0)
     nodeOptions.value = list.map((n: any) => String(n?.name || '')).filter(Boolean)
   } catch {
@@ -1121,12 +1126,12 @@ const setMaxHeight = () => {
     </ElRow>
     <div style="position: relative; top: 12px">
       <ElAlert
-        v-if="nodeTotal > 0 && nodeOnline < nodeTotal"
+        v-if="nodeTotal > 0 && nodeOffline > 0"
         type="warning"
         :closable="false"
         show-icon
         style="margin-bottom: 10px"
-        :title="t('task.nodeOfflineWarn') + ': ' + nodeOnline + '/' + nodeTotal"
+        :title="t('task.nodeOfflineWarn') + ': ' + nodeOffline + '/' + nodeTotal + (nodePaused ? '（' + nodePaused + ' 台已暂停）' : '')"
       />
       <ElAlert
         v-if="queuedTotal > 0"
