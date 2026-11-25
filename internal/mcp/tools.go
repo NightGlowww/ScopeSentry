@@ -212,6 +212,11 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	}, getAssetDetail)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "intel_for_assets",
+		Description: intelForAssetsDesc,
+	}, intelForAssets)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "add_asset_tag",
 		Description: "为资产添加标签",
 	}, addAssetTag)
