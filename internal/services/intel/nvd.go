@@ -145,14 +145,14 @@ func fetchFromNVD(ctx context.Context, tech string, sinceDays, limit int) ([]cac
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
+	// NVD 在「该时间窗内没有命中」时返回 404（实测：nginx + 近 180 天 → 404 且 body 为空）。
+	// 那是「没有」，不是「失败」——当成空结果，否则冷门技术名会让整条查询静默空转。
+	if resp.StatusCode == http.StatusNotFound {
+		return []cacheItem{}, nil
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return nil, fmt.Errorf("nvd http %d: %s", resp.StatusCode, string(body))
-	}
-	var payload nvdResponse
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, err
 	}
 	return normalizeNVD(payload), nil

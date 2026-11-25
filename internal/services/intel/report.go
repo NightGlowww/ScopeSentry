@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -133,7 +134,9 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 		}
 		records, _, err := FetchCVE(ctx, cveQuery, opt.SinceDays, opt.Limit)
 		if err != nil {
-			// 单个技术名取不到不该让整个工具失败，但要如实记进日志
+			// 单个技术名取不到不该让整个工具失败，但必须留痕——静默 continue 会让人
+			// 以为「没有 CVE」，实际是请求失败（2026-11-25 踩过：NVD 404 被当成错误）。
+			logger.Error(fmt.Sprintf("intel: fetch cve for %q failed: %v", cveQuery, err))
 			continue
 		}
 		for _, rec := range records {
