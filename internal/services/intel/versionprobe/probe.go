@@ -62,8 +62,11 @@ func RunOnce(ctx context.Context) (int, int, error) {
 	col := mongodb.DB.Collection("asset")
 	cutoff := time.Now().Add(-probeTTL)
 	filter := bson.M{
-		"technologies": bson.M{"$exists": true, "$ne": []string{}},
-		"host":         bson.M{"$exists": true, "$ne": ""},
+		// 必须用 "technologies.0" exists：`{$ne: []}` 会把 technologies=null 也算进来，
+		// 而库里 35629 条正是 null，自然序前 50 条全是它 → 游标拿到一堆空技术名、rows=0。
+		// 这条错让 versionprobe 白跑了两轮（matched=9714 但 rows=0）。
+		"technologies.0": bson.M{"$exists": true},
+		"host":           bson.M{"$exists": true, "$ne": ""},
 		"$or": []bson.M{
 			{"techVersionsAt": bson.M{"$exists": false}},
 			{"techVersionsAt": bson.M{"$lt": cutoff}},
@@ -97,6 +100,12 @@ func RunOnce(ctx context.Context) (int, int, error) {
 	}
 	if decodeErr != "" {
 		logger.Warn("versionprobe: decode error: " + decodeErr)
+	}
+	// Next() 返回 false 有两种原因：遍历完 / 游标出错。不查 Err 就只能看到 rows=0，
+	// 分不清「没数据」和「查询失败」（2026-11-25：matched=9714 却 rows=0，就是这里）。
+	if cerr := cur.Err(); cerr != nil {
+		logger.Error("versionprobe: cursor error: " + cerr.Error())
+		return 0, 0, cerr
 	}
 	if len(rows) == 0 {
 		logger.Info("versionprobe: tick rows=0")

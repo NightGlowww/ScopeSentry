@@ -452,7 +452,8 @@ func loadAssets(ctx context.Context, opt Options) ([]assetDoc, error) {
 		}
 		filter["$and"] = []bson.M{{"$or": techOr}}
 	}
-	filter["technologies"] = bson.M{"$exists": true, "$ne": []string{}}
+	// 同 versionprobe：`$ne: []` 会把 null 也算作「有技术」，这里只认真有元素的。
+	filter["technologies.0"] = bson.M{"$exists": true}
 
 	cur, err := mongodb.DB.Collection("asset").Find(ctx, filter,
 		options.Find().SetLimit(5000).SetProjection(bson.M{
