@@ -206,3 +206,33 @@ limiter := time.NewTicker(delay)    // 总速率仍由 delay 决定，不放大�
 - **任务级并行**（同时跑多个任务）仍不可行：任务收尾会调 `CleanGlobal()` / `CloseNucleiEngine()` /
   `bigcache.Initialize()` / `ClearAllToolsLocks()`，全是进程级状态。要并行必须先按任务隔离这些资源。
 - 载体级 `delay` 没有自适应；对慢目标仍可能触发 `context deadline exceeded`（日志里能看到）。
+
+## 12. 为什么两天没有新漏洞：任务里没有漏洞扫描模块（2026-11-26）
+
+### 现象
+
+`vulnerability` 集合从 11-24 之后再没有新记录，而扫描节点一直在跑任务。
+
+### 排查
+
+| 检查 | 结果 |
+| --- | --- |
+| `grep -c "module VulnerabilityScan"` 3 小时日志 | **0** |
+| 任务文档的 `VulnerabilityScan` 字段 | **undefined** |
+| 运行中任务的模块进度 hash | 只有 9 个模块，**没有 VulnerabilityScan / WebCrawler / DirScan** |
+
+### 根因
+
+这些任务是 11-21 到 11-24 创建的，当时扫描模板本身缺模块（见 §10）。
+任务一旦创建，模块列表就固定在任务文档和队列元素里，模板事后修好也影响不到它们。
+
+### 处置
+
+1. `task` 集合里 34 条 status∈{0,1} 的任务补 `VulnerabilityScan` + `Parameters` + `vullist`；
+2. 队列元素逐条核对，14/14 已带该模块；
+3. 重启节点后新任务进度 hash 出现 **`VulnerabilityScan_start`** —— 模块首次真正执行。
+
+### 教训
+
+**「挖不到」要先分清是「没挖」还是「挖了没中」。** 这次的判据很简单：模块进度 hash 里有没有那个 key。
+以后每次怀疑产出下降，先看这一条，不要一上来就查模板匹配率。
