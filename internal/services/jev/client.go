@@ -55,6 +55,10 @@ func Enabled() bool {
 	if os.Getenv("JEV") == "off" {
 		return false
 	}
+	// 切到 OpenAI 兼容端点时，用 LLM_API_KEY 判可用性。
+	if ProviderName() == "openai" {
+		return os.Getenv("LLM_API_KEY") != ""
+	}
 	return os.Getenv("JEV_API_KEY") != ""
 }
 
@@ -85,6 +89,11 @@ func newClient() *http.Client {
 
 // Ask 发一次 System One 请求。state 是要判断的内容，questions 是问题集合。
 func Ask(ctx context.Context, state string, questions map[string]Question) (*Response, error) {
+	// 基模可插拔：LLM_PROVIDER=openai 时走任意 OpenAI 兼容端点，输出映射成同一套 Response，
+	// 上层的阈值判断（accept/reject/needs_human）完全不用改。
+	if ProviderName() == "openai" {
+		return askOpenAI(ctx, state, questions)
+	}
 	key := os.Getenv("JEV_API_KEY")
 	if key == "" {
 		return nil, fmt.Errorf("JEV_API_KEY not set")

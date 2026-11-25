@@ -25,6 +25,14 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Handler:     system.GetSystemVersion,
 				Middlewares: common.WithAuth(),
 			},
+			{
+				// 配置自检：模板完整性 / subfinder provider / github 监控 / 节点 / LLM。
+				// 只读，不改任何东西。
+				Method:      "GET",
+				Path:        "config-check",
+				Handler:     system.ConfigCheck,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 
