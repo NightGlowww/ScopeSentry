@@ -123,11 +123,38 @@ func fetchFromNVD(ctx context.Context, tech string, sinceDays, limit int) ([]cac
 		sinceDays = 90
 	}
 	now := time.Now().UTC()
-	start := now.AddDate(0, 0, -sinceDays)
+	out := []cacheItem{}
+	// NVD 的 pubStartDate..pubEndDate 窗口**不能超过 120 天**，超过直接 404（实测：
+	// nginx + 180 天 → 404 空 body，看起来像「没有数据」，实际是窗口非法）。
+	// 所以按 120 天切片，从最近往前翻，攒够 limit 就停。
+	remaining := sinceDays
+	end := now
+	for remaining > 0 && len(out) < limit {
+		span := 120
+		if remaining < span {
+			span = remaining
+		}
+		start := end.AddDate(0, 0, -span)
+		items, err := nvdWindow(ctx, tech, start, end, limit-len(out))
+		if err != nil {
+			if len(out) > 0 {
+				break
+			}
+			return nil, err
+		}
+		out = append(out, items...)
+		end = start
+		remaining -= span
+	}
+	return out, nil
+}
+
+// nvdWindow 取一个合法窗口（≤120 天）内的 CVE。
+func nvdWindow(ctx context.Context, tech string, start, end time.Time, limit int) ([]cacheItem, error) {
 	q := url.Values{}
 	q.Set("keywordSearch", tech)
 	q.Set("pubStartDate", start.Format("2006-01-02T15:04:05.000")+"Z")
-	q.Set("pubEndDate", now.Format("2006-01-02T15:04:05.000")+"Z")
+	q.Set("pubEndDate", end.Format("2006-01-02T15:04:05.000")+"Z")
 	q.Set("resultsPerPage", strconv.Itoa(maxInt(limit, 20)))
 
 	nvdMu.Lock()
@@ -147,13 +174,11 @@ func fetchFromNVD(ctx context.Context, tech string, sinceDays, limit int) ([]cac
 		return nil, err
 	}
 	defer resp.Body.Close()
-	// NVD 在「该时间窗内没有命中」时返回 404（实测：nginx + 近 180 天 → 404 且 body 为空）。
-	// 那是「没有」，不是「失败」——当成空结果，否则冷门技术名会让整条查询静默空转。
 	if resp.StatusCode == http.StatusNotFound {
-		return []cacheItem{}, nil
+		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
 		return nil, fmt.Errorf("nvd http %d: %s", resp.StatusCode, string(body))
 	}
 	var payload nvdResponse
