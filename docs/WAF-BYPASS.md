@@ -236,3 +236,42 @@ limiter := time.NewTicker(delay)    // 总速率仍由 delay 决定，不放大�
 
 **「挖不到」要先分清是「没挖」还是「挖了没中」。** 这次的判据很简单：模块进度 hash 里有没有那个 key。
 以后每次怀疑产出下降，先看这一条，不要一上来就查模板匹配率。
+
+## 13. 信噪比治理：关掉最吵的模板（2026-11-26）
+
+### 数据
+
+`vulnerabilityQuarantine` 共 79 条，按来源：
+
+| 来源 | 条数 |
+| --- | --- |
+| `evidence-unverified-20261124`（机械复验不成立） | 76 |
+| `template excluded (NQ or unverifiable)` | 2 |
+| **`jev: false_positive`**（LLM 判定） | **1** |
+
+按模板聚合，最吵的一个是：
+
+```
+TPL 29 | Open Proxy To Internal Network
+TPL  2 | Next.js / Vite Public ENV Exposure
+TPL  2 | Seeyon OA A6 Session and DB Config Disclosure
+```
+
+**一个模板占了 29 条误报**——它在 CDN 前置站点上把「回显了请求 URL」判成开放代理。
+
+### 处置
+
+该模板不在控制面 `PocList` 里（节点上 14,441 个 yaml 是镜像/磁盘自带），所以
+`PocList.excluded` 对它无效。直接在节点上禁用：
+
+```
+mv /opt/scopesentry/scan/poc/6b071f4e92224e5d46e63e97.yaml{,.disabled}
+模板数 14441 → 14440
+```
+
+`/opt/scopesentry/scan/poc` 是宿主机挂载目录，**重启不会丢**。
+
+### 教训
+
+模板治理要看**隔离区按模板聚合的分布**，不是逐条看。一个模板的 29 条噪音，
+抵得上几十个任务白跑。
