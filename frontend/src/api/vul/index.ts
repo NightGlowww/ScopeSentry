@@ -40,3 +40,12 @@ export const getVulDetailApi = (
     data: { hash }
   })
 }
+
+// LLM 按需判定：把选中的漏洞交给判定后端（agent/LLM）立即打分，
+// 返回 isVuln / evidence / nq / decision，界面据此显示「模型怎么看这条洞」。
+export const llmVerifyApi = (ids: string[], apply = false): Promise<IResponse<any>> => {
+  return request.post({
+    url: '/api/assets/vulnerability/llm-verify',
+    data: { ids, apply }
+  })
+}

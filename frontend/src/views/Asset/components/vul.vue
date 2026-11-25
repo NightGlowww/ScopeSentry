@@ -5,11 +5,11 @@ import { h, nextTick, reactive, Ref, ref, computed } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
 import TimeRangeFilter from './TimeRangeFilter.vue'
-import {ElCard, ElPagination, ElCol, ElRow, ElDescriptions, ElDescriptionsItem, ElText, ElButton, ElInput, ElTag, InputInstance, ElSelect, ElOption, ElScrollbar} from 'element-plus'
+import {ElCard, ElPagination, ElCol, ElRow, ElDescriptions, ElDescriptionsItem, ElText, ElButton, ElInput, ElTag, InputInstance, ElSelect, ElOption, ElScrollbar, ElMessage, ElMessageBox} from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
-import { getVulDetailApi, getVulResultDataApi } from '@/api/vul'
+import { getVulDetailApi, getVulResultDataApi, llmVerifyApi } from '@/api/vul'
 import { Icon } from '@iconify/vue'
 import Csearch from '../search/Csearch.vue'
 import { BaseButton } from '@/components/Button'
@@ -18,6 +18,47 @@ import { RowState } from '@/api/asset/types'
 import Detail from '../../Poc/components/Detail.vue'
 import { getPocDetailApi } from '@/api/poc'
 const { t } = useI18n()
+
+// LLM 按需判定：点一下问模型「这条洞算不算真的」，结果用弹窗显示分数。
+// 后端 /api/assets/vulnerability/llm-verify 会复用批量裁判同一套状态构造与阈值，
+// 所以这里看到的判定和后台自动跑出来的一致。
+const llmVerify = async (row: any) => {
+  const id = row?._id || row?.id
+  if (!id) {
+    ElMessage.warning('这条记录没有 id，无法判定')
+    return
+  }
+  const loading = ElMessage({ message: 'LLM 判定中…', duration: 0, type: 'info' })
+  try {
+    const res = await llmVerifyApi([id], false)
+    const r = res?.data?.results?.[0]
+    loading.close()
+    if (!r) {
+      ElMessage.error('没有返回判定结果')
+      return
+    }
+    if (r.error) {
+      ElMessage.warning(r.error)
+      return
+    }
+    const color = r.decision === 'confirmed' ? '#67c23a' : r.decision === 'rejected' ? '#f56c6c' : '#e6a23c'
+    ElMessageBox.alert(
+      `<div style="line-height:1.9">
+        <div>判定：<b style="color:${color}">${r.decision}</b></div>
+        <div>是否漏洞（0-1）：<b>${Number(r.isVuln).toFixed(2)}</b></div>
+        <div>证据强度（0-2）：<b>${Number(r.evidence).toFixed(2)}</b></div>
+        <div>驳回理由：<b>${r.nq}</b>（概率 ${Number(r.nqVeto).toFixed(2)}）</div>
+        <div>模型：${r.model || '-'}</div>
+      </div>`,
+      'LLM 判定',
+      { dangerouslyUseHTMLString: true, confirmButtonText: '知道了' }
+    )
+  } catch (e: any) {
+    loading.close()
+    ElMessage.error(e?.message || 'LLM 判定失败')
+  }
+}
+
 interface Project {
   value: string
   label: string
@@ -323,6 +364,9 @@ const crudSchemas = reactive<CrudSchema[]>([
           </BaseButton>
           <BaseButton type="success" onClick={() => openPoc(row.vulnid)}>
             POC
+          </BaseButton>
+          <BaseButton type="warning" onClick={() => llmVerify(row)}>
+            LLM
           </BaseButton>
         </>
       )
