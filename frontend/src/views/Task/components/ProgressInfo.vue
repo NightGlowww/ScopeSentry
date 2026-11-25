@@ -173,7 +173,8 @@ const progressColums = reactive<TableColumn[]>([
   {
     field: 'All',
     label: t('common.all'),
-    minWidth: 30,
+    // 这一列放的是「运行中 52m48s」这类长标签，30px 会把它裁掉半边（2026-11-25 截图复现）。
+    minWidth: 150,
     formatter: moduleCell
   },
   {
@@ -489,6 +490,20 @@ onUnmounted(stopAuto)
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+}
+
+/* 刷新提示行：文字左、开关右，空间不足时换行。
+   原来是裸 div，按钮会压到「更新于 …」上面（2026-11-25 截图复现）。 */
+.progress-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 4px 0 10px;
+}
+.progress-hint .hint-text {
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .outcome-bar {
