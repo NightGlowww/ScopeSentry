@@ -59,10 +59,13 @@ var ToolScopes = map[string]string{
 	"list_plugin_modules":  ScopePluginRead,
 	"list_plugins":         ScopePluginRead,
 	"list_assets":          ScopeAssetRead,
-	"count_assets":         ScopeAssetRead,
-	"get_asset_detail":     ScopeAssetRead,
-	"add_asset_tag":        ScopeAssetWrite,
-	"list_nodes":           ScopeNodeRead,
+	// 情报是资产库的只读派生视图（技术栈 + 版本 + CVE 适用性），复用 asset:read。
+	// 不登记的话会被「未登记工具默认拒绝」挡掉——只有持 * 的 key 能调（2026-11-25 实测）。
+	"intel_for_assets": ScopeAssetRead,
+	"count_assets":     ScopeAssetRead,
+	"get_asset_detail": ScopeAssetRead,
+	"add_asset_tag":    ScopeAssetWrite,
+	"list_nodes":       ScopeNodeRead,
 	// 只读扩展：POC / 指纹 / 字典 / 看板，统一复用 asset:read，
 	// 避免为了新增只读工具再改前端 scope 选择项
 	"list_pocs":               ScopeAssetRead,
