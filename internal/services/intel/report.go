@@ -98,10 +98,12 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 			if !techWanted(t, opt.Techs) {
 				continue
 			}
-			key := strings.ToLower(strings.TrimSpace(t))
+			// 指纹常带版本后缀（"IIS:10.0"）。不归一化的话它会被当成一个独立技术名，
+			// 去 NVD 搜 "IIS:10.0" 必然 0 结果，而真正的 "IIS" 那条又收不到这个资产（2026-11-25 实测）。
+			key := normalizeTechKey(t)
 			if obs[key] == nil {
 				obs[key] = map[string]versionHit{}
-				techDisplay[key] = t
+				techDisplay[key] = key
 			}
 			obs[key][a.Host] = extractVersion(a, t)
 		}
@@ -350,8 +352,39 @@ func techWanted(name string, want []string) bool {
 	return false
 }
 
-// extractVersion 只做「读到的算数」：header / banner / body 哪个给了就是哪个，都没有就是空。
+// normalizeTechKey 把 "IIS:10.0" / "nginx/1.2" 归到产品名 "iis" / "nginx"。
+func normalizeTechKey(t string) string {
+	s := strings.ToLower(strings.TrimSpace(t))
+	if i := strings.IndexAny(s, ":/("); i > 0 {
+		s = s[:i]
+	}
+	return strings.TrimSpace(s)
+}
+
+// versionFromTech 从指纹名里取版本（"IIS:10.0" → 10.0）。
+// 这是 ScopeSentry 指纹库里最常见的带版本形式，比从响应头抠更可靠。
+func versionFromTech(t string) versionHit {
+	s := strings.TrimSpace(t)
+	i := strings.IndexAny(s, ":/(")
+	if i <= 0 || i+1 >= len(s) {
+		return versionHit{}
+	}
+	rest := strings.TrimLeft(s[i+1:], "/ ")
+	if rest == "" {
+		return versionHit{}
+	}
+	re := regexp.MustCompile(`^v?([0-9][0-9A-Za-z.\-_]*)`)
+	if m := re.FindStringSubmatch(rest); len(m) > 1 {
+		return versionHit{Version: cleanVer(m[1]), Source: "fingerprint"}
+	}
+	return versionHit{}
+}
+
+// extractVersion 只做「读到的算数」：header / banner / body / 指纹 哪个给了就是哪个，都没有就是空。
 func extractVersion(a assetDoc, tech string) versionHit {
+	if v := versionFromTech(tech); v.Version != "" {
+		return v
+	}
 	base := strings.Fields(tech)
 	name := tech
 	if len(base) > 0 {
