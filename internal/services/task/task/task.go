@@ -967,8 +967,11 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 				})
 				logger.Info(fmt.Sprintf("auto-resume task %s deferred to pending: %v", id, rerr))
 			} else {
+				// 重投后是「排队待跑」，不等于「运行中」——节点真正开始时会用进度把它翻成 running。
+				// 以前这里写 Running，结果每次巡检都把几十条排队任务刷成运行中，
+				// 界面出现「33 个运行中、实际 1 个在跑」（2026-11-25 实测）。
 				if uerr := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{
-					"$set":   bson.M{"status": constants.TaskStatusRunning, "failReason": reason},
+					"$set":   bson.M{"status": constants.TaskStatusPending, "failReason": reason},
 					"$inc":   bson.M{"autoResumeCount": 1},
 					"$unset": bson.M{"endTime": ""},
 				}); uerr != nil {
