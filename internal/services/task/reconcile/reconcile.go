@@ -105,6 +105,16 @@ func RunOnce(ctx context.Context) (int, int, error) {
 	}
 	demotedOrphan = int(res.ModifiedCount)
 
+	// 关键：清掉被回退任务的进度临时键。
+	// TaskProgress 看到 TaskInfo:tmp:<id> 存在就认为「节点在写进度」，把待开始的任务翻成运行中——
+	// 这正是「33 个运行中、实际 1 个在跑」反复复发的真正来源（2026-11-25 定位）。
+	for id := range queued {
+		if _, running := current[id]; running {
+			continue
+		}
+		_ = redisc.Client.Del(ctx, "TaskInfo:tmp:"+id.Hex(), "TaskInfo:time:"+id.Hex()).Err()
+	}
+
 	if demotedQueued+demotedOrphan > 0 {
 		logger.Info(fmt.Sprintf("taskreconcile: queued->pending=%d orphan->pending=%d (queued=%d current=%d)",
 			demotedQueued, demotedOrphan, len(queued), len(current)))
