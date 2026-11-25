@@ -19,6 +19,8 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 )
 
 const endpoint = "https://api.typesafe.ai/v1/systemone"
@@ -89,8 +91,18 @@ func newClient() *http.Client {
 
 // Ask 发一次 System One 请求。state 是要判断的内容，questions 是问题集合。
 func Ask(ctx context.Context, state string, questions map[string]Question) (*Response, error) {
-	// 基模可插拔：LLM_PROVIDER=openai 时走任意 OpenAI 兼容端点，输出映射成同一套 Response，
-	// 上层的阈值判断（accept/reject/needs_human）完全不用改。
+	// 判定后端优先级：
+	//   1) agent / harness（能自己重发请求、多步验证）—— 配了 AGENT_VERIFIER_CMD 就走它
+	//   2) LLM（JEV 或任意 OpenAI 兼容端点）—— 只能读已有证据下判断
+	// 三者输出都映射成同一套 Response，上层阈值判断不变。
+	if AgentConfigured() {
+		if resp, aerr := askAgent(ctx, state, questions); aerr == nil {
+			return resp, nil
+		} else {
+			// agent 失败不静默：记录后回落到 LLM，避免整条链路因为 agent 挂了而停摆。
+			logger.Warn("agent verifier failed, falling back to llm: " + aerr.Error())
+		}
+	}
 	if ProviderName() == "openai" {
 		return askOpenAI(ctx, state, questions)
 	}

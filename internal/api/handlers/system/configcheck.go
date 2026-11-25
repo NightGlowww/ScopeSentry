@@ -109,8 +109,9 @@ func ConfigCheck(c *gin.Context) {
 	items = append(items, checkItem{"nodes", nodes > 0, "nodes=" + itoa(int(nodes))})
 
 	// 5) LLM
-	items = append(items, checkItem{"llm", jev.Enabled(),
-		"provider=" + jev.ProviderName() + " enabled=" + boolStr(jev.Enabled())})
+	// 判定后端：agent/harness 优先，其次是 LLM。两者都配了才算完整。
+	items = append(items, checkItem{"llm", jev.Enabled() || jev.AgentConfigured(),
+		"agent=" + boolStr(jev.AgentConfigured()) + " provider=" + jev.ProviderName() + " enabled=" + boolStr(jev.Enabled())})
 
 	ok := true
 	for _, it := range items {
