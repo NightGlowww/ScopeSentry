@@ -124,7 +124,9 @@ export const useAppStore = defineStore('app', {
       size: true, // 尺寸图标
       locale: true, // 多语言图标
       tagsView: true, // 标签页
-      tagsViewIcon: false, // 是否显示标签图标
+      // 默认开启：标签页上一个图标都没有时，一排纯文字标签很难快速定位（2026-11-25 反馈）。
+      // 关掉它是个开关，不是默认值——设置里「界面显示 → 标签页图标」仍可关。
+      tagsViewIcon: true, // 是否显示标签图标
       logo: true, // logo
       fixedHeader: true, // 固定toolheader
       footer: true, // 显示页脚
