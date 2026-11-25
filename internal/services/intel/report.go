@@ -67,6 +67,8 @@ type assetDoc struct {
 	Body         string   `bson:"body"`
 	WebServer    string   `bson:"webServer"`
 	Title        string   `bson:"title"`
+	// versionprobe 回填的版本（技术名归一化 → 版本号），TTL 7 天。
+	TechVersions map[string]string `bson:"techVersions"`
 }
 
 // BuildReport 是工具主逻辑。
@@ -382,6 +384,12 @@ func versionFromTech(t string) versionHit {
 
 // extractVersion 只做「读到的算数」：header / banner / body / 指纹 哪个给了就是哪个，都没有就是空。
 func extractVersion(a assetDoc, tech string) versionHit {
+	// 先看主动探测回填的版本（versionprobe，TTL 7 天）——它比存量响应头可靠得多。
+	if len(a.TechVersions) > 0 {
+		if v, ok := a.TechVersions[normalizeTechKey(tech)]; ok && v != "" {
+			return versionHit{Version: v, Source: "probe"}
+		}
+	}
 	if v := versionFromTech(tech); v.Version != "" {
 		return v
 	}
@@ -449,7 +457,7 @@ func loadAssets(ctx context.Context, opt Options) ([]assetDoc, error) {
 	cur, err := mongodb.DB.Collection("asset").Find(ctx, filter,
 		options.Find().SetLimit(5000).SetProjection(bson.M{
 			"host": 1, "technologies": 1, "rawheaders": 1, "body": 1,
-			"webServer": 1, "title": 1, "url": 1, "port": 1,
+			"webServer": 1, "title": 1, "url": 1, "port": 1, "techVersions": 1,
 		}))
 	if err != nil {
 		return nil, err

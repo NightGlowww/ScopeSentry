@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
+	"github.com/Autumn-27/ScopeSentry/internal/services/intel/versionprobe"
 	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
 	taskreconcile "github.com/Autumn-27/ScopeSentry/internal/services/task/reconcile"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
@@ -312,6 +313,9 @@ func main() {
 	jev.Start(context.Background())
 	// 任务状态对账：把「排队中 / 孤儿」从「运行中」里摘出来。
 	taskreconcile.Start(context.Background())
+	// 版本补全：intel_for_assets 的价值全在 with_version 上，而存量响应头大多没有版本号。
+	// 这里按 20 分钟一批给「有指纹没版本」的资产主动读一次版本。
+	versionprobe.Start(context.Background(), os.Getenv("VERSIONPROBE") == "off")
 
 	// 在 goroutine 中启动服务器
 	go func() {
