@@ -66,7 +66,9 @@ defineExpose({ from })
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  /* 这一条挂在卡片外面，之前没有任何内边距，选中态和「发现时间」直接贴到页面边线（2026-11-25 截图复现）。
+     12px 与下方卡片的 el-card 内边距对齐。 */
+  padding: 2px 12px 10px;
 }
 .time-range-label {
   font-size: 13px;
