@@ -292,8 +292,18 @@ func cmpVersion(a, b string) int {
 	return 0
 }
 
+// splitVer 按 . - _ + ~ 切段。
+// 早先用正则 `[.-_+~]`，其中 `.-_` 被当成**字符区间**（0x2E..0x5F，把数字也圈进去了），
+// 结果每个数字都被切开、所有版本号互比都相等——区间判断全线失效（单测当场抓到）。
+// 改用 FieldsFunc，不经过正则转义。
 func splitVer(s string) []string {
-	return regexp.MustCompile(`[.-_+~]`).Split(strings.TrimSpace(s), -1)
+	return strings.FieldsFunc(strings.TrimSpace(s), func(r rune) bool {
+		switch r {
+		case '.', '-', '_', '+', '~':
+			return true
+		}
+		return false
+	})
 }
 
 func parseInt(s string) (int, error) {
