@@ -26,6 +26,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 立即跑一轮 LLM 批量判定（调参与运维用）。
+				Method:      "POST",
+				Path:        "jev-run",
+				Handler:     system.JevRunOnce,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 配置自检：模板完整性 / subfinder provider / github 监控 / 节点 / LLM。
 				// 只读，不改任何东西。
 				Method:      "GET",
