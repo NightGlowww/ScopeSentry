@@ -15,6 +15,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
+	dbredis "github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -104,9 +105,28 @@ func ConfigCheck(c *gin.Context) {
 	items = append(items, checkItem{"github_monitor", gt > 0 && gtok > 0,
 		"tasks=" + itoa(int(gt)) + " token=" + itoa(int(gtok))})
 
-	// 4) 节点与队列
-	nodes, _ := mongodb.DB.Collection("node").CountDocuments(ctx, bson.M{})
-	items = append(items, checkItem{"nodes", nodes > 0, "nodes=" + itoa(int(nodes))})
+	// 4) 节点与队列：节点在线状态在 Redis（node:<name> 哈希），不在 Mongo。
+	// 之前查 Mongo 的 node 集合永远是 0，会误报「没有节点」。
+	nodes := 0
+	queue := 0
+	if dbredis.Client != nil {
+		if keys, err := dbredis.Client.Keys(ctx, "node:*").Result(); err == nil {
+			for _, k := range keys {
+				if strings.Contains(k, ":currentTask") {
+					continue
+				}
+				nodes++
+			}
+		}
+		if qk, err := dbredis.Client.Keys(ctx, "NodeTask:*").Result(); err == nil {
+			for _, k := range qk {
+				if n, err := dbredis.Client.LLen(ctx, k).Result(); err == nil {
+					queue += int(n)
+				}
+			}
+		}
+	}
+	items = append(items, checkItem{"nodes", nodes > 0, "nodes=" + itoa(nodes) + " queued_tasks=" + itoa(queue)})
 
 	// 5) LLM
 	// 判定后端：agent/harness 优先，其次是 LLM。两者都配了才算完整。
