@@ -74,25 +74,39 @@ func questions() map[string]Question {
 }
 
 // RunOnce 处理一批「机械复验判不了」的候选（skipped / weak / 未复验）。
+// judgeLevelOrder 是判定优先级：先判能造成实际影响的，再判噪音。
+// 起因：原实现是「按库里的自然顺序取 20 条」，info 级的模板命中会先把每轮额度吃光，
+// 高危反而排到几轮之后——而每轮只跑 10 分钟一次、每次最多 20 条。
+var judgeLevelOrder = []string{"critical", "high", "medium", "low", "info"}
+
 func RunOnce(ctx context.Context) (confirmed, rejected, kept int, err error) {
 	if !Enabled() || mongodb.DB == nil {
 		return 0, 0, 0, nil
 	}
-	cur, ferr := mongodb.DB.Collection("vulnerability").Find(ctx, bson.M{
-		"statusSource": bson.M{"$ne": "human"},
-		"$or": []bson.M{
-			{"status": 1}, {"status": bson.M{"$exists": false}},
-		},
-		"jev": bson.M{"$exists": false},
-	})
-	if ferr != nil {
-		return 0, 0, 0, ferr
-	}
+	coll := mongodb.DB.Collection("vulnerability")
 	var docs []bson.M
-	if err = cur.All(ctx, &docs); err != nil {
-		return 0, 0, 0, err
+	for _, lvl := range judgeLevelOrder {
+		if len(docs) >= maxPerRun {
+			break
+		}
+		cur, ferr := coll.Find(ctx, bson.M{
+			"statusSource": bson.M{"$ne": "human"},
+			"$or": []bson.M{
+				{"status": 1}, {"status": bson.M{"$exists": false}},
+			},
+			"jev":   bson.M{"$exists": false},
+			"level": lvl,
+		})
+		if ferr != nil {
+			return 0, 0, 0, ferr
+		}
+		var batch []bson.M
+		if err = cur.All(ctx, &batch); err != nil {
+			return 0, 0, 0, err
+		}
+		_ = cur.Close(ctx)
+		docs = append(docs, batch...)
 	}
-	_ = cur.Close(ctx)
 	if len(docs) > maxPerRun {
 		docs = docs[:maxPerRun]
 	}
