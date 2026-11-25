@@ -90,6 +90,20 @@ func RunOnce(ctx context.Context) (int, int, error) {
 		}
 	}
 
+	// 反向：节点声明了 currentTask 但状态不是运行中 → 提升为运行中。
+	// 这样「运行中」只有一个来源：节点的 currentTask 声明。
+	if len(current) > 0 {
+		curIDs := make([]primitive.ObjectID, 0, len(current))
+		for id := range current {
+			curIDs = append(curIDs, id)
+		}
+		if _, perr := col.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": curIDs}, "status": bson.M{"$ne": 1}}, bson.M{"$set": bson.M{
+			"status": 1, "failReason": "",
+		}}); perr != nil {
+			logger.Error("taskreconcile: promote failed: " + perr.Error())
+		}
+	}
+
 	keep := make([]primitive.ObjectID, 0, len(queued)+len(current))
 	for id := range queued {
 		keep = append(keep, id)

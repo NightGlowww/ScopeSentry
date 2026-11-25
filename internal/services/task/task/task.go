@@ -843,7 +843,12 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			if task.Progress > progress {
 				progress = task.Progress
 			}
-			status := constants.TaskStatusRunning
+			// 进度不能反过来决定状态。
+			// 这一步以前无条件写 status=Running，于是「有历史进度哈希残留」的任务
+			// 每轮都被翻成运行中——实测 29 条任务在待开始/运行中之间反复跳。
+			// 现在：状态保持不变，只有「全部目标完成」才改成已完成；
+			// 待开始→运行中的唯一入口是节点声明 currentTask（见 reconcile 包）。
+			status := task.Status
 			update := bson.M{"$set": bson.M{"progress": progress, "status": status}}
 			if completedTargets >= expectedTargets {
 				status = constants.TaskStatusFinished
