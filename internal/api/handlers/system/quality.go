@@ -107,6 +107,14 @@ func QualityReport(c *gin.Context) {
 	}
 	out["quarantine"] = gin.H{"total": mustCount(ctx, quar, bson.M{}), "byReason": qReasons, "topTemplates": topTpl}
 
+	// 5) 断流告警（watchdog 写入 system_alerts）
+	alertRows := []bson.M{}
+	if cur, err := mongodb.DB.Collection("system_alerts").Find(ctx, bson.M{"active": true}); err == nil {
+		_ = cur.All(ctx, &alertRows)
+		_ = cur.Close(ctx)
+	}
+	out["alerts"] = alertRows
+
 	response.Success(c, out, "api.success")
 }
 

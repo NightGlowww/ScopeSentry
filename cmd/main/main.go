@@ -38,6 +38,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/autoclean"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify/pocquality"
 	"github.com/Autumn-27/ScopeSentry/internal/services/wafcontext"
+	"github.com/Autumn-27/ScopeSentry/internal/services/watchdog"
 	"github.com/Autumn-27/ScopeSentry/internal/worker"
 
 	"github.com/Autumn-27/ScopeSentry/internal/bootstrap"
@@ -311,6 +312,9 @@ func main() {
 	}
 	// Jev 第二裁判：机械复验判不了的候选（skipped/weak）交给它按概率落状态。
 	jev.Start(context.Background())
+	// 流水线断流告警：任务在跑却没产出时，30 分钟内就能在 quality-report 里看到。
+	// 2026-11-26 的教训——两天没产出，靠人问才发现。
+	watchdog.Start(context.Background())
 	// 任务状态对账：把「排队中 / 孤儿」从「运行中」里摘出来。
 	taskreconcile.Start(context.Background())
 	// 版本补全：intel_for_assets 的价值全在 with_version 上，而存量响应头大多没有版本号。
