@@ -98,9 +98,14 @@ func seed(ctx context.Context) {
 	for _, f := range defaultFeeds {
 		// url/name/kind 用 $set：源地址换了（比如 CISA 被 Akamai 挡、P0 换域名）要能自动纠正，
 		// 而 enabled/intervalHours 交给用户，不能被种子覆盖。
+		// 注意：同一个字段不能同时出现在 $set 和 $setOnInsert 里，Mongo 会整条更新报错
+		// （2026-11-26 踩过：seed 静默失败，源的 url 一直没被纠正）。
 		_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{
-			"$setOnInsert": f,
-			"$set":         bson.M{"url": f.URL, "name": f.Name, "kind": f.Kind},
+			"$set": bson.M{"url": f.URL, "name": f.Name, "kind": f.Kind},
+			"$setOnInsert": bson.M{
+				"enabled":       f.Enabled,
+				"intervalHours": f.IntervalHours,
+			},
 		}, options.Update().SetUpsert(true))
 	}
 }
