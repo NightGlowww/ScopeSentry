@@ -108,14 +108,29 @@ func ConfigCheck(c *gin.Context) {
 	// 4) 节点与队列：节点在线状态在 Redis（node:<name> 哈希），不在 Mongo。
 	// 之前查 Mongo 的 node 集合永远是 0，会误报「没有节点」。
 	nodes := 0
+	fresh := 0
 	queue := 0
+	staleNames := []string{}
 	if dbredis.Client != nil {
 		if keys, err := dbredis.Client.Keys(ctx, "node:*").Result(); err == nil {
 			for _, k := range keys {
 				if strings.Contains(k, ":currentTask") {
 					continue
 				}
+				if t, terr := dbredis.Client.Type(ctx, k).Result(); terr != nil || t != "hash" {
+					continue
+				}
 				nodes++
+				// 只数 key 是不够的：2026-11-26 一个节点卡死后心跳停在 20:15，
+				// 这里仍然报 nodes=1 ok，队列被堵了半小时没人发现。
+				// 所以按 updateTime 判新鲜度，僵尸节点单独列出来。
+				upd, herr := dbredis.Client.HGet(ctx, k, "updateTime").Result()
+				last, perr := time.ParseInLocation("2006-01-02 15:04:05", upd, time.Local)
+				if herr == nil && perr == nil && time.Since(last) < 6*time.Minute {
+					fresh++
+				} else {
+					staleNames = append(staleNames, strings.TrimPrefix(k, "node:"))
+				}
 			}
 		}
 		if qk, err := dbredis.Client.Keys(ctx, "NodeTask:*").Result(); err == nil {
@@ -126,7 +141,11 @@ func ConfigCheck(c *gin.Context) {
 			}
 		}
 	}
-	items = append(items, checkItem{"nodes", nodes > 0, "nodes=" + itoa(nodes) + " queued_tasks=" + itoa(queue)})
+	detail := "nodes=" + itoa(nodes) + " fresh=" + itoa(fresh) + " queued_tasks=" + itoa(queue)
+	if len(staleNames) > 0 {
+		detail += " stale=" + strings.Join(staleNames, ",")
+	}
+	items = append(items, checkItem{"nodes", fresh > 0, detail})
 
 	// 5) LLM
 	// 判定后端：agent/harness 优先，其次是 LLM。两者都配了才算完整。
