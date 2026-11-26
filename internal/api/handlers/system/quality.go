@@ -40,23 +40,38 @@ func QualityReport(c *gin.Context) {
 	finished, _ := task.CountDocuments(ctx, bson.M{"endTime": bson.M{"$gte": cutoff}, "status": bson.M{"$in": []int{3, 4}}})
 	out["tasks"] = gin.H{"created24h": started, "finished24h": finished}
 
-	// 2) 24h 内新漏洞 + 等级分布
+	// 2) 漏洞：24h 新增 + 等级分布
+	//
+	// 注意两个窗口必须分开命名：之前 byLevel 只统计 24h，却和全量 total 并排返回，
+	// 读起来就是「总数 3 条，只有 1 条 low」—— 其实是另外 2 条在 24h 之前（2026-11-26 踩过）。
+	// 现在 byLevel24h 与 byLevelAll 都返回，谁也不冒充谁；byLevel 保留为 24h 的旧名兼容。
 	fresh, _ := vuln.CountDocuments(ctx, bson.M{"time": bson.M{"$gte": cutoff}})
-	byLevel := gin.H{}
-	if cur, err := vuln.Aggregate(ctx, bson.A{
-		bson.M{"$match": bson.M{"time": bson.M{"$gte": cutoff}}},
-		bson.M{"$group": bson.M{"_id": "$level", "n": bson.M{"$sum": 1}}},
-	}); err == nil {
-		var rows []bson.M
-		_ = cur.All(ctx, &rows)
-		_ = cur.Close(ctx)
-		for _, r := range rows {
-			if k, ok := r["_id"].(string); ok {
-				byLevel[k] = r["n"]
+	levelAgg := func(match bson.M) gin.H {
+		res := gin.H{}
+		if cur, err := vuln.Aggregate(ctx, bson.A{
+			bson.M{"$match": match},
+			bson.M{"$group": bson.M{"_id": "$level", "n": bson.M{"$sum": 1}}},
+		}); err == nil {
+			var rows []bson.M
+			_ = cur.All(ctx, &rows)
+			_ = cur.Close(ctx)
+			for _, r := range rows {
+				if k, ok := r["_id"].(string); ok && k != "" {
+					res[k] = r["n"]
+				}
 			}
 		}
+		return res
 	}
-	out["vulnerabilities"] = gin.H{"new24h": fresh, "byLevel": byLevel, "total": mustCount(ctx, vuln, bson.M{})}
+	byLevel24 := levelAgg(bson.M{"time": bson.M{"$gte": cutoff}})
+	byLevelAll := levelAgg(bson.M{})
+	out["vulnerabilities"] = gin.H{
+		"new24h":     fresh,
+		"byLevel24h": byLevel24,
+		"byLevelAll": byLevelAll,
+		"byLevel":    byLevel24, // 兼容旧调用方
+		"total":      mustCount(ctx, vuln, bson.M{}),
+	}
 
 	// 3) LLM 判定分布（全量）
 	verdicts := gin.H{"confirmed": 0, "rejected": 0, "needsHuman": 0, "unjudged": 0}
