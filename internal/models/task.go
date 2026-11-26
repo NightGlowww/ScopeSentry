@@ -145,6 +145,10 @@ type ListRequest struct {
 	Status *int `json:"status" binding:"omitempty,min=-1,max=4" example:"1"`
 	// Node 按节点筛选（任务 node 是数组，匹配包含即命中）
 	Node string `json:"node" binding:"omitempty" example:"node-sh-01"`
+	// BindProject 按「绑定项目」筛选：项目详情页要列出这个项目下的所有任务。
+	// 注意区分 task.project（资产归属，数组）和 bindProject（任务归属，字符串）——
+	// 项目页看的是后者：这条任务是为哪个项目跑的。
+	BindProject string `json:"bindProject" binding:"omitempty" example:"507f1f77bcf86cd799439011"`
 }
 
 // ScheduledTask 计划任务模型

@@ -34,6 +34,8 @@ type Service interface {
 
 	GetProjectsData(ctx *gin.Context, search string, pageIndex, pageSize int) (models.ProjectListResponse, error)
 	GetProjectContent(ctx *gin.Context, id string) (*models.ProjectContentResponse, error)
+	// FindByName 按项目名查（项目优先接入时用来判断「已有项目就追加，没有才新建」）
+	FindByName(ctx context.Context, name string) (*models.Project, error)
 	AddProject(ctx *gin.Context, p *models.Project) error
 	ApplyProjectScope(ctx *gin.Context, p *models.Project) (id string, replaced bool, err error)
 	DeleteProjects(ctx *gin.Context, ids []string, delA bool) error
@@ -139,6 +141,15 @@ func (s *service) GetProjectsData(ctx *gin.Context, search string, pageIndex, pa
 		return models.ProjectListResponse{}, err
 	}
 	return models.ProjectListResponse{Result: result, Tag: tagCounts}, nil
+}
+
+// FindByName 按项目名精确查；不存在返回 (nil, nil)，交给调用方决定新建。
+func (s *service) FindByName(ctx context.Context, name string) (*models.Project, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, nil
+	}
+	return s.projectRepo.FindByName(ctx, name)
 }
 
 func (s *service) GetProjectContent(ctx *gin.Context, id string) (*models.ProjectContentResponse, error) {

@@ -67,6 +67,13 @@ func registerTaskRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 项目优先接入：给外部集成用，项目不存在就建、存在就追加，并建绑定任务。
+				Method:      "POST",
+				Path:        "ingest",
+				Handler:     taskHandler.IngestToProject,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "dispatch-recent",
 				Handler:     taskHandler.RecentRejections,

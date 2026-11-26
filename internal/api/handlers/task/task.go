@@ -52,7 +52,7 @@ func List(c *gin.Context) {
 			logger.Error(fmt.Sprintf("%v", err))
 		}
 	}()
-	tasks, total, err := taskService.List(c, req.Search, req.PageIndex, req.PageSize, req.Status, req.Node)
+	tasks, total, err := taskService.List(c, req.Search, req.PageIndex, req.PageSize, req.Status, req.Node, req.BindProject)
 	if err != nil {
 		logger.Error(fmt.Sprintf("%v", err))
 		response.InternalServerError(c, "api.task.list.error", err)

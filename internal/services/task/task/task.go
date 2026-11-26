@@ -35,12 +35,14 @@ import (
 
 // Service 定义任务服务接口
 type Service interface {
-	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node string) ([]models.Task, int64, error)
+	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string) ([]models.Task, int64, error)
 	// DeleteByFilter 按筛选批量删除，返回条数
 	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
 	// CountTasksCreatedSince 统计某时间之后创建的任务数（防刷）
 	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
 	CheckTaskNameExists(ctx *gin.Context, name string) (bool, error)
+	// IngestToProject 项目优先接入：按项目建/追加任务（供 HuntDeck 之类外部集成调用）
+	IngestToProject(ctx *gin.Context, req IngestRequest) (*IngestResult, error)
 	GetTaskDetail(ctx *gin.Context, taskID string) (*models.Task, error)
 	GetTasksByIDs(ctx *gin.Context, ids []string) ([]models.Task, error)
 	DeleteTasks(ctx *gin.Context, ids []string, delA bool) error
@@ -87,8 +89,11 @@ func NewService() Service {
 }
 
 // List 获取任务列表
-func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node string) ([]models.Task, int64, error) {
+func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string) ([]models.Task, int64, error) {
 	filter := bson.M{}
+	if strings.TrimSpace(bindProject) != "" {
+		filter["bindProject"] = strings.TrimSpace(bindProject)
+	}
 	if search != "" {
 		filter["name"] = bson.M{"$regex": search, "$options": "i"}
 	}

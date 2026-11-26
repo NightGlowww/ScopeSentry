@@ -619,7 +619,7 @@ func listTasks(ctx context.Context, _ *mcp.CallToolRequest, input listTasksInput
 		input.PageSize = 20
 	}
 	c := ginContext(ctx)
-	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, nil, "")
+	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, nil, "", "")
 	if err != nil {
 		return errorResult("获取任务列表失败", err)
 	}
