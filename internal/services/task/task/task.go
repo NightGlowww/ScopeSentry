@@ -363,7 +363,14 @@ func (s *service) StopTasks(ctx *gin.Context, ids []string) error {
 			// 暂停时把逐目标进度快照进 Mongo：Redis 的 TaskInfo:progress:* 会过期，
 			// 之后打开「任务进度」弹窗就只剩一片 "-"（2026-11-19 实测）。
 			s.snapshotTaskProgress(ctx, id)
-			_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{"status": 2}})
+			// stoppedByUser 是「粘性」标记：光把 status 改成 2 不够——
+			// 进度轮询（ProcessTaskProgress）在停止瞬间可能把 status 写回 1，
+			// 随后 SweepStaleTasks 看到「运行中但没进展」就自动重投，
+			// 于是用户点了停止，任务过一会儿又自己排队（2026-11-27 实测）。
+			// 所有自动状态机都必须让这个标记优先。
+			_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": bson.M{
+				"status": 2, "stoppedByUser": true,
+			}})
 		}
 	}
 	return nil
@@ -402,6 +409,8 @@ func (s *service) startOne(ctx *gin.Context, id string) error {
 	// 新建任务（isStart=false）必须走 false，否则目标列表永远不生成，任务以 0 目标空跑。
 	resume := t.IsStart
 	t.IsStart = true
+	// 手动开始要清掉「用户暂停过」的标记，否则巡检会一直当他没被停过/或反过来跳过它
+	_ = s.taskRepo.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$unset": bson.M{"stoppedByUser": ""}})
 	if _, err := s.commonService.CreateTaskScan(ctx, *t, id, resume); err != nil {
 		logger.Error(fmt.Sprintf("start task failed task=%s resume=%v err=%v", id, resume, err))
 		return err
@@ -917,6 +926,9 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 	filter := bson.M{
 		"status":   constants.TaskStatusRunning,
 		"progress": bson.M{"$ne": 100},
+		// 用户主动停止的任务不参与「僵尸任务自动重投」：
+		// 停止瞬间状态可能被进度轮询写回 1，这里再按标记挡一次，避免「停了又自己跑」。
+		"stoppedByUser": bson.M{"$ne": true},
 	}
 	tasks, err := s.taskRepo.Find(ctx, filter, nil)
 	if err != nil {

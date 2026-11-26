@@ -97,7 +97,9 @@ func RunOnce(ctx context.Context) (int, int, error) {
 		for id := range current {
 			curIDs = append(curIDs, id)
 		}
-		if _, perr := col.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": curIDs}, "status": bson.M{"$ne": 1}}, bson.M{"$set": bson.M{
+		// 用户主动停止的任务不能被「节点还声称在跑」翻回运行中
+		if _, perr := col.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": curIDs}, "status": bson.M{"$ne": 1},
+			"stoppedByUser": bson.M{"$ne": true}}, bson.M{"$set": bson.M{
 			"status": 1, "failReason": "",
 		}}); perr != nil {
 			logger.Error("taskreconcile: promote failed: " + perr.Error())
@@ -111,7 +113,9 @@ func RunOnce(ctx context.Context) (int, int, error) {
 	for id := range current {
 		keep = append(keep, id)
 	}
-	res, uerr := col.UpdateMany(ctx, bson.M{"status": 1, "_id": bson.M{"$nin": keep}}, bson.M{"$set": bson.M{
+	// 用户主动停止的任务不回退成「待开始」——回退等于让它重新排队再跑一遍
+	res, uerr := col.UpdateMany(ctx, bson.M{"status": 1, "_id": bson.M{"$nin": keep},
+		"stoppedByUser": bson.M{"$ne": true}}, bson.M{"$set": bson.M{
 		"status": 0, "failReason": "reconciled: 未在任何节点执行，状态回退为待开始",
 	}})
 	if uerr != nil {
