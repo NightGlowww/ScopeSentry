@@ -10,6 +10,7 @@ package intelfeed
 //   · 每次最多取 maxItemsPerFetch 条（MSRC 的 feed 有 5776 条，不限流会一次灌爆）。
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -20,6 +21,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -248,8 +250,61 @@ func fetch(ctx context.Context, f Feed) ([]Item, error) {
 			break
 		}
 	}
+	// Go 的 TLS 指纹被 Cloudflare 挡（bleepingcomputer / securityweek 恒定 403，
+	// helpnetsecurity 走 CloudFront 恒定 202 挑战页），换 HTTP 版本、补全浏览器头都无效
+	// （2026-11-26 实测 h1/h2 双栈 + 完整 sec-ch-ua 全套头都是 403）。
+	// curl 的 JA3 在它们的白名单里，实测同样 UA 头 200。用 curl 兜底一次。
+	if items, err := fetchViaCurl(ctx, f); err == nil {
+		return items, nil
+	}
 	return nil, lastErr
 }
+
+// curlBin 走系统 curl 兜底。镜像里自带（Debian 12 /usr/bin/curl）。
+var curlBin = "curl"
+
+// fetchViaCurl 用 curl 抓一次再按 kind 解析。INTELFEED_CURL=off 可关掉。
+func fetchViaCurl(ctx context.Context, f Feed) ([]Item, error) {
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("INTELFEED_CURL")), "off") {
+		return nil, fmt.Errorf("curl fallback disabled")
+	}
+	cctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(cctx, curlBin,
+		"-sS", "-L", "--max-time", "35", "--compressed",
+		"-A", browserUA,
+		"-H", "Accept: application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8",
+		"-H", "Accept-Language: en-US,en;q=0.9",
+		"-w", "\n%{http_code}",
+		f.URL,
+	)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	if err := cmd.Run(); err != nil && out.Len() == 0 {
+		return nil, err
+	}
+	raw := out.Bytes()
+	// 末尾是 -w 打的 http_code
+	idx := bytes.LastIndexByte(raw, '\n')
+	if idx < 0 {
+		return nil, fmt.Errorf("curl: empty output")
+	}
+	codeStr := strings.TrimSpace(string(raw[idx+1:]))
+	body := raw[:idx]
+	if codeStr != "200" {
+		return nil, fmt.Errorf("curl http %s", codeStr)
+	}
+	switch f.Kind {
+	case "kev":
+		return parseKEV(body)
+	default:
+		return parseRSS(body)
+	}
+}
+
+// browserUA 与 Go 请求共用同一个 UA，避免两个通道表现不一致。
+const browserUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
 // errHTTP 带状态码，供 retryable 判断。
 type errHTTP struct {
@@ -278,7 +333,7 @@ func fetchOnce(ctx context.Context, f Feed) ([]Item, error) {
 		return nil, err
 	}
 	// 用浏览器 UA：CISA 对自定义 UA 直接 403（实测 2026-11-26，curl 默认 UA 反而 200）。
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+	req.Header.Set("User-Agent", browserUA)
 	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	resp, err := httpClient.Do(req)
