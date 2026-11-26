@@ -527,7 +527,8 @@ export default {
       '服务来自资产端口识别与指纹探测：先跑一个带端口扫描的扫描任务，识别出的服务会按服务名汇总到这里'
   },
   fileLeak: {
-    noSourceHint: "文件泄露结果依赖节点写入 asset_fileleak 集合，该写入方尚未实现，页面会始终为空。",
+    noSourceHint:
+      '数据来自扫描节点的目录扫描（DirScan）：命中 .env / .git/config / *.sql / *.bak 这类高信号路径、且服务器真的返回 2xx 时才记一条（403 说明存在但读不到，不收录）。列表为空通常表示还没扫到这类路径，而不是页面坏了。',
     url: 'URL',
     site: '站点',
     title: '标题',

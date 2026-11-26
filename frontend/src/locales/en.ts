@@ -539,7 +539,8 @@ export default {
       'Services come from port identification and fingerprint probing. Run a scan task with port scanning enabled and detected services are aggregated here by service name.'
   },
   fileLeak: {
-    noSourceHint: "File-leak results require the node to write asset_fileleak; that writer is not implemented, so this page stays empty.",
+    noSourceHint:
+      'Rows come from the scanner\'s directory scan (DirScan): a path such as .env / .git/config / *.sql / *.bak is recorded only when it is high-signal AND the server actually returns 2xx (403 means it exists but is unreadable, so it is skipped). An empty list usually means no such path has been hit yet, not that the page is broken.',
     url: 'URL',
     site: 'Site',
     title: 'Title',
