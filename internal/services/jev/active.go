@@ -211,24 +211,49 @@ func askBuiltinActive(ctx context.Context, state string, questions map[string]Qu
 	if target == "" {
 		return nil, fmt.Errorf("builtin agent: state 里没有 Matched/URL")
 	}
-	var lines []string
-	sig := "no-probe"
 	replay := probe(ctx, target)
-	lines = append(lines, "Replay (this run): "+replay.String())
-	if replay.Err == "" {
-		sig = fmt.Sprintf("replay=%d/%dB", replay.Code, replay.Len)
+	ctl := ""
+	cp := (*probeResult)(nil)
+	if ctl = controlURL(target); ctl != "" {
+		cp = probe(ctx, ctl)
 	}
-	if ctl := controlURL(target); ctl != "" {
-		cp := probe(ctx, ctl)
+
+	// 关键判断：这次复核到底作不作证。
+	//
+	// 2026-11-26 实测踩到：服务端在境内，目标在 Cloudflare 后面，重放拿到 403、
+	// 对照也 403 —— 于是被判成「catch-all，假阳性」。但同一路径从日本扫描节点打是 200，
+	// 洞是真的。差别只在出口 IP。所以「拿不到 2xx」必须当成**无结论**，
+	// 不能当成反证，更不能把这段文字喂给模型当负面证据。
+	usable := replay.Err == "" && replay.Code >= 200 && replay.Code < 400
+	if !usable {
+		sig := "inconclusive"
+		switch {
+		case replay.Err != "":
+			sig += "(" + truncate(replay.Err, 40) + ")"
+		default:
+			sig += fmt.Sprintf("(replay=%d)", replay.Code)
+		}
+		resp, err := askModel(ctx, state, questions)
+		if err != nil {
+			return nil, err
+		}
+		resp.Model = "agent:builtin(" + sig + ") | " + resp.Model
+		logger.Warn("jev builtin agent: 复核无结论，按原证据判定 " + target + " " + sig)
+		return resp, nil
+	}
+
+	lines := []string{"Replay (this run): " + replay.String()}
+	sig := fmt.Sprintf("replay=%d/%dB", replay.Code, replay.Len)
+	if cp != nil {
 		lines = append(lines, "Control (random path, same host): "+cp.String())
 		switch {
 		case cp.Err != "":
 			lines = append(lines, "Control note: 对照请求没打通，无法判定 catch-all。")
 		case cp.Code == replay.Code && replay.Len > 0 && similarLen(cp.Len, replay.Len):
-			lines = append(lines, "Control verdict: 随机路径同样是 "+fmt.Sprint(cp.Code)+" 且长度接近 → 站点 catch-all，命中极可能是假阳性。")
+			lines = append(lines, "Control verdict: 随机路径同样返回 "+fmt.Sprint(cp.Code)+" 且长度接近 → 站点 catch-all，命中极可能是假阳性。")
 			sig += fmt.Sprintf(" control=%d(catchall)", cp.Code)
 		default:
-			lines = append(lines, fmt.Sprintf("Control verdict: 随机路径 %d / %dB，与命中响应不同 → 命中不是通用 200 兜底。", cp.Code, cp.Len))
+			lines = append(lines, fmt.Sprintf("Control verdict: 随机路径 %d / %dB，与命中响应不同 → 命中不是通用响应兜底。", cp.Code, cp.Len))
 			sig += fmt.Sprintf(" control=%d", cp.Code)
 		}
 	}
