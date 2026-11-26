@@ -65,7 +65,8 @@ var defaultFeeds = []Feed{
 	{ID: "portswigger", Name: "PortSwigger Research", URL: "https://portswigger.net/research/rss", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "xz-aliyun", Name: "先知社区", URL: "https://xz.aliyun.com/feed", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "msrc", Name: "Microsoft MSRC", URL: "https://api.msrc.microsoft.com/update-guide/rss", Kind: "rss", Enabled: true, IntervalHours: 12},
-	{ID: "p0", Name: "Google Project Zero", URL: "https://googleprojectzero.blogspot.com/feeds/posts/default", Kind: "rss", Enabled: true, IntervalHours: 12},
+	// P0 的 blogspot 地址会 301 到 projectzero.google，直接用最终地址，省一次重定向。
+	{ID: "p0", Name: "Google Project Zero", URL: "https://projectzero.google/feed.xml", Kind: "rss", Enabled: true, IntervalHours: 12},
 }
 
 var httpClient = &http.Client{Timeout: 40 * time.Second}
@@ -162,7 +163,9 @@ func fetch(ctx context.Context, f Feed) ([]Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; ScopeSentry-intel/1.0)")
+	// 用浏览器 UA：CISA 对自定义 UA 直接 403（实测 2026-11-26，curl 默认 UA 反而 200）。
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+	req.Header.Set("Accept", "*/*")
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
