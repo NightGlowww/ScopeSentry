@@ -67,8 +67,11 @@ var defaultFeeds = []Feed{
 	{ID: "portswigger", Name: "PortSwigger Research", URL: "https://portswigger.net/research/rss", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "xz-aliyun", Name: "先知社区", URL: "https://xz.aliyun.com/feed", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "msrc", Name: "Microsoft MSRC", URL: "https://api.msrc.microsoft.com/update-guide/rss", Kind: "rss", Enabled: true, IntervalHours: 12},
-	// P0 的 blogspot 地址会 301 到 projectzero.google，直接用最终地址，省一次重定向。
-	{ID: "p0", Name: "Google Project Zero", URL: "https://projectzero.google/feed.xml", Kind: "rss", Enabled: true, IntervalHours: 12},
+	// P0 走 Google 域名，境内服务器不可达（2026-11-26 实测 i/o timeout）。
+	// 保留条目但默认关闭：换个出口（比如东京节点）再打开即可。
+	{ID: "p0", Name: "Google Project Zero（境内不可达）", URL: "https://projectzero.google/feed.xml", Kind: "rss", Enabled: false, IntervalHours: 12},
+	{ID: "thn", Name: "The Hacker News", URL: "https://thehackernews.com/feeds/posts/default", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "krebs", Name: "Krebs on Security", URL: "https://krebsonsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 }
 
 var httpClient = &http.Client{Timeout: 40 * time.Second}
