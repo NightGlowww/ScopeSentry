@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -76,18 +77,27 @@ var defaultFeeds = []Feed{
 	// 保留条目但默认关闭：换个出口（比如东京节点）再打开即可。
 	{ID: "p0", Name: "Google Project Zero（境内不可达）", URL: "https://projectzero.google/feed.xml", Kind: "rss", Enabled: false, IntervalHours: 12},
 	// 直接用 feedburner 最终地址：thehackernews.com 会 302 过去，多一跳更容易超时。
-	{ID: "thn", Name: "The Hacker News", URL: "https://feeds.feedburner.com/TheHackersNews", Kind: "rss", Enabled: true, IntervalHours: 6},
-	{ID: "helpnet", Name: "Help Net Security", URL: "https://www.helpnetsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	// 下面 4 个源直连会被 Cloudflare/CloudFront 按 TLS 指纹拒（容器内 curl 7.88 恒定 403，
+	// Go 恒定 403，helpnet 恒定 202 挑战页；host 上的 curl 8.x 才放行）。
+	// 改走 api.rss2json.com 服务端代抓：它自己的出口 + 指纹在白名单里，实测 4 个全部 200。
+	// 免费额度 10k 次/天，4 个源 × 每天 2~4 次远低于上限。
+	{ID: "thn", Name: "The Hacker News", URL: rss2json("https://feeds.feedburner.com/TheHackersNews"), Kind: "rssjson", Enabled: true, IntervalHours: 6},
+	{ID: "helpnet", Name: "Help Net Security", URL: rss2json("https://www.helpnetsecurity.com/feed/"), Kind: "rssjson", Enabled: true, IntervalHours: 12},
 	{ID: "krebs", Name: "Krebs on Security", URL: "https://krebsonsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	// 以下 7 个源是 2026-11-26 从 prod 出口逐个实测 200 + 合法 RSS 后加进来的。
 	// 挑的都是「有具体技术细节、能反推出攻击面」的源，纯新闻聚合站不收。
-	{ID: "bleepingcomputer", Name: "BleepingComputer", URL: "https://www.bleepingcomputer.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 6},
-	{ID: "securityweek", Name: "SecurityWeek", URL: "https://www.securityweek.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "bleepingcomputer", Name: "BleepingComputer", URL: rss2json("https://www.bleepingcomputer.com/feed/"), Kind: "rssjson", Enabled: true, IntervalHours: 6},
+	{ID: "securityweek", Name: "SecurityWeek", URL: rss2json("https://www.securityweek.com/feed/"), Kind: "rssjson", Enabled: true, IntervalHours: 12},
 	{ID: "unit42", Name: "Palo Alto Unit 42", URL: "https://unit42.paloaltonetworks.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "talos", Name: "Cisco Talos", URL: "https://blog.talosintelligence.com/rss/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "checkpoint", Name: "Check Point Research", URL: "https://research.checkpoint.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "securelist", Name: "Kaspersky Securelist", URL: "https://securelist.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "darkreading", Name: "Dark Reading", URL: "https://www.darkreading.com/rss.xml", Kind: "rss", Enabled: true, IntervalHours: 12},
+}
+
+// rss2json 把一个 feed 地址包成 api.rss2json.com 的代抓地址。
+func rss2json(feedURL string) string {
+	return "https://api.rss2json.com/v1/api.json?count=100&rss_url=" + url.QueryEscape(feedURL)
 }
 
 var httpClient = &http.Client{Timeout: 40 * time.Second}
@@ -295,16 +305,25 @@ func fetchViaCurl(ctx context.Context, f Feed) ([]Item, error) {
 	if codeStr != "200" {
 		return nil, fmt.Errorf("curl http %s", codeStr)
 	}
-	switch f.Kind {
+	return parseByKind(f.Kind, body)
+}
+
+// parseByKind 把 body 按源类型归一成 Item。
+func parseByKind(kind string, body []byte) ([]Item, error) {
+	switch kind {
 	case "kev":
 		return parseKEV(body)
+	case "rssjson":
+		return parseRSS2JSON(body)
 	default:
 		return parseRSS(body)
 	}
 }
 
 // browserUA 与 Go 请求共用同一个 UA，避免两个通道表现不一致。
-const browserUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+// 注意版本号只到 120.0：实测 Cloudflare 对 "Chrome/120.0.0.0" 这种完整版本串反而 403，
+// 对 "Chrome/120.0" 放行（2026-11-26 host 上 curl 同一 URL 对照测出来的）。
+const browserUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 
 // errHTTP 带状态码，供 retryable 判断。
 type errHTTP struct {
@@ -348,12 +367,7 @@ func fetchOnce(ctx context.Context, f Feed) ([]Item, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch f.Kind {
-	case "kev":
-		return parseKEV(body)
-	default:
-		return parseRSS(body)
-	}
+	return parseByKind(f.Kind, body)
 }
 
 // ---------- RSS / Atom ----------
@@ -409,6 +423,71 @@ func parseRSS(body []byte) ([]Item, error) {
 		out = append(out, Item{Title: clean(e.Title), URL: clean(link), Summary: clean(e.Summary), Published: clean(pub)})
 	}
 	return out, nil
+}
+
+// ---------- rss2json ----------
+
+// rss2jsonDoc 对应 api.rss2json.com 的返回结构。
+// 它是服务端代抓：我们给它 feed 地址，它自己拉、自己解析，回一份 JSON。
+// 用途只有一个——绕开 Cloudflare 对容器 TLS 指纹的拦截。
+type rss2jsonDoc struct {
+	Status string `json:"status"`
+	Items  []struct {
+		Title       string `json:"title"`
+		PubDate     string `json:"pubDate"`
+		Link        string `json:"link"`
+		Description string `json:"description"`
+		Content     string `json:"content"`
+	} `json:"items"`
+}
+
+func parseRSS2JSON(body []byte) ([]Item, error) {
+	var d rss2jsonDoc
+	if err := json.Unmarshal(body, &d); err != nil {
+		return nil, err
+	}
+	if d.Status != "" && d.Status != "ok" {
+		return nil, fmt.Errorf("rss2json status=%s", d.Status)
+	}
+	out := make([]Item, 0, maxItems)
+	for _, it := range d.Items {
+		if len(out) >= maxItems {
+			break
+		}
+		sum := it.Description
+		if strings.TrimSpace(sum) == "" {
+			sum = it.Content
+		}
+		out = append(out, Item{
+			Title:     clean(it.Title),
+			URL:       clean(it.Link),
+			Summary:   clean(stripTags(sum)),
+			Published: clean(it.PubDate),
+		})
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("rss2json: 0 items")
+	}
+	return out, nil
+}
+
+// stripTags 去掉 HTML 标签：rss2json 的 description 带完整 HTML，直接入库会污染摘要。
+func stripTags(s string) string {
+	var b strings.Builder
+	depth := 0
+	for _, r := range s {
+		switch {
+		case r == '<':
+			depth++
+		case r == '>':
+			if depth > 0 {
+				depth--
+			}
+		case depth == 0:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // ---------- CISA KEV ----------
