@@ -336,7 +336,9 @@ const taskColums = reactive<TableColumn[]>([
     label: t('tableDemo.action'),
     /* 操作列固定在右侧：横向空间不足时用户仍能直接点到按钮，
        不必拖滚动条。其余列宽收紧，总宽控制在 1280 内尽量不出现横向滚动。 */
-    width: 190,
+    /* 190px 放不下「操作 + 结果 + 详情」三个按钮：下拉的文字被裁掉，只剩一个图标，
+       看着就像三个白点（2026-11-27 用户反馈）。放到 260 让文字完整显示。 */
+    width: 260,
     fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       const handleCommand = (command) => {
@@ -379,6 +381,9 @@ const taskColums = reactive<TableColumn[]>([
             h(
               ElButton,
               {
+                // 「操作」后面那个图标以前没有任何说明，看着像三个白点（2026-11-27 反馈）。
+                // 补 title：悬停就知道这里是开始/停止/导出/进度/重测/删除的集合。
+                title: t('task.moreActions'),
                 style: { outline: 'none', boxShadow: 'none' }
               },
               () => [

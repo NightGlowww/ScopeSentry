@@ -1005,6 +1005,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    projectTasks: '任务',
+    moreActions: '更多操作：开始/停止、导出、进度、重新测试、删除',
     etaMinutes: '约剩 {m} 分钟',
     etaHours: '约剩 {h} 小时 {m} 分',
     node: '节点',

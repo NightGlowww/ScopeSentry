@@ -1037,6 +1037,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    projectTasks: 'Tasks',
+    moreActions: 'More actions: start/stop, export, progress, retest, delete',
     etaMinutes: '~{m} min left',
     etaHours: '~{h}h {m}m left',
     node: 'Node',

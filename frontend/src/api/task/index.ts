@@ -19,9 +19,15 @@ export const getTaskDataApi = (
   pageIndex: number,
   pageSize: number,
   status?: number,
-  node?: string
+  node?: string,
+  bindProject?: string
 ): Promise<IResponse<TaskDataResponse>> => {
-  return request.post({ url: '/api/task/', data: { search, pageIndex, pageSize, status, node } })
+  // bindProject：项目详情页用它列出「为这个项目跑过的任务」。
+  // 注意与 task.project（资产归属数组）不同，bindProject 才是任务→项目的归属。
+  return request.post({
+    url: '/api/task/',
+    data: { search, pageIndex, pageSize, status, node, bindProject }
+  })
 }
 
 export const stopTaskApi = (ids: string[]): Promise<IResponse<TaskDataResponse>> => {
