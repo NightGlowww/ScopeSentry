@@ -1429,6 +1429,8 @@ export default {
     clearUpdateError: 'Clear errors'
   },
   project: {
+    taskCount: 'Tasks',
+    lastScan: 'Last scan',
     project: 'Project',
     addProject: 'Add Project',
     totalAssets: 'Total Assets',

@@ -68,6 +68,13 @@ type ProjectBrief struct {
 	Logo       string `json:"logo"`
 	AssetCount int    `json:"AssetCount"`
 	Tag        string `json:"tag"`
+	// 任务维度：项目卡片只显示「资产 526」看不出它最近有没有在干活。
+	// 2026-11-27 反馈「项目管理像摆设」，补上这几个字段，卡片才能回答
+	// 「跑过几个任务 / 最近一次什么时候 / 现在有没有在跑」。
+	TaskCount      int    `json:"taskCount"`
+	RunningTasks   int    `json:"runningTasks"`
+	LastTaskAt     string `json:"lastTaskAt"`
+	LastTaskStatus int    `json:"lastTaskStatus"`
 }
 
 // ProjectListResponse 列表响应数据

@@ -1414,6 +1414,8 @@ export default {
     clearUpdateError: '오류 지우기'
   },
   project: {
+    taskCount: '작업 수',
+    lastScan: '최근 스캔',
     project: '프로젝트',
     addProject: '프로젝트 추가',
     totalAssets: '전체 자산',

@@ -1391,6 +1391,8 @@ export default {
     clearUpdateError: '清空错误'
   },
   project: {
+    taskCount: '任务数',
+    lastScan: '最近扫描',
     project: '项目',
     addProject: '新建项目',
     totalAssets: '总资产',

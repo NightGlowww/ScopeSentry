@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"sort"
 	"strings"
@@ -51,11 +52,15 @@ type Service interface {
 
 type service struct {
 	projectRepo repo.Repository
+	// taskColl 只读用途：给项目卡片补「任务数/最近一次扫描」。
+	// 单独拿集合句柄，避免 project 服务去 import task 服务（会造成循环依赖）。
+	taskColl *mongo.Collection
 }
 
 func NewService() Service {
 	return &service{
 		projectRepo: repo.NewRepository(),
+		taskColl:    mongodb.CollectionOrNil("task"),
 	}
 }
 
@@ -142,7 +147,73 @@ func (s *service) GetProjectsData(ctx *gin.Context, search string, pageIndex, pa
 	if err := g.Wait(); err != nil {
 		return models.ProjectListResponse{}, err
 	}
+	s.fillTaskStats(ctx.Request.Context(), result)
 	return models.ProjectListResponse{Result: result, Tag: tagCounts}, nil
+}
+
+// fillTaskStats 给项目卡片补任务维度：任务总数 / 运行中 / 最近一次时间与状态。
+//
+// 一次 aggregate 搞定所有项目，避免每张卡片查一次库（项目多时是 N+1）。
+// 归属看 bindProject —— 那是「任务是为哪个项目跑的」，不是 task.project（资产归属）。
+func (s *service) fillTaskStats(ctx context.Context, result map[string][]models.ProjectBrief) {
+	if s.taskColl == nil {
+		return
+	}
+	ids := make([]string, 0, 32)
+	seen := map[string]bool{}
+	for _, list := range result {
+		for _, p := range list {
+			if p.ID != "" && !seen[p.ID] {
+				seen[p.ID] = true
+				ids = append(ids, p.ID)
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	cur, err := s.taskColl.Aggregate(ctx, []bson.M{
+		{"$match": bson.M{"bindProject": bson.M{"$in": ids}}},
+		{"$sort": bson.M{"creatTime": -1}},
+		{"$group": bson.M{
+			"_id":        "$bindProject",
+			"count":      bson.M{"$sum": 1},
+			"running":    bson.M{"$sum": bson.M{"$cond": []interface{}{bson.M{"$eq": []interface{}{"$status", 1}}, 1, 0}}},
+			"lastAt":     bson.M{"$first": "$creatTime"},
+			"lastStatus": bson.M{"$first": "$status"},
+		}},
+	})
+	if err != nil {
+		logger.Error("fillTaskStats aggregate: " + err.Error())
+		return
+	}
+	type row struct {
+		ID         string `bson:"_id"`
+		Count      int    `bson:"count"`
+		Running    int    `bson:"running"`
+		LastAt     string `bson:"lastAt"`
+		LastStatus int    `bson:"lastStatus"`
+	}
+	var rows []row
+	if err := cur.All(ctx, &rows); err != nil {
+		logger.Error("fillTaskStats decode: " + err.Error())
+		return
+	}
+	stats := make(map[string]row, len(rows))
+	for _, r := range rows {
+		stats[r.ID] = r
+	}
+	for tag, list := range result {
+		for i := range list {
+			if st, ok := stats[list[i].ID]; ok {
+				list[i].TaskCount = st.Count
+				list[i].RunningTasks = st.Running
+				list[i].LastTaskAt = st.LastAt
+				list[i].LastTaskStatus = st.LastStatus
+			}
+		}
+		result[tag] = list
+	}
 }
 
 // FindByName 按项目名精确查；不存在返回 (nil, nil)，交给调用方决定新建。

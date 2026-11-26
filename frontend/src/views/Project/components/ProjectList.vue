@@ -143,6 +143,29 @@ const toggleAllSelection = () => {
     localSelectedRows.value = []
   }
 }
+// 卡片上「最近一次扫描」的状态标签：和后端 task.status 编码对齐
+// 0 待开始 1 运行中 2 暂停 3 完成 4 失败
+const statusText = (s: number) => {
+  const map: Record<number, string> = {
+    0: t('task.waitStart'),
+    1: t('task.running'),
+    2: t('task.stop'),
+    3: t('task.finish'),
+    4: t('task.failed')
+  }
+  return map[Number(s)] ?? '-'
+}
+const statusType = (s: number): any => {
+  const map: Record<number, string> = {
+    0: 'primary',
+    1: 'info',
+    2: 'warning',
+    3: 'success',
+    4: 'danger'
+  }
+  return map[Number(s)] ?? 'default'
+}
+
 const action = (id: string) => {
   push(`/project-management/project-detail?id=${id}`)
 }
@@ -179,6 +202,17 @@ const action = (id: string) => {
             <div>
               <div class="name">{{ row.name }}</div>
               <div class="assets-info">{{ t('project.totalAssets') }} : {{ row.AssetCount }}</div>
+              <!-- 任务维度：只给「资产数」看不出这个项目最近有没有在干活（2026-11-27 反馈） -->
+              <div class="assets-info">
+                {{ t('project.taskCount') }} : {{ row.taskCount ?? 0 }}
+                <span v-if="row.runningTasks > 0" class="running-dot">· 运行中 {{ row.runningTasks }}</span>
+              </div>
+              <div v-if="row.lastTaskAt" class="assets-info last-task">
+                {{ t('project.lastScan') }} : {{ String(row.lastTaskAt).slice(5, 16) }}
+                <ElTag size="small" :type="statusType(row.lastTaskStatus)" effect="plain">
+                  {{ statusText(row.lastTaskStatus) }}
+                </ElTag>
+              </div>
             </div>
           </div>
           <template #dropdown>
