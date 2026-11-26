@@ -30,6 +30,20 @@ export const getTaskDataApi = (
   })
 }
 
+// 项目优先接入：往项目里加一批目标并建任务（项目不存在则由服务端按名字新建）。
+// 这是 HuntDeck 之外的人也能用的入口——界面上不再需要「先建任务再同步到项目」。
+export const ingestToProjectApi = (payload: {
+  projectId?: string
+  projectName?: string
+  tag?: string
+  targets: string
+  template?: string
+  node?: string[]
+  autoStart?: boolean
+}): Promise<IResponse<any>> => {
+  return request.post({ url: '/api/task/ingest', data: payload })
+}
+
 export const stopTaskApi = (ids: string[]): Promise<IResponse<TaskDataResponse>> => {
   return request.post({ url: '/api/task/stop', data: { ids } })
 }
