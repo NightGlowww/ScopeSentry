@@ -104,6 +104,7 @@ type probeResult struct {
 	Len     int
 	Hash    string
 	Snippet string
+	Body    string // 前 512 字节，用于判断两个响应是不是同一张页面
 	Err     string
 }
 
@@ -163,11 +164,21 @@ func probe(ctx context.Context, raw string) *probeResult {
 		return r
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	// 读 64KB 而不是 4KB：SPA 的兜底页面往往有几十 KB，只读前 4KB 会让两个
+	// 完全不同的页面都变成「4096 字节」而误判成 catch-all（2026-11-26 实测踩到）。
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 	sum := sha1.Sum(body)
 	r.Code = resp.StatusCode
 	r.Len = len(body)
+	if resp.ContentLength > int64(r.Len) {
+		r.Len = int(resp.ContentLength) // 被截断时以真实长度为准
+	}
 	r.Hash = hex.EncodeToString(sum[:])
+	if len(body) > 512 {
+		r.Body = string(body[:512])
+	} else {
+		r.Body = string(body)
+	}
 	one := strings.Join(strings.Fields(string(body)), " ")
 	r.Snippet = truncate(one, 120)
 	return r
@@ -249,7 +260,7 @@ func askBuiltinActive(ctx context.Context, state string, questions map[string]Qu
 		switch {
 		case cp.Err != "":
 			lines = append(lines, "Control note: 对照请求没打通，无法判定 catch-all。")
-		case cp.Code == replay.Code && replay.Len > 0 && similarLen(cp.Len, replay.Len):
+		case cp.Code == replay.Code && isCatchAll(cp, replay):
 			lines = append(lines, "Control verdict: 随机路径同样返回 "+fmt.Sprint(cp.Code)+" 且长度接近 → 站点 catch-all，命中极可能是假阳性。")
 			sig += fmt.Sprintf(" control=%d(catchall)", cp.Code)
 		default:
@@ -267,6 +278,32 @@ func askBuiltinActive(ctx context.Context, state string, questions map[string]Qu
 	resp.Model = "agent:builtin(" + sig + ") | " + resp.Model
 	logger.Info("jev builtin agent: " + target + " " + sig)
 	return resp, nil
+}
+
+// isCatchAll 判断对照路径是否被当成正常页面返回（catch-all / SPA 兜底 / 重写型 404）。
+//
+// 只比对长度是不够的：两个完全不同的页面都可能正好被读满缓冲区。所以以「内容相同」
+// 为主判据（整段 sha1 相等，或前 200 字节相同且长度接近），长度只作为辅助。
+func isCatchAll(cp, replay *probeResult) bool {
+	if cp == nil || replay == nil || cp.Err != "" || replay.Err != "" {
+		return false
+	}
+	if cp.Code != replay.Code {
+		return false
+	}
+	if cp.Hash == replay.Hash {
+		return true
+	}
+	if len(cp.Body) < 200 || len(replay.Body) < 200 {
+		return false
+	}
+	head := func(s string) string {
+		if len(s) > 200 {
+			return s[:200]
+		}
+		return s
+	}
+	return head(cp.Body) == head(replay.Body) && similarLen(cp.Len, replay.Len)
 }
 
 // similarLen 长度接近（±20%）就算同一种响应。
