@@ -509,3 +509,41 @@ func (c *Client) GetRateLimit(ctx context.Context) (*RateLimitSnapshot, error) {
 
 // HasToken 是否带 token（token_status 用来区分 missing）
 func (c *Client) HasToken() bool { return c.token != "" }
+
+// Advisory 一条 GitHub 安全公告（GHSA）。
+//
+// 为什么单独加：`/advisories` 是 GitHub 官方披露的产品/生态漏洞来源，
+// 而原来 cve 源走的是 `/search/issues`（社区 PoC 讨论），两者覆盖完全不同。
+// 2026-11-26 的 CVE-2026-3854（GitHub 自身 git 基础设施 RCE）就只出现在公告里，
+// 社区搜索拿不到——这类「平台自己出事」的情报必须走公告。
+type Advisory struct {
+	GHSAID      string `json:"ghsa_id"`
+	CVEID       string `json:"cve_id"`
+	Summary     string `json:"summary"`
+	Severity    string `json:"severity"`
+	HTMLURL     string `json:"html_url"`
+	PublishedAt string `json:"published_at"`
+	Description string `json:"description"`
+	CWEIDs      []struct {
+		CWEID string `json:"cwe_id"`
+	} `json:"cwes"`
+}
+
+// ListAdvisories 拉取全球安全公告（不按仓库，按发布时间倒序）。
+func (c *Client) ListAdvisories(ctx context.Context, since time.Time, perPage int) ([]Advisory, error) {
+	if perPage <= 0 || perPage > 100 {
+		perPage = 50
+	}
+	q := url.Values{}
+	q.Set("per_page", strconv.Itoa(perPage))
+	q.Set("sort", "published")
+	q.Set("direction", "desc")
+	if !since.IsZero() {
+		q.Set("published", ">="+since.UTC().Format("2006-01-02T15:04:05Z"))
+	}
+	var out []Advisory
+	if _, err := c.do(ctx, http.MethodGet, "/advisories", q, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

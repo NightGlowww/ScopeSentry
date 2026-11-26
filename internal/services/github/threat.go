@@ -144,6 +144,11 @@ func (s *Service) RunThreatSource(ctx context.Context, kind string) (*ThreatRunS
 		}
 	}
 
+	// cve 源额外补一轮官方公告（GHSA）：社区讨论和官方披露是两条不同的信息流。
+	if kind == models.GithubThreatKindCVE {
+		s.ingestAdvisories(ctx, client, summary, 48*time.Hour)
+	}
+
 	next := time.Now().Add(time.Duration(src.IntervalHours) * time.Hour)
 	summary.NextRunAt = &next
 	if err := s.threats.TouchSourceRun(ctx, kind, time.Now(), &next,
@@ -273,4 +278,44 @@ func (s *Service) TokenStatus(ctx context.Context) *TokenStatusResult {
 		res.Message = fmt.Sprintf("限流中 (Core: %d, Search: %d)", snap.Core.Remaining, snap.Search.Remaining)
 	}
 	return res
+}
+
+// ingestAdvisories 把 GitHub 官方安全公告灌进 cve 情报流。
+//
+// 与 cve 关键词搜索的分工：
+//
+//	/search/issues  = 社区在讨论哪些 CVE（有 PoC、有热度，但不权威、可能滞后）
+//	/advisories     = GitHub 官方披露（权威、带 CVSS/CWE，包含 GitHub 自身产品漏洞）
+//
+// 两者互补，所以 cve 源每轮跑完关键词后再补一轮公告。
+func (s *Service) ingestAdvisories(ctx context.Context, client *Client, summary *ThreatRunSummary, window time.Duration) {
+	advs, err := client.ListAdvisories(ctx, time.Now().Add(-window), 50)
+	if err != nil {
+		logger.Warn("github intel: advisories failed", zap.Error(err))
+		return
+	}
+	for _, a := range advs {
+		if a.GHSAID == "" {
+			continue
+		}
+		kw := a.CVEID
+		if kw == "" {
+			kw = a.GHSAID
+		}
+		item := &models.GithubThreatHistory{
+			Kind:        models.GithubThreatKindCVE,
+			Key:         "ghsa:" + a.GHSAID,
+			Title:       a.Summary,
+			URL:         a.HTMLURL,
+			Description: truncateText(a.Description, 500),
+			Severity:    a.Severity,
+			Keyword:     kw,
+		}
+		summary.Scanned++
+		if isNew, upErr := s.threats.UpsertHistory(ctx, item); upErr != nil {
+			logger.Warn("github intel: advisory upsert failed", zap.String("ghsa", a.GHSAID), zap.Error(upErr))
+		} else if isNew {
+			summary.NewFound++
+		}
+	}
 }
