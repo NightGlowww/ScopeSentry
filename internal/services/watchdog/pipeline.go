@@ -19,6 +19,7 @@ package watchdog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -111,11 +112,119 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 	setAlert(ctx, alerts, "node_zombie", len(zombies) > 0,
 		"有 "+itoa(len(zombies))+" 个节点心跳停更却还占着任务，已释放："+strings.Join(zombies, "；"))
 
+	// 4) 幽灵运行中：任务是 status=1，但没有任何节点在跑它、也不在任何队列里。
+	//
+	// 2026-11-26 实测：扫描器跑完一个目标后没能把「任务结束」发出去，进程被配置更新
+	// 重启；重启后节点从队列取下一个，那个任务就永远挂在 status=1 —— 既没人跑，
+	// 也不会被 tasks_stalled 抓到（队列里确实有别的任务在动）。
+	// 判断依据用进度写入时间：Redis 里 TaskInfo:progress:<taskId>:* 的字段值就是时间戳，
+	// 超过 phantomAfter 没有新写入，再加上「既非 currentTask 也不在队列」，才能断定没人会跑它。
+	phantoms := reconcilePhantomRunning(ctx, task)
+	setAlert(ctx, alerts, "phantom_running", len(phantoms) > 0,
+		"有 "+itoa(len(phantoms))+" 个任务标记为运行中，但没有节点在跑、也不在队列里，已判定失败："+strings.Join(phantoms, "；"))
+
 	return map[string]interface{}{
-		"queued":  queued,
-		"busy":    busy,
-		"zombies": zombies,
+		"queued":   queued,
+		"busy":     busy,
+		"zombies":  zombies,
+		"phantoms": phantoms,
 	}, nil
+}
+
+// phantomAfter 判定幽灵任务所需的静默时长。
+const phantomAfter = 20 * time.Minute
+
+// reconcilePhantomRunning 找出「status=1 但没有任何执行者」的任务并标记失败。
+func reconcilePhantomRunning(ctx context.Context, task *mongo.Collection) []string {
+	out := []string{}
+	if redis.Client == nil {
+		return out
+	}
+	// 1) 当前正在跑的 taskId 集合
+	busyIDs := map[string]bool{}
+	if keys, err := redis.Client.Keys(ctx, "node:*:currentTask").Result(); err == nil {
+		for _, k := range keys {
+			if v, err := redis.Client.Get(ctx, k).Result(); err == nil && v != "" {
+				busyIDs[v] = true
+			}
+		}
+	}
+	// 2) 队列里的 taskId 集合（队列项是 JSON，字段 id 就是任务 id）
+	queuedIDs := map[string]bool{}
+	if keys, err := redis.Client.Keys(ctx, "NodeTask:*").Result(); err == nil {
+		for _, k := range keys {
+			items, err := redis.Client.LRange(ctx, k, 0, -1).Result()
+			if err != nil {
+				continue
+			}
+			for _, it := range items {
+				if id := jsonTaskID(it); id != "" {
+					queuedIDs[id] = true
+				}
+			}
+		}
+	}
+	// 3) 逐个检查 status=1 的任务
+	cur, err := task.Find(ctx, bson.M{"status": 1})
+	if err != nil {
+		return out
+	}
+	var rows []bson.M
+	_ = cur.All(ctx, &rows)
+	_ = cur.Close(ctx)
+	now := time.Now()
+	for _, r := range rows {
+		id := ""
+		if oid, ok := r["_id"].(primitive.ObjectID); ok {
+			id = oid.Hex()
+		}
+		if id == "" || busyIDs[id] || queuedIDs[id] {
+			continue
+		}
+		last := lastProgressWrite(ctx, id)
+		if last.IsZero() || now.Sub(last) < phantomAfter {
+			continue
+		}
+		reason := fmt.Sprintf("任务标记为运行中，但没有任何节点在跑、也不在队列里，且 %s 没有进度写入；判定为失败，可 retest 重跑", now.Sub(last).Round(time.Minute))
+		_, _ = task.UpdateOne(ctx, bson.M{"_id": r["_id"], "status": 1}, bson.M{
+			"$set": bson.M{"status": 4, "failReason": reason, "endTime": ts(now)},
+		})
+		logger.Warn("watchdog: " + id + " " + reason)
+		out = append(out, id)
+	}
+	return out
+}
+
+// lastProgressWrite 取该任务所有目标进度 hash 里最新的时间戳（字段值就是 "2006-01-02 15:04:05"）。
+func lastProgressWrite(ctx context.Context, taskID string) time.Time {
+	keys, err := redis.Client.Keys(ctx, "TaskInfo:progress:"+taskID+":*").Result()
+	if err != nil {
+		return time.Time{}
+	}
+	var newest time.Time
+	for _, k := range keys {
+		vals, err := redis.Client.HVals(ctx, k).Result()
+		if err != nil {
+			continue
+		}
+		for _, v := range vals {
+			if t, err := time.ParseInLocation("2006-01-02 15:04:05", v, time.Local); err == nil && t.After(newest) {
+				newest = t
+			}
+		}
+	}
+	return newest
+}
+
+// jsonTaskID 从队列项 JSON 里取任务 id。
+func jsonTaskID(raw string) string {
+	var it struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(raw), &it); err != nil {
+		return ""
+	}
+	return it.ID
 }
 
 // reconcileZombieNodes 找出心跳停更的节点，清掉它的 currentTask 并把对应任务标记失败，
