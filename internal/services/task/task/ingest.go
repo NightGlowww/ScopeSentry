@@ -82,14 +82,16 @@ func (s *service) IngestToProject(ctx *gin.Context, req IngestRequest) (*IngestR
 			projectID = existing.ID.Hex()
 		}
 	} else {
-		// 拿名字只为回显；顺便验证项目真实存在
-		p, ferr := s.projectService.FindByName(ctx.Request.Context(), name)
-		if ferr == nil && p != nil && p.ID.Hex() == projectID {
-			name = p.Name
+		// 传了 projectId 时要把项目名查回来：任务名是按项目名拼的，
+		// 查不到就会拼出「6afb1e2e…-20261127-0225」这种一串 ObjectID 的任务名（2026-11-27 实测）。
+		p, ferr := s.projectService.FindByID(ctx.Request.Context(), projectID)
+		if ferr != nil {
+			return nil, ferr
 		}
-		if name == "" {
-			name = projectID
+		if p == nil {
+			return nil, fmt.Errorf("项目不存在: %s", projectID)
 		}
+		name = p.Name
 	}
 
 	// 项目侧：不存在就建，存在就把新目标并进范围。
