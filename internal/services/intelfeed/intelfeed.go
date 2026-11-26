@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,13 +26,15 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
-	collFeeds = "intel_feeds"
-	collItems = "intel_items"
-	maxItems  = 120
+	collFeeds      = "intel_feeds"
+	collItems      = "intel_items"
+	maxItems       = 120
+	fetchAttempts  = 3
 )
 
 // Feed 一条订阅源
@@ -74,6 +77,15 @@ var defaultFeeds = []Feed{
 	{ID: "thn", Name: "The Hacker News", URL: "https://feeds.feedburner.com/TheHackersNews", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "helpnet", Name: "Help Net Security", URL: "https://www.helpnetsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "krebs", Name: "Krebs on Security", URL: "https://krebsonsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	// 以下 7 个源是 2026-11-26 从 prod 出口逐个实测 200 + 合法 RSS 后加进来的。
+	// 挑的都是「有具体技术细节、能反推出攻击面」的源，纯新闻聚合站不收。
+	{ID: "bleepingcomputer", Name: "BleepingComputer", URL: "https://www.bleepingcomputer.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "securityweek", Name: "SecurityWeek", URL: "https://www.securityweek.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "unit42", Name: "Palo Alto Unit 42", URL: "https://unit42.paloaltonetworks.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "talos", Name: "Cisco Talos", URL: "https://blog.talosintelligence.com/rss/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "checkpoint", Name: "Check Point Research", URL: "https://research.checkpoint.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "securelist", Name: "Kaspersky Securelist", URL: "https://securelist.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "darkreading", Name: "Dark Reading", URL: "https://www.darkreading.com/rss.xml", Kind: "rss", Enabled: true, IntervalHours: 12},
 }
 
 var httpClient = &http.Client{Timeout: 40 * time.Second}
@@ -131,22 +143,60 @@ func runDue(ctx context.Context) {
 		if f.LastRunAt != nil && time.Since(*f.LastRunAt) < time.Duration(f.IntervalHours)*time.Hour {
 			continue
 		}
-		items, ferr := fetch(ctx, f)
-		now := time.Now()
-		upd := bson.M{"lastRunAt": now}
-		if ferr != nil {
-			upd["lastError"] = ferr.Error()
-			logger.Warn("intelfeed: " + f.Name + " failed: " + ferr.Error())
-		} else {
-			upd["lastError"] = ""
-			n := ingest(ctx, f, items)
-			upd["itemCount"] = n
-			if n > 0 {
-				logger.Info(fmt.Sprintf("intelfeed: %s +%d items", f.Name, n))
-			}
-		}
-		_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{"$set": upd})
+		runOne(ctx, coll, f)
 	}
+}
+
+// runOne 抓一个源、入库、把结果写回源文档。返回写入后的状态。
+func runOne(ctx context.Context, coll *mongo.Collection, f Feed) bson.M {
+	items, ferr := fetch(ctx, f)
+	now := time.Now()
+	upd := bson.M{"lastRunAt": now}
+	res := bson.M{"id": f.ID, "name": f.Name}
+	if ferr != nil {
+		upd["lastError"] = ferr.Error()
+		res["error"] = ferr.Error()
+		logger.Warn("intelfeed: " + f.Name + " failed: " + ferr.Error())
+	} else {
+		upd["lastError"] = ""
+		n := ingest(ctx, f, items)
+		upd["itemCount"] = n
+		res["added"] = n
+		res["fetched"] = len(items)
+		if n > 0 {
+			logger.Info(fmt.Sprintf("intelfeed: %s +%d items", f.Name, n))
+		}
+	}
+	_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{"$set": upd})
+	return res
+}
+
+// RunNow 无视 intervalHours 立即跑一轮：id 为空跑全部启用的源，否则只跑指定源。
+// 给运维和前端「立即刷新」按钮用；不做并发，源之间互相限速是好事。
+func RunNow(ctx context.Context, id string) ([]bson.M, error) {
+	if mongodb.DB == nil {
+		return nil, fmt.Errorf("mongo not ready")
+	}
+	coll := mongodb.DB.Collection(collFeeds)
+	filter := bson.M{"enabled": true}
+	if strings.TrimSpace(id) != "" {
+		filter = bson.M{"_id": strings.TrimSpace(id)}
+	}
+	cur, err := coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	var feeds []Feed
+	_ = cur.All(ctx, &feeds)
+	_ = cur.Close()
+	if len(feeds) == 0 {
+		return nil, fmt.Errorf("no matching feed")
+	}
+	out := make([]bson.M, 0, len(feeds))
+	for _, f := range feeds {
+		out = append(out, runOne(ctx, coll, f))
+	}
+	return out, nil
 }
 
 // ingest 写入并返回新增条数。
@@ -175,21 +225,69 @@ func hashKey(parts ...string) string {
 }
 
 // fetch 按 kind 抓取并归一成 Item 列表。
+//
+// 重试是必需的，不是保险：2026-11-26 实测同一台机器同一秒内，
+// feedburner（Google IP）会 dial timeout、helpnetsecurity 会返 202 排队页，
+// 隔几秒再打就 200。单次失败直接标红会让列表长期挂着假故障。
 func fetch(ctx context.Context, f Feed) ([]Item, error) {
+	var lastErr error
+	for attempt := 1; attempt <= fetchAttempts; attempt++ {
+		if attempt > 1 {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(attempt-1) * 2 * time.Second):
+			}
+		}
+		items, err := fetchOnce(ctx, f)
+		if err == nil {
+			return items, nil
+		}
+		lastErr = err
+		if !retryable(err) {
+			break
+		}
+	}
+	return nil, lastErr
+}
+
+// errHTTP 带状态码，供 retryable 判断。
+type errHTTP struct {
+	Code int
+	URL  string
+}
+
+func (e *errHTTP) Error() string { return fmt.Sprintf("http %d", e.Code) }
+
+// retryable 只对「可能是抖动」的错误重试：网络错误、超时、5xx、202/429。
+// 404/403 这类确定性拒绝重试也没用，直接返回。
+func retryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var he *errHTTP
+	if errors.As(err, &he) {
+		return he.Code == http.StatusAccepted || he.Code == http.StatusTooManyRequests || he.Code >= 500
+	}
+	return true // 网络层错误（dial timeout / TLS handshake / EOF）都值得再试
+}
+
+func fetchOnce(ctx context.Context, f Feed) ([]Item, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.URL, nil)
 	if err != nil {
 		return nil, err
 	}
 	// 用浏览器 UA：CISA 对自定义 UA 直接 403（实测 2026-11-26，curl 默认 UA 反而 200）。
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36")
-	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept", "application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http %d", resp.StatusCode)
+		return nil, &errHTTP{Code: resp.StatusCode, URL: f.URL}
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if err != nil {

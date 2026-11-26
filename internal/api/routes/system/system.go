@@ -33,6 +33,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 立即刷新情报源（body.id 省略 = 全部启用源）。
+				Method:      "POST",
+				Path:        "intel-feeds/run",
+				Handler:     system.IntelFeedsRun,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 产出质量看板：24h 任务/漏洞、LLM 判定分布、隔离区按模板聚合。
 				Method:      "GET",
 				Path:        "quality-report",
