@@ -188,7 +188,7 @@ func RunNow(ctx context.Context, id string) ([]bson.M, error) {
 	}
 	var feeds []Feed
 	_ = cur.All(ctx, &feeds)
-	_ = cur.Close()
+	_ = cur.Close(ctx)
 	if len(feeds) == 0 {
 		return nil, fmt.Errorf("no matching feed")
 	}

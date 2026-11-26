@@ -24,13 +24,13 @@ func IntelFeeds(c *gin.Context) {
 	var feeds []bson.M
 	if cur, err := mongodb.DB.Collection("intel_feeds").Find(ctx, bson.M{}); err == nil {
 		_ = cur.All(ctx, &feeds)
-		_ = cur.Close()
+		_ = cur.Close(ctx)
 	}
 	var items []bson.M
 	opts := options.Find().SetSort(bson.M{"addedAt": -1}).SetLimit(20)
 	if cur, err := mongodb.DB.Collection("intel_items").Find(ctx, bson.M{}, opts); err == nil {
 		_ = cur.All(ctx, &items)
-		_ = cur.Close()
+		_ = cur.Close(ctx)
 	}
 	total, _ := mongodb.DB.Collection("intel_items").CountDocuments(ctx, bson.M{})
 	response.Success(c, gin.H{"feeds": feeds, "items": items, "total": total}, "api.success")
