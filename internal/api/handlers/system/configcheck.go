@@ -130,8 +130,14 @@ func ConfigCheck(c *gin.Context) {
 
 	// 5) LLM
 	// 判定后端：agent/harness 优先，其次是 LLM。两者都配了才算完整。
-	items = append(items, checkItem{"llm", jev.Enabled() || jev.AgentConfigured(),
-		"agent=" + boolStr(jev.AgentConfigured()) + " provider=" + jev.ProviderName() + " enabled=" + boolStr(jev.Enabled())})
+	// agentMode: external（配了 AGENT_VERIFIER_CMD）/ builtin（JEV_AGENT=builtin）/ ""（纯模型）。
+	// 三者的能力差别很大：external/builtin 会真的重打一遍请求，纯模型只能读旧证据。
+	agentMode := jev.AgentMode()
+	if agentMode == "" {
+		agentMode = "none"
+	}
+	items = append(items, checkItem{"llm", jev.Enabled() || agentMode != "none",
+		"agent=" + agentMode + " provider=" + jev.ProviderName() + " enabled=" + boolStr(jev.Enabled())})
 
 	ok := true
 	for _, it := range items {

@@ -102,7 +102,20 @@ func Ask(ctx context.Context, state string, questions map[string]Question) (*Res
 			// agent 失败不静默：记录后回落到 LLM，避免整条链路因为 agent 挂了而停摆。
 			logger.Warn("agent verifier failed, falling back to llm: " + aerr.Error())
 		}
+	} else if AgentMode() == "builtin" {
+		// 内置复核：先自己重打一次请求（含 catch-all 对照），再问模型。
+		if resp, aerr := askBuiltinActive(ctx, state, questions); aerr == nil {
+			return resp, nil
+		} else {
+			logger.Warn("builtin agent failed, falling back to llm: " + aerr.Error())
+		}
 	}
+	return askModel(ctx, state, questions)
+}
+
+// askModel 纯模型判定（JEV 或任意 OpenAI 兼容端点），不带任何主动复核。
+// 单独拆出来是为了让内置 agent 能复用「问模型」这一步而不触发递归。
+func askModel(ctx context.Context, state string, questions map[string]Question) (*Response, error) {
 	if ProviderName() == "openai" {
 		return askOpenAI(ctx, state, questions)
 	}
