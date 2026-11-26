@@ -1,0 +1,291 @@
+package intelfeed
+
+// 多源情报订阅：把「安全公告 / 研究文章 / 在野利用清单」统一收进 ScopeSentry。
+//
+// 设计取舍：
+//   · 只做两类解析：通用 RSS/Atom（覆盖绝大多数博客与公告）和 CISA KEV 的 JSON。
+//     不追求万能：每加一个特殊格式就多一处会坏的地方。
+//   · 每条源自己带 intervalHours，跑完写 lastRunAt/lastError，出问题在列表里能看见。
+//   · 去重键 = sha1(source + link|title)，同一篇文章永远只入库一次。
+//   · 每次最多取 maxItemsPerFetch 条（MSRC 的 feed 有 5776 条，不限流会一次灌爆）。
+
+import (
+	"context"
+	"crypto/sha1"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const (
+	collFeeds = "intel_feeds"
+	collItems = "intel_items"
+	maxItems  = 120
+)
+
+// Feed 一条订阅源
+type Feed struct {
+	ID            string     `bson:"_id" json:"id"`
+	Name          string     `bson:"name" json:"name"`
+	URL           string     `bson:"url" json:"url"`
+	Kind          string     `bson:"kind" json:"kind"` // rss | kev
+	Enabled       bool       `bson:"enabled" json:"enabled"`
+	IntervalHours int        `bson:"intervalHours" json:"intervalHours"`
+	LastRunAt     *time.Time `bson:"lastRunAt,omitempty" json:"lastRunAt,omitempty"`
+	LastError     string     `bson:"lastError,omitempty" json:"lastError,omitempty"`
+	ItemCount     int        `bson:"itemCount" json:"itemCount"`
+}
+
+// Item 一条情报
+type Item struct {
+	Source    string `bson:"source" json:"source"`
+	Title     string `bson:"title" json:"title"`
+	URL       string `bson:"url" json:"url"`
+	Summary   string `bson:"summary,omitempty" json:"summary,omitempty"`
+	Published string `bson:"published,omitempty" json:"published,omitempty"`
+	Hash      string `bson:"hash" json:"hash"`
+	AddedAt   string `bson:"addedAt" json:"addedAt"`
+}
+
+// defaultFeeds 首次启动时种入；都是 2026-11-26 实测可达的源。
+var defaultFeeds = []Feed{
+	{ID: "cisa-kev", Name: "CISA KEV（在野利用）", URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", Kind: "kev", Enabled: true, IntervalHours: 12},
+	{ID: "wiz", Name: "Wiz Research", URL: "https://www.wiz.io/feed/rss.xml", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "portswigger", Name: "PortSwigger Research", URL: "https://portswigger.net/research/rss", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "xz-aliyun", Name: "先知社区", URL: "https://xz.aliyun.com/feed", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "msrc", Name: "Microsoft MSRC", URL: "https://api.msrc.microsoft.com/update-guide/rss", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "p0", Name: "Google Project Zero", URL: "https://googleprojectzero.blogspot.com/feeds/posts/default", Kind: "rss", Enabled: true, IntervalHours: 12},
+}
+
+var httpClient = &http.Client{Timeout: 40 * time.Second}
+
+// Start 每 30 分钟扫描一次到期的源。INTELFEED=off 关闭。
+func Start(ctx context.Context) {
+	go func() {
+		seed(ctx)
+		t := time.NewTicker(30 * time.Minute)
+		defer t.Stop()
+		for {
+			runDue(ctx)
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+			}
+		}
+	}()
+}
+
+func seed(ctx context.Context) {
+	if mongodb.DB == nil {
+		return
+	}
+	coll := mongodb.DB.Collection(collFeeds)
+	for _, f := range defaultFeeds {
+		_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{"$setOnInsert": f}, options.Update().SetUpsert(true))
+	}
+}
+
+func runDue(ctx context.Context) {
+	if mongodb.DB == nil || strings.EqualFold(strings.TrimSpace(os.Getenv("INTELFEED")), "off") {
+		return
+	}
+	coll := mongodb.DB.Collection(collFeeds)
+	cur, err := coll.Find(ctx, bson.M{"enabled": true})
+	if err != nil {
+		return
+	}
+	var feeds []Feed
+	_ = cur.All(ctx, &feeds)
+	_ = cur.Close(ctx)
+	for _, f := range feeds {
+		if f.LastRunAt != nil && time.Since(*f.LastRunAt) < time.Duration(f.IntervalHours)*time.Hour {
+			continue
+		}
+		items, ferr := fetch(ctx, f)
+		now := time.Now()
+		upd := bson.M{"lastRunAt": now}
+		if ferr != nil {
+			upd["lastError"] = ferr.Error()
+			logger.Warn("intelfeed: " + f.Name + " failed: " + ferr.Error())
+		} else {
+			upd["lastError"] = ""
+			n := ingest(ctx, f, items)
+			upd["itemCount"] = n
+			if n > 0 {
+				logger.Info(fmt.Sprintf("intelfeed: %s +%d items", f.Name, n))
+			}
+		}
+		_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{"$set": upd})
+	}
+}
+
+// ingest 写入并返回新增条数。
+func ingest(ctx context.Context, f Feed, items []Item) int {
+	if len(items) == 0 {
+		return 0
+	}
+	coll := mongodb.DB.Collection(collItems)
+	now := time.Now().Format("2006-01-02 15:04:05")
+	newCount := 0
+	for _, it := range items {
+		it.Source = f.ID
+		it.AddedAt = now
+		it.Hash = hashKey(f.ID, it.URL, it.Title)
+		res, err := coll.UpdateOne(ctx, bson.M{"hash": it.Hash}, bson.M{"$setOnInsert": it}, options.Update().SetUpsert(true))
+		if err == nil && res.UpsertedCount > 0 {
+			newCount++
+		}
+	}
+	return newCount
+}
+
+func hashKey(parts ...string) string {
+	h := sha1.Sum([]byte(strings.Join(parts, "|")))
+	return hex.EncodeToString(h[:])
+}
+
+// fetch 按 kind 抓取并归一成 Item 列表。
+func fetch(ctx context.Context, f Feed) ([]Item, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.URL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; ScopeSentry-intel/1.0)")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return nil, err
+	}
+	switch f.Kind {
+	case "kev":
+		return parseKEV(body)
+	default:
+		return parseRSS(body)
+	}
+}
+
+// ---------- RSS / Atom ----------
+
+type rssDoc struct {
+	Channel struct {
+		Items []struct {
+			Title       string `xml:"title"`
+			Link        string `xml:"link"`
+			Description string `xml:"description"`
+			PubDate     string `xml:"pubDate"`
+		} `xml:"item"`
+	} `xml:"channel"`
+	Entries []struct {
+		Title   string `xml:"title"`
+		Summary string `xml:"summary"`
+		Pub     string `xml:"published"`
+		Updated string `xml:"updated"`
+		Links   []struct {
+			Href string `xml:"href,attr"`
+			Rel  string `xml:"rel,attr"`
+		} `xml:"link"`
+	} `xml:"entry"`
+}
+
+func parseRSS(body []byte) ([]Item, error) {
+	var d rssDoc
+	if err := xml.Unmarshal(body, &d); err != nil {
+		return nil, err
+	}
+	out := make([]Item, 0, maxItems)
+	for _, it := range d.Channel.Items {
+		if len(out) >= maxItems {
+			break
+		}
+		out = append(out, Item{Title: clean(it.Title), URL: clean(it.Link), Summary: clean(it.Description), Published: clean(it.PubDate)})
+	}
+	for _, e := range d.Entries {
+		if len(out) >= maxItems {
+			break
+		}
+		link := ""
+		for _, l := range e.Links {
+			if l.Rel == "" || l.Rel == "alternate" {
+				link = l.Href
+				break
+			}
+		}
+		pub := e.Pub
+		if pub == "" {
+			pub = e.Updated
+		}
+		out = append(out, Item{Title: clean(e.Title), URL: clean(link), Summary: clean(e.Summary), Published: clean(pub)})
+	}
+	return out, nil
+}
+
+// ---------- CISA KEV ----------
+
+type kevDoc struct {
+	Vulnerabilities []struct {
+		CVE         string `json:"cveID"`
+		Vendor      string `json:"vendorProject"`
+		Product     string `json:"product"`
+		Name        string `json:"vulnerabilityName"`
+		DateAdded   string `json:"dateAdded"`
+		Description string `json:"shortDescription"`
+	} `json:"vulnerabilities"`
+}
+
+func parseKEV(body []byte) ([]Item, error) {
+	var d kevDoc
+	if err := json.Unmarshal(body, &d); err != nil {
+		return nil, err
+	}
+	// KEV 是「全量清单」，按 dateAdded 倒序取新增的；不排序的话早期 CVE 会占满配额
+	vs := d.Vulnerabilities
+	for i := 0; i < len(vs); i++ {
+		for j := i + 1; j < len(vs); j++ {
+			if vs[j].DateAdded > vs[i].DateAdded {
+				vs[i], vs[j] = vs[j], vs[i]
+			}
+		}
+	}
+	out := make([]Item, 0, maxItems)
+	for _, v := range vs {
+		if len(out) >= maxItems {
+			break
+		}
+		out = append(out, Item{
+			Title:     fmt.Sprintf("%s %s %s（%s）", v.Vendor, v.Product, v.Name, v.CVE),
+			URL:       "https://nvd.nist.gov/vuln/detail/" + v.CVE,
+			Summary:   clean(v.Description),
+			Published: v.DateAdded,
+		})
+	}
+	return out, nil
+}
+
+func clean(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "<![CDATA[", "")
+	s = strings.ReplaceAll(s, "]]>", "")
+	if len(s) > 500 {
+		s = s[:500]
+	}
+	return s
+}

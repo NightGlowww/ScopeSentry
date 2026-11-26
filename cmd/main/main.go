@@ -32,6 +32,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
 	"github.com/Autumn-27/ScopeSentry/internal/services/intel/versionprobe"
+	"github.com/Autumn-27/ScopeSentry/internal/services/intelfeed"
 	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
 	taskreconcile "github.com/Autumn-27/ScopeSentry/internal/services/task/reconcile"
 	"github.com/Autumn-27/ScopeSentry/internal/services/vulnverify"
@@ -315,6 +316,9 @@ func main() {
 	// 流水线断流告警：任务在跑却没产出时，30 分钟内就能在 quality-report 里看到。
 	// 2026-11-26 的教训——两天没产出，靠人问才发现。
 	watchdog.Start(context.Background())
+	// 多源情报订阅：CISA KEV / Wiz / PortSwigger / 先知社区 / MSRC / Project Zero。
+	// 每 30 分钟检查一次，各源按自己的 intervalHours 到期才抓。
+	intelfeed.Start(context.Background())
 	// 任务状态对账：把「排队中 / 孤儿」从「运行中」里摘出来。
 	taskreconcile.Start(context.Background())
 	// 版本补全：intel_for_assets 的价值全在 with_version 上，而存量响应头大多没有版本号。

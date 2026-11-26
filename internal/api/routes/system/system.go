@@ -26,6 +26,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 多源情报订阅状态（CISA KEV / Wiz / PortSwigger / 先知 / MSRC / P0）。
+				Method:      "GET",
+				Path:        "intel-feeds",
+				Handler:     system.IntelFeeds,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 产出质量看板：24h 任务/漏洞、LLM 判定分布、隔离区按模板聚合。
 				Method:      "GET",
 				Path:        "quality-report",
