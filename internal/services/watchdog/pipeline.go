@@ -374,6 +374,15 @@ func reconcileZombieNodes(ctx context.Context, task *mongo.Collection, queued in
 		if queued == 0 {
 			continue
 		}
+		// 双重条件：节点心跳停更 + 这个任务本身也没有新的进度写入。
+		//
+		// 只按节点 updateTime 判断会误杀：updateTime 是服务端在节点来取配置时写的，
+		// 节点埋头跑一个长目标（DirScan + nuclei 常常 20~40 分钟）时这个值会滞后，
+		// 但任务其实一直在推进（模块开始/结束都会写 TaskInfo:progress）。
+		// 所以只要进度还在动，就不算僵尸。
+		if lp := lastProgressWrite(ctx, cur); !lp.IsZero() && now.Sub(lp) < StaleAfter {
+			continue
+		}
 		_ = redis.Client.Del(ctx, taskKey)
 		reason := fmt.Sprintf("节点 %s 心跳停在 %s（超过 %s 未更新，远大于正常重启所需的 ~7 分钟），已自动释放队列；该任务判定为失败，可 retest 重跑",
 			name, upd, StaleAfter)
