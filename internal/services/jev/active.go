@@ -25,21 +25,64 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // AgentMode 当前生效的复核形态：external | builtin | （空）。
+//
+// 优先级：AGENT_VERIFIER_CMD（外部 agent）> 环境变量 JEV_AGENT > Mongo 配置 jev.agent。
+// 多一条 Mongo 通道是因为容器的环境变量只能在重建容器时改 —— 而实测重建这个容器
+// 很容易把网络/依赖搞挂（2026-11-26 一次 force-recreate 让面板断了 6 分钟）。
+// 有了它，开关复核就只是一次数据库写入。
 func AgentMode() string {
 	if AgentConfigured() {
 		return "external"
 	}
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("JEV_AGENT"))) {
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("JEV_AGENT")))
+	if mode == "" {
+		mode = cachedAgentConfig()
+	}
+	switch mode {
 	case "builtin", "on", "1", "true":
 		return "builtin"
+	case "off", "0", "false":
+		return ""
 	}
 	return ""
+}
+
+// agentCfg 缓存 Mongo 里读到的开关，避免每条漏洞都查一次库。
+var agentCfg struct {
+	sync.Mutex
+	value   string
+	loadedAt time.Time
+}
+
+func cachedAgentConfig() string {
+	agentCfg.Lock()
+	defer agentCfg.Unlock()
+	if time.Since(agentCfg.loadedAt) < 60*time.Second {
+		return agentCfg.value
+	}
+	agentCfg.loadedAt = time.Now()
+	agentCfg.value = ""
+	if mongodb.DB == nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	var doc struct {
+		Value string `bson:"value"`
+	}
+	if err := mongodb.DB.Collection("config").FindOne(ctx, bson.M{"name": "jev.agent"}).Decode(&doc); err == nil {
+		agentCfg.value = strings.ToLower(strings.TrimSpace(doc.Value))
+	}
+	return agentCfg.value
 }
 
 // activeClient 复核专用：直连、短超时、不跟随跳转、不复用 JEV 的出口代理。
