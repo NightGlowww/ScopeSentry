@@ -2280,7 +2280,10 @@ func createAssetScope(ctx context.Context, _ *mcp.CallToolRequest, input createA
 type createICPTaskInput struct {
 	Name     string   `json:"name,omitempty" jsonschema:"任务名，可选，≤128 字符；留空用第一个查询目标作为任务名"`
 	Type     string   `json:"type,omitempty" jsonschema:"任务类型：company（企业名查备案域名）/ domain（域名反查备案主体，默认）"`
-	Queries  []string `json:"queries,omitempty" jsonschema:"查询目标数组：type=company 填企业名，type=domain 填域名；会去空去重，domain 类型自动小写去尾点"`
+	// 注意：jsonschema tag 里不能出现 "word=" 这种片段——schema 生成器会把逗号后的
+	// "type=company" 当成 key=value 选项，整个 tag 报错，工具直接注册失败。
+	// 2026-11-27 实测：create_icp_task 因此从未出现在工具列表里。
+	Queries  []string `json:"queries,omitempty" jsonschema:"查询目标数组。type 为 company 时填企业名，为 domain 时填域名；会去空去重，domain 类型自动小写去尾点"`
 	Target   string   `json:"target,omitempty" jsonschema:"单值便捷字段，仅当 queries 为空时生效"`
 	Provider string   `json:"provider,omitempty" jsonschema:"数据来源：manual（本地回读）/ none（显式关闭）/ http（外部 ICP 服务）；留空按当前配置解析"`
 }
