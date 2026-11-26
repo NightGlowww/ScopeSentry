@@ -70,7 +70,9 @@ var defaultFeeds = []Feed{
 	// P0 走 Google 域名，境内服务器不可达（2026-11-26 实测 i/o timeout）。
 	// 保留条目但默认关闭：换个出口（比如东京节点）再打开即可。
 	{ID: "p0", Name: "Google Project Zero（境内不可达）", URL: "https://projectzero.google/feed.xml", Kind: "rss", Enabled: false, IntervalHours: 12},
-	{ID: "thn", Name: "The Hacker News", URL: "https://thehackernews.com/feeds/posts/default", Kind: "rss", Enabled: true, IntervalHours: 6},
+	// 直接用 feedburner 最终地址：thehackernews.com 会 302 过去，多一跳更容易超时。
+	{ID: "thn", Name: "The Hacker News", URL: "https://feeds.feedburner.com/TheHackersNews", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "helpnet", Name: "Help Net Security", URL: "https://www.helpnetsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "krebs", Name: "Krebs on Security", URL: "https://krebsonsecurity.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 }
 
