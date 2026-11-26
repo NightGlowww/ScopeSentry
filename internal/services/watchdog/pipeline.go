@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -112,7 +114,17 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 	setAlert(ctx, alerts, "node_zombie", len(zombies) > 0,
 		"有 "+itoa(len(zombies))+" 个节点心跳停更却还占着任务，已释放："+strings.Join(zombies, "；"))
 
-	// 4) 幽灵运行中：任务是 status=1，但没有任何节点在跑它、也不在任何队列里。
+	// 4) 排队过久的任务：等着的任务里有一半是几天前的，新任务永远轮不上。
+	//
+	// 2026-11-26 实测：队列 33 个任务，最老的是 11-19（等了 7 天），按单个任务
+	// 20~40 分钟算，光这批就要 11~22 小时；再叠上持续新建的任务，队列只进不出。
+	// 处理办法是把「超过窗口还没开始」的排队意图过期掉（任务记录保留，可 retest），
+	// 并把它的队列项一起摘掉——只改 status 不动 Redis，节点照样会把它捞起来跑。
+	expired := expireStaleQueued(ctx, task)
+	setAlert(ctx, alerts, "stale_queue", len(expired) > 0,
+		"有 "+itoa(len(expired))+" 个任务排队超过 "+queueMaxAge().String()+" 仍未开始，已过期并移出队列")
+
+	// 5) 幽灵运行中：任务是 status=1，但没有任何节点在跑它、也不在任何队列里。
 	//
 	// 2026-11-26 实测：扫描器跑完一个目标后没能把「任务结束」发出去，进程被配置更新
 	// 重启；重启后节点从队列取下一个，那个任务就永远挂在 status=1 —— 既没人跑，
@@ -128,7 +140,65 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 		"busy":     busy,
 		"zombies":  zombies,
 		"phantoms": phantoms,
+		"expired":  expired,
 	}, nil
+}
+
+// queueMaxAge 排队多久算过期。默认 72h，可用 TASK_QUEUE_MAX_AGE_H 覆盖。
+func queueMaxAge() time.Duration {
+	if v := strings.TrimSpace(os.Getenv("TASK_QUEUE_MAX_AGE_H")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Hour
+		}
+	}
+	return 72 * time.Hour
+}
+
+// expireStaleQueued 把排队超窗口的任务过期掉，并从节点队列里摘掉对应条目。
+func expireStaleQueued(ctx context.Context, task *mongo.Collection) []string {
+	out := []string{}
+	cutoff := ts(time.Now().Add(-queueMaxAge()))
+	cur, err := task.Find(ctx, bson.M{
+		"status":    0,
+		"creatTime": bson.M{"$lt": cutoff},
+	})
+	if err != nil {
+		return out
+	}
+	var rows []bson.M
+	_ = cur.All(ctx, &rows)
+	_ = cur.Close(ctx)
+	if len(rows) == 0 {
+		return out
+	}
+	// 队列里每个节点一张 list，把命中的项摘掉（LREM 需要完整元素值）
+	queueKeys, _ := redis.Client.Keys(ctx, "NodeTask:*").Result()
+	for _, r := range rows {
+		oid, ok := r["_id"].(primitive.ObjectID)
+		if !ok {
+			continue
+		}
+		id := oid.Hex()
+		for _, qk := range queueKeys {
+			items, err := redis.Client.LRange(ctx, qk, 0, -1).Result()
+			if err != nil {
+				continue
+			}
+			for _, it := range items {
+				if jsonTaskID(it) == id {
+					_ = redis.Client.LRem(ctx, qk, 0, it)
+				}
+			}
+		}
+		reason := fmt.Sprintf("排队超过 %s 仍未开始（创建于 %v），已过期并移出队列；需要的话 retest 即可重新排队",
+			queueMaxAge(), r["creatTime"])
+		_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 0}, bson.M{
+			"$set": bson.M{"status": 4, "failReason": reason, "endTime": ts(time.Now())},
+		})
+		logger.Warn("watchdog: 过期排队任务 " + id + " — " + reason)
+		out = append(out, id)
+	}
+	return out
 }
 
 // phantomAfter 判定幽灵任务所需的静默时长。

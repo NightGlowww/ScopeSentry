@@ -20,6 +20,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/watchdog"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var coreModules = []string{"SubdomainScan", "PortScan", "PortFingerprint", "AssetMapping",
@@ -142,7 +143,21 @@ func ConfigCheck(c *gin.Context) {
 			}
 		}
 	}
-	detail := "nodes=" + itoa(nodes) + " fresh=" + itoa(fresh) + " queued_tasks=" + itoa(queue)
+	// 队列里最老的任务等了多久：只看数量看不出「33 个里有 23 个是 5 天前的」，
+	// 而后者才是队列永远不流动的真正原因。
+	oldest := ""
+	if mongodb.DB != nil {
+		var t struct {
+			CreatTime string `bson:"creatTime"`
+		}
+		opts := options.FindOne().SetSort(bson.M{"creatTime": 1}).SetProjection(bson.M{"creatTime": 1})
+		if err := mongodb.DB.Collection("task").FindOne(ctx, bson.M{"status": 0}, opts).Decode(&t); err == nil && t.CreatTime != "" {
+			if created, perr := time.ParseInLocation("2006-01-02 15:04:05", t.CreatTime, time.Local); perr == nil {
+				oldest = " oldest=" + time.Since(created).Round(time.Hour).String()
+			}
+		}
+	}
+	detail := "nodes=" + itoa(nodes) + " fresh=" + itoa(fresh) + " queued_tasks=" + itoa(queue) + oldest
 	if len(staleNames) > 0 {
 		detail += " stale=" + strings.Join(staleNames, ",")
 	}
