@@ -34,10 +34,14 @@ import (
 
 func ts(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
 
-// zombieAfter 心跳停更多久算僵尸。
-// 扫描器每 30s 左右更新一次 updateTime；给到 6 分钟是为了容忍一次长模块切换
-// （实测单模块可能跑 18 分钟，但心跳是独立协程写的，不该断）。
-const zombieAfter = 6 * time.Minute
+// StaleAfter 心跳停更多久算「节点不新鲜」。
+//
+// 别把阈值调小：扫描器收到配置更新时是 os.Exit(0) 让容器重启来生效的
+// （internal/configupdater），而重启后要重新加载 14438 个 POC、字典、WebFinger 等，
+// 2026-11-26 实测从进程退出到心跳恢复用了约 7 分钟。阈值小于这个数，
+// 每次「服务端一部署 → 节点重启」都会被误判成僵尸，把正在跑的任务标成失败。
+// 15 分钟留了一倍余量，同时又比「等到人发现」快得多。
+const StaleAfter = 15 * time.Minute
 
 // Start 每 30 分钟检查一次；用 PIPELINE_WATCHDOG=off 关闭。
 func Start(ctx context.Context) {
@@ -140,7 +144,7 @@ func reconcileZombieNodes(ctx context.Context, task *mongo.Collection, queued in
 			continue
 		}
 		last, perr := time.ParseInLocation("2006-01-02 15:04:05", upd, time.Local)
-		if perr != nil || now.Sub(last) < zombieAfter {
+		if perr != nil || now.Sub(last) < StaleAfter {
 			continue
 		}
 		// 心跳停了这么久，还挂着任务就是僵尸。队列空的时候不必动它：
@@ -154,8 +158,8 @@ func reconcileZombieNodes(ctx context.Context, task *mongo.Collection, queued in
 			continue
 		}
 		_ = redis.Client.Del(ctx, taskKey)
-		reason := fmt.Sprintf("节点 %s 心跳停在 %s（超过 %s 未更新），已自动释放队列；该任务判定为失败，可 retest 重跑",
-			name, upd, zombieAfter)
+		reason := fmt.Sprintf("节点 %s 心跳停在 %s（超过 %s 未更新，远大于正常重启所需的 ~7 分钟），已自动释放队列；该任务判定为失败，可 retest 重跑",
+			name, upd, StaleAfter)
 		if oid, e := primitive.ObjectIDFromHex(cur); e == nil {
 			_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{
 				"$set": bson.M{"status": 4, "failReason": reason, "endTime": ts(now)},

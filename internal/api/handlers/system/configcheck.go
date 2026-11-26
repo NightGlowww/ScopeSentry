@@ -17,6 +17,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	dbredis "github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
+	"github.com/Autumn-27/ScopeSentry/internal/services/watchdog"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -126,7 +127,7 @@ func ConfigCheck(c *gin.Context) {
 				// 所以按 updateTime 判新鲜度，僵尸节点单独列出来。
 				upd, herr := dbredis.Client.HGet(ctx, k, "updateTime").Result()
 				last, perr := time.ParseInLocation("2006-01-02 15:04:05", upd, time.Local)
-				if herr == nil && perr == nil && time.Since(last) < 6*time.Minute {
+				if herr == nil && perr == nil && time.Since(last) < watchdog.StaleAfter {
 					fresh++
 				} else {
 					staleNames = append(staleNames, strings.TrimPrefix(k, "node:"))
