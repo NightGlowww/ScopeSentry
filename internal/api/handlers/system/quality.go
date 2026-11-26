@@ -122,6 +122,21 @@ func QualityReport(c *gin.Context) {
 	}
 	out["quarantine"] = gin.H{"total": mustCount(ctx, quar, bson.M{}), "byReason": qReasons, "topTemplates": topTpl}
 
+	// 4.5) 证据完整度：漏洞详情里到底有没有原始请求/响应。
+	//
+	// 为什么单独统计：nuclei 的 ResponseSaveSize 一旦为 0，ResultEvent.Response 会被截成
+	// 空串，详情表全是 0 字节——而漏洞列表看起来一切正常（2026-11-26 就是这么埋了几天）。
+	// 把这个比例摆到看板上，退化了当场能看见，不用等人工翻详情才发现。
+	det := mongodb.DB.Collection("vulnerabilityDetail")
+	detTotal := mustCount(ctx, det, bson.M{})
+	withResp := mustCount(ctx, det, bson.M{"response": bson.M{"$nin": []interface{}{"", nil}}})
+	withReq := mustCount(ctx, det, bson.M{"request": bson.M{"$nin": []interface{}{"", nil}}})
+	out["evidence"] = gin.H{
+		"details":      detTotal,
+		"withResponse": withResp,
+		"withRequest":  withReq,
+	}
+
 	// 5) 断流告警（watchdog 写入 system_alerts）
 	alertRows := []bson.M{}
 	if cur, err := mongodb.DB.Collection("system_alerts").Find(ctx, bson.M{"active": true}); err == nil {
