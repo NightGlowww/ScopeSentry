@@ -147,6 +147,9 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 		"zombies":  zombies,
 		"phantoms": phantoms,
 		"expired":  expired,
+		// 当前生效的排队过期窗口：Mongo 配置改了以后，这里能立刻看到实际生效值，
+		// 不必等到有任务过期才反推。
+		"queueMaxAgeH": int(queueMaxAge().Hours()),
 	}, nil
 }
 
