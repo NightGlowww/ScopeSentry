@@ -60,7 +60,9 @@ type Item struct {
 
 // defaultFeeds 首次启动时种入；都是 2026-11-26 实测可达的源。
 var defaultFeeds = []Feed{
-	{ID: "cisa-kev", Name: "CISA KEV（在野利用）", URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", Kind: "kev", Enabled: true, IntervalHours: 12},
+	// 用 CISA 官方仓库的镜像：www.cisa.gov 由 Akamai 前置，对云主机 IP 间歇性 403
+	// （2026-11-26 实测：同一台机器 curl 有时 200 有时 403），GitHub raw 稳定且内容一致（同 1,898,186 字节）。
+	{ID: "cisa-kev", Name: "CISA KEV（在野利用）", URL: "https://raw.githubusercontent.com/cisagov/kev-data/main/known_exploited_vulnerabilities.json", Kind: "kev", Enabled: true, IntervalHours: 12},
 	{ID: "wiz", Name: "Wiz Research", URL: "https://www.wiz.io/feed/rss.xml", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "portswigger", Name: "PortSwigger Research", URL: "https://portswigger.net/research/rss", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "xz-aliyun", Name: "先知社区", URL: "https://xz.aliyun.com/feed", Kind: "rss", Enabled: true, IntervalHours: 6},
@@ -94,7 +96,12 @@ func seed(ctx context.Context) {
 	}
 	coll := mongodb.DB.Collection(collFeeds)
 	for _, f := range defaultFeeds {
-		_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{"$setOnInsert": f}, options.Update().SetUpsert(true))
+		// url/name/kind 用 $set：源地址换了（比如 CISA 被 Akamai 挡、P0 换域名）要能自动纠正，
+		// 而 enabled/intervalHours 交给用户，不能被种子覆盖。
+		_, _ = coll.UpdateOne(ctx, bson.M{"_id": f.ID}, bson.M{
+			"$setOnInsert": f,
+			"$set":         bson.M{"url": f.URL, "name": f.Name, "kind": f.Kind},
+		}, options.Update().SetUpsert(true))
 	}
 }
 
