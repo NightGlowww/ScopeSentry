@@ -73,9 +73,8 @@ var defaultFeeds = []Feed{
 	{ID: "portswigger", Name: "PortSwigger Research", URL: "https://portswigger.net/research/rss", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "xz-aliyun", Name: "先知社区", URL: "https://xz.aliyun.com/feed", Kind: "rss", Enabled: true, IntervalHours: 6},
 	{ID: "msrc", Name: "Microsoft MSRC", URL: "https://api.msrc.microsoft.com/update-guide/rss", Kind: "rss", Enabled: true, IntervalHours: 12},
-	// P0 走 Google 域名，境内服务器不可达（2026-11-26 实测 i/o timeout）。
-	// 保留条目但默认关闭：换个出口（比如东京节点）再打开即可。
-	{ID: "p0", Name: "Google Project Zero（境内不可达）", URL: "https://projectzero.google/feed.xml", Kind: "rss", Enabled: false, IntervalHours: 12},
+	// P0 走 Google 域名，容器直连 i/o timeout；走 rss2json 代抓实测 200（957 KB，内容完整）。
+	{ID: "p0", Name: "Google Project Zero", URL: rss2json("https://projectzero.google/feed.xml"), Kind: "rssjson", Enabled: true, IntervalHours: 24},
 	// 直接用 feedburner 最终地址：thehackernews.com 会 302 过去，多一跳更容易超时。
 	// 下面 4 个源直连会被 Cloudflare/CloudFront 按 TLS 指纹拒（容器内 curl 7.88 恒定 403，
 	// Go 恒定 403，helpnet 恒定 202 挑战页；host 上的 curl 8.x 才放行）。
@@ -93,6 +92,15 @@ var defaultFeeds = []Feed{
 	{ID: "checkpoint", Name: "Check Point Research", URL: "https://research.checkpoint.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "securelist", Name: "Kaspersky Securelist", URL: "https://securelist.com/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
 	{ID: "darkreading", Name: "Dark Reading", URL: "https://www.darkreading.com/rss.xml", Kind: "rss", Enabled: true, IntervalHours: 12},
+	// 第二批（2026-11-26 从容器内直连实测 200 且 content-type 是 RSS/XML 才收）。
+	// 偏向「有具体利用细节 / 有编号 / 能直接变成扫描输入」的源，纯厂商软文站不收。
+	{ID: "zdi", Name: "Zero Day Initiative", URL: "https://www.zerodayinitiative.com/rss/published/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "githubsec", Name: "GitHub Security Blog", URL: "https://github.blog/security/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "snyk", Name: "Snyk Blog", URL: "https://snyk.io/blog/feed/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "rapid7", Name: "Rapid7 Blog", URL: "https://www.rapid7.com/blog/rss/", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "exploitdb", Name: "Exploit-DB", URL: "https://www.exploit-db.com/rss.xml", Kind: "rss", Enabled: true, IntervalHours: 6},
+	{ID: "qualys", Name: "Qualys Blog", URL: "https://blog.qualys.com/feed", Kind: "rss", Enabled: true, IntervalHours: 12},
+	{ID: "elastic", Name: "Elastic Security Labs", URL: "https://www.elastic.co/security-labs/rss/feed.xml", Kind: "rss", Enabled: true, IntervalHours: 12},
 }
 
 // rss2json 把一个 feed 地址包成 api.rss2json.com 的代抓地址。

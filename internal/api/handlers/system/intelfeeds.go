@@ -36,6 +36,47 @@ func IntelFeeds(c *gin.Context) {
 	response.Success(c, gin.H{"feeds": feeds, "items": items, "total": total}, "api.success")
 }
 
+// IntelFeedsUpdate 开关某个源或改抓取间隔。
+// body: {"id":"p0","enabled":true,"intervalHours":24}，字段都可选。
+func IntelFeedsUpdate(c *gin.Context) {
+	var body struct {
+		ID            string `json:"id"`
+		Enabled       *bool  `json:"enabled"`
+		IntervalHours *int   `json:"intervalHours"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID == "" {
+		response.BadRequest(c, "api.error", err)
+		return
+	}
+	if mongodb.DB == nil {
+		response.InternalServerError(c, "api.error", nil)
+		return
+	}
+	upd := bson.M{}
+	if body.Enabled != nil {
+		upd["enabled"] = *body.Enabled
+	}
+	if body.IntervalHours != nil {
+		if *body.IntervalHours < 1 || *body.IntervalHours > 24*30 {
+			response.BadRequest(c, "api.error", nil)
+			return
+		}
+		upd["intervalHours"] = *body.IntervalHours
+	}
+	if len(upd) == 0 {
+		response.BadRequest(c, "api.error", nil)
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+	r, err := mongodb.DB.Collection("intel_feeds").UpdateOne(ctx, bson.M{"_id": body.ID}, bson.M{"$set": upd})
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, gin.H{"matched": r.MatchedCount, "modified": r.ModifiedCount}, "api.success")
+}
+
 // IntelFeedsRun 立即跑一轮抓取，无视 intervalHours。
 // body: {"id": "helpnet"}，id 省略 = 跑全部启用的源。
 // 单个源最坏 3 次重试 + 40s 超时，全量跑一轮上限给 5 分钟。

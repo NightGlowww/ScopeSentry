@@ -33,6 +33,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 开关情报源 / 改抓取间隔。
+				Method:      "POST",
+				Path:        "intel-feeds/update",
+				Handler:     system.IntelFeedsUpdate,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 立即刷新情报源（body.id 省略 = 全部启用源）。
 				Method:      "POST",
 				Path:        "intel-feeds/run",
