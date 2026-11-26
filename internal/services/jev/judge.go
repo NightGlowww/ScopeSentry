@@ -196,9 +196,14 @@ func buildState(ctx context.Context, d bson.M) string {
 	}
 	hash := get("hash")
 	if hash != "" {
+		// 字段名是 req / res —— 写库侧（扫描器 types.VulnerabilityDetail）和
+		// 详情接口（internal/models.VulnerabilityDetail）都用这两个短名。
+		// 这里原来写的是 request / response，于是永远解码出空串：
+		// 详情表里明明躺着 8KB、17KB 的真实响应，模型却只能看到模板名和 URL。
+		// （2026-11-26 定位：db.vulnerabilityDetail 的 keys = [_id, hash, req, res]）
 		var det struct {
-			Request  string `bson:"request"`
-			Response string `bson:"response"`
+			Request  string `bson:"req"`
+			Response string `bson:"res"`
 		}
 		if mongodb.DB.Collection("vulnerabilityDetail").FindOne(ctx, bson.M{"hash": hash}).Decode(&det) == nil {
 			if det.Request != "" {

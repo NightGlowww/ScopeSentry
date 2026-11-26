@@ -134,8 +134,10 @@ func QualityReport(c *gin.Context) {
 	// 把这个比例摆到看板上，退化了当场能看见，不用等人工翻详情才发现。
 	det := mongodb.DB.Collection("vulnerabilityDetail")
 	detTotal := mustCount(ctx, det, bson.M{})
-	withResp := mustCount(ctx, det, bson.M{"response": bson.M{"$nin": []interface{}{"", nil}}})
-	withReq := mustCount(ctx, det, bson.M{"request": bson.M{"$nin": []interface{}{"", nil}}})
+	// 字段名是 req/res（见扫描器 types.VulnerabilityDetail），不是 request/response。
+	// 写成后者会永远数出 0，看起来像「nuclei 没存响应」，实际是查错了字段（2026-11-26）。
+	withResp := mustCount(ctx, det, bson.M{"res": bson.M{"$nin": []interface{}{"", nil}}})
+	withReq := mustCount(ctx, det, bson.M{"req": bson.M{"$nin": []interface{}{"", nil}}})
 	out["evidence"] = gin.H{
 		"details":      detTotal,
 		"withResponse": withResp,
