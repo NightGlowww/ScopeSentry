@@ -83,9 +83,13 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 			}
 		}
 	}
+	// 「完成」不能把过期排队的任务算进去：它们不是跑完的，是被队列清理标记的。
+	// 否则 watchdow 自己的 no_findings 会被自己的清理动作触发（2026-11-26 实测 27 条）。
+	notExpired := bson.M{"$not": primitive.Regex{Pattern: "^排队超过"}}
 	finished2h, _ := task.CountDocuments(ctx, bson.M{
-		"endTime": bson.M{"$gte": ts(now.Add(-2 * time.Hour))},
-		"status":  bson.M{"$in": []int{3, 4}},
+		"endTime":    bson.M{"$gte": ts(now.Add(-2 * time.Hour))},
+		"status":     bson.M{"$in": []int{3, 4}},
+		"failReason": notExpired,
 	})
 	busy := false
 	if redis.Client != nil {
@@ -102,8 +106,9 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 
 	// 2) 无产出：6h 完成 >=3 个任务但 0 新漏洞
 	finished6h, _ := task.CountDocuments(ctx, bson.M{
-		"endTime": bson.M{"$gte": ts(now.Add(-6 * time.Hour))},
-		"status":  bson.M{"$in": []int{3, 4}},
+		"endTime":    bson.M{"$gte": ts(now.Add(-6 * time.Hour))},
+		"status":     bson.M{"$in": []int{3, 4}},
+		"failReason": notExpired,
 	})
 	new6h, _ := vuln.CountDocuments(ctx, bson.M{"time": bson.M{"$gte": ts(now.Add(-6 * time.Hour))}})
 	setAlert(ctx, alerts, "no_findings", finished6h >= 3 && new6h == 0,

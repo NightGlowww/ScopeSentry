@@ -37,7 +37,12 @@ func QualityReport(c *gin.Context) {
 
 	// 1) 24h 内任务：开始 / 完成
 	started, _ := task.CountDocuments(ctx, bson.M{"creatTime": bson.M{"$gte": cutoff}})
-	finished, _ := task.CountDocuments(ctx, bson.M{"endTime": bson.M{"$gte": cutoff}, "status": bson.M{"$in": []int{3, 4}}})
+	// 排除「排队过期」被标记失败的任务：它们没跑过，算进完成数会把 24h 产出看板带偏。
+	finished, _ := task.CountDocuments(ctx, bson.M{
+		"endTime":    bson.M{"$gte": cutoff},
+		"status":     bson.M{"$in": []int{3, 4}},
+		"failReason": bson.M{"$not": bson.M{"$regex": "^排队超过"}},
+	})
 	out["tasks"] = gin.H{"created24h": started, "finished24h": finished}
 
 	// 2) 漏洞：24h 新增 + 等级分布
