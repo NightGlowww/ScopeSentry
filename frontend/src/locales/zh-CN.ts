@@ -544,7 +544,8 @@ export default {
       '数据来自扫描端的文件泄露检测：节点跑完文件泄露模块后，命中结果才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
   },
   npocService: {
-    noSourceHint: "NPoC 服务结果依赖节点写入 asset_npoc_service 集合，该写入方尚未实现，页面会始终为空。",
+    noSourceHint:
+      '数据来自扫描节点的协议级确认：PortFingerprint 阶段由 fingerprintx 发出协议握手，收到正确响应才落一条记录（不按端口号猜服务）。列表为空时，确认对应节点已升级到含该写入方的镜像。',
     scheme: '协议',
     host: '主机',
     port: '端口',
@@ -555,8 +556,7 @@ export default {
     selectedCount: '已选 {count} 条',
     selectFirst: '请先勾选要删除的记录',
     deleteConfirm: '确认删除选中的 {count} 条 NPoC 服务记录？删除后不可恢复',
-    empty:
-      '数据来自扫描端的 NPoC 服务识别：节点跑完 NPoC 模块后，识别出的服务才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
+    empty: '暂无已确认的服务。跑过 PortFingerprint 的目标会陆续出现，协议通常为 http / https / smtp / ssh / redis 等。'
   },
   cip: {
     noSourceHint: "备案信息读模型依赖 RootDomain 的 icp/company 字段，当前没有写入方，页面会始终为空。",

@@ -556,7 +556,8 @@ export default {
       'Data comes from file leak detection on the scanner side: records appear only after a node has run the file leak module. If the list is empty, check that the node is upgraded and has run that module.'
   },
   npocService: {
-    noSourceHint: "NPoC service results require the node to write asset_npoc_service; that writer is not implemented, so this page stays empty.",
+    noSourceHint:
+      "Rows are protocol-confirmed by the scanner: during PortFingerprint, fingerprintx sends a protocol handshake and only records a row on a valid response (services are never guessed from port numbers). If the list is empty, check that the node runs an image that includes this writer.",
     scheme: 'Scheme',
     host: 'Host',
     port: 'Port',
