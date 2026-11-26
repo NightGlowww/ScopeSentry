@@ -24,6 +24,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
@@ -149,14 +150,43 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 	}, nil
 }
 
-// queueMaxAge 排队多久算过期。默认 72h，可用 TASK_QUEUE_MAX_AGE_H 覆盖。
+// queueMaxAge 排队多久算过期。
+//
+// 取值顺序：Mongo config{name:"task.queueMaxAgeH"} > 环境变量 TASK_QUEUE_MAX_AGE_H > 默认 72h。
+// 为什么要 Mongo 这一层：容器的环境变量只能在重建容器时改，而重建这个服务端会把
+// 面板和节点一起折腾一遍（2026-11-26 踩过）。放一条配置就能随时调窗口。
+var queueCfg struct {
+	sync.Mutex
+	value    time.Duration
+	loadedAt time.Time
+}
+
 func queueMaxAge() time.Duration {
 	if v := strings.TrimSpace(os.Getenv("TASK_QUEUE_MAX_AGE_H")); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return time.Duration(n) * time.Hour
 		}
 	}
-	return 72 * time.Hour
+	queueCfg.Lock()
+	defer queueCfg.Unlock()
+	if !queueCfg.loadedAt.IsZero() && time.Since(queueCfg.loadedAt) < time.Minute {
+		return queueCfg.value
+	}
+	queueCfg.loadedAt = time.Now()
+	queueCfg.value = 72 * time.Hour
+	if mongodb.DB != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		var doc struct {
+			Value string `bson:"value"`
+		}
+		if err := mongodb.DB.Collection("config").FindOne(ctx, bson.M{"name": "task.queueMaxAgeH"}).Decode(&doc); err == nil {
+			if n, cerr := strconv.Atoi(strings.TrimSpace(doc.Value)); cerr == nil && n > 0 {
+				queueCfg.value = time.Duration(n) * time.Hour
+			}
+		}
+	}
+	return queueCfg.value
 }
 
 // expireStaleQueued 把排队超窗口的任务过期掉，并从节点队列里摘掉对应条目。

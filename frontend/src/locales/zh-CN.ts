@@ -1139,6 +1139,7 @@ export default {
     autoNode: '自动加入',
     running: '运行中',
     waitStart: '待开始',
+    queueExpired: '排队过期',
     stop: '暂停',
     start: '开始',
     finish: '完成',

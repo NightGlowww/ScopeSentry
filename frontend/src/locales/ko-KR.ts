@@ -1163,6 +1163,7 @@ export default {
     autoNode: '노드 자동 참여',
     running: '실행 중',
     waitStart: '시작 대기',
+    queueExpired: '대기 만료',
     stop: '중지',
     start: '시작',
     finish: '완료',

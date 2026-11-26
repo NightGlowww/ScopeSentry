@@ -254,9 +254,19 @@ const taskColums = reactive<TableColumn[]>([
     field: 'status',
     label: t('common.state'),
     width: 110,
-    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
+    formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 0 待开始，1 运行中，2 暂停，3 运行完成，4 失败
       let tagType, tagText
+      // 「排队过期」是巡检把排队太久（默认 72h，可配 task.queueMaxAgeH）的任务移出队列时写的，
+      // 它和「跑挂了」是两回事：任务根本没开始过，retest 就能重新排队。
+      // 混在「失败」里会让人以为是扫描出错，所以单独给一个标签。
+      const fr = String((row && row.failReason) || '')
+      if (cellValue === 4 && fr.startsWith('排队超过')) {
+        // 悬停能看到完整原因（排队时长 + 建议 retest），不用点进详情
+        return h(ElTooltip, { content: fr, placement: 'top' }, () =>
+          h(ElTag, { type: 'warning', effect: 'plain' }, () => t('task.queueExpired'))
+        )
+      }
       switch (cellValue) {
         case 0:
           tagType = 'primary'

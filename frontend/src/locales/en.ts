@@ -1174,6 +1174,7 @@ export default {
     autoNode: 'Auto Join',
     running: 'Running',
     waitStart: 'Pending',
+    queueExpired: 'Queue expired',
     stop: 'Stop',
     start: 'Start',
     finish: 'Finish',
