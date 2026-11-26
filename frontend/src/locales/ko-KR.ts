@@ -916,6 +916,7 @@ export default {
     dictionaryManagement: '사전 관리',
     subdomainDictionary: '서브도메인',
     subfinder: 'Subfinder',
+    intelFeeds: '인텔 피드',
     rad: 'Rad',
     system: '시스템',
     dirDictionary: '디렉터리 스캔',

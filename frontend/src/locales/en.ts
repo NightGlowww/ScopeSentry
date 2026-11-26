@@ -924,6 +924,7 @@ export default {
     dictionaryManagement: 'Dictionary',
     subdomainDictionary: 'Subdomain',
     subfinder: 'Subfinder',
+    intelFeeds: 'Intel Feeds',
     rad: 'Rad',
     system: 'System',
     dirDictionary: 'Dir Scan',

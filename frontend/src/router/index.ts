@@ -493,6 +493,16 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         }
       },
       {
+        path: 'intel',
+        component: () => import('@/views/Configuration/IntelFeeds.vue'),
+        name: 'intel feeds',
+        meta: {
+          title: t('router.intelFeeds'),
+          icon: 'mdi:rss',
+          noCache: true
+        }
+      },
+      {
         path: 'rad',
         component: () => import('@/views/Configuration/rad.vue'),
         name: 'rad configuration',

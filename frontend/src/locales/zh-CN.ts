@@ -896,6 +896,7 @@ export default {
     portDictionary: '端口',
     configuration: '配置',
     subfinder: 'subfinder配置',
+    intelFeeds: '情报订阅',
     rad: 'rad配置',
     system: '系统配置',
     apiKeyManagement: 'API Key 管理',
