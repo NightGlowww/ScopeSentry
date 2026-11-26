@@ -40,6 +40,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 立即跑一轮流水线巡检（僵尸节点自愈 / 断流告警）。
+				Method:      "POST",
+				Path:        "watchdog-run",
+				Handler:     system.WatchdogRun,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 立即刷新情报源（body.id 省略 = 全部启用源）。
 				Method:      "POST",
 				Path:        "intel-feeds/run",
