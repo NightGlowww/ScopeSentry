@@ -68,9 +68,14 @@ func (s *service) GetStatisticsData(ctx *gin.Context) (*models.StatisticsData, e
 	}()
 
 	// 查询漏洞数量
+	//
+	// 这里必须用精确计数，不能用 EstimatedDocumentCount：后者读集合元数据，
+	// 删过文档后会滞后。2026-11-26 实测：集合实际 3 条，概览显示 2 条，
+	// 而漏洞列表（精确查询）返回 3 条——用户看到的就是「概览和列表对不上」。
+	// 漏洞集合规模很小（几十到几百），精确计数的成本可以忽略。
 	go func() {
 		defer wg.Done()
-		vulnerabilityCount, err = s.commonRepo.EstimatedDocumentCount(ctx, "vulnerability")
+		vulnerabilityCount, err = s.commonRepo.CountDocuments(ctx, "vulnerability", nil)
 	}()
 
 	// 等待所有 goroutine 完成

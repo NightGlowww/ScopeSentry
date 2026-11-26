@@ -557,6 +557,33 @@ const persistFilter = () => {
     // 忽略
   }
 }
+// 已应用的筛选（用于提示条）。
+// 起因：筛选条件存在 sessionStorage 里，切页返回后下拉框可能因为选项列表变化而显示为空，
+// 但 filter 对象里还留着值——用户看到的是「没有筛选、却是 0 条结果」。
+// 这里把实际生效的筛选显式列出来，并给一个清空入口。
+const activeFilterEntries = computed(() => {
+  const out: { key: string; value: string }[] = []
+  Object.keys(filter).forEach((k) => {
+    const v = (filter as any)[k]
+    if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) return
+    out.push({ key: k, value: Array.isArray(v) ? v.join(",") : String(v) })
+  })
+  return out
+})
+
+const clearFilters = () => {
+  Object.keys(filter).forEach((k) => delete (filter as any)[k])
+  try {
+    sessionStorage.removeItem(FILTER_KEY)
+    sessionStorage.removeItem(SEARCH_KEY)
+  } catch {
+    // 忽略
+  }
+  searchParams.value = ""
+  currentPage.value = 1
+  getList()
+}
+
 const filterChange = async (newFilters: any) => {
   Object.assign(filter, newFilters)
   persistFilter()
@@ -637,6 +664,13 @@ const getFilter = () => {
     :getFilter="getFilter"
   />
   <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="onTimeFilterChange" />
+  <div v-if="activeFilterEntries.length" style="display:flex;align-items:center;gap:8px;padding:6px 12px;flex-wrap:wrap">
+    <span style="color:#909399;font-size:13px">已应用筛选：</span>
+    <ElTag v-for="e in activeFilterEntries" :key="e.key" type="warning" size="small">
+      {{ e.key }}={{ e.value }}
+    </ElTag>
+    <ElButton link type="primary" size="small" @click="clearFilters">清空筛选</ElButton>
+  </div>
   <ElRow>
     <ElCol>
       <ElCard>
