@@ -891,7 +891,9 @@ const confirmSyncToProjectSelect = async () => {
                 selectedProjectId.value = val
               },
               data: projectList,
-              showCheckbox: true,
+              // 单选却带复选框：树里一排方框套在下拉框里，就是用户说的「框套框」（2026-11-27）。
+              // 单选场景用高亮选中即可，去掉复选框。
+              showCheckbox: false,
               placeholder: t('project.project'),
               filterable: true,
               style: { width: '100%' }

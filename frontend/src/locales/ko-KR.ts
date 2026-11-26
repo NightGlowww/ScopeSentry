@@ -891,6 +891,7 @@ export default {
     auditLog: '작업 로그',
     systemStatus: '시스템 상태',
     githubMonitor: 'GitHub 유출 모니터',
+    githubMonitorList: '모니터링 작업',
     backup: '백업 및 복구',
     mcpAudit: 'MCP 호출 로그',
     assetinfo: '자산 정보',

@@ -867,6 +867,7 @@ export default {
     auditLog: '操作日志',
     systemStatus: '系统状态',
     githubMonitor: 'GitHub 泄露监控',
+    githubMonitorList: '监控任务',
     backup: '备份恢复',
     mcpAudit: 'MCP 调用日志',
     assetinfo: '资产信息',

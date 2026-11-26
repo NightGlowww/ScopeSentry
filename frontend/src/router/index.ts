@@ -105,7 +105,8 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         name: 'Asset-Information',
         meta: {
           title: t('router.assetinfo'),
-          icon: 'carbon:view',
+          // 与父项「资产管理」用同一个 carbon:view，展开后看起来像重复（2026-11-27 反馈）
+          icon: 'mdi:view-list-outline',
           noCache: true
         }
       },
@@ -548,7 +549,8 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         name: 'system status',
         meta: {
           title: t('router.systemStatus'),
-          icon: 'mdi:server-network',
+          // 原为 mdi:server-network，与「资产管理 → 服务」撞车
+          icon: 'mdi:chart-box-outline',
           noCache: true
         }
       },
@@ -589,8 +591,9 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         component: () => import('@/views/GitHub/index.vue'),
         name: 'github monitor',
         meta: {
-          title: t('router.githubMonitor'),
-          icon: 'mdi:github',
+          // 父项已经是「GitHub 泄露监控」，子项用同一个标题+图标，菜单展开后完全分不清
+          title: t('router.githubMonitorList'),
+          icon: 'mdi:shield-search',
           noCache: true
         }
       }
@@ -609,7 +612,8 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
         name: 'About ScopeSentry',
         meta: {
           title: t('common.about'),
-          icon: 'carbon:deploy-rules',
+          // 原为 carbon:deploy-rules，与「敏感信息规则」撞车
+          icon: 'mdi:information-outline',
           noCache: true
         }
       }
