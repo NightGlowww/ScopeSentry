@@ -108,7 +108,9 @@ func rss2json(feedURL string) string {
 	return "https://api.rss2json.com/v1/api.json?count=100&rss_url=" + url.QueryEscape(feedURL)
 }
 
-var httpClient = &http.Client{Timeout: 40 * time.Second}
+// 90s 而不是 40s：Elastic Security Labs 的 feed 有 3 MB，境内拉要 40s 以上，
+// 40s 会在读 body 阶段超时（2026-11-26 实测 "context deadline exceeded while reading body"）。
+var httpClient = &http.Client{Timeout: 90 * time.Second}
 
 // Start 每 30 分钟扫描一次到期的源。INTELFEED=off 关闭。
 func Start(ctx context.Context) {
