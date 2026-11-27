@@ -313,6 +313,43 @@ const taskColums = reactive<TableColumn[]>([
     }
   },
   {
+    field: 'stats',
+    label: t('task.output'),
+    width: 104,
+    formatter: (row: Recordable) => {
+      // 终态任务显示完成瞬间冻结的产出快照；运行中/历史任务没有快照，显示「—」并说明去哪看
+      const s = row?.stats as Record<string, number> | undefined
+      if (!s || !Object.keys(s).length) {
+        return h(
+          ElTooltip,
+          { effect: 'dark', placement: 'top', content: t('task.outputNotFrozen') },
+          () => h('span', { class: 'output-dash' }, '—')
+        )
+      }
+      const asset = Number(s.asset || 0)
+      const sub = Number(s.subdomain || 0)
+      const url = Number(s.url || 0)
+      const vul = Number(s.vulnerability || 0)
+      const total = asset + sub + url
+      const detail = [
+        t('task.outputAsset', { n: asset }),
+        t('task.outputSubdomain', { n: sub }),
+        t('task.outputUrl', { n: url }),
+        t('task.outputVuln', { n: vul })
+      ].join(' · ')
+      return h(
+        ElTooltip,
+        { effect: 'dark', placement: 'top', content: detail },
+        () =>
+          h('span', { class: 'output-cell' }, [
+            h('span', { class: 'output-total' }, String(total)),
+            // 有漏洞时给一个红点：列表里第一眼要能看出「这个任务挖到东西了」
+            vul > 0 ? h('span', { class: 'output-dot', title: t('task.outputVuln', { n: vul }) }) : null
+          ])
+      )
+    }
+  },
+  {
     field: 'policyWarnings',
     label: t('task.policyWarnings'),
     width: 90,
@@ -1417,6 +1454,27 @@ const setMaxHeight = () => {
 }
 .locale-search-row .el-text {
   white-space: nowrap;
+}
+
+/* 产出列：合计数字 + 有漏洞时的红点 */
+.output-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.output-total {
+  font-weight: 600;
+}
+.output-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--el-color-danger);
+  display: inline-block;
+}
+.output-dash {
+  color: var(--el-text-color-placeholder);
 }
 
 /* Excel 多表导出：时间范围提示 */

@@ -126,6 +126,10 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		"node":       1,
 		"allNode":    1,
 		"startedAt":  1,
+		// 终态产出快照：列表要直接显示「这个任务产出了什么」，
+		// 不带这两个字段前端只能显示「—」，点进详情才知道（2026-11-28）
+		"stats":         1,
+		"statsFrozenAt": 1,
 	}
 
 	// 分页查询
