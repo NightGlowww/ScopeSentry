@@ -89,7 +89,9 @@ const taskColums = reactive<TableColumn[]>([
       if (cellValue == '') {
         return '-'
       }
-      if (row.state == false) {
+      // 同一个坑：启用开关实际在 scheduledTasks 上。
+      const on = row?.scheduledTasks ?? row?.state
+      if (on === false || on === 'false' || on === 0) {
         return '-'
       }
       return cellValue
@@ -99,19 +101,16 @@ const taskColums = reactive<TableColumn[]>([
     field: 'state',
     label: t('common.state'),
     minWidth: 20,
-    formatter: (_: Recordable, __: TableColumn, stateValue: boolean) => {
-      if (stateValue == null) {
-        return <div></div>
+    formatter: (row: Recordable, __: TableColumn, stateValue: boolean) => {
+      // 列表接口回的是 scheduledTasks（bson 字段名），模型里的 json 名才是 state。
+      // 只读 state 的话这一列永远是空的（2026-11-28 实测：Page Monitoring 那行 State 一片空白）。
+      const raw = row?.scheduledTasks ?? stateValue
+      if (raw == null) {
+        return <span>-</span>
       }
-      let color = ''
-      let flag = ''
-      if (stateValue == true) {
-        color = '#2eb98a'
-        flag = t('common.on')
-      } else {
-        color = 'red'
-        flag = t('common.statusStop')
-      }
+      const on = raw === true || raw === 'true' || raw === 1
+      const color = on ? '#2eb98a' : 'red'
+      const flag = on ? t('common.on') : t('common.statusStop')
       return (
         <ElRow gutter={20}>
           <ElCol span={1}>
@@ -338,12 +337,12 @@ const addTask = async () => {
         <div class="mb-10px">
           <BaseButton type="primary" @click="addTask">{{ t('task.addScheduled') }}</BaseButton>
           <BaseButton
-        type="danger"
-        :loading="delLoading"
-        :disabled="tableSelectedCount === 0"
-        :title="tableSelectedCount === 0 ? t('common.disabledNeedTask') : ''"
-        @click="confirmDeleteSelect"
-      >
+            type="danger"
+            :loading="delLoading"
+            :disabled="tableSelectedCount === 0"
+            :title="tableSelectedCount === 0 ? t('common.disabledNeedTask') : ''"
+            @click="confirmDeleteSelect"
+          >
             {{ t('task.delTask') }}
           </BaseButton>
         </div>
