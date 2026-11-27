@@ -386,6 +386,25 @@ function clearAllTags() {
     props.handleClose('close')
   }
 }
+
+// 一行清干净：搜索标签 + 任务下拉 + 项目下拉。
+// 之前是「标签行显示任务条件」+「另一行再写一遍已按任务筛选」两个提示，
+// 用户看到两处重复信息（2026-11-27 反馈）。
+const hasAnyFilter = computed(
+  () => localDynamicTags.value.length > 0 || (taskValue.value as string[]).length > 0 || (projectValue.value as string[]).length > 0
+)
+function clearEverything() {
+  const hadTags = localDynamicTags.value.length > 0
+  taskValue.value = []
+  projectValue.value = []
+  localDynamicTags.value = []
+  searchParams.value = ''
+  if (hadTags && props.handleClose) {
+    props.handleClose('close')
+    return
+  }
+  props.handleSearch('')
+}
 const emit = defineEmits<{
   (event: 'update-column-visibility', payload: { field: string; hidden: boolean }): void
 }>()
@@ -638,15 +657,16 @@ const openCreateTask = async () => {
               {{ tag }}
             </template>
           </ElTag>
-          <!-- <ElButton
-            v-if="localDynamicTags.length > 0 && index == 'asset'"
+          <!-- 清除入口跟标签同一行、同一个小字号链接：条件只在一处展示（2026-11-27） -->
+          <ElButton
+            v-if="hasAnyFilter"
+            link
+            type="primary"
             size="small"
-            type="danger"
-            plain
-            @click="clearAllTags"
-            style="margin-left: 8px; align-self: flex-start"
+            style="margin-left: 4px"
+            @click="clearEverything"
             >{{ t('common.clearAll') }}</ElButton
-          > -->
+          >
         </div>
       </ElCol>
     </ElRow>

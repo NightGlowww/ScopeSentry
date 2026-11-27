@@ -1092,13 +1092,6 @@ const confirmSelectedIcons = () => {
     :projectList="$props.projectList"
     @saved="getList"
   />
-  <!-- 这里原来又加了一条「当前筛选」，和搜索框下方的 task=xxx 标签重复显示同一个条件，
-       用户看到两个筛选提示（2026-11-27 反馈）。条件已经由那排标签展示并可单独 ×，
-       所以这里只保留清除入口，不再重复展示。 -->
-  <div v-if="activeFilterText" class="active-filter-bar">
-    <span class="afb-label">已按任务/项目筛选，结果可能不是全部：</span>
-    <ElButton link type="primary" size="small" @click="clearTaskProjectFilter">清除任务/项目筛选</ElButton>
-  </div>
   <TimeRangeFilter
     v-if="activeSegment == 'tableSegment'"
     v-model="timeRange"

@@ -1,7 +1,0 @@
-import{u as e,h as a,_ as o}from"./index-Bw0X0IHE.js";import{M as i,q as t,aS as r,aC as s,bC as d,ay as n,aK as l,u}from"./vendor-DoULG1HN.js";import"./vendor-vue-CaZaYaqc.js";import"./vendor-element-B1TaNCX-.js";const m=o(i({__name:"MonacoDiffEditor",props:{original:{},modified:{}},setup(o){const i=o,m=e(),c=t(()=>m.getIsDark),f=r(null);let p=null,v=null;const _=()=>c.value?"vs-dark":"vs";return s(async()=>{const e=await(async()=>(p||(p=await a(()=>import("./editor.main-CUJH5nfn.js").then(e=>e.e),__vite__mapDeps([0,1,2,3,4,5,6,7,8]))),p))();f.value&&(v=e.editor.createDiffEditor(f.value,{theme:_(),originalEditable:!0,automaticLayout:!0}),v.setModel({original:e.editor.createModel(i.original,"javascript"),modified:e.editor.createModel(i.modified,"javascript")}))}),d(c,()=>{null==p||p.editor.setTheme(_())}),n(()=>{null==v||v.dispose(),v=null}),(e,a)=>(l(),u("div",{ref_key:"editorContainer",ref:f,class:"monaco-diff-editor"},null,512))}}),[["__scopeId","data-v-0f2a3eed"]]);export{m as default};
-function __vite__mapDeps(indexes) {
-  if (!__vite__mapDeps.viteFileDeps) {
-    __vite__mapDeps.viteFileDeps = ["assets/editor.main-CUJH5nfn.js","assets/index-Bw0X0IHE.js","assets/vendor-DoULG1HN.js","assets/vendor-U7snkwmU.css","assets/vendor-vue-CaZaYaqc.js","assets/vendor-element-B1TaNCX-.js","assets/vendor-element-DhRGyTGu.css","assets/index-CIzC1Q5R.css","assets/editor-CBjyOcMR.css"]
-  }
-  return indexes.map((i) => __vite__mapDeps.viteFileDeps[i])
-}
