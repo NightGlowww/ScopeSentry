@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElTabs, ElTabPane, ElTag, ElButton, ElDialog, ElMessage, ElMessageBox, ElPopover } from 'element-plus'
+import { ElTabs, ElTabPane, ElTag, ElButton, ElDialog, ElMessage, ElMessageBox, ElPopover, ElTooltip } from 'element-plus'
+import { Edit, Delete } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import AddProject from '../components/AddProject.vue'
 import { deleteProjectApi } from '@/api/project'
@@ -23,6 +24,8 @@ const projectId = String(query.id || '')
 // 只有一排页签，用户不知道自己站在哪儿（2026-11-27 反馈：项目管理像残废）。
 const info = ref<any>(null)
 const counts = ref<any>(null)
+// 4 位以上数字上分隔符：45363 → 45,363，扫一眼就能比大小
+const fmtNum = (n?: number) => (n ?? 0).toLocaleString()
 const router = useRouter()
 const editVisible = ref(false)
 const refresh = async () => {
@@ -66,44 +69,75 @@ onMounted(refresh)
 <template>
   <div>
     <div v-if="info" class="project-head">
-      <div class="head-main">
+      <!-- 头部只有两行：第一行「项目是谁 + 能做什么」，第二行「扫哪儿」，第三行数字条。
+           之前编辑/删除按钮被挤到第三行左侧、删除还是实心红框，头部像三块补丁（2026-11-28 反馈）。 -->
+      <div class="head-top">
         <div class="head-title">
           <span class="pname">{{ info.name }}</span>
-          <ElTag v-if="info.tag" size="small" effect="plain">{{ info.tag }}</ElTag>
+          <ElTag v-if="info.tag" size="small" effect="plain" class="tag-src">{{ info.tag }}</ElTag>
           <ElTag v-if="info.scheduledTasks" size="small" type="success" effect="plain">
-            定时 {{ info.hour }}h
+            定时 · {{ info.hour }}h
           </ElTag>
           <ElTag v-else size="small" type="info" effect="plain">手动</ElTag>
-        </div>
-        <!-- 扫描范围最多有几十个域名，直接 join 会糊成一大块文字把头部撑高，
-             还把「编辑/删除」挤到下面去。改成：前 3 个 + 「+N」，全部内容放进浮层（2026-11-27 反馈）。 -->
-        <div class="head-scope">
-          <span>扫描范围（{{ (info.root_domains || []).length }}）：</span>
-          <template v-if="(info.root_domains || []).length">
-            <ElTag v-for="d in (info.root_domains || []).slice(0, 3)" :key="d" size="small" effect="plain">
-              {{ d }}
-            </ElTag>
-            <ElPopover v-if="(info.root_domains || []).length > 3" placement="bottom-start" :width="520" trigger="click">
-              <template #reference>
-                <ElButton link type="primary" size="small">+{{ (info.root_domains || []).length - 3 }}</ElButton>
-              </template>
-              <div class="scope-pop">
-                <div v-for="d in info.root_domains" :key="d">{{ d }}</div>
-              </div>
-            </ElPopover>
-          </template>
-          <span v-else class="muted">未设置根域名</span>
+          <span v-if="info.scheduledTasks && info.next_time" class="next-time">
+            下次 {{ info.next_time }}
+          </span>
         </div>
         <div class="head-actions">
-          <ElButton size="small" @click="editVisible = true">编辑项目</ElButton>
-          <ElButton size="small" type="danger" plain @click="onDelete">删除项目</ElButton>
+          <ElButton size="small" :icon="Edit" @click="editVisible = true">编辑项目</ElButton>
+          <ElButton size="small" type="danger" text :icon="Delete" class="btn-del" @click="onDelete">
+            删除项目
+          </ElButton>
         </div>
       </div>
+      <!-- 扫描范围最多几十个域名，全铺开会把头部撑成一堵墙：给 4 个 + 「+N」，全量进浮层。 -->
+      <div class="head-scope">
+        <span class="scope-label">扫描范围</span>
+        <span class="scope-count">{{ (info.root_domains || []).length }} 个根域名</span>
+        <template v-if="(info.root_domains || []).length">
+          <ElTag
+            v-for="d in (info.root_domains || []).slice(0, 4)"
+            :key="d"
+            size="small"
+            effect="plain"
+            class="scope-tag"
+          >
+            {{ d }}
+          </ElTag>
+          <ElPopover
+            v-if="(info.root_domains || []).length > 4"
+            placement="bottom-start"
+            :width="460"
+            trigger="click"
+          >
+            <template #reference>
+              <ElButton link type="primary" size="small" class="scope-more">
+                +{{ (info.root_domains || []).length - 4 }} 个
+              </ElButton>
+            </template>
+            <div class="scope-pop">
+              <div v-for="d in info.root_domains" :key="d">{{ d }}</div>
+            </div>
+          </ElPopover>
+        </template>
+        <span v-else class="muted">未设置，点右上「编辑项目」添加</span>
+      </div>
       <div v-if="counts" class="head-stats">
-        <div class="stat"><b>{{ counts.assetCount ?? 0 }}</b><span>资产</span></div>
-        <div class="stat"><b>{{ counts.subdomainCount ?? 0 }}</b><span>子域名</span></div>
-        <div class="stat"><b>{{ counts.urlCount ?? 0 }}</b><span>URL</span></div>
-        <div class="stat"><b>{{ counts.vulCount ?? 0 }}</b><span>漏洞</span></div>
+        <div class="stat">
+          <b>{{ fmtNum(counts.assetCount) }}</b><span>资产</span>
+        </div>
+        <div class="stat">
+          <b>{{ fmtNum(counts.subdomainCount) }}</b><span>子域名</span>
+        </div>
+        <div class="stat">
+          <b>{{ fmtNum(counts.urlCount) }}</b><span>URL</span>
+        </div>
+        <div class="stat">
+          <b :class="{ hot: (counts.vulCount ?? 0) > 0 }">{{ fmtNum(counts.vulCount) }}</b><span>漏洞</span>
+        </div>
+        <div class="stat">
+          <b>{{ fmtNum(counts.sensitiveCount) }}</b><span>敏感信息</span>
+        </div>
       </div>
     </div>
     <!-- 编辑复用列表页那个表单，避免两处表单逻辑漂移 -->
@@ -131,39 +165,105 @@ onMounted(refresh)
 
 <style scoped>
 .project-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 14px 18px;
+  padding: 16px 20px 14px;
   margin-bottom: 12px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 8px;
+  border-radius: 10px;
+}
+/* 标题与操作同一行、基线对齐：按钮不再被挤到下面单独一行 */
+.head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   flex-wrap: wrap;
 }
-.head-title { display: flex; align-items: center; gap: 8px; }
-.pname { font-size: 18px; font-weight: 700; }
+.pname {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  max-width: 640px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-src { font-weight: 500; }
+.next-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+/* 删除是不可逆操作，用文字按钮，不做实心红框抢主视觉 */
+.btn-del { padding: 5px 8px; }
+.btn-del:hover { background: var(--el-color-danger-light-9); }
+
 .head-scope {
-  margin-top: 6px;
+  margin-top: 10px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+.scope-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+}
+.scope-count {
   font-size: 12px;
   color: var(--el-text-color-secondary);
+  margin-right: 2px;
 }
+.scope-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.scope-more { font-size: 12px; height: auto; }
 .scope-pop {
   max-height: 260px;
   overflow: auto;
   font-size: 12px;
-  line-height: 1.8;
+  line-height: 1.9;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.muted { color: var(--el-text-color-placeholder); }
-.head-actions { display: flex; gap: 8px; }
-.head-stats { display: flex; gap: 24px; }
-.stat { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
-.stat b { font-size: 18px; }
-.stat span { font-size: 11px; color: var(--el-text-color-secondary); }
+.muted { font-size: 12px; color: var(--el-text-color-placeholder); }
+
+/* 数字条：一条分隔线 + 竖线分栏，横向读，别再竖排右对齐 */
+.head-stats {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0 20px;
+  border-left: 1px solid var(--el-border-color-lighter);
+}
+.stat:first-child { padding-left: 0; border-left: none; }
+.stat b {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.stat b.hot { color: var(--el-color-danger); }
+.stat span { font-size: 12px; color: var(--el-text-color-secondary); }
 </style>
