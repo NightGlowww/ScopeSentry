@@ -583,22 +583,28 @@ func addTool[In, Out any](server *mcp.Server, allowedTools map[string]bool, name
 				zap.String("tool", tool.Name), zap.Any("panic", r))
 		}
 	}()
-	// 执行期兜底：MCP 工具跑在 jsonrpc2 自己的 goroutine 里，不在 gin.Recovery 的管辖范围。
-	// 任何一个工具里的 nil 解引用都会打死整个进程（2026-11-28 实测：get_asset_detail 传未知 id
-	// 让容器重启了 5 次）。这里把 panic 收成一条工具级错误，服务继续活着。
-	guarded := func(ctx context.Context, req *mcp.CallToolRequest, in In) (res *mcp.CallToolResult, out Out, err error) {
+	mcp.AddTool(server, tool, guardTool(tool.Name, handler))
+}
+
+// guardTool 给单个工具的执行期加 recover。
+//
+// 为什么必须在工具层做：MCP 工具由 go-sdk 的 jsonrpc2 在自己的 goroutine 里调用，
+// 不在 gin.Recovery 的管辖范围。任何一个工具里的 nil 解引用都会打死整个进程
+// （2026-11-28 实测：get_asset_detail 传未知资产 id 让生产容器重启了 5 次）。
+// 这里把 panic 收成一条工具级错误 + 堆栈日志，服务继续活着。
+func guardTool[In, Out any](name string, handler mcp.ToolHandlerFor[In, Out]) mcp.ToolHandlerFor[In, Out] {
+	return func(ctx context.Context, req *mcp.CallToolRequest, in In) (res *mcp.CallToolResult, out Out, err error) {
 		defer func() {
 			if rec := recover(); rec != nil {
 				logger.Error("mcp: tool handler panicked",
-					zap.String("tool", tool.Name), zap.Any("panic", rec), zap.Stack("stack"))
-				r, _, e := errorResult("工具执行异常，已中断（服务未受影响）: "+tool.Name, nil)
+					zap.String("tool", name), zap.Any("panic", rec), zap.Stack("stack"))
+				r, _, e := errorResult("工具执行异常，已中断（服务未受影响）: "+name, nil)
 				var zero Out
 				res, out, err = r, zero, e
 			}
 		}()
 		return handler(ctx, req, in)
 	}
-	mcp.AddTool(server, tool, guarded)
 }
 
 var (
