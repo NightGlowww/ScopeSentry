@@ -18,9 +18,7 @@ import {
   FormInstance,
   ElSelect,
   ElMessage,
-
   CheckboxValueType,
-
   ElTreeSelect,
   ElDrawer,
   ElAlert,
@@ -831,7 +829,7 @@ loadPolicies()
     >
       <ul class="policy-conflict-list">
         <li v-for="(warning, index) in policyWarnings" :key="`${warning.code}-${index}`">
-          {{ policyFieldText(warning.field) }}: {{ warning.message }}
+          {{ policyFieldText(warning.field) }}{{ t('common.labelSep') }}{{ warning.message }}
         </li>
       </ul>
     </ElAlert>

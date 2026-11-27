@@ -1,7 +1,18 @@
 <script setup lang="tsx">
-
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElRow, ElCol, ElButton, ElForm, ElFormItem, ElSwitch, ElInputNumber, ElAlert, ElCard, ElText, ElMessage } from 'element-plus'
+import {
+  ElRow,
+  ElCol,
+  ElButton,
+  ElForm,
+  ElFormItem,
+  ElSwitch,
+  ElInputNumber,
+  ElAlert,
+  ElCard,
+  ElText,
+  ElMessage
+} from 'element-plus'
 
 import { reactive, ref } from 'vue'
 import { getDeduplicationConfigApi, updateDeduplicationConfigApi } from '@/api/Configuration'
@@ -23,21 +34,21 @@ const deduplication = reactive({
 const updateDeduplicationConfig = async () => {
   DeduplicationConfigLoading.value = true
   try {
-  await updateDeduplicationConfigApi(
-    deduplication.asset,
-    deduplication.subdomain,
-    deduplication.SubdomainTakerResult,
-    deduplication.UrlScan,
-    deduplication.crawler,
-    deduplication.SensitiveResult,
-    deduplication.DirScanResult,
-    deduplication.vulnerability,
-    deduplication.PageMonitoring,
-    deduplication.hour,
-    deduplication.flag,
-    deduplication.runNow
-  )
-  ElMessage.success(t('common.success'))
+    await updateDeduplicationConfigApi(
+      deduplication.asset,
+      deduplication.subdomain,
+      deduplication.SubdomainTakerResult,
+      deduplication.UrlScan,
+      deduplication.crawler,
+      deduplication.SensitiveResult,
+      deduplication.DirScanResult,
+      deduplication.vulnerability,
+      deduplication.PageMonitoring,
+      deduplication.hour,
+      deduplication.flag,
+      deduplication.runNow
+    )
+    ElMessage.success(t('common.success'))
   } catch (e: any) {
     ElMessage.error(e?.message || t('common.operateFailed'))
   } finally {
@@ -65,7 +76,7 @@ const DeduplicationConfigLoading = ref(false)
     </template>
     <div style="max-width: 600px; margin: 20px 0 0">
       <ElAlert type="info" :closable="false">
-        <p>{{ t('task.nextTime') }}: {{ nextRunTime }}</p>
+        <p>{{ t('task.nextTime') }}{{ t('common.labelSep') }}{{ nextRunTime }}</p>
       </ElAlert>
     </div>
     <ElForm

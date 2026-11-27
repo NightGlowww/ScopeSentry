@@ -796,7 +796,8 @@ onMounted(() => {
       <div class="section-title">
         {{ t('policy.previewMerged') }}
         <span class="section-hint">
-          {{ t('policy.previewSourceLabel') }}: {{ previewResult.taskTemplateSource || '-' }}
+          {{ t('policy.previewSourceLabel') }}{{ t('common.labelSep')
+          }}{{ previewResult.taskTemplateSource || '-' }}
         </span>
       </div>
       <pre class="json-panel">{{ mergedJson }}</pre>

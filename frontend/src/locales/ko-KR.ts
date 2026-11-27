@@ -97,6 +97,7 @@ export default {
     scrollTagsLeft: '태그 왼쪽으로 스크롤',
     scrollTagsRight: '태그 오른쪽으로 스크롤',
     cores: '코어',
+    labelSep: ': ',
     prevLabel: '이전',
     nextLabel: '다음',
     skipLabel: '건너뛰기',

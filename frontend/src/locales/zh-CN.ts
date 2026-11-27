@@ -97,6 +97,7 @@ export default {
     scrollTagsLeft: '向左滚动标签',
     scrollTagsRight: '向右滚动标签',
     cores: '核',
+    labelSep: '：',
     prevLabel: '上一步',
     nextLabel: '下一步',
     skipLabel: '跳过',

@@ -318,19 +318,21 @@ const confirmTokenAndInstall = async () => {
               </div>
               <div class="plugin-card-content">
                 <div class="plugin-info-item">
-                  <span class="label">{{ t('plugin.version') }}：</span>
+                  <span class="label">{{ t('plugin.version') }}{{ t('common.labelSep') }}</span>
                   <span class="value">{{ plugin.version || 'N/A' }}</span>
                 </div>
                 <div class="plugin-info-item">
-                  <span class="label">{{ t('plugin.author') }}：</span>
+                  <span class="label">{{ t('plugin.author') }}{{ t('common.labelSep') }}</span>
                   <span class="value">{{ plugin.username }}</span>
                 </div>
                 <div class="plugin-info-item">
-                  <span class="label">{{ t('plugin.createTime') }}：</span>
+                  <span class="label">{{ t('plugin.createTime') }}{{ t('common.labelSep') }}</span>
                   <span class="value">{{ plugin.createTime }}</span>
                 </div>
                 <div class="plugin-info-item introduction">
-                  <span class="label">{{ t('plugin.introduction') }}：</span>
+                  <span class="label"
+                    >{{ t('plugin.introduction') }}{{ t('common.labelSep') }}</span
+                  >
                   <span class="value">{{ plugin.introduction || t('plugin.noIntroduction') }}</span>
                 </div>
                 <div class="plugin-status">

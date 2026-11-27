@@ -97,6 +97,7 @@ export default {
     scrollTagsLeft: 'Scroll tags left',
     scrollTagsRight: 'Scroll tags right',
     cores: 'cores',
+    labelSep: ': ',
     prevLabel: 'Prev',
     nextLabel: 'Next',
     skipLabel: 'Jump',

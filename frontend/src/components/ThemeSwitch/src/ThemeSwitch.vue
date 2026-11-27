@@ -51,7 +51,9 @@ const triggerIcon = computed(() => {
 // 提示文案带当前模式，避免用户只能靠图标猜
 const currentLabel = computed(() => {
   const current = options.value.find((item) => item.value === mode.value)
-  return current ? `${t('setting.themeMode')}：${current.label}` : t('setting.themeMode')
+  return current
+    ? `${t('setting.themeMode')}${t('common.labelSep')}${current.label}`
+    : t('setting.themeMode')
 })
 
 const handleCommand = (command: ThemeMode) => {

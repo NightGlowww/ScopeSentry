@@ -203,16 +203,19 @@ const action = (id: string) => {
             </div>
             <div class="card-text">
               <div class="name">{{ row.name }}</div>
-              <div class="assets-info">{{ t('project.totalAssets') }} : {{ row.AssetCount }}</div>
+              <div class="assets-info">
+                {{ t('project.totalAssets') }}{{ t('common.labelSep') }}{{ row.AssetCount }}
+              </div>
               <!-- 任务维度：只给「资产数」看不出这个项目最近有没有在干活（2026-11-27 反馈） -->
               <div class="assets-info">
-                {{ t('project.taskCount') }} : {{ row.taskCount ?? 0 }}
+                {{ t('project.taskCount') }}{{ t('common.labelSep') }}{{ row.taskCount ?? 0 }}
                 <span v-if="row.runningTasks > 0" class="running-dot">
                   · {{ t('task.running') }} {{ row.runningTasks }}
                 </span>
               </div>
               <div v-if="row.lastTaskAt" class="assets-info last-task">
-                {{ t('project.lastScan') }} : {{ String(row.lastTaskAt).slice(5, 16) }}
+                {{ t('project.lastScan') }}{{ t('common.labelSep')
+                }}{{ String(row.lastTaskAt).slice(5, 16) }}
                 <ElTag size="small" :type="statusType(row.lastTaskStatus)" effect="plain">
                   {{ statusText(row.lastTaskStatus) }}
                 </ElTag>

@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from '@/hooks/web/useI18n'
 const { t } = useI18n()
-import {
-  InfoFilled,
-
-
-
-
-  Money,
-
-} from '@element-plus/icons-vue'
+import { InfoFilled, Money } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 // 导入图片
 import alipayQR from '@/assets/qrcode/zfb.png'
@@ -51,7 +43,7 @@ const qrCodes = ref([
             </a>
           </li>
           <li>
-            Github：
+            Github{{ t('common.labelSep') }}
             <a
               href="https://github.com/Autumn-27/ScopeSentry"
               target="_blank"
@@ -81,7 +73,7 @@ const qrCodes = ref([
             </a>
           </li>
           <li>
-            SecureFlow：
+            SecureFlow{{ t('common.labelSep') }}
             <a
               href="https://plugin.scope-sentry.top/"
               target="_blank"

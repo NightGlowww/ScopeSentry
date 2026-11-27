@@ -349,7 +349,7 @@ onMounted(() => {
         t('fofa.statusNotConfigured')
       }}</span>
       <span v-if="status?.keySource" class="hint">
-        {{ t('fofa.statusKeySource') }}: {{ status.keySource }}
+        {{ t('fofa.statusKeySource') }}{{ t('common.labelSep') }}{{ status.keySource }}
       </span>
       <span v-if="balance" class="balance">
         <ElTag size="small" type="info">
