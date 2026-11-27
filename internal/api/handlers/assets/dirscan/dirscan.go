@@ -8,6 +8,7 @@
 package dirscan
 
 import (
+	assetscommon "github.com/Autumn-27/ScopeSentry/internal/api/handlers/assets/common"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/dirscan"
@@ -41,7 +42,7 @@ func List(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
+	response.Success(c, assetscommon.AttachTotal(c, "DirScanResult", req, gin.H{
 		"list": results,
-	}, "api.dirscan.list.success")
+	}), "api.dirscan.list.success")
 }

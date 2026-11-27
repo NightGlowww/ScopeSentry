@@ -345,7 +345,6 @@ const { tableRegister, tableState, tableMethods } = useTable({
 
     if (searchParamsChanged || filterChanged) {
       currentPage.value = 1
-      getTotal(searchParams.value, currentPage.value, pageSize.value, filter)
       lastSearchParams.value = searchParams.value
       lastFilter = { ...filter }
     }
@@ -359,6 +358,13 @@ const { tableRegister, tableState, tableMethods } = useTable({
       { ...sortBy, time: timeSort.value === 'asc' ? 'asc' : 'desc' },
       timeFrom.value
     )
+    // 列表现在自带 total（与筛选同口径）。拿不到时才回落到总数接口——
+    // 那个接口只在「搜索/筛选变化」时触发，时间筛选变了 total 会停在旧值。
+    if (typeof res.data?.total === 'number') {
+      total.value = res.data.total
+    } else if (searchParamsChanged || filterChanged) {
+      getTotal(searchParams.value, currentPage.value, pageSize.value, filter)
+    }
     return {
       list: res.data.list,
       flag: true

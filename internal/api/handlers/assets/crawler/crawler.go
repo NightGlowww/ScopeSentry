@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	assetscommon "github.com/Autumn-27/ScopeSentry/internal/api/handlers/assets/common"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/crawler"
@@ -37,7 +38,7 @@ func GetCrawlers(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
+	response.Success(c, assetscommon.AttachTotal(c, "crawler", query, gin.H{
 		"list": tasks,
-	}, "api.crawler.list.success")
+	}), "api.crawler.list.success")
 }

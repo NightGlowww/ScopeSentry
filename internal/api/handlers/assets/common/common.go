@@ -186,6 +186,20 @@ func UpdateStatus(c *gin.Context) {
 	response.Success(c, nil, "api.success")
 }
 
+// AttachTotal 给列表响应补上 total，口径与 /api/assets/common/total 完全一致：
+// 内部走同一个 TotalData（asset 用 BuildSearchQuery，其余走 helper.GetSearchQuery），
+// 所以列表里的 total 与总数接口不会各算一套。
+// 统计失败时只回 list —— 前端拿不到 total 会回落到总数接口，行为与老版本一致。
+func AttachTotal(c *gin.Context, index string, query models.SearchRequest, payload gin.H) gin.H {
+	query.Index = index
+	total, err := commonService.TotalData(c.Request.Context(), &query)
+	if err != nil {
+		return payload
+	}
+	payload["total"] = total
+	return payload
+}
+
 // TotalData 获取总数
 // @Summary 获取总数
 // @Description 获取指定集合的数据总数

@@ -3,6 +3,7 @@ package sensitive
 import (
 	"errors"
 	"fmt"
+	assetscommon "github.com/Autumn-27/ScopeSentry/internal/api/handlers/assets/common"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -41,9 +42,9 @@ func GetSensitiveInfo(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
+	response.Success(c, assetscommon.AttachTotal(c, "SensitiveResult", query, gin.H{
 		"list": sensitiveInfo,
-	}, "api.sensitive.list.success")
+	}), "api.sensitive.list.success")
 }
 
 // GetSensitiveInfoNumber godoc

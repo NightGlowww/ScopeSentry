@@ -1,6 +1,7 @@
 package url
 
 import (
+	assetscommon "github.com/Autumn-27/ScopeSentry/internal/api/handlers/assets/common"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/url"
@@ -37,7 +38,7 @@ func GetURLs(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
+	response.Success(c, assetscommon.AttachTotal(c, "UrlScan", query, gin.H{
 		"list": urls,
-	}, "api.url.list.success")
+	}), "api.url.list.success")
 }
