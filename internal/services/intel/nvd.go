@@ -175,10 +175,16 @@ func nvdWindow(ctx context.Context, tech string, start, end time.Time, limit int
 	q.Set("pubEndDate", end.Format("2006-01-02T15:04:05.000")+"Z")
 	q.Set("resultsPerPage", strconv.Itoa(maxInt(limit, 20)))
 
-	nvdMu.Lock()
+	// 限速等待也要能被 ctx 打断：NVD 公共配额是 6s 一次，而工具预算只有几秒，
+	// 原来的裸 time.Sleep 会无视 deadline，把「已经该停」的调用硬拖到 12s+（2026-11-28 实测）。
 	if wait := nvdMinInterval - time.Since(nvdLastCall); wait > 0 {
-		time.Sleep(wait)
+		select {
+		case <-time.After(wait):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
+	nvdMu.Lock()
 	nvdLastCall = time.Now()
 	nvdMu.Unlock()
 
