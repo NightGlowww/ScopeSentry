@@ -304,7 +304,10 @@ func nextRunForInterval(intervalMinutes int, now time.Time) *time.Time {
 }
 
 // StopTasks 暂停任务（调度器跳过）
-func (s *Service) StopTasks(ctx context.Context, ids []string) (int64, error) {
+//
+// 返回 matched/modified：matched=0 表示这些 id 根本不存在（调用方应回 404），
+// modified=0 但 matched>0 只是「本来就是暂停态」，属于幂等成功。
+func (s *Service) StopTasks(ctx context.Context, ids []string) (matched, modified int64, err error) {
 	return s.tasks.SetState(ctx, ids, models.GithubTaskStatePaused)
 }
 
