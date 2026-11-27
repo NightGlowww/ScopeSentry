@@ -40,6 +40,26 @@ type SystemConfig struct {
 	// BackupDir 备份包目录。默认 <ExeDir>/files/backups；同样应指向挂载卷，
 	// 否则「备份」只存在于容器可写层，换镜像即丢（与导出同一类问题）。
 	BackupDir string `mapstructure:"backup_dir"`
+	// ImageDir 站点截图/图标缓存目录（对外用 /images 提供）。默认 <ExeDir>/images。
+	ImageDir string `mapstructure:"image_dir"`
+	// UploadDir 上传目录。默认 <ExeDir>/uploads。
+	UploadDir string `mapstructure:"upload_dir"`
+}
+
+// ImagePath 返回图片缓存目录（空配置时回退 <ExeDir>/images）。
+func (s SystemConfig) ImagePath() string {
+	if strings.TrimSpace(s.ImageDir) != "" {
+		return s.ImageDir
+	}
+	return filepath.Join(s.ExeDir, "images")
+}
+
+// UploadPath 返回上传目录（空配置时回退 <ExeDir>/uploads）。
+func (s SystemConfig) UploadPath() string {
+	if strings.TrimSpace(s.UploadDir) != "" {
+		return s.UploadDir
+	}
+	return filepath.Join(s.ExeDir, "uploads")
 }
 
 // ExportPath 返回导出文件目录（空配置时回退到 <ExeDir>/files/export）。
@@ -158,17 +178,18 @@ func init() {
 	}
 	// 启动时打印实际使用的目录：容器部署下这两个路径必须落在挂载卷上，
 	// 否则「导出/备份」在换镜像后全部消失（2026-11-28 踩过）。日志里能直接核对。
-	fmt.Printf("paths: config=%s export_dir=%s backup_dir=%s\n",
-		viper.ConfigFileUsed(), GlobalConfig.System.ExportPath(), GlobalConfig.System.BackupPath())
+	fmt.Printf("paths: config=%s export_dir=%s backup_dir=%s image_dir=%s upload_dir=%s\n",
+		viper.ConfigFileUsed(), GlobalConfig.System.ExportPath(), GlobalConfig.System.BackupPath(),
+		GlobalConfig.System.ImagePath(), GlobalConfig.System.UploadPath())
 
 	// 创建上传目录
-	err = utils.EnsureDir(filepath.Join(exeDir, "uploads"))
+	err = utils.EnsureDir(GlobalConfig.System.UploadPath())
 	if err != nil {
 		fmt.Printf("Error creating uploads directory: %s\n", err)
 		return
 	}
 	// 创建图片目录
-	GlobalConfig.System.ImgDir = filepath.Join(exeDir, "images")
+	GlobalConfig.System.ImgDir = GlobalConfig.System.ImagePath()
 	err = utils.EnsureDir(GlobalConfig.System.ImgDir)
 	if err != nil {
 		fmt.Printf("Error creating images directory: %s\n", err)

@@ -31,3 +31,21 @@ func TestBackupPath(t *testing.T) {
 		t.Fatalf("blank should fall back, got %q", got)
 	}
 }
+
+// 图片/上传目录与导出一致：可配置到挂载卷，未配置回退老路径。
+func TestImageAndUploadPath(t *testing.T) {
+	base := SystemConfig{ExeDir: "/opt/app"}
+	if got := base.ImagePath(); got != filepath.Join("/opt/app", "images") {
+		t.Fatalf("image fallback = %q", got)
+	}
+	if got := base.UploadPath(); got != filepath.Join("/opt/app", "uploads") {
+		t.Fatalf("upload fallback = %q", got)
+	}
+	cfg := SystemConfig{ExeDir: "/opt/app", ImageDir: "/data/images", UploadDir: "/data/uploads"}
+	if got := cfg.ImagePath(); got != "/data/images" {
+		t.Fatalf("image configured = %q", got)
+	}
+	if got := cfg.UploadPath(); got != "/data/uploads" {
+		t.Fatalf("upload configured = %q", got)
+	}
+}
