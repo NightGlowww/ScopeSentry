@@ -117,10 +117,34 @@ func init() {
 	exeDir := filepath.Dir(exePath)
 	GlobalConfig.System.ExeDir = exeDir
 
-	// 导出目录：允许配置到挂载卷上（容器重建/换镜像时导出文件不该消失）
-	if strings.TrimSpace(GlobalConfig.System.ExportDir) != "" {
-		GlobalConfig.System.ExportDir = strings.TrimSpace(GlobalConfig.System.ExportDir)
+	// 先读配置，再决定目录。
+	// 顺序反了会出隐性问题：export_dir / backup_dir 配了也不生效（EnsureDir 用的是回退路径），
+	// 而运行时读写走的是配置路径——目录建在 A、文件写到 B（2026-11-28 实测）。
+	viper.AddConfigPath(exeDir)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AutomaticEnv()
+	if err := viper.ReadInConfig(); err != nil {
+		// 找不到/读不了时不再静默：把搜索目录、候选文件与原始错误打出来，
+		// 否则容器里「改了配置不生效」只能靠猜。
+		candidate := filepath.Join(exeDir, "config.yaml")
+		_, statErr := os.Stat(candidate)
+		fmt.Printf("config: exeDir=%s candidate=%s exists=%v readErr=%v\n",
+			exeDir, candidate, statErr == nil, err)
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			return
+		}
 	}
+	loadFromEnv()
+	if err := viper.Unmarshal(&GlobalConfig); err != nil {
+		fmt.Printf("error unmarshaling config: %v\n", err)
+		return
+	}
+	// Unmarshal 之后重新钉住运行时算出来的路径字段（它们不在 yaml 里）
+	GlobalConfig.System.ExeDir = exeDir
+	GlobalConfig.System.ExportDir = strings.TrimSpace(GlobalConfig.System.ExportDir)
+	GlobalConfig.System.BackupDir = strings.TrimSpace(GlobalConfig.System.BackupDir)
+
 	err = utils.EnsureDir(GlobalConfig.System.ExportPath())
 	if err != nil {
 		fmt.Printf("Error creating export directory: %s\n", err)
@@ -134,10 +158,8 @@ func init() {
 	}
 	// 启动时打印实际使用的目录：容器部署下这两个路径必须落在挂载卷上，
 	// 否则「导出/备份」在换镜像后全部消失（2026-11-28 踩过）。日志里能直接核对。
-	fmt.Printf("paths: export_dir=%s backup_dir=%s\n",
-		GlobalConfig.System.ExportPath(), GlobalConfig.System.BackupPath())
-	fmt.Printf("paths-raw: config=%s viper.export_dir=%q viper.backup_dir=%q\n",
-		viper.ConfigFileUsed(), viper.GetString("system.export_dir"), viper.GetString("system.backup_dir"))
+	fmt.Printf("paths: config=%s export_dir=%s backup_dir=%s\n",
+		viper.ConfigFileUsed(), GlobalConfig.System.ExportPath(), GlobalConfig.System.BackupPath())
 
 	// 创建上传目录
 	err = utils.EnsureDir(filepath.Join(exeDir, "uploads"))
@@ -162,34 +184,6 @@ func init() {
 	err = utils.EnsureDir(GlobalConfig.System.ScreenshotDir)
 	if err != nil {
 		fmt.Printf("Error creating screenshots directory: %s\n", err)
-		return
-	}
-
-	viper.AddConfigPath(exeDir)
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-
-	// 设置环境变量前缀和分隔符
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		// 找不到配置文件时以前是完全静默的：容器里配置写错位置/权限不对，
-		// 表现为「配置改了不生效」，排查只能靠猜（2026-11-28 踩过）。
-		// 这里把搜索目录、候选文件是否存在、原始错误都打出来。
-		candidate := filepath.Join(exeDir, "config.yaml")
-		_, statErr := os.Stat(candidate)
-		fmt.Printf("config: exeDir=%s candidate=%s exists=%v readErr=%v\n",
-			exeDir, candidate, statErr == nil, err)
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return
-		}
-	}
-	// 从环境变量加载配置
-	loadFromEnv()
-
-	// 解析配置到结构体
-	if err := viper.Unmarshal(&GlobalConfig); err != nil {
-		fmt.Printf("error unmarshaling config: %v\n", err)
 		return
 	}
 
