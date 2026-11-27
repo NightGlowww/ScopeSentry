@@ -7,14 +7,14 @@ import { getTaskProgressApi, pauseTaskTargetApi, resumeTaskTargetApi } from '@/a
 import { useTable } from '@/hooks/web/useTable'
 import {
   ElButton,
-  ElCard,
   ElMessage,
   ElMessageBox,
   ElPagination,
   ElTag,
   ElTooltip,
   ElAlert,
-  ElCheckbox
+  ElCheckbox,
+  ElEmpty
 } from 'element-plus'
 import { Icon } from '@/components/Icon'
 const { t } = useI18n()
@@ -427,7 +427,15 @@ onUnmounted(stopAuto)
       {{ autoRefresh ? t('task.autoRefreshOn') : t('task.autoRefreshOff') }}
     </ElButton>
   </div>
+  <!-- 空态要说清「为什么还没数据」：节点领取任务后才会按模块写进度，
+       只显示 el-table 默认的「暂无数据」看不出是没跑还是没产出 -->
+  <ElEmpty
+    v-if="!loading && !dataList.length"
+    :description="t('task.progressEmptyHint')"
+    :image-size="80"
+  />
   <Table
+    v-else
     v-model:pageSize="pageSize"
     v-model:currentPage="currentPage"
     @register="tableRegister"
@@ -454,7 +462,8 @@ onUnmounted(stopAuto)
         '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji'
     }"
   />
-  <ElCard>
+  <!-- 分页不再套 ElCard：弹窗里再嵌一层卡片会多出边框和底色，看着像两页叠在一起 -->
+  <div class="progress-footer">
     <ElPagination
       v-model:pageSize="pageSize"
       v-model:currentPage="currentPage"
@@ -462,10 +471,16 @@ onUnmounted(stopAuto)
       layout="total, sizes, prev, pager, next, jumper"
       :total="total"
     />
-  </ElCard>
+  </div>
 </template>
 
 <style scoped>
+.progress-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
 .target-stats {
   display: flex;
   align-items: center;
