@@ -136,6 +136,8 @@ func init() {
 	// 否则「导出/备份」在换镜像后全部消失（2026-11-28 踩过）。日志里能直接核对。
 	fmt.Printf("paths: export_dir=%s backup_dir=%s\n",
 		GlobalConfig.System.ExportPath(), GlobalConfig.System.BackupPath())
+	fmt.Printf("paths-raw: config=%s viper.export_dir=%q viper.backup_dir=%q\n",
+		viper.ConfigFileUsed(), viper.GetString("system.export_dir"), viper.GetString("system.backup_dir"))
 
 	// 创建上传目录
 	err = utils.EnsureDir(filepath.Join(exeDir, "uploads"))
