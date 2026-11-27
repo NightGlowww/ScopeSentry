@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { reactive } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
 import { ElButton, ElCol, ElRow, ElInput, ElSelect, ElOption, ElTag, ElMessage } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -12,27 +13,29 @@ import {
 } from '@/api/github'
 import { formatTime } from '@/utils'
 
+const { t } = useI18n('github')
+
 const stateMap: Record<number, { text: string; type: string }> = {
-  0: { text: '待开始', type: 'info' },
-  1: { text: '运行中', type: 'success' },
-  2: { text: '已暂停', type: 'warning' },
-  3: { text: '已完成', type: 'primary' }
+  0: { text: t('statePending'), type: 'info' },
+  1: { text: t('stateRunning'), type: 'success' },
+  2: { text: t('statePaused'), type: 'warning' },
+  3: { text: t('stateFinished'), type: 'primary' }
 }
 
 const filters = reactive({ keyword: '', state: '' as string | number })
 
 const columns = reactive<TableColumn[]>([
-  { field: 'name', label: '名称', minWidth: 160 },
-  { field: 'query', label: '查询', minWidth: 200 },
+  { field: 'name', label: t('colName'), minWidth: 160 },
+  { field: 'query', label: t('colQuery'), minWidth: 200 },
   {
     field: 'intervalMinutes',
-    label: '间隔(分钟)',
+    label: t('formInterval'),
     width: 110,
     formatter: (_r, __: TableColumn, v?: number) => (v ? String(v) : '-')
   },
   {
     field: 'state',
-    label: '状态',
+    label: t('colState'),
     width: 100,
     formatter: (_r, __: TableColumn, v: number) => (
       <ElTag type={(stateMap[v]?.type as any) || 'info'} effect="light">
@@ -42,26 +45,32 @@ const columns = reactive<TableColumn[]>([
   },
   {
     field: 'stats',
-    label: '已扫描/新增',
+    label: t('colStats'),
     width: 130,
     formatter: (_r, __: TableColumn, v?: { scanned: number; newFound: number }) =>
       v ? v.scanned + ' / ' + v.newFound : '-'
   },
   {
     field: 'lastRunAt',
-    label: '最近运行',
+    label: t('colLastRun'),
     minWidth: 160,
     formatter: (_r, __: TableColumn, v?: string) => (v ? formatTime(v, 'yyyy-MM-dd HH:mm:ss') : '-')
   },
   {
     field: 'action',
-    label: '操作',
+    label: t('colAction'),
     width: 260,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
-        <BaseButton type="primary" onClick={() => act(row, 'run')}>立即运行</BaseButton>
-        <BaseButton type="warning" onClick={() => act(row, 'stop')}>暂停</BaseButton>
-        <BaseButton type="success" onClick={() => act(row, 'recover')}>恢复</BaseButton>
+        <BaseButton type="primary" onClick={() => act(row, 'run')}>
+          {t('btnRunNow')}
+        </BaseButton>
+        <BaseButton type="warning" onClick={() => act(row, 'stop')}>
+          {t('btnPause')}
+        </BaseButton>
+        <BaseButton type="success" onClick={() => act(row, 'recover')}>
+          {t('btnRecover')}
+        </BaseButton>
       </div>
     )
   }
@@ -84,29 +93,44 @@ pageSize.value = 20
 const { getList } = tableMethods
 
 const act = async (row: { id: string; name: string }, kind: 'run' | 'stop' | 'recover') => {
-  if (kind === 'run') await runSchedulersApi([row.id])
-  if (kind === 'stop') await stopSchedulersApi([row.id])
-  if (kind === 'recover') await recoverSchedulersApi([row.id])
-  ElMessage.success('已提交：' + row.name)
-  getList()
+  try {
+    if (kind === 'run') {
+      const res = (await runSchedulersApi([row.id])) as { data?: { runs?: unknown[] } }
+      // 后端这次一个任务都没跑（正在运行/不存在）时不能提示已提交
+      if (!res?.data?.runs?.length) ElMessage.warning(t('runNoop', { name: row.name }))
+      else ElMessage.success(t('runSubmitted', { name: row.name }))
+    } else if (kind === 'stop') {
+      const res = (await stopSchedulersApi([row.id])) as { data?: { updated?: number } }
+      if (res?.data?.updated === 0) ElMessage.warning(t('stopNoop', { name: row.name }))
+      else ElMessage.success(t('stopSuccess', { name: row.name }))
+    } else {
+      const res = (await recoverSchedulersApi([row.id])) as { data?: { recovered?: number } }
+      if (res?.data?.recovered === 0) ElMessage.warning(t('recoverNoop', { name: row.name }))
+      else ElMessage.success(t('recoverSuccess', { name: row.name }))
+    }
+    getList()
+  } catch (e: any) {
+    // 后端错误拦截器已提示过，只在没有响应体时补一条兜底
+    if (!e?.response) ElMessage.error(e?.message || t('opFailed'))
+  }
 }
 </script>
 
 <template>
   <ElRow :gutter="12" class="mb-10px">
     <ElCol :span="6">
-      <ElInput v-model="filters.keyword" placeholder="名称/查询关键字" clearable />
+      <ElInput v-model="filters.keyword" :placeholder="t('phTaskKeyword')" clearable />
     </ElCol>
     <ElCol :span="4">
-      <ElSelect v-model="filters.state" placeholder="状态" clearable style="width: 100%">
-        <ElOption label="待开始" :value="0" />
-        <ElOption label="运行中" :value="1" />
-        <ElOption label="已暂停" :value="2" />
-        <ElOption label="已完成" :value="3" />
+      <ElSelect v-model="filters.state" :placeholder="t('colState')" clearable style="width: 100%">
+        <ElOption :label="t('statePending')" :value="0" />
+        <ElOption :label="t('stateRunning')" :value="1" />
+        <ElOption :label="t('statePaused')" :value="2" />
+        <ElOption :label="t('stateFinished')" :value="3" />
       </ElSelect>
     </ElCol>
     <ElCol :span="6">
-      <ElButton type="primary" @click="getList">查询</ElButton>
+      <ElButton type="primary" @click="getList">{{ t('btnQuery') }}</ElButton>
     </ElCol>
   </ElRow>
 

@@ -13,10 +13,13 @@ import {
   ElDescriptionsItem
 } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
+import { useI18n } from '@/hooks/web/useI18n'
 import { getConsoleInfoApi, type ConsoleInfo } from '@/api/dashboard'
 import request from '@/axios'
-import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
-import { useSingleTabLeader } from "@/hooks/web/useSingleTabLeader"
+import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
+
+const { t } = useI18n('systemStatus')
 
 const info = ref<ConsoleInfo | null>(null)
 const loading = ref(false)
@@ -30,7 +33,7 @@ const load = async () => {
     info.value = res.data
     error.value = ''
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    error.value = e?.message || t('loadFailed')
   } finally {
     loading.value = false
   }
@@ -62,8 +65,9 @@ const topShare = (col: any) => {
 
 const depTag = (dep?: { connected: boolean; latencyMs: number; error?: string }) => {
   if (!dep) return { type: 'info' as const, text: '-' }
-  if (!dep.connected) return { type: 'danger' as const, text: '断连 ' + (dep.error || '') }
-  return { type: 'success' as const, text: '正常 ' + dep.latencyMs.toFixed(1) + 'ms' }
+  if (!dep.connected)
+    return { type: 'danger' as const, text: t('depDisconnected', { error: dep.error || '' }) }
+  return { type: 'success' as const, text: t('depOk', { latency: dep.latencyMs.toFixed(1) }) }
 }
 
 onMounted(() => {
@@ -75,43 +79,45 @@ onMounted(() => {
     load()
   }, 15000)
 })
-
 </script>
 
 <template>
   <ContentWrap>
     <ElRow :gutter="12" class="mb-12px">
       <ElCol :span="18">
-        <span class="hint">每 15 秒自动刷新{{ info ? '，数据采集于 ' + info.collectedAt : '' }}</span>
+        <span class="hint"
+          >{{ t('autoRefreshHint')
+          }}{{ info ? t('collectedAtSuffix', { at: info.collectedAt }) : '' }}</span
+        >
         <span v-if="error" class="err">{{ error }}</span>
       </ElCol>
       <ElCol :span="6" style="text-align: right">
-        <ElButton type="primary" :loading="loading" @click="load">刷新</ElButton>
+        <ElButton type="primary" :loading="loading" @click="load">{{ t('refresh') }}</ElButton>
       </ElCol>
     </ElRow>
 
     <ElRow :gutter="12" class="mb-12px">
       <ElCol :span="6">
         <ElCard shadow="never">
-          <div class="stat-label">服务版本</div>
+          <div class="stat-label">{{ t('serviceVersion') }}</div>
           <div class="stat-value">{{ info?.version || '-' }}</div>
         </ElCard>
       </ElCol>
       <ElCol :span="6">
         <ElCard shadow="never">
-          <div class="stat-label">运行时长</div>
+          <div class="stat-label">{{ t('uptime') }}</div>
           <div class="stat-value">{{ info?.uptimeHuman || '-' }}</div>
         </ElCard>
       </ElCol>
       <ElCol :span="6">
         <ElCard shadow="never">
-          <div class="stat-label">节点（在线/总数）</div>
+          <div class="stat-label">{{ t('nodes') }}</div>
           <div class="stat-value">{{ info ? info.nodeOnline + ' / ' + info.nodeCount : '-' }}</div>
         </ElCard>
       </ElCol>
       <ElCol :span="6">
         <ElCard shadow="never">
-          <div class="stat-label">任务（运行/总数）</div>
+          <div class="stat-label">{{ t('tasks') }}</div>
           <div class="stat-value">{{ info ? info.taskRunning + ' / ' + info.taskCount : '-' }}</div>
         </ElCard>
       </ElCol>
@@ -120,7 +126,7 @@ onMounted(() => {
     <ElRow :gutter="12" class="mb-12px" v-if="info && info.hostStats">
       <ElCol :span="8">
         <ElCard shadow="never">
-          <div class="stat-label">磁盘可用</div>
+          <div class="stat-label">{{ t('diskFree') }}</div>
           <div class="stat-value">{{ info.hostStats.diskFreePercent.toFixed(1) }}%</div>
           <div class="hint">
             {{ (info.hostStats.diskFreeBytes / 1024 / 1024 / 1024).toFixed(1) }} GB /
@@ -130,18 +136,24 @@ onMounted(() => {
       </ElCol>
       <ElCol :span="8">
         <ElCard shadow="never">
-          <div class="stat-label">1 分钟负载</div>
-          <div class="stat-value">{{ info.hostStats.load1 >= 0 ? info.hostStats.load1.toFixed(2) : '-' }}</div>
-          <div class="hint">CPU {{ info.hostStats.cpus }} 核</div>
+          <div class="stat-label">{{ t('load1m') }}</div>
+          <div class="stat-value">{{
+            info.hostStats.load1 >= 0 ? info.hostStats.load1.toFixed(2) : '-'
+          }}</div>
+          <div class="hint">{{ t('cpuCores', { cpus: info.hostStats.cpus }) }}</div>
         </ElCard>
       </ElCol>
       <ElCol :span="8">
         <ElCard shadow="never">
-          <div class="stat-label">可用内存</div>
+          <div class="stat-label">{{ t('memAvailable') }}</div>
           <div class="stat-value">
-            {{ info.hostStats.memAvailablePercent >= 0 ? info.hostStats.memAvailablePercent.toFixed(1) + '%' : '-' }}
+            {{
+              info.hostStats.memAvailablePercent >= 0
+                ? info.hostStats.memAvailablePercent.toFixed(1) + '%'
+                : '-'
+            }}
           </div>
-          <div class="hint">低于 10% 会告警</div>
+          <div class="hint">{{ t('memWarn') }}</div>
         </ElCard>
       </ElCol>
     </ElRow>
@@ -151,42 +163,54 @@ onMounted(() => {
       :closable="false"
       show-icon
       class="mb-12px"
-      :title="'主机告警：' + info.hostWarnings.join(', ')"
+      :title="t('hostWarning', { list: info.hostWarnings.join(', ') })"
     />
     <ElCard shadow="never">
-      <template #header><span>运行信息</span></template>
+      <template #header
+        ><span>{{ t('runInfo') }}</span></template
+      >
       <ElDescriptions :column="2" border>
-        <ElDescriptionsItem label="启动时间">{{ info?.startTime || '-' }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="时区">{{ info?.timezone || '-' }}</ElDescriptionsItem>
+        <ElDescriptionsItem :label="t('startTime')">{{
+          info?.startTime || '-'
+        }}</ElDescriptionsItem>
+        <ElDescriptionsItem :label="t('timezone')">{{ info?.timezone || '-' }}</ElDescriptionsItem>
         <ElDescriptionsItem label="MongoDB">
-          <ElTag :type="depTag(info?.mongo).type" effect="light">{{ depTag(info?.mongo).text }}</ElTag>
+          <ElTag :type="depTag(info?.mongo).type" effect="light">{{
+            depTag(info?.mongo).text
+          }}</ElTag>
         </ElDescriptionsItem>
         <ElDescriptionsItem label="Redis">
-          <ElTag :type="depTag(info?.redis).type" effect="light">{{ depTag(info?.redis).text }}</ElTag>
+          <ElTag :type="depTag(info?.redis).type" effect="light">{{
+            depTag(info?.redis).text
+          }}</ElTag>
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="运行秒数">{{ info?.uptimeSeconds ?? '-' }}</ElDescriptionsItem>
-        <ElDescriptionsItem label="采集时间">{{ info?.collectedAt || '-' }}</ElDescriptionsItem>
+        <ElDescriptionsItem :label="t('uptimeSeconds')">{{
+          info?.uptimeSeconds ?? '-'
+        }}</ElDescriptionsItem>
+        <ElDescriptionsItem :label="t('collectedTime')">{{
+          info?.collectedAt || '-'
+        }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElCard>
 
     <ElCard shadow="never" class="mt-12px">
       <template #header>
-        <span>存储占用</span>
+        <span>{{ t('storageUsage') }}</span>
         <span v-if="storage" class="hint" style="margin-left: 8px">
-          合计 {{ mb(storage.total) }}；备份大小与耗时基本由最大那个集合决定
+          {{ t('storageSummary', { total: mb(storage.total) }) }}
         </span>
       </template>
       <ElTable v-if="storage?.collections?.length" :data="storage.collections" size="small">
-        <ElTableColumn prop="name" label="集合" min-width="180" />
-        <ElTableColumn label="占用" width="120">
+        <ElTableColumn prop="name" :label="t('colCollection')" min-width="180" />
+        <ElTableColumn :label="t('colUsage')" width="120">
           <template #default="{ row }">{{ mb(row.bytes) }}</template>
         </ElTableColumn>
-        <ElTableColumn label="占比" width="90">
+        <ElTableColumn :label="t('colShare')" width="90">
           <template #default="{ row }">{{ topShare(row) }}</template>
         </ElTableColumn>
-        <ElTableColumn prop="docs" label="文档数" width="120" />
+        <ElTableColumn prop="docs" :label="t('colDocs')" width="120" />
       </ElTable>
-      <div v-else class="hint">暂无数据（需要登录后自动加载）</div>
+      <div v-else class="hint">{{ t('noData') }}</div>
     </ElCard>
   </ContentWrap>
 </template>

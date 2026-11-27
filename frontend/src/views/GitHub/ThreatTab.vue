@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useI18n } from '@/hooks/web/useI18n'
 import {
   ElButton,
   ElCard,
@@ -28,13 +29,23 @@ import {
   type ThreatHistoryItem
 } from '@/api/github'
 
+const { t } = useI18n('github')
+
 const kinds: { kind: ThreatKind; title: string }[] = [
-  { kind: 'cve', title: 'CVE 情报' },
-  { kind: 'hackers', title: '黑客情报' },
-  { kind: 'tools', title: '工具情报' }
+  { kind: 'cve', title: t('kindCve') },
+  { kind: 'hackers', title: t('kindHackers') },
+  { kind: 'tools', title: t('kindTools') }
 ]
 
-const sources = reactive<Record<string, { enabled: boolean; keywords: string[]; intervalHours: number; tokenRef: string }>>({})
+// 监控目标卡片：kind 必须是字面量联合，模板里才不会退化成 string
+const targetKinds: { kind: 'hackers' | 'tools'; title: string }[] = [
+  { kind: 'hackers', title: t('targetHackersTitle') },
+  { kind: 'tools', title: t('targetToolsTitle') }
+]
+
+const sources = reactive<
+  Record<string, { enabled: boolean; keywords: string[]; intervalHours: number; tokenRef: string }>
+>({})
 const saving = reactive<Record<string, boolean>>({})
 const running = reactive<Record<string, boolean>>({})
 const tokenStatus = ref<{ status: string; remaining?: number; login?: string } | null>(null)
@@ -72,7 +83,7 @@ const loadCveHistory = async () => {
     const res = await getCveHistoryApi({ keyword: cveKeyword.value || undefined, limit: 100 })
     cveHistory.value = res.data.list || []
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载 CVE 历史失败')
+    ElMessage.error(e?.message || t('cveHistoryLoadFailed'))
   } finally {
     cveLoading.value = false
   }
@@ -107,9 +118,9 @@ const save = async (kind: ThreatKind) => {
       intervalHours: sources[kind].intervalHours,
       tokenRef: sources[kind].tokenRef
     })
-    ElMessage.success('已保存')
+    ElMessage.success(t('saveSuccess'))
   } catch (e: any) {
-    ElMessage.error(e?.message || '保存失败')
+    ElMessage.error(e?.message || t('saveFailed'))
   } finally {
     saving[kind] = false
   }
@@ -119,9 +130,9 @@ const runOnce = async (kind: ThreatKind) => {
   running[kind] = true
   try {
     await runThreatOnceApi(kind)
-    ElMessage.success('已触发一次采集')
+    ElMessage.success(t('runTriggered'))
   } catch (e: any) {
-    ElMessage.error(e?.message || '触发失败')
+    ElMessage.error(e?.message || t('runFailed'))
   } finally {
     running[kind] = false
   }
@@ -142,8 +153,20 @@ onMounted(async () => {
     class="mb-10px"
     :closable="false"
     show-icon
-    :type="tokenStatus.status === 'valid' ? 'success' : tokenStatus.status === 'missing' ? 'warning' : 'error'"
-    :title="'GitHub Token 状态：' + tokenStatus.status + (tokenStatus.login ? '（' + tokenStatus.login + '）' : '') + (tokenStatus.remaining !== undefined ? '，剩余额度 ' + tokenStatus.remaining : '')"
+    :type="
+      tokenStatus.status === 'valid'
+        ? 'success'
+        : tokenStatus.status === 'missing'
+          ? 'warning'
+          : 'error'
+    "
+    :title="
+      t('tokenStatusTitle', { status: tokenStatus.status }) +
+      (tokenStatus.login ? t('tokenStatusLogin', { login: tokenStatus.login }) : '') +
+      (tokenStatus.remaining !== undefined
+        ? t('tokenStatusRemaining', { remaining: tokenStatus.remaining })
+        : '')
+    "
   />
 
   <ElRow :gutter="12">
@@ -158,28 +181,32 @@ onMounted(async () => {
 
         <div v-if="sources[item.kind]" class="threat-body">
           <div class="field">
-            <span class="label">关键词</span>
+            <span class="label">{{ t('formKeywords') }}</span>
             <ElSelect
               v-model="sources[item.kind].keywords"
               multiple
               filterable
               allow-create
               default-first-option
-              placeholder="可留空"
+              :placeholder="t('phOptional')"
               style="width: 100%"
             />
           </div>
           <div class="field">
-            <span class="label">间隔(小时)</span>
+            <span class="label">{{ t('formIntervalHours') }}</span>
             <ElInputNumber v-model="sources[item.kind].intervalHours" :min="1" :max="168" />
           </div>
           <div class="field">
-            <span class="label">Token 引用</span>
-            <ElInput v-model="sources[item.kind].tokenRef" placeholder="系统配置中的 name，可留空用环境变量" />
+            <span class="label">{{ t('formTokenRef') }}</span>
+            <ElInput v-model="sources[item.kind].tokenRef" :placeholder="t('phTokenRef')" />
           </div>
           <div class="actions">
-            <ElButton type="primary" :loading="saving[item.kind]" @click="save(item.kind)">保存</ElButton>
-            <ElButton type="success" :loading="running[item.kind]" @click="runOnce(item.kind)">立即运行一次</ElButton>
+            <ElButton type="primary" :loading="saving[item.kind]" @click="save(item.kind)">
+              {{ t('btnSave') }}
+            </ElButton>
+            <ElButton type="success" :loading="running[item.kind]" @click="runOnce(item.kind)">
+              {{ t('btnRunOnce') }}
+            </ElButton>
           </div>
         </div>
       </ElCard>
@@ -187,28 +214,30 @@ onMounted(async () => {
   </ElRow>
 
   <ElRow :gutter="12" class="mb-12px">
-    <ElCol v-for="item in [{ kind: 'hackers', title: '黑客监控目标' }, { kind: 'tools', title: '工具仓库监控目标' }]" :key="item.kind" :span="12">
+    <ElCol v-for="item in targetKinds" :key="item.kind" :span="12">
       <ElCard shadow="never">
-        <template #header><span>{{ item.title }}（{{ targets[item.kind].length }}）</span></template>
+        <template #header>
+          <span>{{ item.title }}{{ t('parenCount', { count: targets[item.kind].length }) }}</span>
+        </template>
         <div class="target-add">
           <ElInput
             v-model="targetInput[item.kind]"
-            :placeholder="item.kind === 'hackers' ? 'GitHub 用户名，如 @foo' : 'owner/repo'"
+            :placeholder="item.kind === 'hackers' ? t('phHackerTarget') : 'owner/repo'"
             @keyup.enter="addTarget(item.kind)"
           />
-          <ElButton type="primary" @click="addTarget(item.kind)">添加</ElButton>
+          <ElButton type="primary" @click="addTarget(item.kind)">{{ t('btnAdd') }}</ElButton>
         </div>
         <div class="target-list">
           <ElTag
-            v-for="t in targets[item.kind]"
-            :key="t"
+            v-for="tag in targets[item.kind]"
+            :key="tag"
             closable
             class="target-tag"
-            @close="removeTarget(item.kind, t)"
+            @close="removeTarget(item.kind, tag)"
           >
-            {{ t }}
+            {{ tag }}
           </ElTag>
-          <span v-if="!targets[item.kind].length" class="hint">暂无目标</span>
+          <span v-if="!targets[item.kind].length" class="hint">{{ t('noTargets') }}</span>
         </div>
       </ElCard>
     </ElCol>
@@ -217,24 +246,31 @@ onMounted(async () => {
   <ElCard shadow="never">
     <template #header>
       <div class="flex items-center justify-between">
-        <span>CVE 情报历史（{{ cveHistory.length }}）</span>
+        <span>{{ t('cveHistoryTitle') }}{{ t('parenCount', { count: cveHistory.length }) }}</span>
         <div class="history-actions">
-          <ElInput v-model="cveKeyword" placeholder="关键字" clearable style="width: 200px" />
-          <ElButton type="primary" @click="loadCveHistory">查询</ElButton>
+          <ElInput
+            v-model="cveKeyword"
+            :placeholder="t('phKeyword')"
+            clearable
+            style="width: 200px"
+          />
+          <ElButton type="primary" @click="loadCveHistory">{{ t('btnQuery') }}</ElButton>
         </div>
       </div>
     </template>
     <ElTable :data="cveHistory" v-loading="cveLoading" stripe border max-height="420">
-      <ElTableColumn prop="discoveredAt" label="发现时间" width="170" />
-      <ElTableColumn prop="key" label="编号" width="150" />
-      <ElTableColumn label="标题" min-width="260">
+      <ElTableColumn prop="discoveredAt" :label="t('colDiscoveredAt')" width="170" />
+      <ElTableColumn prop="key" :label="t('colKey')" width="150" />
+      <ElTableColumn :label="t('colTitle')" min-width="260">
         <template #default="scope">
-          <a :href="scope.row.url" target="_blank" class="link">{{ scope.row.title || scope.row.url }}</a>
+          <a :href="scope.row.url" target="_blank" class="link">{{
+            scope.row.title || scope.row.url
+          }}</a>
         </template>
       </ElTableColumn>
-      <ElTableColumn prop="severity" label="严重度" width="100" />
-      <ElTableColumn prop="repo" label="仓库" min-width="160" />
-      <ElTableColumn prop="keyword" label="命中关键词" width="140" />
+      <ElTableColumn prop="severity" :label="t('colSeverity')" width="100" />
+      <ElTableColumn prop="repo" :label="t('colRepo')" min-width="160" />
+      <ElTableColumn prop="keyword" :label="t('colKeyword')" width="140" />
     </ElTable>
   </ElCard>
 </template>

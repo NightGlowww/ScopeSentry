@@ -4,8 +4,6 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { onMounted, reactive, ref, computed } from 'vue'
 import {
   ElButton,
-
-
   ElInput,
   ElSelect,
   ElOption,
@@ -26,6 +24,7 @@ import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import { formatTime } from '@/utils'
 
 const { t } = useI18n()
+const { t: tc } = useI18n('mcpAudit')
 const userStore = useUserStore()
 
 const statusOptions = [
@@ -77,7 +76,7 @@ const saveConfig = async () => {
       logRetention: cfg.logRetention,
       allowedTools: cfg.allowedTools
     })
-    ElMessage.success('已保存')
+    ElMessage.success(tc('saved'))
     loadConfig()
   } finally {
     cfgSaving.value = false
@@ -103,39 +102,39 @@ const statusTag = (status: string) => {
 const columns = reactive<TableColumn[]>([
   {
     field: 'createdAt',
-    label: '时间',
+    label: tc('colTime'),
     minWidth: 170,
     formatter: (_row, __: TableColumn, value: string) => formatDateTime(value)
   },
   {
     field: 'tool',
-    label: '工具',
+    label: tc('colTool'),
     minWidth: 160
   },
   {
     field: 'status',
-    label: '状态',
+    label: tc('colStatus'),
     width: 100,
     formatter: (_row, __: TableColumn, value: string) => statusTag(value)
   },
   {
     field: 'durationMs',
-    label: '耗时(ms)',
+    label: tc('colDuration'),
     width: 100
   },
   {
     field: 'keyPrefix',
-    label: 'Key 前缀',
+    label: tc('colKeyPrefix'),
     minWidth: 140
   },
   {
     field: 'clientIp',
-    label: '客户端 IP',
+    label: tc('colClientIp'),
     minWidth: 130
   },
   {
     field: 'error',
-    label: '错误',
+    label: tc('colError'),
     minWidth: 200
   }
 ])
@@ -185,7 +184,9 @@ const loadDeniedSummary = async () => {
 onMounted(loadDeniedSummary)
 
 // 三种客户端的接入片段（端点取当前站点，密钥用占位符）
-const mcpEndpoint = computed(() => (typeof window !== 'undefined' ? window.location.origin : '') + '/mcp')
+const mcpEndpoint = computed(
+  () => (typeof window !== 'undefined' ? window.location.origin : '') + '/mcp'
+)
 const clientGuides = computed(() => [
   {
     name: 'Claude Code / Claude Desktop',
@@ -195,7 +196,7 @@ const clientGuides = computed(() => [
           scopesentry: {
             type: 'http',
             url: mcpEndpoint.value,
-            headers: { 'X-API-Key': 'ssk_你的密钥' }
+            headers: { 'X-API-Key': tc('apiKeyPlaceholder') }
           }
         }
       },
@@ -210,7 +211,7 @@ const clientGuides = computed(() => [
         mcpServers: {
           scopesentry: {
             url: mcpEndpoint.value,
-            headers: { 'X-API-Key': 'ssk_你的密钥' }
+            headers: { 'X-API-Key': tc('apiKeyPlaceholder') }
           }
         }
       },
@@ -219,12 +220,12 @@ const clientGuides = computed(() => [
     )
   },
   {
-    name: 'curl（自测用）',
+    name: tc('curlGuideName'),
     body: [
       'curl -s ' + mcpEndpoint.value + ' \\',
       '  -H "Content-Type: application/json" \\',
       '  -H "Accept: application/json, text/event-stream" \\',
-      '  -H "X-API-Key: ssk_你的密钥" \\',
+      '  -H "X-API-Key: ' + tc('apiKeyPlaceholder') + '" \\',
       '  -d \'{"jsonrpc":"2.0","id":1,"method":"tools/list"}\''
     ].join('\n')
   }
@@ -232,31 +233,27 @@ const clientGuides = computed(() => [
 // 三段可直接粘给 AI Agent 的提示词（工具名与 scope 对应我们的 MCP）
 const promptTemplates = computed(() => [
   {
-    name: '资产梳理 / Asset profile',
+    name: tc('promptAssetTitle'),
     body: [
-      '使用 scopesentry 的 get_asset_profile 分析目标 example.com：',
-      '1) 汇总子域数量、开放端口与服务、Web 指纹与标题',
-      '2) 列出已知漏洞（含等级）与敏感信息命中',
-      '3) 给出暴露面优先级建议：先处理哪些、为什么',
-      '只基于工具返回的数据下结论；数据缺失时明确说"未采集到"，不要推测。'
+      tc('promptAssetLine1'),
+      tc('promptAssetLine2'),
+      tc('promptAssetLine3'),
+      tc('promptAssetLine4'),
+      tc('promptAssetLine5')
     ].join('\n')
   },
   {
-    name: '跨库检索 / Search',
-    body: [
-      '用 search_assets 在库里检索关键词 "acme"，按类型分类返回命中数量与样本；',
-      '再对命中最多的那一类用 get_asset_profile 展开细节。',
-      '如果某类为 0，直接说"该类没有记录"，不要编造。'
-    ].join('\n')
+    name: tc('promptSearchTitle'),
+    body: [tc('promptSearchLine1'), tc('promptSearchLine2'), tc('promptSearchLine3')].join('\n')
   },
   {
-    name: '任务巡检 / Task triage',
+    name: tc('promptTriageTitle'),
     body: [
-      '用 list_tasks + get_task_progress 巡检当前任务：',
-      '1) 列出运行中、待开始、失败的任务（各含名称与进度）',
-      '2) 对失败任务说明失败原因（failReason 字段）',
-      '3) 对待开始任务说明排队位置',
-      '不要自行启停任何任务，只汇报。'
+      tc('promptTriageLine1'),
+      tc('promptTriageLine2'),
+      tc('promptTriageLine3'),
+      tc('promptTriageLine4'),
+      tc('promptTriageLine5')
     ].join('\n')
   }
 ])
@@ -295,6 +292,18 @@ const handleSearch = () => {
   currentPage.value = 1
   getList()
   stampNow()
+}
+
+// 模板里的多语句事件处理器一律收成具名函数：
+// prettier 会把 `@click="a(); b()"` 折成多行把分号吃掉，构建期直接 SyntaxError（2026-11-28 实测）。
+const refreshNow = () => {
+  getList()
+  stampNow()
+}
+
+const onlyDenied = () => {
+  filters.status = 'denied'
+  handleSearch()
 }
 
 const handleReset = () => {
@@ -370,10 +379,16 @@ const handleExport = async () => {
       <span class="stream-hint">
         <template v-if="!isLeader">{{ t('mcp.autoRefreshFollower') }}</template>
         <template v-else>
-          {{ t('mcp.autoRefresh') }}{{ lastRefreshAt ? ' · ' + t('task.listRefreshHintShort', { t: lastRefreshAt }) : '' }}
+          {{ t('mcp.autoRefresh')
+          }}{{ lastRefreshAt ? ' · ' + t('task.listRefreshHintShort', { t: lastRefreshAt }) : '' }}
         </template>
       </span>
-      <ElButton link type="primary" size="small" @click="getList(); stampNow()">
+      <ElButton
+        link
+        type="primary"
+        size="small"
+        @click="refreshNow"
+      >
         {{ t('mcp.refreshNow') }}
       </ElButton>
     </div>
@@ -384,29 +399,36 @@ const handleExport = async () => {
       :closable="false"
       show-icon
       class="mb-12px"
-      :title="`最近 1 小时有 ${deniedCount} 次调用被拒绝` + (deniedReason ? ' · ' + deniedReason : '')"
+      :title="
+        tc('deniedAlertTitle', { count: deniedCount }) + (deniedReason ? ' · ' + deniedReason : '')
+      "
     >
-      <ElButton link type="primary" size="small" @click="filters.status = 'denied'; handleSearch()">
-        只看被拒的
+      <ElButton
+        link
+        type="primary"
+        size="small"
+        @click="onlyDenied"
+      >
+        {{ tc('onlyDenied') }}
       </ElButton>
     </ElAlert>
     <!-- 没黄条不代表「没人查过」：给一条明确的绿色正常态，避免把沉默当成没问题 -->
     <div v-else-if="deniedChecked" class="mcp-ok">
       <ElTag type="success" size="small" effect="plain">
-        {{ '最近 1 小时没有被拒的调用' }}
+        {{ tc('noDenied') }}
       </ElTag>
     </div>
     <ElCard class="mb-12px" shadow="never" v-loading="cfgLoading">
       <template #header>
-        <span>全局配置</span>
+        <span>{{ tc('globalConfig') }}</span>
       </template>
       <div class="cfg-grid">
         <div class="cfg-field">
-          <span class="cfg-label">启用 MCP</span>
+          <span class="cfg-label">{{ tc('enableMcp') }}</span>
           <ElSwitch v-model="cfg.enabled" />
         </div>
         <div class="cfg-field">
-          <span class="cfg-label">全局限速/分</span>
+          <span class="cfg-label">{{ tc('rateLimitPerMin') }}</span>
           <ElInputNumber
             v-model="cfg.rateLimitPerMin"
             :min="0"
@@ -416,7 +438,7 @@ const handleExport = async () => {
           />
         </div>
         <div class="cfg-field">
-          <span class="cfg-label">日志保留条数</span>
+          <span class="cfg-label">{{ tc('logRetention') }}</span>
           <ElInputNumber
             v-model="cfg.logRetention"
             :min="1000"
@@ -427,41 +449,48 @@ const handleExport = async () => {
           />
         </div>
         <div class="cfg-field cfg-field-wide">
-          <span class="cfg-label">工具白名单</span>
+          <span class="cfg-label">{{ tc('toolAllowlist') }}</span>
           <ElSelect
             v-model="cfg.allowedTools"
             multiple
             filterable
             allow-create
             default-first-option
-            placeholder="留空 = 全部工具"
+            :placeholder="tc('allowlistPlaceholder')"
             style="width: 100%"
           />
         </div>
         <div class="cfg-field cfg-actions">
-          <ElButton type="primary" :loading="cfgSaving" @click="saveConfig">保存配置</ElButton>
+          <ElButton type="primary" :loading="cfgSaving" @click="saveConfig">{{
+            tc('saveConfig')
+          }}</ElButton>
         </div>
       </div>
     </ElCard>
 
     <div class="filter-grid">
       <ElInput v-model="filters.keyId" placeholder="Key ID" clearable />
-      <ElInput v-model="filters.tool" placeholder="工具名，如 list_assets" clearable />
-      <ElSelect v-model="filters.status" placeholder="状态" clearable>
-        <ElOption v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+      <ElInput v-model="filters.tool" :placeholder="tc('toolNamePlaceholder')" clearable />
+      <ElSelect v-model="filters.status" :placeholder="tc('statusPlaceholder')" clearable>
+        <ElOption
+          v-for="opt in statusOptions"
+          :key="opt.value"
+          :label="opt.label"
+          :value="opt.value"
+        />
       </ElSelect>
       <ElDatePicker
         v-model="filters.range"
         type="daterange"
         value-format="YYYY-MM-DD"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
+        :start-placeholder="tc('startDatePlaceholder')"
+        :end-placeholder="tc('endDatePlaceholder')"
         class="filter-date"
       />
       <div class="filter-actions">
-        <ElButton type="primary" @click="handleSearch">查询</ElButton>
-        <ElButton @click="handleReset">重置</ElButton>
-        <ElButton type="success" @click="handleExport">导出</ElButton>
+        <ElButton type="primary" @click="handleSearch">{{ tc('search') }}</ElButton>
+        <ElButton @click="handleReset">{{ tc('reset') }}</ElButton>
+        <ElButton type="success" @click="handleExport">{{ tc('exportBtn') }}</ElButton>
       </div>
     </div>
 

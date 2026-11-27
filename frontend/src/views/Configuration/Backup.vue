@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
+import { useI18n } from '@/hooks/web/useI18n'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import {
@@ -27,6 +28,7 @@ import {
 import { useUserStore } from '@/store/modules/user'
 import { formatTime } from '@/utils'
 
+const { t } = useI18n('backup')
 const userStore = useUserStore()
 
 const formatSize = (size: number) => {
@@ -74,16 +76,16 @@ const stopPolling = () => {
 }
 
 const columns = reactive<TableColumn[]>([
-  { field: 'name', label: '备份文件', minWidth: 240 },
+  { field: 'name', label: t('colName'), minWidth: 240 },
   {
     field: 'size',
-    label: '大小',
+    label: t('colSize'),
     width: 110,
     formatter: (_row, __: TableColumn, value: number) => formatSize(value)
   },
   {
     field: 'createdAt',
-    label: '创建时间',
+    label: t('colCreatedAt'),
     minWidth: 170,
     formatter: (_row, __: TableColumn, value: string) =>
       value ? formatTime(value, 'yyyy-MM-dd HH:mm:ss') : '-'
@@ -94,21 +96,21 @@ const columns = reactive<TableColumn[]>([
     minWidth: 140,
     formatter: (_row, __: TableColumn, value: string) => (value ? value.slice(0, 12) + '…' : '-')
   },
-  { field: 'note', label: '备注', minWidth: 160 },
+  { field: 'note', label: t('colNote'), minWidth: 160 },
   {
     field: 'action',
-    label: '操作',
+    label: t('colAction'),
     width: 250,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
         <BaseButton type="primary" onClick={() => handleDownload(row.name)}>
-          下载
+          {t('download')}
         </BaseButton>
         <BaseButton type="warning" onClick={() => handleRestore(row.name)}>
-          恢复
+          {t('restore')}
         </BaseButton>
         <BaseButton type="danger" onClick={() => handleDelete(row.name)}>
-          删除
+          {t('delete')}
         </BaseButton>
       </div>
     )
@@ -138,9 +140,12 @@ const backupSummary = computed(() => {
   }
   return {
     count: list.length,
-    text:
-      '共 ' + list.length + ' 份备份，合计 ' + fmt(total) +
-      '；最近一份 ' + (latest?.createdAt || '-') + '，' + fmt(Number(latest?.size || 0))
+    text: t('summary', {
+      count: list.length,
+      total: fmt(total),
+      latest: latest?.createdAt || '-',
+      size: fmt(Number(latest?.size || 0))
+    })
   }
 })
 const { getList } = tableMethods
@@ -148,15 +153,15 @@ const { getList } = tableMethods
 const uploading = ref(false)
 
 const handleCreate = async () => {
-  const { value } = await ElMessageBox.prompt('可填写备注（可留空）', '创建全量备份', {
-    confirmButtonText: '开始备份',
-    cancelButtonText: '取消',
-    inputPlaceholder: '例如：升级前快照',
+  const { value } = await ElMessageBox.prompt(t('createPromptMessage'), t('createTitle'), {
+    confirmButtonText: t('startBackup'),
+    cancelButtonText: t('cancel'),
+    inputPlaceholder: t('notePlaceholder'),
     inputValidator: () => true
   }).catch(() => ({ value: null }) as { value: string | null })
   if (value === null) return
   await createBackupApi(value || '')
-  ElMessage.success('备份任务已提交')
+  ElMessage.success(t('backupSubmitted'))
   await loadStatus()
   getList()
 }
@@ -175,26 +180,26 @@ const handleDownload = async (name: string) => {
 
 const handleRestore = async (name: string) => {
   const { value } = await ElMessageBox.prompt(
-    '恢复会先用当前数据做一次 pre-restore 备份，然后覆盖现有数据。请输入 RESTORE 确认。',
-    '恢复备份 ' + name,
+    t('restoreConfirmMessage'),
+    t('restoreTitle', { name }),
     {
-      confirmButtonText: '执行恢复',
-      cancelButtonText: '取消',
+      confirmButtonText: t('doRestore'),
+      cancelButtonText: t('cancel'),
       inputPlaceholder: 'RESTORE',
-      inputValidator: (v: string) => (v === 'RESTORE' ? true : '请输入大写的 RESTORE')
+      inputValidator: (v: string) => (v === 'RESTORE' ? true : t('restoreMustUpper'))
     }
   ).catch(() => ({ value: null }) as { value: string | null })
   if (value === null) return
   await restoreBackupApi(name, value)
-  ElMessage.success('恢复任务已提交')
+  ElMessage.success(t('restoreSubmitted'))
   await loadStatus()
   getList()
 }
 
 const handleDelete = async (name: string) => {
-  await ElMessageBox.confirm('确定删除备份 ' + name + ' 吗？', '删除备份', {
-    confirmButtonText: '删除',
-    cancelButtonText: '取消',
+  await ElMessageBox.confirm(t('deleteConfirm', { name }), t('deleteTitle'), {
+    confirmButtonText: t('delete'),
+    cancelButtonText: t('cancel'),
     type: 'warning'
   })
   await deleteBackupApi(name)
@@ -205,13 +210,13 @@ const uploadHeaders = { Authorization: userStore.getToken || '' }
 
 const handleUploadSuccess = () => {
   uploading.value = false
-  ElMessage.success('上传完成')
+  ElMessage.success(t('uploadDone'))
   getList()
 }
 
 const handleUploadError = () => {
   uploading.value = false
-  ElMessage.error('上传失败')
+  ElMessage.error(t('uploadFailed'))
 }
 
 onMounted(async () => {
@@ -226,11 +231,11 @@ onBeforeUnmount(stopPolling)
   <ContentWrap>
     <ElCard class="mb-12px" shadow="never">
       <template #header>
-        <span>全量备份</span>
+        <span>{{ t('fullBackup') }}</span>
       </template>
       <ElRow :gutter="12" align="middle" class="mb-8px">
         <ElCol :span="4">
-          <ElButton type="primary" @click="handleCreate">创建备份</ElButton>
+          <ElButton type="primary" @click="handleCreate">{{ t('createBackup') }}</ElButton>
         </ElCol>
         <ElCol :span="6">
           <ElUpload
@@ -242,25 +247,35 @@ onBeforeUnmount(stopPolling)
             @success="handleUploadSuccess"
             @error="handleUploadError"
           >
-            <ElButton type="success" :loading="uploading">上传备份包</ElButton>
+            <ElButton type="success" :loading="uploading">{{ t('uploadPackage') }}</ElButton>
           </ElUpload>
         </ElCol>
         <ElCol :span="4">
-          <ElButton @click="getList">刷新列表</ElButton>
+          <ElButton @click="getList">{{ t('refreshList') }}</ElButton>
         </ElCol>
       </ElRow>
 
       <div v-if="status.running" class="mb-8px">
         <ElAlert type="info" :closable="false" show-icon>
           <template #title>
-            正在执行：{{ status.current || '备份中' }}（{{ status.progress }}%）
+            {{
+              t('runningNow', {
+                current: status.current || t('backingUp'),
+                progress: status.progress
+              })
+            }}
           </template>
           <ElProgress :percentage="status.progress" :stroke-width="8" />
         </ElAlert>
       </div>
-      <ElAlert v-else-if="status.lastError" type="error" :closable="false" show-icon
-        :title="'上次任务失败：' + status.lastError" />
-      <ElAlert v-else type="success" :closable="false" show-icon title="当前没有进行中的备份/恢复任务" />
+      <ElAlert
+        v-else-if="status.lastError"
+        type="error"
+        :closable="false"
+        show-icon
+        :title="t('lastTaskFailed', { error: status.lastError })"
+      />
+      <ElAlert v-else type="success" :closable="false" show-icon :title="t('idle')" />
     </ElCard>
 
     <!-- 备份单份可能几 GB：份数与合计占用要摆在列表上方，方便判断卷够不够 -->
@@ -273,7 +288,7 @@ onBeforeUnmount(stopPolling)
       stripe
       :border="true"
       :loading="loading"
-      empty-text="还没有备份文件：点上方「创建备份」生成一份全量备份，或「上传备份包」恢复已有的备份"
+      :empty-text="t('emptyText')"
       @register="tableRegister"
     />
   </ContentWrap>

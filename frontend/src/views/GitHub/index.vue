@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
+import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, ref } from 'vue'
 import {
   ElButton,
@@ -34,19 +35,21 @@ import SchedulerTab from './SchedulerTab.vue'
 import ThreatTab from './ThreatTab.vue'
 import { formatTime } from '@/utils'
 
+const { t } = useI18n('github')
+
 const activeTab = ref('task')
 
 const taskStateMap: Record<number, { text: string; type: string }> = {
-  0: { text: '待开始', type: 'info' },
-  1: { text: '运行中', type: 'success' },
-  2: { text: '已暂停', type: 'warning' },
-  3: { text: '已完成', type: 'primary' }
+  0: { text: t('statePending'), type: 'info' },
+  1: { text: t('stateRunning'), type: 'success' },
+  2: { text: t('statePaused'), type: 'warning' },
+  3: { text: t('stateFinished'), type: 'primary' }
 }
 
 const typeOptions = [
-  { value: 'code_leak', label: '代码泄露' },
+  { value: 'code_leak', label: t('typeCodeLeak') },
   { value: 'cve', label: 'CVE' },
-  { value: 'hacker', label: '黑客' }
+  { value: 'hacker', label: t('typeHacker') }
 ]
 
 const taskFilters = reactive({ keyword: '', type: '', state: '' as string | number })
@@ -56,17 +59,18 @@ const fmt = (v?: string) => (v ? formatTime(v, 'yyyy-MM-dd HH:mm:ss') : '-')
 
 // ---------------- 任务 ----------------
 const taskColumns = reactive<TableColumn[]>([
-  { field: 'name', label: '名称', minWidth: 160 },
+  { field: 'name', label: t('colName'), minWidth: 160 },
   {
     field: 'type',
-    label: '类型',
+    label: t('colType'),
     width: 100,
-    formatter: (_r, __: TableColumn, v: string) => typeOptions.find((t) => t.value === v)?.label || v
+    formatter: (_r, __: TableColumn, v: string) =>
+      typeOptions.find((opt) => opt.value === v)?.label || v
   },
-  { field: 'query', label: '查询', minWidth: 200 },
+  { field: 'query', label: t('colQuery'), minWidth: 200 },
   {
     field: 'state',
-    label: '状态',
+    label: t('colState'),
     width: 100,
     formatter: (_r, __: TableColumn, v: number) => (
       <ElTag type={(taskStateMap[v]?.type as any) || 'info'} effect="light">
@@ -76,20 +80,20 @@ const taskColumns = reactive<TableColumn[]>([
   },
   {
     field: 'stats',
-    label: '已扫描/新增',
+    label: t('colStats'),
     width: 130,
     formatter: (_r, __: TableColumn, v?: { scanned: number; newFound: number }) =>
       v ? v.scanned + ' / ' + v.newFound : '-'
   },
   {
     field: 'lastRunAt',
-    label: '最近运行',
+    label: t('colLastRun'),
     minWidth: 160,
     formatter: (_r, __: TableColumn, v?: string) => fmt(v)
   },
   {
     field: 'action',
-    label: '操作',
+    label: t('colAction'),
     width: 170,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
@@ -98,17 +102,21 @@ const taskColumns = reactive<TableColumn[]>([
           onClick={() => handleStopTask(row)}
           disabled={row.state !== 1 && row.state !== 0}
         >
-          停止
+          {t('btnStop')}
         </BaseButton>
         <BaseButton type="danger" onClick={() => handleDeleteTask(row)}>
-          删除
+          {t('btnDelete')}
         </BaseButton>
       </div>
     )
   }
 ])
 
-const { tableRegister: taskRegister, tableState: taskState, tableMethods: taskMethods } = useTable({
+const {
+  tableRegister: taskRegister,
+  tableState: taskState,
+  tableMethods: taskMethods
+} = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = taskState
     const res = await listGithubTasksApi({
@@ -121,24 +129,50 @@ const { tableRegister: taskRegister, tableState: taskState, tableMethods: taskMe
     return { list: res.data.list || [], total: res.data.total || 0 }
   }
 })
-const { loading: taskLoading, dataList: taskList, total: taskTotal, currentPage: taskPage, pageSize: taskPageSize } = taskState
+const {
+  loading: taskLoading,
+  dataList: taskList,
+  total: taskTotal,
+  currentPage: taskPage,
+  pageSize: taskPageSize
+} = taskState
 taskPageSize.value = 20
 const { getList: getTaskList } = taskMethods
 
 const handleStopTask = async (row: { id: string; name: string }) => {
-  await stopGithubTasksApi([row.id])
-  ElMessage.success('已暂停 ' + row.name)
-  getTaskList()
+  try {
+    const res = (await stopGithubTasksApi([row.id])) as { data?: { updated?: number } }
+    // updated === 0 表示后端没改任何任务的状态，此时报“已暂停”是在说谎
+    if (res?.data?.updated === 0) {
+      ElMessage.warning(t('stopNoop', { name: row.name }))
+    } else {
+      ElMessage.success(t('stopSuccess', { name: row.name }))
+    }
+    getTaskList()
+  } catch (e: any) {
+    // 后端返回的错误已由 axios 拦截器统一提示过，这里只兜没有响应体的失败（超时/断网）
+    if (!e?.response) ElMessage.error(e?.message || t('stopFailed'))
+  }
 }
 
 const handleDeleteTask = async (row: { id: string; name: string }) => {
-  await ElMessageBox.confirm('删除任务会同时删除其下的结果，确定删除 ' + row.name + ' 吗？', '删除任务', {
-    confirmButtonText: '删除',
-    cancelButtonText: '取消',
-    type: 'warning'
-  })
-  await deleteGithubTasksApi([row.id])
-  getTaskList()
+  try {
+    await ElMessageBox.confirm(t('deleteConfirm', { name: row.name }), t('deleteTitle'), {
+      confirmButtonText: t('btnDelete'),
+      cancelButtonText: t('btnCancel'),
+      type: 'warning'
+    })
+  } catch {
+    // 用户点了取消：静默返回，不提示不报错
+    return
+  }
+  try {
+    await deleteGithubTasksApi([row.id])
+    ElMessage.success(t('deleteSuccess', { name: row.name }))
+    getTaskList()
+  } catch (e: any) {
+    if (!e?.response) ElMessage.error(e?.message || t('deleteFailed'))
+  }
 }
 
 // ---------------- 新建任务 ----------------
@@ -167,7 +201,7 @@ const openCreate = () => {
 
 const submitCreate = async () => {
   if (!createForm.name.trim() || !createForm.query.trim()) {
-    ElMessage.warning('名称与查询语句不能为空')
+    ElMessage.warning(t('nameQueryRequired'))
     return
   }
   createLoading.value = true
@@ -182,11 +216,11 @@ const submitCreate = async () => {
       maxPages: createForm.maxPages || undefined
     })
     createVisible.value = false
-    ElMessage.success('任务已创建')
+    ElMessage.success(t('createSuccess'))
     getTaskList()
   } catch (e: any) {
     // 创建失败此前只关 loading，对话框留在原地不给任何原因
-    ElMessage.error(e?.message || '创建失败')
+    ElMessage.error(e?.message || t('createFailed'))
   } finally {
     createLoading.value = false
   }
@@ -196,14 +230,14 @@ const submitCreate = async () => {
 const resultColumns = reactive<TableColumn[]>([
   {
     field: 'createdAt',
-    label: '时间',
+    label: t('colTime'),
     minWidth: 160,
     formatter: (_r, __: TableColumn, v?: string) => fmt(v)
   },
-  { field: 'repo', label: '仓库', minWidth: 180 },
+  { field: 'repo', label: t('colRepo'), minWidth: 180 },
   {
     field: 'path',
-    label: '路径',
+    label: t('colPath'),
     minWidth: 200,
     formatter: (row) =>
       row.url ? (
@@ -214,36 +248,43 @@ const resultColumns = reactive<TableColumn[]>([
         row.path
       )
   },
-  { field: 'title', label: '标题', minWidth: 200 },
-  { field: 'severity', label: '严重度', width: 100 },
+  { field: 'title', label: t('colTitle'), minWidth: 200 },
+  { field: 'severity', label: t('colSeverity'), width: 100 },
   {
     field: 'status',
-    label: '状态',
+    label: t('colState'),
     width: 100,
     formatter: (_r, __: TableColumn, v: string) => (
-      <ElTag type={v === 'triaged' ? 'success' : v === 'ignored' ? 'info' : 'warning'} effect="light">
+      <ElTag
+        type={v === 'triaged' ? 'success' : v === 'ignored' ? 'info' : 'warning'}
+        effect="light"
+      >
         {v}
       </ElTag>
     )
   },
   {
     field: 'action',
-    label: '操作',
+    label: t('colAction'),
     width: 190,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
         <BaseButton type="primary" onClick={() => handleTriage(row, 'triaged')}>
-          已研判
+          {t('btnTriaged')}
         </BaseButton>
         <BaseButton type="info" onClick={() => handleTriage(row, 'ignored')}>
-          忽略
+          {t('btnIgnore')}
         </BaseButton>
       </div>
     )
   }
 ])
 
-const { tableRegister: resultRegister, tableState: resultState, tableMethods: resultMethods } = useTable({
+const {
+  tableRegister: resultRegister,
+  tableState: resultState,
+  tableMethods: resultMethods
+} = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = resultState
     const res = await listGithubResultsApi({
@@ -257,13 +298,19 @@ const { tableRegister: resultRegister, tableState: resultState, tableMethods: re
     return { list: res.data.list || [], total: res.data.total || 0 }
   }
 })
-const { loading: resultLoading, dataList: resultList, total: resultTotal, currentPage: resultPage, pageSize: resultPageSize } = resultState
+const {
+  loading: resultLoading,
+  dataList: resultList,
+  total: resultTotal,
+  currentPage: resultPage,
+  pageSize: resultPageSize
+} = resultState
 resultPageSize.value = 20
 const { getList: getResultList } = resultMethods
 
 const handleTriage = async (row: { id: string }, status: string) => {
   await triageGithubResultsApi({ ids: [row.id], status })
-  ElMessage.success('已更新')
+  ElMessage.success(t('updateSuccess'))
   getResultList()
 }
 </script>
@@ -271,27 +318,42 @@ const handleTriage = async (row: { id: string }, status: string) => {
 <template>
   <ContentWrap>
     <ElTabs v-model="activeTab">
-      <ElTabPane label="采集任务" name="task">
+      <ElTabPane :label="t('tabTasks')" name="task">
         <ElRow :gutter="12" class="mb-10px">
           <ElCol :span="5">
-            <ElInput v-model="taskFilters.keyword" placeholder="名称/查询关键字" clearable />
+            <ElInput v-model="taskFilters.keyword" :placeholder="t('phTaskKeyword')" clearable />
           </ElCol>
           <ElCol :span="4">
-            <ElSelect v-model="taskFilters.type" placeholder="类型" clearable style="width: 100%">
-              <ElOption v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+            <ElSelect
+              v-model="taskFilters.type"
+              :placeholder="t('colType')"
+              clearable
+              style="width: 100%"
+            >
+              <ElOption
+                v-for="opt in typeOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </ElSelect>
           </ElCol>
           <ElCol :span="4">
-            <ElSelect v-model="taskFilters.state" placeholder="状态" clearable style="width: 100%">
-              <ElOption label="待开始" :value="0" />
-              <ElOption label="运行中" :value="1" />
-              <ElOption label="已暂停" :value="2" />
-              <ElOption label="已完成" :value="3" />
+            <ElSelect
+              v-model="taskFilters.state"
+              :placeholder="t('colState')"
+              clearable
+              style="width: 100%"
+            >
+              <ElOption :label="t('statePending')" :value="0" />
+              <ElOption :label="t('stateRunning')" :value="1" />
+              <ElOption :label="t('statePaused')" :value="2" />
+              <ElOption :label="t('stateFinished')" :value="3" />
             </ElSelect>
           </ElCol>
           <ElCol :span="5">
-            <ElButton type="primary" @click="getTaskList">查询</ElButton>
-            <ElButton type="success" @click="openCreate">新建任务</ElButton>
+            <ElButton type="primary" @click="getTaskList">{{ t('btnQuery') }}</ElButton>
+            <ElButton type="success" @click="openCreate">{{ t('btnNewTask') }}</ElButton>
           </ElCol>
         </ElRow>
 
@@ -308,28 +370,47 @@ const handleTriage = async (row: { id: string }, status: string) => {
         />
       </ElTabPane>
 
-      <ElTabPane label="泄露结果" name="result">
+      <ElTabPane :label="t('tabResults')" name="result">
         <ElRow :gutter="12" class="mb-10px">
           <ElCol :span="5">
-            <ElInput v-model="resultFilters.keyword" placeholder="仓库/路径/标题关键字" clearable />
+            <ElInput
+              v-model="resultFilters.keyword"
+              :placeholder="t('phResultKeyword')"
+              clearable
+            />
           </ElCol>
           <ElCol :span="3">
-            <ElSelect v-model="resultFilters.type" placeholder="类型" clearable style="width: 100%">
-              <ElOption v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+            <ElSelect
+              v-model="resultFilters.type"
+              :placeholder="t('colType')"
+              clearable
+              style="width: 100%"
+            >
+              <ElOption
+                v-for="opt in typeOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
             </ElSelect>
           </ElCol>
           <ElCol :span="3">
-            <ElSelect v-model="resultFilters.status" placeholder="研判状态" clearable style="width: 100%">
+            <ElSelect
+              v-model="resultFilters.status"
+              :placeholder="t('phTriageStatus')"
+              clearable
+              style="width: 100%"
+            >
               <ElOption label="new" value="new" />
               <ElOption label="triaged" value="triaged" />
               <ElOption label="ignored" value="ignored" />
             </ElSelect>
           </ElCol>
           <ElCol :span="4">
-            <ElInput v-model="resultFilters.project" placeholder="项目" clearable />
+            <ElInput v-model="resultFilters.project" :placeholder="t('phProject')" clearable />
           </ElCol>
           <ElCol :span="4">
-            <ElButton type="primary" @click="getResultList">查询</ElButton>
+            <ElButton type="primary" @click="getResultList">{{ t('btnQuery') }}</ElButton>
           </ElCol>
         </ElRow>
 
@@ -345,58 +426,65 @@ const handleTriage = async (row: { id: string }, status: string) => {
           @register="resultRegister"
         />
       </ElTabPane>
-      <ElTabPane label="周期任务" name="scheduler">
+      <ElTabPane :label="t('tabScheduler')" name="scheduler">
         <SchedulerTab />
       </ElTabPane>
 
-      <ElTabPane label="威胁情报" name="threat">
+      <ElTabPane :label="t('tabThreat')" name="threat">
         <ThreatTab />
       </ElTabPane>
     </ElTabs>
 
-    <ElDialog v-model="createVisible" title="新建采集任务" width="620px">
+    <ElDialog v-model="createVisible" :title="t('createTitle')" width="620px">
       <ElForm label-width="100px">
-        <ElFormItem label="名称" required>
-          <ElInput v-model="createForm.name" placeholder="例如：某公司代码泄露" />
+        <ElFormItem :label="t('colName')" required>
+          <ElInput v-model="createForm.name" :placeholder="t('phName')" />
         </ElFormItem>
-        <ElFormItem label="类型">
+        <ElFormItem :label="t('colType')">
           <ElSelect v-model="createForm.type" style="width: 100%">
-            <ElOption v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+            <ElOption
+              v-for="opt in typeOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </ElSelect>
         </ElFormItem>
-        <ElFormItem label="查询语句" required>
+        <ElFormItem :label="t('formQuery')" required>
           <ElInput
             v-model="createForm.query"
             type="textarea"
             :rows="3"
-            placeholder="GitHub 搜索语法，例如：'example.com' password"
+            :placeholder="t('phQuery')"
           />
         </ElFormItem>
-        <ElFormItem label="关键词">
+        <ElFormItem :label="t('formKeywords')">
           <ElSelect
             v-model="createForm.keywords"
             multiple
             filterable
             allow-create
             default-first-option
-            placeholder="命中关键词，可留空"
+            :placeholder="t('phKeywords')"
             style="width: 100%"
           />
         </ElFormItem>
-        <ElFormItem label="项目">
-          <ElInput v-model="createForm.project" placeholder="可选，结果归属项目" />
+        <ElFormItem :label="t('formProject')">
+          <ElInput v-model="createForm.project" :placeholder="t('phProjectOptional')" />
         </ElFormItem>
-        <ElFormItem label="间隔(分钟)">
+        <ElFormItem :label="t('formInterval')">
           <ElInputNumber v-model="createForm.intervalMinutes" :min="0" :max="10080" />
-          <span class="hint-text">0 = 只跑一次</span>
+          <span class="hint-text">{{ t('onceOnlyHint') }}</span>
         </ElFormItem>
-        <ElFormItem label="最大页数">
+        <ElFormItem :label="t('formMaxPages')">
           <ElInputNumber v-model="createForm.maxPages" :min="1" :max="20" />
         </ElFormItem>
       </ElForm>
       <template #footer>
-        <ElButton @click="createVisible = false">取消</ElButton>
-        <ElButton type="primary" :loading="createLoading" @click="submitCreate">创建</ElButton>
+        <ElButton @click="createVisible = false">{{ t('btnCancel') }}</ElButton>
+        <ElButton type="primary" :loading="createLoading" @click="submitCreate">
+          {{ t('btnCreate') }}
+        </ElButton>
       </template>
     </ElDialog>
   </ContentWrap>

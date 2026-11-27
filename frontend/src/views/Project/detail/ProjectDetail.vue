@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElTabs, ElTabPane, ElTag, ElButton, ElDialog, ElMessage, ElMessageBox, ElPopover, ElTooltip } from 'element-plus'
+import {
+  ElTabs,
+  ElTabPane,
+  ElTag,
+  ElButton,
+  ElDialog,
+  ElMessage,
+  ElMessageBox,
+  ElPopover,
+  ElTooltip
+} from 'element-plus'
 import { Edit, Delete } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import AddProject from '../components/AddProject.vue'
@@ -14,6 +24,7 @@ import Tasks from './components/Tasks.vue'
 import Vulns from './components/Vulns.vue'
 import { getProjectInfoApi, getProjectAssetCountApi } from '@/api/ProjectAggregation'
 const { t } = useI18n()
+const { t: tp } = useI18n('projectDetail')
 // 页面 id 从 URL query 取（ProjectList.vue: push('/project-management/project-detail?id=xxx')），
 // 各 Tab 组件各自 useRoute().query.id 组装请求。
 import { useRoute } from 'vue-router'
@@ -48,8 +59,8 @@ const closeEdit = () => {
 const onDelete = async () => {
   try {
     await ElMessageBox.confirm(
-      `删除项目「${info.value?.name || projectId}」？项目下的任务不会被删除，但会失去归属。`,
-      '删除项目',
+      tp('deleteConfirm', { name: info.value?.name || projectId }),
+      tp('deleteTitle'),
       { type: 'warning' }
     )
   } catch {
@@ -57,10 +68,10 @@ const onDelete = async () => {
   }
   try {
     await deleteProjectApi([projectId], false)
-    ElMessage.success('项目已删除')
+    ElMessage.success(tp('deleteSuccess'))
     router.push('/project-management/index')
   } catch (e: any) {
-    ElMessage.error(e?.message || '删除失败')
+    ElMessage.error(e?.message || tp('deleteFailed'))
   }
 }
 onMounted(refresh)
@@ -76,24 +87,35 @@ onMounted(refresh)
           <span class="pname">{{ info.name }}</span>
           <ElTag v-if="info.tag" size="small" effect="plain" class="tag-src">{{ info.tag }}</ElTag>
           <ElTag v-if="info.scheduledTasks" size="small" type="success" effect="plain">
-            定时 · {{ info.hour }}h
+            {{ tp('scheduledTag', { hour: info.hour }) }}
           </ElTag>
-          <ElTag v-else size="small" type="info" effect="plain">手动</ElTag>
+          <ElTag v-else size="small" type="info" effect="plain">{{ tp('manual') }}</ElTag>
           <span v-if="info.scheduledTasks && info.next_time" class="next-time">
-            下次 {{ info.next_time }}
+            {{ tp('nextRun', { time: info.next_time }) }}
           </span>
         </div>
         <div class="head-actions">
-          <ElButton size="small" :icon="Edit" @click="editVisible = true">编辑项目</ElButton>
-          <ElButton size="small" type="danger" text :icon="Delete" class="btn-del" @click="onDelete">
-            删除项目
+          <ElButton size="small" :icon="Edit" @click="editVisible = true">{{
+            tp('editProject')
+          }}</ElButton>
+          <ElButton
+            size="small"
+            type="danger"
+            text
+            :icon="Delete"
+            class="btn-del"
+            @click="onDelete"
+          >
+            {{ tp('deleteProject') }}
           </ElButton>
         </div>
       </div>
       <!-- 扫描范围最多几十个域名，全铺开会把头部撑成一堵墙：给 4 个 + 「+N」，全量进浮层。 -->
       <div class="head-scope">
-        <span class="scope-label">扫描范围</span>
-        <span class="scope-count">{{ (info.root_domains || []).length }} 个根域名</span>
+        <span class="scope-label">{{ tp('scopeLabel') }}</span>
+        <span class="scope-count">{{
+          tp('rootDomainCount', { n: (info.root_domains || []).length })
+        }}</span>
         <template v-if="(info.root_domains || []).length">
           <ElTag
             v-for="d in (info.root_domains || []).slice(0, 4)"
@@ -112,7 +134,7 @@ onMounted(refresh)
           >
             <template #reference>
               <ElButton link type="primary" size="small" class="scope-more">
-                +{{ (info.root_domains || []).length - 4 }} 个
+                {{ tp('moreCount', { n: (info.root_domains || []).length - 4 }) }}
               </ElButton>
             </template>
             <div class="scope-pop">
@@ -120,28 +142,30 @@ onMounted(refresh)
             </div>
           </ElPopover>
         </template>
-        <span v-else class="muted">未设置，点右上「编辑项目」添加</span>
+        <span v-else class="muted">{{ tp('scopeEmpty') }}</span>
       </div>
       <div v-if="counts" class="head-stats">
         <div class="stat">
-          <b>{{ fmtNum(counts.assetCount) }}</b><span>资产</span>
+          <b>{{ fmtNum(counts.assetCount) }}</b><span>{{ tp('statAsset') }}</span>
         </div>
         <div class="stat">
-          <b>{{ fmtNum(counts.subdomainCount) }}</b><span>子域名</span>
+          <b>{{ fmtNum(counts.subdomainCount) }}</b><span>{{ tp('statSubdomain') }}</span>
         </div>
         <div class="stat">
-          <b>{{ fmtNum(counts.urlCount) }}</b><span>URL</span>
+          <b>{{ fmtNum(counts.urlCount) }}</b><span>{{ tp('statUrl') }}</span>
         </div>
         <div class="stat">
-          <b :class="{ hot: (counts.vulCount ?? 0) > 0 }">{{ fmtNum(counts.vulCount) }}</b><span>漏洞</span>
+          <b :class="{ hot: (counts.vulCount ?? 0) > 0 }">{{ fmtNum(counts.vulCount) }}</b><span>{{
+            tp('statVuln')
+          }}</span>
         </div>
         <div class="stat">
-          <b>{{ fmtNum(counts.sensitiveCount) }}</b><span>敏感信息</span>
+          <b>{{ fmtNum(counts.sensitiveCount) }}</b><span>{{ tp('statSensitive') }}</span>
         </div>
       </div>
     </div>
     <!-- 编辑复用列表页那个表单，避免两处表单逻辑漂移 -->
-    <ElDialog v-model="editVisible" title="编辑项目" width="640px">
+    <ElDialog v-model="editVisible" :title="tp('editProject')" width="640px">
       <AddProject
         v-if="editVisible"
         :closeDialog="closeEdit"
@@ -158,7 +182,7 @@ onMounted(refresh)
       <!-- 漏洞页签：项目页要能直接回答「这个项目有哪些洞」（2026-11-27 反馈） -->
       <ElTabPane :label="t('assetOverview.vulnerability')"><Vulns /></ElTabPane>
       <!-- 任务页签：项目不能只是资产聚合，它得能回答「这个项目跑过哪些任务、结果如何」 -->
-      <ElTabPane :label="t('task.projectTasks')"><Tasks /></ElTabPane>
+      <ElTabPane :label="tp('tasksTab')"><Tasks /></ElTabPane>
     </ElTabs>
   </div>
 </template>
@@ -194,7 +218,9 @@ onMounted(refresh)
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tag-src { font-weight: 500; }
+.tag-src {
+  font-weight: 500;
+}
 .next-time {
   font-size: 12px;
   color: var(--el-text-color-secondary);
@@ -207,8 +233,12 @@ onMounted(refresh)
   flex: none;
 }
 /* 删除是不可逆操作，用文字按钮，不做实心红框抢主视觉 */
-.btn-del { padding: 5px 8px; }
-.btn-del:hover { background: var(--el-color-danger-light-9); }
+.btn-del {
+  padding: 5px 8px;
+}
+.btn-del:hover {
+  background: var(--el-color-danger-light-9);
+}
 
 .head-scope {
   margin-top: 10px;
@@ -231,7 +261,10 @@ onMounted(refresh)
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
 }
-.scope-more { font-size: 12px; height: auto; }
+.scope-more {
+  font-size: 12px;
+  height: auto;
+}
 .scope-pop {
   max-height: 260px;
   overflow: auto;
@@ -239,7 +272,10 @@ onMounted(refresh)
   line-height: 1.9;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
-.muted { font-size: 12px; color: var(--el-text-color-placeholder); }
+.muted {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
+}
 
 /* 数字条：一条分隔线 + 竖线分栏，横向读，别再竖排右对齐 */
 .head-stats {
@@ -257,13 +293,21 @@ onMounted(refresh)
   padding: 0 20px;
   border-left: 1px solid var(--el-border-color-lighter);
 }
-.stat:first-child { padding-left: 0; border-left: none; }
+.stat:first-child {
+  padding-left: 0;
+  border-left: none;
+}
 .stat b {
   font-size: 17px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
-.stat b.hot { color: var(--el-color-danger); }
-.stat span { font-size: 12px; color: var(--el-text-color-secondary); }
+.stat b.hot {
+  color: var(--el-color-danger);
+}
+.stat span {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
 </style>

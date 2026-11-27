@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ContentWrap } from '@/components/ContentWrap'
+import { useI18n } from '@/hooks/web/useI18n'
 import { ref, onMounted, reactive } from 'vue'
 import {
   ElButton,
@@ -20,6 +21,8 @@ import {
   type IntelItem
 } from '@/api/system/intel'
 
+const { t } = useI18n('intelFeeds')
+
 const loading = ref(false)
 const feeds = ref<IntelFeed[]>([])
 const items = ref<IntelItem[]>([])
@@ -34,7 +37,7 @@ const load = async () => {
     items.value = (res.data?.items ?? []) as IntelItem[]
     total.value = res.data?.total ?? 0
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载失败')
+    ElMessage.error(e?.message || t('loadFailed'))
   } finally {
     loading.value = false
   }
@@ -44,10 +47,10 @@ const toggle = async (row: IntelFeed, val: boolean) => {
   try {
     await updateIntelFeedApi(row._id, { enabled: val })
     row.enabled = val
-    ElMessage.success(val ? '已启用' : '已停用')
+    ElMessage.success(val ? t('enabledMsg') : t('disabledMsg'))
   } catch (e: any) {
     row.enabled = !val
-    ElMessage.error(e?.message || '操作失败')
+    ElMessage.error(e?.message || t('operateFailed'))
   }
 }
 
@@ -56,9 +59,9 @@ const setInterval = async (row: IntelFeed, val: number | undefined) => {
   try {
     await updateIntelFeedApi(row._id, { intervalHours: val })
     row.intervalHours = val
-    ElMessage.success('间隔已更新')
+    ElMessage.success(t('intervalUpdated'))
   } catch (e: any) {
-    ElMessage.error(e?.message || '操作失败')
+    ElMessage.error(e?.message || t('operateFailed'))
   }
 }
 
@@ -70,10 +73,13 @@ const runOne = async (row?: IntelFeed) => {
     const results = (res.data?.results ?? []) as any[]
     const added = results.reduce((s, r) => s + (r.added ?? 0), 0)
     const failed = results.filter((r) => r.error)
-    ElMessage.success(`刷新完成：新增 ${added} 条${failed.length ? `，失败 ${failed.length} 个源` : ''}`)
+    ElMessage.success(
+      t('refreshDone', { added }) +
+        (failed.length ? t('refreshFailedSuffix', { count: failed.length }) : '')
+    )
     await load()
   } catch (e: any) {
-    ElMessage.error(e?.message || '刷新失败')
+    ElMessage.error(e?.message || t('refreshFailed'))
   } finally {
     running[key] = false
   }
@@ -86,23 +92,27 @@ onMounted(load)
 
 <template>
   <div class="flex flex-col gap-16px">
-    <ContentWrap title="多源情报订阅">
+    <ContentWrap :title="t('pageTitle')">
       <div class="mb-12px flex items-center gap-12px">
-        <ElTag type="info" effect="plain">源 {{ feeds.length }} 个 / 启用 {{ feeds.filter((f) => f.enabled).length }}</ElTag>
-        <ElTag type="success" effect="plain">累计情报 {{ total }} 条</ElTag>
+        <ElTag type="info" effect="plain">{{
+          t('sourceCount', { total: feeds.length, enabled: feeds.filter((f) => f.enabled).length })
+        }}</ElTag>
+        <ElTag type="success" effect="plain">{{ t('totalItems', { total }) }}</ElTag>
         <div class="flex-grow"></div>
-        <ElButton type="primary" :loading="running['__all__']" @click="runOne()">全部立即刷新</ElButton>
-        <ElButton :loading="loading" @click="load">刷新列表</ElButton>
+        <ElButton type="primary" :loading="running['__all__']" @click="runOne()">{{
+          t('refreshAll')
+        }}</ElButton>
+        <ElButton :loading="loading" @click="load">{{ t('refreshList') }}</ElButton>
       </div>
       <ElTable :data="feeds" v-loading="loading" size="small" border style="width: 100%">
-        <ElTableColumn prop="name" label="情报源" min-width="180" />
-        <ElTableColumn prop="kind" label="类型" width="90" align="center" />
-        <ElTableColumn label="启用" width="80" align="center">
+        <ElTableColumn prop="name" :label="t('colSource')" min-width="180" />
+        <ElTableColumn prop="kind" :label="t('colKind')" width="90" align="center" />
+        <ElTableColumn :label="t('colEnabled')" width="80" align="center">
           <template #default="{ row }">
             <ElSwitch :model-value="row.enabled" @change="(v: any) => toggle(row, !!v)" />
           </template>
         </ElTableColumn>
-        <ElTableColumn label="间隔(h)" width="120" align="center">
+        <ElTableColumn :label="t('colInterval')" width="120" align="center">
           <template #default="{ row }">
             <ElInputNumber
               :model-value="row.intervalHours"
@@ -115,37 +125,43 @@ onMounted(load)
             />
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="itemCount" label="条目" width="80" align="center" />
-        <ElTableColumn label="上次抓取" width="170" align="center">
+        <ElTableColumn prop="itemCount" :label="t('colItemCount')" width="80" align="center" />
+        <ElTableColumn :label="t('colLastRun')" width="170" align="center">
           <template #default="{ row }">{{ fmt(row.lastRunAt) }}</template>
         </ElTableColumn>
-        <ElTableColumn label="状态" min-width="220">
+        <ElTableColumn :label="t('colStatus')" min-width="220">
           <template #default="{ row }">
-            <ElTag v-if="!row.lastError" type="success" effect="plain" size="small">正常</ElTag>
+            <ElTag v-if="!row.lastError" type="success" effect="plain" size="small">{{
+              t('ok')
+            }}</ElTag>
             <ElTooltip v-else :content="row.lastError" placement="top">
-              <ElTag type="danger" effect="plain" size="small">失败</ElTag>
+              <ElTag type="danger" effect="plain" size="small">{{ t('failed') }}</ElTag>
             </ElTooltip>
-            <span v-if="row.lastError" class="ml-8px text-12px op-60">{{ row.lastError.slice(0, 60) }}</span>
+            <span v-if="row.lastError" class="ml-8px text-12px op-60">{{
+              row.lastError.slice(0, 60)
+            }}</span>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="操作" width="110" align="center">
+        <ElTableColumn :label="t('colAction')" width="110" align="center">
           <template #default="{ row }">
-            <ElButton size="small" :loading="running[row._id]" @click="runOne(row)">立即抓取</ElButton>
+            <ElButton size="small" :loading="running[row._id]" @click="runOne(row)">{{
+              t('runNow')
+            }}</ElButton>
           </template>
         </ElTableColumn>
       </ElTable>
     </ContentWrap>
 
-    <ContentWrap title="最新情报（20 条）">
+    <ContentWrap :title="t('latestTitle')">
       <ElTable :data="items" size="small" border style="width: 100%">
-        <ElTableColumn prop="source" label="来源" width="150" />
-        <ElTableColumn label="标题" min-width="420">
+        <ElTableColumn prop="source" :label="t('colFrom')" width="150" />
+        <ElTableColumn :label="t('colTitle')" min-width="420">
           <template #default="{ row }">
             <ElLink :href="row.url" target="_blank" type="primary">{{ row.title }}</ElLink>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="published" label="发布" width="180" />
-        <ElTableColumn label="入库" width="170">
+        <ElTableColumn prop="published" :label="t('colPublished')" width="180" />
+        <ElTableColumn :label="t('colAddedAt')" width="170">
           <template #default="{ row }">{{ fmt(row.addedAt) }}</template>
         </ElTableColumn>
       </ElTable>

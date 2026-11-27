@@ -52,7 +52,7 @@ import type {
 } from '@/api/icp/types'
 import { getAssetGroupListApi } from '@/api/assetGroup'
 import type { AssetGroup } from '@/api/assetGroup/types'
-import { ICP_TASK_STATES, icpProgressPercent, icpStateMeta, parseIcpQueries } from '@/utils/icpTask'
+import { ICP_TASK_STATES, icpQueryProgress, icpStateMeta, parseIcpQueries } from '@/utils/icpTask'
 import { timeText } from '@/utils/timeText'
 
 // ICP 企业主体 ↔ 域名查询任务链（对标 ARL-Next icp.py）。
@@ -130,9 +130,10 @@ const columns = reactive<TableColumn[]>([
     label: t('icpTask.progress'),
     minWidth: 150,
     formatter: (row: IcpTask) => {
-      const done = row.stats?.done ?? 0
-      const total = row.stats?.total ?? 0
-      return `${done}/${total} (${icpProgressPercent(done, total)}%)`
+      // 进度按「已处理查询数 / 查询总数」算，记录量看「新增」列（见 utils/icpTask.ts）
+      const progress = icpQueryProgress(row.queries, row.cursor)
+      if (!progress.total) return '-'
+      return `${progress.done}/${progress.total} (${progress.percent}%)`
     }
   },
   {
@@ -366,6 +367,10 @@ const exportTask = async (task: IcpTask) => {
 // ---- 详情抽屉 ----
 const drawerVisible = ref(false)
 const currentTask = ref<IcpTask | null>(null)
+// 查询进度：以 queries/cursor 为准，不用 stats.done/stats.total（那是记录数）
+const currentQueryProgress = computed(() =>
+  icpQueryProgress(currentTask.value?.queries, currentTask.value?.cursor)
+)
 const stats = ref<IcpTaskStatistics | null>(null)
 const statsLoading = ref(false)
 const logs = ref<IcpTaskLogLine[]>([])
@@ -761,9 +766,12 @@ onMounted(() => {
           {{ currentTask.provider || '-' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem :label="t('icpTask.progress')">
-          {{ currentTask.stats?.done ?? 0 }}/{{ currentTask.stats?.total ?? 0 }} ({{
-            icpProgressPercent(currentTask.stats?.done, currentTask.stats?.total)
-          }}%)
+          <template v-if="currentQueryProgress.total">
+            {{ currentQueryProgress.done }}/{{ currentQueryProgress.total }} ({{
+              currentQueryProgress.percent
+            }}%)
+          </template>
+          <template v-else>-</template>
         </ElDescriptionsItem>
         <ElDescriptionsItem :label="t('icpTask.statsTotal')">
           {{ stats?.total ?? currentTask.stats?.total ?? 0 }}

@@ -1,6 +1,8 @@
 package cip
 
 import (
+	"fmt"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	cipservice "github.com/Autumn-27/ScopeSentry/internal/services/assets/cip"
@@ -70,7 +72,8 @@ func Detail(c *gin.Context) {
 		return
 	}
 	if result == nil {
-		response.NotFound(c, "api.not_found", nil)
+		// 带上查的是哪个域名：否则前端只看到「资源不存在」，data 是空串（2026-11-28 实测）
+		response.NotFound(c, "api.not_found", fmt.Errorf("未找到该域名的备案主体: %s", req.Domain))
 		return
 	}
 	response.Success(c, result, "api.success")

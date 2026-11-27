@@ -50,6 +50,19 @@ export const parseIcpQueries = (text?: string | null): string[] => {
   return out
 }
 
+// 查询进度：cursor 指向「下一个待处理查询」，queries 是查询总数。
+// 不能用 stats.done / stats.total —— 那两个数的是 provider 返回的「备案记录条数」，
+// 一个命中 0 条的任务跑完后仍是 0/0，列表上看起来像没跑（2026-11-28 实测：state=3 已完成，进度仍显示 0/0 (0%)）。
+export const icpQueryProgress = (
+  queries?: readonly string[] | null,
+  cursor?: number | null
+): { done: number; total: number; percent: number } => {
+  const total = queries?.length ?? 0
+  if (total <= 0) return { done: 0, total: 0, percent: 0 }
+  const done = Math.min(total, Math.max(0, Math.trunc(cursor ?? 0)))
+  return { done, total, percent: icpProgressPercent(done, total) }
+}
+
 // 任务本轮进度：total 由 provider 返回的记录条数决定，未开始时是 0，不能除零。
 export const icpProgressPercent = (done?: number, total?: number): number => {
   if (!total || total <= 0) return 0
