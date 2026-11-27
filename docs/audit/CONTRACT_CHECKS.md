@@ -35,6 +35,8 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 15 | MCP `get_asset_detail` 传未知 id → 工具级错误，且调用前后 `uptimeSeconds` 不减 | 2026-11-28 实测：asset 服务对仓库层的 `(nil,nil)` 没判空，MCP 工具跑在 jsonrpc2 自己的 goroutine（`gin.Recovery` 管不到），一次调用就让进程 SIGSEGV，容器重启 5 次 |
 | 16 | `/api/policy/delete`、`/api/poc/detail` 传不存在 id → 404 | 前者 200 + `deleted:0`，后者 500 且把 `mongo: no documents in result` 透给前端 |
 | 17 | 受限 key 的可见工具数 == `/api/mcp/tools` 里该 scope 的工具数 | 写死数字的断言每加一个工具就失效（加 `list_port_dict` 时踩到） |
+| 18 | `GET /api/system/quality-report` 的 `data` 含 alerts/evidence/llm/quarantine/tasks/vulnerabilities 六块 | 少一块状态页就少一栏，且不报错——静默空白最难发现 |
+| 19 | `GET /api/mcp/logs` 的 `data.list` 是数组 | 同一批接口里 `export/records` 曾经回 `null`，表格 `.map()` 直接崩 |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 

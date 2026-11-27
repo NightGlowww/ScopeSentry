@@ -163,5 +163,27 @@ for pair in "policy/delete:{\"ids\":[\"$NOPE\"]}" "poc/detail:{\"id\":\"$NOPE\"}
   if [ "$code" = "404" ]; then ok "$path 不存在 id → 404"; else bad "$path 不存在 id → $code（应为 404）"; fi
 done
 
+# 18) 系统自检三件套：质量报告的结构必须齐全。
+#     这些字段缺一个，状态页就少一块，而且不会报错——静默空白最难发现。
+q=$(curl -sS -m 60 "$BASE/api/system/quality-report" -H "Authorization: Bearer $TOKEN")
+mismatch=$(printf '%s' "$q" | python3 -c '
+import json,sys
+d=(json.load(sys.stdin).get("data") or {})
+need=["alerts","evidence","llm","quarantine","tasks","vulnerabilities"]
+miss=[k for k in need if k not in d]
+print(",".join(miss))
+' 2>/dev/null || echo parse-error)
+if [ -z "$mismatch" ]; then ok "system/quality-report 六块结构齐全"; else bad "system/quality-report 缺字段：$mismatch"; fi
+
+# 19) MCP 审计日志：空集也要给数组（同一批接口里 export/records 曾经回 null）
+ml=$(curl -sS -m 30 "$BASE/api/mcp/logs?pageIndex=1&pageSize=1" -H "Authorization: Bearer $TOKEN")
+mltype=$(printf '%s' "$ml" | python3 -c '
+import json,sys
+d=json.load(sys.stdin).get("data") or {}
+v=d.get("list")
+print("null" if v is None else type(v).__name__)
+' 2>/dev/null || echo parse-error)
+if [ "$mltype" = "list" ]; then ok "mcp/logs list 类型 = list"; else bad "mcp/logs list 类型 = $mltype（表格会崩）"; fi
+
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL
