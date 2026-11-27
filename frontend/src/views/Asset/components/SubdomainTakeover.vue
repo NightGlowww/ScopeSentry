@@ -18,8 +18,6 @@ import {
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getSubdomaintakerApi } from '@/api/asset'
-import TimeRangeFilter from './TimeRangeFilter.vue'
-import { mergeTimeSearch } from '@/utils/timeSearch'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
 const { t } = useI18n()
@@ -266,7 +264,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = tableState
     const res = await getSubdomaintakerApi(
-      mergeTimeSearch(searchParams.value, timeRange.value),
+      searchParams.value,
       currentPage.value,
       pageSize.value,
       filter
@@ -281,17 +279,6 @@ const { tableRegister, tableState, tableMethods } = useTable({
 const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
 const { getList, getElTableExpose } = tableMethods
-
-// 发现时间筛选（对齐 ARL-Next bc22a10）：走搜索条件，接口不用改
-const timeRange = ref<string>('all')
-const onTimeFilterChange = (v?: string) => {
-  if (v) timeRange.value = v
-  if (currentPage.value !== 1) {
-    currentPage.value = 1
-    return
-  }
-  getList()
-}
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
@@ -360,7 +347,6 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
-  <TimeRangeFilter v-model="timeRange" :hide-sort="true" @change="onTimeFilterChange" />
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">

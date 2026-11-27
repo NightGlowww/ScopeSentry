@@ -120,3 +120,18 @@ func TestSearchToMongoDBTimeComparison(t *testing.T) {
 		t.Fatal("invalid time value should fail")
 	}
 }
+
+// time 关键字只挂到确实有 time 字段的索引上。
+// 挂错会「恒返回空」——比不筛更糟（同样的坑 indexHasTimeField 注释里记过）。
+func TestSearchKeyTimeKeyword(t *testing.T) {
+	for _, idx := range []string{"asset", "subdomain", "UrlScan", "vulnerability"} {
+		if got, ok := SearchKey[idx]["time"]; !ok || got != "time" {
+			t.Fatalf("%s: time keyword missing (got %q, ok=%v)", idx, got, ok)
+		}
+	}
+	for _, idx := range []string{"app", "mp", "PageMonitoring", "DirScanResult"} {
+		if _, ok := SearchKey[idx]["time"]; ok {
+			t.Fatalf("%s 没有 time 字段，不该挂 time 关键字", idx)
+		}
+	}
+}

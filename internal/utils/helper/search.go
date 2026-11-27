@@ -810,3 +810,20 @@ func looksLikeTime(v string) bool {
 	_, err := time.Parse("2006-01-02", v)
 	return err == nil
 }
+
+// init 把 time 关键字挂到「确实有 time 字段」的索引上。
+//
+// 之前 time 根本不在 SearchKey 里，于是 time>="2026-11-21 00:00:00" 会被当成未知字段——
+// 而访问这一能力（按发现时间筛）本来就是各个列表需要的维度（ARL-Next bc22a10 的 12 维口径）。
+// 只挂 indexHasTimeField 里为 true 的索引：没有该字段的集合挂上会「恒返回空」，比不筛更糟。
+func init() {
+	for idx := range indexHasTimeField {
+		m, ok := SearchKey[idx]
+		if !ok {
+			continue
+		}
+		if _, exists := m["time"]; !exists {
+			m["time"] = "time"
+		}
+	}
+}
