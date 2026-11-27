@@ -22,6 +22,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var exportService export.Service
@@ -222,5 +223,13 @@ func DownloadExport(c *gin.Context) {
 		return
 	}
 
+	// 按扩展名给正确的 Content-Type：不设的话 .xlsx 会被当成 application/zip，
+	// 浏览器下载后某些系统会当成压缩包处理（2026-11-28 实测 download 头是 application/zip）。
+	switch {
+	case strings.HasSuffix(strings.ToLower(fileName), ".xlsx"):
+		c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	case strings.HasSuffix(strings.ToLower(fileName), ".json"):
+		c.Header("Content-Type", "application/json; charset=utf-8")
+	}
 	c.File(filePath)
 }
