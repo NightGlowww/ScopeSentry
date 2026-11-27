@@ -236,7 +236,7 @@ let crudSchemas = reactive<CrudSchema[]>([
           icon="material-symbols-light:bring-your-own-ip"
           iconColor="#409eff"
           iconSize={16}
-          copyLabel="复制域名"
+          copyLabel={t('asset.copyDomain')}
         />
       )
     }
@@ -255,7 +255,7 @@ let crudSchemas = reactive<CrudSchema[]>([
           icon="arcticons:ip-tools"
           iconColor="var(--el-text-color-secondary)"
           iconSize={14}
-          copyLabel="复制 IP"
+          copyLabel={t('asset.copyIp')}
         />
       )
     }
@@ -284,11 +284,7 @@ let crudSchemas = reactive<CrudSchema[]>([
           <div class="flex">
             <div>{statusValue}</div>
             {raw.service === 'unknown' ? (
-              <ElTooltip
-                content="端口指纹未识别出服务：节点到该端口的协议探测没有回应（常见原因：网络出口被 RST、目标不响应探测，或节点缺少 fingerprintx）"
-                placement="top"
-                effect="light"
-              >
+              <ElTooltip content={t('asset.noPortFingerprint')} placement="top" effect="light">
                 {tag}
               </ElTooltip>
             ) : (
@@ -309,11 +305,7 @@ let crudSchemas = reactive<CrudSchema[]>([
       // 给个解释，避免被误读成"状态码丢了"。
       if (row.type == 'other' || statusValue == null) {
         return (
-          <ElTooltip
-            content="没有 HTTP 探测结果：该资产只完成了端口/指纹识别，或节点到目标的 HTTP/TLS 请求没有响应（常见于出口被 RST、目标不响应）"
-            placement="top"
-            effect="light"
-          >
+          <ElTooltip content={t('asset.noHttpProbe')} placement="top" effect="light">
             <span>-</span>
           </ElTooltip>
         )
@@ -370,17 +362,17 @@ let crudSchemas = reactive<CrudSchema[]>([
         <ElRow gutter={20}>
           <ElCol span={2}>
             <img
-            src={st}
-            alt="Icon"
-            style="width: 20px; height: 20px"
-            // 图标文件是按 favicon 哈希缓存到 /images/icon/ 的，没抓到时就是 404；
-            // 浏览器原生会把 404 渲染成破图（2026-11-24 截图：标题列一列破图）。
-            // 抓不到就隐藏，标题本身仍然可读。
-            onError={(e: Event) => {
-              const img = e.target as HTMLImageElement | null
-              if (img) img.style.display = 'none'
-            }}
-          />
+              src={st}
+              alt="Icon"
+              style="width: 20px; height: 20px"
+              // 图标文件是按 favicon 哈希缓存到 /images/icon/ 的，没抓到时就是 404；
+              // 浏览器原生会把 404 渲染成破图（2026-11-24 截图：标题列一列破图）。
+              // 抓不到就隐藏，标题本身仍然可读。
+              onError={(e: Event) => {
+                const img = e.target as HTMLImageElement | null
+                if (img) img.style.display = 'none'
+              }}
+            />
           </ElCol>
           <ElCol span={18}>
             <ElText size="small" class="w-200px mb-2" truncated>
@@ -574,7 +566,12 @@ let crudSchemas = reactive<CrudSchema[]>([
                   <ElTooltip content={product} placement="top">
                     <ElTag
                       type={'success'}
-                      style={{ maxWidth: '96px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      style={{
+                        maxWidth: '96px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
                     >
                       {product}
                     </ElTag>
@@ -902,8 +899,10 @@ const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
   {
     const parts: string[] = []
-    if (Array.isArray(newFilters?.task) && newFilters.task.length) parts.push('任务：' + newFilters.task.join('、'))
-    if (Array.isArray(newFilters?.project) && newFilters.project.length) parts.push('项目：' + newFilters.project.length + ' 个')
+    if (Array.isArray(newFilters?.task) && newFilters.task.length)
+      parts.push(t('asset.filterTask', { list: newFilters.task.join(', ') }))
+    if (Array.isArray(newFilters?.project) && newFilters.project.length)
+      parts.push(t('asset.filterProject', { n: newFilters.project.length }))
     activeFilterText.value = parts.join(' · ')
   }
   persistFilter()

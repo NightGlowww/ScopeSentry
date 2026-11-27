@@ -100,8 +100,11 @@ const crudSchemas = reactive<CrudSchema[]>([
     formatter: (_: Recordable, __: TableColumn, ip: string) => (
       <div class="flex items-center">
         <span>{ip}</span>
-        <ElTooltip content="复制 IP" placement="top">
-          <Icon aria-label="复制 IP" role="button" tabindex="0"
+        <ElTooltip content={t('asset.copyIp')} placement="top">
+          <Icon
+            aria-label={t('asset.copyIp')}
+            role="button"
+            tabindex="0"
             icon="ep:copy-document"
             size={13}
             color="var(--el-text-color-placeholder)"
@@ -375,7 +378,7 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
              所以「每页 3 个 IP」可能显示 50 行。不写清楚会被当成翻页坏了（2026-11-28）。 -->
         <div class="ip-page-bar">
           <span class="ip-page-hint">
-            按 IP 分页 · 共 {{ total }} 个 IP（端口/服务按 IP 合并展示，行数会多于每页 IP 数）
+            {{ t('asset.ipPageHint', { total }) }}
           </span>
           <ElPagination
             v-model:pageSize="pageSize"
@@ -414,4 +417,3 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
   color: var(--el-text-color-secondary);
 }
 </style>
-

@@ -5,7 +5,24 @@ import { h, nextTick, reactive, Ref, ref, computed } from 'vue'
 import { onMounted } from 'vue'
 import { useTable } from '@/hooks/web/useTable'
 import TimeRangeFilter from './TimeRangeFilter.vue'
-import {ElCard, ElPagination, ElCol, ElRow, ElDescriptions, ElDescriptionsItem, ElText, ElButton, ElInput, ElTag, InputInstance, ElSelect, ElOption, ElScrollbar, ElMessage, ElMessageBox} from 'element-plus'
+import {
+  ElCard,
+  ElPagination,
+  ElCol,
+  ElRow,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElText,
+  ElButton,
+  ElInput,
+  ElTag,
+  InputInstance,
+  ElSelect,
+  ElOption,
+  ElScrollbar,
+  ElMessage,
+  ElMessageBox
+} from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
@@ -25,37 +42,39 @@ const { t } = useI18n()
 const llmVerify = async (row: any) => {
   const id = row?._id || row?.id
   if (!id) {
-    ElMessage.warning('这条记录没有 id，无法判定')
+    ElMessage.warning(t('asset.llmNoId'))
     return
   }
-  const loading = ElMessage({ message: 'LLM 判定中…', duration: 0, type: 'info' })
+  const loading = ElMessage({ message: t('asset.llmRunning'), duration: 0, type: 'info' })
   try {
     const res = await llmVerifyApi([id], false)
     const r = res?.data?.results?.[0]
     loading.close()
     if (!r) {
-      ElMessage.error('没有返回判定结果')
+      ElMessage.error(t('asset.llmNoResult'))
       return
     }
     if (r.error) {
       ElMessage.warning(r.error)
       return
     }
-    const color = r.decision === 'confirmed' ? '#67c23a' : r.decision === 'rejected' ? '#f56c6c' : '#e6a23c'
+    const color =
+      r.decision === 'confirmed' ? '#67c23a' : r.decision === 'rejected' ? '#f56c6c' : '#e6a23c'
+    const nqP = Number(r.nqVeto).toFixed(2)
     ElMessageBox.alert(
       `<div style="line-height:1.9">
-        <div>判定：<b style="color:${color}">${r.decision}</b></div>
-        <div>是否漏洞（0-1）：<b>${Number(r.isVuln).toFixed(2)}</b></div>
-        <div>证据强度（0-2）：<b>${Number(r.evidence).toFixed(2)}</b></div>
-        <div>驳回理由：<b>${r.nq}</b>（概率 ${Number(r.nqVeto).toFixed(2)}）</div>
-        <div>模型：${r.model || '-'}</div>
+        <div>${t('asset.llmDecision')}: <b style="color:${color}">${r.decision}</b></div>
+        <div>${t('asset.llmIsVuln')}: <b>${Number(r.isVuln).toFixed(2)}</b></div>
+        <div>${t('asset.llmEvidence')}: <b>${Number(r.evidence).toFixed(2)}</b></div>
+        <div>${t('asset.llmNq')}: <b>${r.nq}</b> (${t('asset.llmProbability', { p: nqP })})</div>
+        <div>${t('asset.llmModel')}: ${r.model || '-'}</div>
       </div>`,
-      'LLM 判定',
-      { dangerouslyUseHTMLString: true, confirmButtonText: '知道了' }
+      t('asset.llmTitle'),
+      { dangerouslyUseHTMLString: true, confirmButtonText: t('asset.llmGotIt') }
     )
   } catch (e: any) {
     loading.close()
-    ElMessage.error(e?.message || 'LLM 判定失败')
+    ElMessage.error(e?.message || t('asset.llmFailed'))
   }
 }
 
@@ -362,17 +381,21 @@ const crudSchemas = reactive<CrudSchema[]>([
     // LLM 判定结果直接进列表：不用点进详情就知道模型怎么看这条洞。
     // 数据来自 vulnerability.jev（后台批量裁判或按需判定写入）。
     field: 'jev',
-    label: 'LLM 判定',
+    label: t('asset.llmTitle'),
     formatter: (row: any) => {
       const j = row?.jev
       if (!j || !j.decision) return '—'
       const map: Record<string, { text: string; type: string }> = {
-        confirmed: { text: '确认', type: 'success' },
-        rejected: { text: '驳回', type: 'danger' },
-        needs_human: { text: '待人工', type: 'warning' }
+        confirmed: { text: t('asset.llmVerdictConfirmed'), type: 'success' },
+        rejected: { text: t('asset.llmVerdictRejected'), type: 'danger' },
+        needs_human: { text: t('asset.llmVerdictNeedsHuman'), type: 'warning' }
       }
       const m = map[j.decision] || { text: String(j.decision), type: 'info' }
-      return h(ElTag, { type: m.type, size: 'small' }, () => `${m.text} ${Number(j.isVuln ?? 0).toFixed(2)}`)
+      return h(
+        ElTag,
+        { type: m.type, size: 'small' },
+        () => `${m.text} ${Number(j.isVuln ?? 0).toFixed(2)}`
+      )
     },
     minWidth: 110
   },
@@ -571,8 +594,8 @@ const activeFilterEntries = computed(() => {
   const out: { key: string; value: string }[] = []
   Object.keys(filter).forEach((k) => {
     const v = (filter as any)[k]
-    if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) return
-    out.push({ key: k, value: Array.isArray(v) ? v.join(",") : String(v) })
+    if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) return
+    out.push({ key: k, value: Array.isArray(v) ? v.join(',') : String(v) })
   })
   return out
 })
@@ -585,7 +608,7 @@ const clearFilters = () => {
   } catch {
     // 忽略
   }
-  searchParams.value = ""
+  searchParams.value = ''
   currentPage.value = 1
   getList()
 }
@@ -671,12 +694,17 @@ const getFilter = () => {
     :getFilter="getFilter"
   />
   <TimeRangeFilter v-model="timeRange" v-model:sort="timeSort" @change="onTimeFilterChange" />
-  <div v-if="activeFilterEntries.length" style="display:flex;align-items:center;gap:8px;padding:6px 12px;flex-wrap:wrap">
-    <span style="color:#909399;font-size:13px">已应用筛选：</span>
+  <div
+    v-if="activeFilterEntries.length"
+    style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; flex-wrap: wrap"
+  >
+    <span style="color: #909399; font-size: 13px">{{ t('asset.filterApplied') }}</span>
     <ElTag v-for="e in activeFilterEntries" :key="e.key" type="warning" size="small">
       {{ e.key }}={{ e.value }}
     </ElTag>
-    <ElButton link type="primary" size="small" @click="clearFilters">清空筛选</ElButton>
+    <ElButton link type="primary" size="small" @click="clearFilters">{{
+      t('asset.clearFilters')
+    }}</ElButton>
   </div>
   <ElRow>
     <ElCol>

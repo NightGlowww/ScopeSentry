@@ -298,12 +298,16 @@ const handleSync = async () => {
     startImportPoll()
     const d = res?.data || {}
     ElMessage.success(
-      `同步完成：新增 ${d.success_num ?? 0}，更新 ${d.update_num ?? 0}，` +
-        `无变化 ${d.repeat_num ?? 0}，失败 ${d.error_num ?? 0}`
+      t('poc.syncDone', {
+        added: d.success_num ?? 0,
+        updated: d.update_num ?? 0,
+        same: d.repeat_num ?? 0,
+        failed: d.error_num ?? 0
+      })
     )
     getList()
   } catch (e: any) {
-    ElMessage.error(`同步失败：${e?.message || '未知错误'}`)
+    ElMessage.error(t('poc.syncFailed', { msg: e?.message || t('common.batchUnknownError') }))
   } finally {
     syncLoading.value = false
   }

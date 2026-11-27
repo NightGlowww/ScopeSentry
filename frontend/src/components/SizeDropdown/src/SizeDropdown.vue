@@ -34,7 +34,7 @@ const setCurrentSize = (size: ComponentSize) => {
       class="cursor-pointer"
       role="button"
       tabindex="0"
-      aria-label="切换组件尺寸"
+      :aria-label="t('common.switchSize')"
     />
     <template #dropdown>
       <ElDropdownMenu>

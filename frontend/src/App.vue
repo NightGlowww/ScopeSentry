@@ -4,9 +4,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '@/store/modules/app'
 import { ConfigGlobal } from '@/components/ConfigGlobal'
 import { useDesign } from '@/hooks/web/useDesign'
+import { useI18n } from '@/hooks/web/useI18n'
 import { setCssVar } from './utils'
 
 const { getPrefixCls } = useDesign()
+
+const { t } = useI18n()
 
 const prefixCls = getPrefixCls('app')
 
@@ -61,8 +64,8 @@ onUnmounted(() => {
 <template>
   <ConfigGlobal :size="currentSize">
     <div v-if="staleBuild" class="stale-build-bar">
-      系统已发布新版本（{{ staleBuild }}），当前页面仍在跑旧代码，可能导致功能异常。
-      <a @click="() => location.reload()">点此刷新</a>
+      {{ t('app.staleBuild', { build: staleBuild }) }}
+      <a @click="() => location.reload()">{{ t('app.staleBuildReload') }}</a>
     </div>
     <RouterView :class="greyMode ? `${prefixCls}-grey-mode` : ''" />
   </ConfigGlobal>

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { ElTooltip } from 'element-plus'
 import { Icon } from '@/components/Icon'
 import { copyText } from '@/utils/clipboard'
+import { useI18n } from '@/hooks/web/useI18n'
 import { buildHref, splitHostValues, type HrefPolicy } from '@/utils/hostLink'
 
 // 表格里的域名 / IP / 主机单元格（UI_FINDINGS #1/#2）：
@@ -20,10 +21,13 @@ const props = withDefaults(
     iconColor?: string
     iconSize?: number
   }>(),
-  { policy: 'from-data', copyLabel: '复制', iconSize: 16 }
+  { policy: 'from-data', copyLabel: '', iconSize: 16 }
 )
 
+const { t } = useI18n()
+
 const values = computed(() => splitHostValues(props.value))
+const copyLabelText = computed(() => props.copyLabel || t('asset.copy'))
 const first = computed(() => values.value[0] ?? '')
 const rest = computed(() => Math.max(values.value.length - 1, 0))
 const fullText = computed(() => values.value.join('\n'))
@@ -36,13 +40,7 @@ const onCopy = () => copyText(values.value.length > 1 ? fullText.value : first.v
 
 <template>
   <div class="host-cell">
-    <Icon
-      v-if="icon"
-      :icon="icon"
-      :size="iconSize"
-      :color="iconColor"
-      class="host-cell__icon"
-    />
+    <Icon v-if="icon" :icon="icon" :size="iconSize" :color="iconColor" class="host-cell__icon" />
     <a
       v-if="link"
       :href="link"
@@ -57,14 +55,16 @@ const onCopy = () => copyText(values.value.length > 1 ? fullText.value : first.v
       <template #content>
         <div class="host-cell__list">{{ values.join('\n') }}</div>
       </template>
-      <span class="host-cell__more" :aria-label="`共 ${values.length} 个值`">+{{ rest }}</span>
+      <span class="host-cell__more" :aria-label="t('asset.multiValueCount', { n: values.length })"
+        >+{{ rest }}</span
+      >
     </ElTooltip>
-    <ElTooltip :content="copyLabel" placement="top">
+    <ElTooltip :content="copyLabelText" placement="top">
       <Icon
         icon="ep:copy-document"
         role="button"
         tabindex="0"
-        :aria-label="copyLabel"
+        :aria-label="copyLabelText"
         :size="13"
         color="var(--el-text-color-placeholder)"
         class="host-cell__copy"

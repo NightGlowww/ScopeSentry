@@ -58,7 +58,7 @@ const setLang = async (lang: LocaleType) => {
       :color="color"
       role="button"
       tabindex="0"
-      aria-label="切换语言"
+      :aria-label="t('common.switchLanguage')"
     />
     <template #dropdown>
       <ElDropdownMenu>

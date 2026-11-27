@@ -4,7 +4,28 @@ import { useI18n } from '@/hooks/web/useI18n'
 // computed 之前漏了引入：setup 直接抛 ReferenceError，整个搜索工具栏在产物里渲染成空注释，
 // 页面看起来「工具栏消失」但控制台只有一条被淹没的报错（2026-11-28 定位）。
 import { computed, reactive, ref, watch } from 'vue'
-import {ElCol, ElRow, ElButton, ElTable, ElTableColumn, ElText, ElDivider, ElAutocomplete, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem, ElMessageBox, ElMessage, ElTreeSelect, ElTag, ElSwitch, ElSelect, ElOption, ElInput} from 'element-plus'
+import {
+  ElCol,
+  ElRow,
+  ElButton,
+  ElTable,
+  ElTableColumn,
+  ElText,
+  ElDivider,
+  ElAutocomplete,
+  ElIcon,
+  ElDropdown,
+  ElDropdownMenu,
+  ElDropdownItem,
+  ElMessageBox,
+  ElMessage,
+  ElTreeSelect,
+  ElTag,
+  ElSwitch,
+  ElSelect,
+  ElOption,
+  ElInput
+} from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { useIcon } from '@/hooks/web/useIcon'
 import { Icon } from '@/components/Icon'
@@ -233,7 +254,6 @@ const querySearch = (queryString, cb) => {
     assignmen.value = false
   }
   if (keyword.value) {
-    console.log('第一')
     if (logic.value) {
       queryString = queryString.replace(selectedKeyword.value, '').trim()
     }
@@ -244,14 +264,12 @@ const querySearch = (queryString, cb) => {
     return
   }
   if (assignmen.value) {
-    console.log('第2')
     const searchStr = queryString.replace(selectedKeyword.value, '').trim()
     const results = AssignmentHelp.filter((item) => item.operator.includes(searchStr))
     cb(results)
     return
   }
   if (logic.value && queryString.endsWith(' ')) {
-    console.log('第3')
     const searchStr = queryString.replace(searchParams.value, '').trim()
     const results = logicHelp.filter((item) => item.operator.includes(searchStr))
     cb(results)
@@ -396,7 +414,10 @@ function clearAllTags() {
 // 之前是「标签行显示任务条件」+「另一行再写一遍已按任务筛选」两个提示，
 // 用户看到两处重复信息（2026-11-27 反馈）。
 const hasAnyFilter = computed(
-  () => localDynamicTags.value.length > 0 || (taskValue.value as string[]).length > 0 || (projectValue.value as string[]).length > 0
+  () =>
+    localDynamicTags.value.length > 0 ||
+    (taskValue.value as string[]).length > 0 ||
+    (projectValue.value as string[]).length > 0
 )
 function clearEverything() {
   const hadTags = localDynamicTags.value.length > 0

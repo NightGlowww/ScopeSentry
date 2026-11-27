@@ -438,7 +438,8 @@ async function handleSubmit() {
       <span class="server-health__title">{{ t('dashboard.serverHealth') }}</span>
       <ElTag size="small" effect="plain" type="info">v{{ serverHealth.version }}</ElTag>
       <ElTag size="small" effect="plain" :type="healthTone(loadRatio, 0.9, 1.5)">
-        {{ t('dashboard.load') }} {{ serverHealth.host?.load1 }} / {{ serverHealth.host?.cpus }} 核
+        {{ t('dashboard.load') }} {{ serverHealth.host?.load1 }} / {{ serverHealth.host?.cpus }}
+        {{ t('common.cores') }}
       </ElTag>
       <ElTag
         size="small"

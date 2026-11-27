@@ -282,7 +282,10 @@ const taskColums = reactive<TableColumn[]>([
       // 它和「跑挂了」是两回事：任务根本没开始过，retest 就能重新排队。
       // 混在「失败」里会让人以为是扫描出错，所以单独给一个标签。
       const fr = String((row && row.failReason) || '')
-      if (cellValue === 4 && fr.startsWith('排队超过')) {
+      // 优先用稳定代号；老数据没有 failCode 时才回落到中文前缀匹配
+      const code = String((row && row.failCode) || '')
+      const queueExpired = code ? code === 'queueExpired' : fr.startsWith('排队超过')
+      if (cellValue === 4 && queueExpired) {
         // 悬停能看到完整原因（排队时长 + 建议 retest），不用点进详情
         return h(ElTooltip, { content: fr, placement: 'top' }, () =>
           h(ElTag, { type: 'warning', effect: 'plain' }, () => t('task.queueExpired'))
@@ -360,7 +363,7 @@ const taskColums = reactive<TableColumn[]>([
       const list = Array.isArray(cellValue) ? cellValue : []
       if (!list.length) return h('span', '-')
       return h(ElTooltip, { effect: 'dark', placement: 'top', content: list.join(' / ') }, () =>
-        h(ElTag, { type: 'warning', size: 'small' }, () => list.length + ' 条')
+        h(ElTag, { type: 'warning', size: 'small' }, () => t('task.itemsCount', { n: list.length }))
       )
     }
   },
@@ -1255,7 +1258,7 @@ const setMaxHeight = () => {
           nodeOffline +
           '/' +
           nodeTotal +
-          (nodePaused ? '（' + nodePaused + ' 台已暂停）' : '')
+          (nodePaused ? t('task.nodePausedSuffix', { n: nodePaused }) : '')
         "
       />
       <ElAlert

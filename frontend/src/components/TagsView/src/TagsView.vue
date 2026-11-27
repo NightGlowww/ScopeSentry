@@ -255,7 +255,7 @@ watch(
       class="w-[var(--tags-view-height)] h-[var(--tags-view-height)] flex items-center justify-center cursor-pointer"
       role="button"
       tabindex="0"
-      aria-label="向左滚动标签"
+      :aria-label="t('common.scrollTagsLeft')"
       @click="move(-200)"
       @keydown.enter="move(-200)"
     >
@@ -376,7 +376,7 @@ watch(
       class="w-[var(--tags-view-height)] h-[var(--tags-view-height)] flex items-center justify-center cursor-pointer"
       role="button"
       tabindex="0"
-      aria-label="向右滚动标签"
+      :aria-label="t('common.scrollTagsRight')"
       @click="move(200)"
       @keydown.enter="move(200)"
     >

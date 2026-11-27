@@ -49,7 +49,14 @@ const taskColums = reactive<TableColumn[]>([
       if (!id) return '-'
       const short = id.length > 10 ? id.slice(0, 8) + '…' : id
       return h(ElTooltip, { content: id, placement: 'top', effect: 'light' }, () =>
-        h('span', { style: 'font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--el-text-color-secondary)' }, short)
+        h(
+          'span',
+          {
+            style:
+              'font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--el-text-color-secondary)'
+          },
+          short
+        )
       )
     }
   },
@@ -101,7 +108,7 @@ const confirmDeleteSelect = async () => {
   ElMessageBox({
     showCancelButton: true,
     cancelButtonText: t('common.cancel'),
-    message: `删除选中的 ${n} 个扫描模板？删除后不可恢复。`,
+    message: t('task.deleteSelectedTemplates', { n }),
     title: t('common.delete'),
     draggable: true
   }).then(async () => {
@@ -113,7 +120,7 @@ const confirmDelete = async (data: any) => {
   ElMessageBox({
     showCancelButton: true,
     cancelButtonText: t('common.cancel'),
-    message: `删除扫描模板「${data?.name || data?.id || ''}」？删除后不可恢复。`,
+    message: t('task.deleteTemplateOne', { name: data?.name || data?.id || '' }),
     title: t('common.delete'),
     draggable: true
   }).then(async () => {
@@ -203,11 +210,11 @@ const editTemplate = async (data) => {
         <div class="mb-10px">
           <BaseButton type="primary" @click="addTemplate">{{ t('task.addTemplate') }}</BaseButton>
           <BaseButton
-        type="danger"
-        :loading="delLoading"
-        :disabled="tableSelectedCount === 0"
-        @click="confirmDeleteSelect"
-      >
+            type="danger"
+            :loading="delLoading"
+            :disabled="tableSelectedCount === 0"
+            @click="confirmDeleteSelect"
+          >
             {{ t('task.deleteTemplate') }}
           </BaseButton>
         </div>

@@ -9,8 +9,6 @@ import {
   ElPagination,
   ElCheckbox,
   ElSwitch,
-
-
   ElCheckboxGroup
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -209,7 +207,9 @@ const action = (id: string) => {
               <!-- 任务维度：只给「资产数」看不出这个项目最近有没有在干活（2026-11-27 反馈） -->
               <div class="assets-info">
                 {{ t('project.taskCount') }} : {{ row.taskCount ?? 0 }}
-                <span v-if="row.runningTasks > 0" class="running-dot">· 运行中 {{ row.runningTasks }}</span>
+                <span v-if="row.runningTasks > 0" class="running-dot">
+                  · {{ t('task.running') }} {{ row.runningTasks }}
+                </span>
               </div>
               <div v-if="row.lastTaskAt" class="assets-info last-task">
                 {{ t('project.lastScan') }} : {{ String(row.lastTaskAt).slice(5, 16) }}

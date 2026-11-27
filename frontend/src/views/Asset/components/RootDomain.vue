@@ -99,8 +99,11 @@ const crudSchemas = reactive<CrudSchema[]>([
     formatter: (_: Recordable, __: TableColumn, domain: string) => (
       <div class="flex items-center">
         <span>{domain}</span>
-        <ElTooltip content="复制根域名" placement="top">
-          <Icon aria-label="复制根域名" role="button" tabindex="0"
+        <ElTooltip content={t('asset.copyRootDomain')} placement="top">
+          <Icon
+            aria-label={t('asset.copyRootDomain')}
+            role="button"
+            tabindex="0"
             icon="ep:copy-document"
             size={13}
             color="var(--el-text-color-placeholder)"

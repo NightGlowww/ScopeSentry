@@ -114,9 +114,9 @@ const crudSchemas = reactive<CrudSchema[]>([
         <ElLink href={url} underline={false} target="_blank">
           {url}
         </ElLink>
-        <ElTooltip content="复制 URL" placement="top">
+        <ElTooltip content={t('asset.copyUrl')} placement="top">
           <AppIcon
-            aria-label="复制 URL"
+            aria-label={t('asset.copyUrl')}
             icon="ep:copy-document"
             size={13}
             color="var(--el-text-color-placeholder)"
@@ -673,7 +673,7 @@ const drawerAggregationData = computed<SensitiveAggregation[]>(() => {
         <ElCol>
           <ElCard>
             <Table
-          :empty-text="emptyHint"
+              :empty-text="emptyHint"
               v-model:pageSize="pageSize"
               v-model:currentPage="currentPage"
               :columns="allSchemas.tableColumns"
@@ -730,7 +730,7 @@ const drawerAggregationData = computed<SensitiveAggregation[]>(() => {
   >
     <ElScrollbar :max-height="maxHeight">
       <div v-if="bodyTruncated" class="hint" style="margin-bottom: 8px">
-        正文较大，仅显示前 2MB（原始 {{ bodyTotalMB.toFixed(1) }} MB）
+        {{ t('asset.bodyTruncated', { mb: bodyTotalMB.toFixed(1) }) }}
       </div>
       <div :style="{ whiteSpace: 'pre-line' }">{{ body }}</div>
     </ElScrollbar>

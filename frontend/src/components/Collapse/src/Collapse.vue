@@ -3,8 +3,11 @@ import { computed, unref } from 'vue'
 import { useAppStore } from '@/store/modules/app'
 import { propTypes } from '@/utils/propTypes'
 import { useDesign } from '@/hooks/web/useDesign'
+import { useI18n } from '@/hooks/web/useI18n'
 
 const { getPrefixCls } = useDesign()
+
+const { t } = useI18n()
 
 const prefixCls = getPrefixCls('collapse')
 
@@ -27,7 +30,7 @@ const toggleCollapse = () => {
     :class="prefixCls"
     role="button"
     tabindex="0"
-    aria-label="折叠/展开侧边栏"
+    :aria-label="t('common.toggleSidebar')"
     @click="toggleCollapse"
     @keydown.enter="toggleCollapse"
   >

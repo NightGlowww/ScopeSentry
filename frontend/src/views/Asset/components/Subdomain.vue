@@ -153,7 +153,7 @@ const crudSchemas = reactive<CrudSchema[]>([
           value={values}
           href={resolveSubdomainHref(row, values[0])}
           policy="assume-https"
-          copyLabel="复制子域名"
+          copyLabel={t('asset.copySubdomain')}
         />
       )
     }
@@ -181,8 +181,8 @@ const crudSchemas = reactive<CrudSchema[]>([
       return (
         <div class="flex items-center">
           <span style="white-space: pre-line">{text}</span>
-          <ElTooltip content="复制记录值" placement="top">
-            <Icon aria-label="复制记录值" role="button" tabindex="0"
+          <ElTooltip content={t('asset.copyRecordValue')} placement="top">
+            <Icon aria-label={t('asset.copyRecordValue')} role="button" tabindex="0"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"
@@ -204,8 +204,8 @@ const crudSchemas = reactive<CrudSchema[]>([
       return (
         <div class="flex items-center">
           <span style="white-space: pre-line">{text}</span>
-          <ElTooltip content="复制 IP" placement="top">
-            <Icon aria-label="复制 IP" role="button" tabindex="0"
+          <ElTooltip content={t('asset.copyIp')} placement="top">
+            <Icon aria-label={t('asset.copyIp')} role="button" tabindex="0"
               icon="ep:copy-document"
               size={13}
               color="var(--el-text-color-placeholder)"
