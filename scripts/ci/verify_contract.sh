@@ -75,7 +75,14 @@ if [ -n "$probe_key" ]; then
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
     | sed -n 's/^data: //p;' | tail -1 \
     | python3 -c 'import json,sys;d=json.load(sys.stdin);print(len((d.get("result") or {}).get("tools") or []))' 2>/dev/null || echo 0)
-  if [ "${visible:-0}" = "22" ]; then ok "asset:read key tools/list 可见 22 个工具"; else bad "asset:read key tools/list 可见 ${visible:-0} 个（应为 22）"; fi
+  # 期望值不再写死数字：从 /api/mcp/tools 的 scope→工具映射里数出来。
+  # 写死 22 的那版每加一个 asset:read 工具就要改脚本，很容易忘记（2026-11-28 加 list_port_dict 时踩到）。
+  expect_read=$(printf '%s' "$tools" | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"];print(sum(1 for t in d["list"] if t["scope"]=="asset:read"))' 2>/dev/null || echo x)
+  if [ "${visible:-0}" = "${expect_read}" ] && [ "${expect_read}" != "x" ]; then
+    ok "asset:read key tools/list 可见 ${visible} 个工具（与 scope 表一致）"
+  else
+    bad "asset:read key tools/list 可见 ${visible:-0} 个（scope 表算出 ${expect_read}）"
+  fi
   # 资产总数两处一致：MCP count_assets 与仪表盘 stats（同一事实源被各算一遍，最容易一处悄悄归零）
   mcp_assets=$(curl -sS -m 30 -X POST "$BASE/mcp" -H 'Content-Type: application/json' \
     -H 'Accept: application/json, text/event-stream' -H "X-API-Key: $probe_key" \
@@ -123,6 +130,36 @@ curl -sS -m 20 -o /dev/null -X POST "$BASE/api/icp/task/delete" -H 'Content-Type
 icp_total2=$(curl -sS -m 20 -X POST "$BASE/api/icp/task/overview_count" -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $TOKEN" -d '{}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["total"])' 2>/dev/null || echo x)
 if [ "$icp_total" = "$icp_total2" ]; then ok "ICP 任务总数不受无效删除影响（$icp_total）"; else bad "ICP 任务总数被无效删除改变：$icp_total → $icp_total2"; fi
+
+# 15) 一次 MCP 调用不能打死服务：未知资产 id 曾让 asset.GetAssetByID 解引用 nil，
+#     而 MCP 工具跑在 jsonrpc2 自己的 goroutine 里，不在 gin.Recovery 管辖范围 —— 进程直接 SIGSEGV。
+#     这里用「调用前后 uptime 不减」来判断进程有没有重启（比看 http 码更直接）。
+up_before=$(curl -sS -m 20 "$BASE/api/console/info" -H "Authorization: Bearer $TOKEN" \
+  | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["uptimeSeconds"])' 2>/dev/null || echo x)
+mcp_res=$(curl -sS -m 30 -X POST "$BASE/mcp" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' -H "X-API-Key: ${MCP_KEY:-}" \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"get_asset_detail\",\"arguments\":{\"asset_type\":\"asset\",\"id\":\"$NOPE\"}}}" \
+  | sed -n 's/^data: //p' | tail -1)
+if [ -n "${MCP_KEY:-}" ]; then
+  err_flag=$(printf '%s' "$mcp_res" | python3 -c 'import json,sys;d=json.load(sys.stdin);print("err" if (d.get("result") or {}).get("isError") else "ok")' 2>/dev/null || echo x)
+  up_after=$(curl -sS -m 20 "$BASE/api/console/info" -H "Authorization: Bearer $TOKEN" \
+    | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["uptimeSeconds"])' 2>/dev/null || echo x)
+  if [ "$err_flag" = "err" ] && [ "$up_after" != "x" ] && [ "$up_before" != "x" ] && [ "$up_after" -ge "$up_before" ] 2>/dev/null; then
+    ok "MCP get_asset_detail 未知 id → 工具级错误，进程未重启（uptime $up_before→$up_after）"
+  else
+    bad "MCP 未知 id 处理异常：isError=$err_flag uptime $up_before→$up_after（进程可能被杀）"
+  fi
+else
+  bad "未提供 MCP_KEY，跳过 MCP 崩溃回归（导出 SS_MCP_KEY=<ssk_...>）"
+fi
+
+# 16) 策略 / POC 的不存在 id 也要 404（此前 200+deleted:0、500+mongo 文案）
+for pair in "policy/delete:{\"ids\":[\"$NOPE\"]}" "poc/detail:{\"id\":\"$NOPE\"}"; do
+  path=${pair%%:*}; body=${pair#*:}
+  code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/$path" \
+    -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "$body")
+  if [ "$code" = "404" ]; then ok "$path 不存在 id → 404"; else bad "$path 不存在 id → $code（应为 404）"; fi
+done
 
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

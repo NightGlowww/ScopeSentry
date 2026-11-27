@@ -32,6 +32,9 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 12 | `POST /api/icp/task/delete` 传不存在 id → 404 | 同一批接口，曾经回 200 + 全零；而幻影日志会让它报 `deletedLogs:1`，像是删掉了真东西 |
 | 13 | `POST /api/github/task/delete` 传不存在 id → 404 | GitHub 采集面同款假成功 |
 | 14 | 两次无效删除后 ICP 任务总数不变 | 兜住任何「拒绝分支顺手改了状态/写了日志」的回归 |
+| 15 | MCP `get_asset_detail` 传未知 id → 工具级错误，且调用前后 `uptimeSeconds` 不减 | 2026-11-28 实测：asset 服务对仓库层的 `(nil,nil)` 没判空，MCP 工具跑在 jsonrpc2 自己的 goroutine（`gin.Recovery` 管不到），一次调用就让进程 SIGSEGV，容器重启 5 次 |
+| 16 | `/api/policy/delete`、`/api/poc/detail` 传不存在 id → 404 | 前者 200 + `deleted:0`，后者 500 且把 `mongo: no documents in result` 透给前端 |
+| 17 | 受限 key 的可见工具数 == `/api/mcp/tools` 里该 scope 的工具数 | 写死数字的断言每加一个工具就失效（加 `list_port_dict` 时踩到） |
 
 ## 何时跑
 
