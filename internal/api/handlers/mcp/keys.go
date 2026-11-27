@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -17,6 +18,16 @@ import (
 // MCP Key 治理接口（对标 ARL-Next mcp keys）。
 
 var keyService = apikey.NewService()
+
+// bindStrictKey 严格解码签发/编辑 key 的请求体：出现未知字段直接 400。
+// 起因（2026-11-28 实测）：客户端把字段写成 allowed_tools（正确的是 tools），
+// Go 默认忽略未知字段 → 请求照常成功，但 tools 为空、scope 落到默认 ["*"]，
+// 于是「本来想只给 list_assets」的调用方拿到的是全权 key。签发凭据的接口不能失败开放。
+func bindStrictKey(c *gin.Context, dst interface{}) error {
+	dec := json.NewDecoder(c.Request.Body)
+	dec.DisallowUnknownFields()
+	return dec.Decode(dst)
+}
 
 // keyIDParam 取路径里的 key id 并校验格式。
 // 以前只判空：随便写一段非 ObjectID（例如把 /update 当路径）会一路走到 mongo，
@@ -97,7 +108,7 @@ func ListKeys(c *gin.Context) {
 // @Router /api/mcp/keys [post]
 func CreateKey(c *gin.Context) {
 	var req models.McpKeyCreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := bindStrictKey(c, &req); err != nil {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
@@ -122,7 +133,7 @@ func UpdateKey(c *gin.Context) {
 		return
 	}
 	var req models.McpKeyUpdateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := bindStrictKey(c, &req); err != nil {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
