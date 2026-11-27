@@ -21,7 +21,8 @@ type Service interface {
 	CheckScheduledTaskNameExists(ctx *gin.Context, name string) (bool, error)
 	CreateScheduledTask(ctx *gin.Context, req *models.Task) error
 	UpdateScheduledTask(ctx *gin.Context, req *models.Task) error
-	DeleteScheduledTasks(ctx *gin.Context, ids []string) error
+	// DeleteScheduledTasks 删除计划任务，返回真实删除条数
+	DeleteScheduledTasks(ctx *gin.Context, ids []string) (int64, error)
 	GetScheduledTaskDetail(ctx *gin.Context, id string) (*models.Task, error)
 	UpdatePageMonitScheduledTask(ctx *gin.Context, req *models.Task) error
 	GetPageMonitData(ctx *gin.Context, search string, pageIndex, pageSize int) ([]models.PageMonitoringTask, int64, error)
@@ -209,9 +210,9 @@ func (s *service) UpdateScheduledTask(ctx *gin.Context, req *models.Task) error 
 }
 
 // DeleteScheduledTasks 删除计划任务
-func (s *service) DeleteScheduledTasks(ctx *gin.Context, ids []string) error {
+func (s *service) DeleteScheduledTasks(ctx *gin.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
-		return nil
+		return 0, nil
 	}
 
 	// 构建删除条件
@@ -241,11 +242,12 @@ func (s *service) DeleteScheduledTasks(ctx *gin.Context, ids []string) error {
 	}
 
 	// 删除数据库记录
-	if err := s.schedulerRepo.DeleteMany(ctx, filter); err != nil {
-		return err
+	deleted, err := s.schedulerRepo.DeleteMany(ctx, filter)
+	if err != nil {
+		return 0, err
 	}
 
-	return nil
+	return deleted, nil
 }
 
 // GetScheduledTaskDetail 获取计划任务详情

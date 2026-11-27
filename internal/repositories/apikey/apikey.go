@@ -25,7 +25,8 @@ type Repository interface {
 	// UpdatePolicy 只更新治理字段（name / scope / tools / 限速 / 过期）
 	UpdatePolicy(ctx context.Context, id string, name string, scope, tools []string, rateLimit int, expiresAt *time.Time) error
 	SetEnabled(ctx context.Context, id string, enabled bool) error
-	Delete(ctx context.Context, id string) error
+	// Delete 返回真实删除条数（0 表示 id 不存在）
+	Delete(ctx context.Context, id string) (int64, error)
 	UpdateLastUsed(ctx context.Context, id primitive.ObjectID) error
 	EnsureIndexes(ctx context.Context) error
 }
@@ -161,13 +162,16 @@ func (r *repository) SetEnabled(ctx context.Context, id string, enabled bool) er
 	return err
 }
 
-func (r *repository) Delete(ctx context.Context, id string) error {
+func (r *repository) Delete(ctx context.Context, id string) (int64, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_, err = r.collection.DeleteOne(ctx, bson.M{"_id": objID})
-	return err
+	res, err := r.collection.DeleteOne(ctx, bson.M{"_id": objID})
+	if err != nil {
+		return 0, err
+	}
+	return res.DeletedCount, nil
 }
 
 func (r *repository) UpdateLastUsed(ctx context.Context, id primitive.ObjectID) error {

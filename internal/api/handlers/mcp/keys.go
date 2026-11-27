@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -151,8 +152,14 @@ func DeleteKey(c *gin.Context) {
 		response.BadRequestWithError(c, "api.bad_request", errors.New("id 不能为空"))
 		return
 	}
-	if err := keyService.Delete(c.Request.Context(), id); err != nil {
+	deleted, err := keyService.Delete(c.Request.Context(), id)
+	if err != nil {
 		respondMCPError(c, err)
+		return
+	}
+	if deleted == 0 {
+		// 以前对任意 id 都回 deleted:true，撤销一个写错的 key 名时会以为已撤销（2026-11-28 实测）
+		response.NotFound(c, "api.error", fmt.Errorf("key 不存在"))
 		return
 	}
 	response.Success(c, gin.H{"id": id, "deleted": true}, "api.success")

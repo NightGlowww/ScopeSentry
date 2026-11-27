@@ -1,6 +1,8 @@
 package project
 
 import (
+	"fmt"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
@@ -129,9 +131,25 @@ func DeleteProject(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	err := projectService.DeleteProjects(c, req.IDs, req.DeleateAssets)
-	if err != nil {
+	// 先确认项目存在：这个 handler 以前**什么都不回**（200 空 body），
+	// 前端 axios 拿到空响应也当成功，删错 id 完全没有反馈（2026-11-28 实测）。
+	existing := make([]string, 0, len(req.IDs))
+	for _, id := range req.IDs {
+		if p, err := projectService.GetProjectContent(c, id); err == nil && p != nil {
+			existing = append(existing, id)
+		}
+	}
+	if len(existing) == 0 {
+		response.NotFound(c, "api.error", fmt.Errorf("项目不存在"))
+		return
+	}
+	if err := projectService.DeleteProjects(c, existing, req.DeleateAssets); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
+	data := map[string]any{"deleted": len(existing), "deleteAssets": req.DeleateAssets}
+	if len(existing) < len(req.IDs) {
+		data["requested"] = len(req.IDs)
+	}
+	response.Success(c, data, "api.success")
 }

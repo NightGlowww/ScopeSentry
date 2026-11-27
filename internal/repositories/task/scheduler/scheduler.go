@@ -23,7 +23,8 @@ type Repository interface {
 	FindPageMonitoringScheduled(ctx context.Context) (*models.Task, bool, error)
 	Insert(ctx *gin.Context, task *models.Task) error
 	UpdateOne(ctx *gin.Context, filter interface{}, update interface{}) error
-	DeleteMany(ctx *gin.Context, filter interface{}) error
+	// DeleteMany 返回真实删除条数
+	DeleteMany(ctx *gin.Context, filter interface{}) (int64, error)
 	CountPageMonit(ctx *gin.Context, filter interface{}) (int64, error)
 	FindPageMonit(ctx *gin.Context, filter interface{}, opts *options.FindOptions) ([]models.PageMonitoringTask, error)
 	InsertPageMonit(ctx *gin.Context, task *models.PageMonitoringTask) error
@@ -126,12 +127,12 @@ func (r *repository) UpdateOne(ctx *gin.Context, filter interface{}, update inte
 }
 
 // DeleteMany 删除多个文档
-func (r *repository) DeleteMany(ctx *gin.Context, filter interface{}) error {
-	_, err := r.collection.DeleteMany(ctx, filter)
+func (r *repository) DeleteMany(ctx *gin.Context, filter interface{}) (int64, error) {
+	res, err := r.collection.DeleteMany(ctx, filter)
 	if err != nil {
-		return fmt.Errorf("failed to delete documents: %w", err)
+		return 0, fmt.Errorf("failed to delete documents: %w", err)
 	}
-	return nil
+	return res.DeletedCount, nil
 }
 
 // CountPageMonit 统计PageMonitoring文档数量

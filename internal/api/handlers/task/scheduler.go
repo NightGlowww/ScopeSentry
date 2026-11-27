@@ -154,12 +154,18 @@ func DeleteScheduledTask(c *gin.Context) {
 		return
 	}
 
-	if err := SchedulerService.DeleteScheduledTasks(c, req.IDs); err != nil {
+	deleted, err := SchedulerService.DeleteScheduledTasks(c, req.IDs)
+	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
+	if deleted == 0 {
+		// 不存在的计划任务以前也回成功（2026-11-28 实测）
+		response.NotFound(c, "api.error", fmt.Errorf("计划任务不存在"))
+		return
+	}
 
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]any{"deleted": deleted, "requested": len(req.IDs)}, "api.success")
 }
 
 // GetScheduledTaskDetail 获取计划任务详情

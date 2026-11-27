@@ -193,11 +193,17 @@ func DeleteScopes(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if err := getService().DeleteScopes(c.Request.Context(), req.IDs); err != nil {
+	deleted, err := getService().DeleteScopes(c.Request.Context(), req.IDs)
+	if err != nil {
 		respondError(c, err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	if deleted == 0 {
+		// 不存在的地契 id 以前也回成功（2026-11-28 实测）
+		respondError(c, fmt.Errorf("%w: 地契不存在", svc.ErrScopeNotFound))
+		return
+	}
+	response.Success(c, map[string]any{"deleted": deleted, "requested": len(req.IDs)}, "api.success")
 }
 
 // MoveScopes 批量移动地契

@@ -262,9 +262,8 @@ func (s *service) DeleteTasks(ctx *gin.Context, ids []string, delA bool) error {
 		_ = s.taskRepo.ClearTaskCache(ctx, id)
 	}
 
-	// 删除 ScheduledTasks 集合中的配置
-	err := s.schedulerService.DeleteScheduledTasks(ctx, ids)
-	if err != nil {
+	// 删除 ScheduledTasks 集合中的配置（顺带清掉该任务的计划任务）
+	if _, err := s.schedulerService.DeleteScheduledTasks(ctx, ids); err != nil {
 		logger.Error(fmt.Sprintf("error while deleting tasks: %v", err))
 	}
 

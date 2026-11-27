@@ -36,7 +36,8 @@ type Service interface {
 	Update(ctx context.Context, id string, req *models.McpKeyUpdateRequest) (*models.ApiKey, error)
 	// SetEnabled 启用/禁用
 	SetEnabled(ctx context.Context, id string, enabled bool) error
-	Delete(ctx context.Context, id string) error
+	// Delete 删除 key，返回真实删除条数（0 表示这个 id 不存在）
+	Delete(ctx context.Context, id string) (int64, error)
 	// Validate 校验 key 并返回记录；disabled/expired 也返回记录，便于审计落 keyId
 	Validate(ctx context.Context, rawKey string) (*models.ApiKey, error)
 	EnsureIndexes(ctx context.Context) error
@@ -168,7 +169,7 @@ func (s *service) SetEnabled(ctx context.Context, id string, enabled bool) error
 	return s.repo.SetEnabled(ctx, id, enabled)
 }
 
-func (s *service) Delete(ctx context.Context, id string) error {
+func (s *service) Delete(ctx context.Context, id string) (int64, error) {
 	return s.repo.Delete(ctx, id)
 }
 

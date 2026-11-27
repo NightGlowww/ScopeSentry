@@ -1,6 +1,8 @@
 package apikey
 
 import (
+	"fmt"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/apikey"
@@ -50,9 +52,15 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	if err := apiKeyService.Delete(c.Request.Context(), req.ID); err != nil {
+	deleted, err := apiKeyService.Delete(c.Request.Context(), req.ID)
+	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	if deleted == 0 {
+		// 以前对任意 id 都回成功，界面于是把「已删除」也报给用户（2026-11-28 实测）
+		response.NotFound(c, "api.error", fmt.Errorf("API Key 不存在"))
+		return
+	}
+	response.Success(c, map[string]any{"deleted": deleted, "id": req.ID}, "api.success")
 }

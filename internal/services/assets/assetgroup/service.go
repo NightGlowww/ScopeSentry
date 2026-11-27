@@ -45,7 +45,8 @@ type Service interface {
 	ListScopes(ctx context.Context, groupID, search string, pageIndex, pageSize int) ([]models.AssetScope, int64, error)
 	CreateScope(ctx context.Context, req *models.AssetScopeAddRequest) (string, error)
 	UpdateScope(ctx context.Context, req *models.AssetScopeUpdateRequest) error
-	DeleteScopes(ctx context.Context, ids []string) error
+	// DeleteScopes 批量删除地契，返回真实删除条数
+	DeleteScopes(ctx context.Context, ids []string) (int64, error)
 	MoveScopes(ctx context.Context, ids []string, groupID string) error
 	ClearUpdateErrors(ctx context.Context, ids []string) error
 	BindEnterprise(ctx context.Context, id, enterprise string) error
@@ -238,9 +239,9 @@ func (s *service) UpdateScope(ctx context.Context, req *models.AssetScopeUpdateR
 	return s.repo.UpdateScope(ctx, updated)
 }
 
-func (s *service) DeleteScopes(ctx context.Context, ids []string) error {
+func (s *service) DeleteScopes(ctx context.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
-		return fmt.Errorf("%w: ids is required", ErrInvalidInput)
+		return 0, fmt.Errorf("%w: ids is required", ErrInvalidInput)
 	}
 	return s.repo.DeleteScopes(ctx, ids)
 }

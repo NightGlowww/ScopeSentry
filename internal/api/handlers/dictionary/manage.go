@@ -136,11 +136,16 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	if err := manageService.Delete(c, req.IDs); err != nil {
+	deleted, err := manageService.Delete(c, req.IDs)
+	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, gin.H{"code": 200, "message": "delete file successful"}, "api.success")
+	if deleted == 0 {
+		response.NotFound(c, "api.error", fmt.Errorf("字典不存在"))
+		return
+	}
+	response.Success(c, gin.H{"code": 200, "deleted": deleted, "requested": len(req.IDs)}, "api.success")
 }
 
 // Save 替换指定字典文件内容

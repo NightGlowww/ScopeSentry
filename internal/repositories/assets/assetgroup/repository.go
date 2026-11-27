@@ -35,7 +35,8 @@ type Repository interface {
 	GetScope(ctx context.Context, id string) (*models.AssetScope, error)
 	CreateScope(ctx context.Context, s *models.AssetScope) (string, error)
 	UpdateScope(ctx context.Context, s *models.AssetScope) error
-	DeleteScopes(ctx context.Context, ids []string) error
+	// DeleteScopes 批量删除，返回真实删除条数
+	DeleteScopes(ctx context.Context, ids []string) (int64, error)
 	MoveScopes(ctx context.Context, ids []string, groupID string) error
 	// DissolveGroup 把该集团下所有地契移入未分组（删除集团时 dissolve）
 	DissolveGroup(ctx context.Context, groupID string) error
@@ -265,15 +266,16 @@ func (r *repository) UpdateScope(ctx context.Context, s *models.AssetScope) erro
 }
 
 // DeleteScopes 批量删除
-func (r *repository) DeleteScopes(ctx context.Context, ids []string) error {
+func (r *repository) DeleteScopes(ctx context.Context, ids []string) (int64, error) {
 	objIDs, err := toObjectIDs(ids)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if _, err := r.scopes().DeleteMany(ctx, bson.M{"_id": bson.M{"$in": objIDs}}); err != nil {
-		return fmt.Errorf("failed to delete asset scopes: %w", err)
+	res, err := r.scopes().DeleteMany(ctx, bson.M{"_id": bson.M{"$in": objIDs}})
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete asset scopes: %w", err)
 	}
-	return nil
+	return res.DeletedCount, nil
 }
 
 // MoveScopes 批量移动到目标集团（groupID 为空 = 未分组）

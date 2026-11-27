@@ -187,26 +187,27 @@ func (s *Service) UpdateNotification(ctx *gin.Context, data models.UpdateNotific
 	return nil
 }
 
-// DeleteNotifications 批量删除通知并刷新节点
-func (s *Service) DeleteNotifications(ctx *gin.Context, ids []string) error {
+// DeleteNotifications 批量删除通知并刷新节点，返回真实删除条数
+func (s *Service) DeleteNotifications(ctx *gin.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
-		return nil
+		return 0, nil
 	}
 	// 将 string 转换为 ObjectID
 	objectIDs := make([]primitive.ObjectID, 0, len(ids))
 	for _, id := range ids {
 		objID, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			return fmt.Errorf("invalid ObjectID: %s, error: %w", id, err)
+			return 0, fmt.Errorf("invalid ObjectID: %s, error: %w", id, err)
 		}
 		objectIDs = append(objectIDs, objID)
 	}
 	filter := bson.M{"_id": bson.M{"$in": objectIDs}}
-	if _, err := s.repo.DeleteMany(ctx.Request.Context(), collNotification, filter); err != nil {
-		return err
+	deleted, err := s.repo.DeleteMany(ctx.Request.Context(), collNotification, filter)
+	if err != nil {
+		return 0, err
 	}
 	_ = s.nodeService.RefreshConfig(ctx, models.Message{Name: "all", Type: "notification"})
-	return nil
+	return deleted, nil
 }
 
 // GetNotificationConfig 读取通知配置

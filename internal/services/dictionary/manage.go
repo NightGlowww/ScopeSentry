@@ -24,7 +24,8 @@ type ManageService interface {
 	List(ctx context.Context) ([]models.DictionaryMeta, error)
 	Create(ctx context.Context, name, category string, content []byte) error
 	Download(ctx context.Context, id string) (filename string, data []byte, err error)
-	Delete(ctx context.Context, ids []string) error
+	// Delete 删除字典文件，返回真实删除条数（不存在的 id 计入 skipped）
+	Delete(ctx context.Context, ids []string) (int, error)
 	Save(ctx context.Context, id string, content []byte) error
 
 	// ---- 对标 ARL-Next 的字典能力（dictionary.py / brute_dict.py / cdn_dict.py）----
@@ -167,20 +168,32 @@ func (s *manageService) Download(ctx context.Context, id string) (string, []byte
 	return "", nil, err
 }
 
-func (s *manageService) Delete(ctx context.Context, ids []string) error {
-	if err := s.repo.DeleteMeta(ctx, ids); err != nil {
-		return err
-	}
+func (s *manageService) Delete(ctx context.Context, ids []string) (int, error) {
+	// 先筛出真实存在的字典：以前不论 id 存不存在都回「delete file successful」，
+	// 界面上删一个手滑写错的 id 也会提示成功（2026-11-28 实测）。
+	existing := make([]string, 0, len(ids))
 	for _, id := range ids {
+		if _, err := s.metaByID(ctx, id); err != nil {
+			continue
+		}
+		existing = append(existing, id)
+	}
+	if len(existing) == 0 {
+		return 0, nil
+	}
+	if err := s.repo.DeleteMeta(ctx, existing); err != nil {
+		return 0, err
+	}
+	for _, id := range existing {
 		if err := s.entryRepo.DeleteAll(ctx, id); err != nil {
-			return err
+			return 0, err
 		}
 		if err := s.repo.DeleteFileSafe(ctx, id); err != nil {
-			return err
+			return 0, err
 		}
 		s.refreshNode(ctx, "delete", id)
 	}
-	return nil
+	return len(existing), nil
 }
 
 func (s *manageService) Save(ctx context.Context, id string, content []byte) error {
