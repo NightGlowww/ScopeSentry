@@ -1,6 +1,7 @@
 package dictionary
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -108,7 +109,15 @@ func AddPortDict(c *gin.Context) {
 		return
 	}
 	if err := portService.Add(c, req.Name, req.Value); err != nil {
-		response.BadRequest(c, "api.bad_request", err)
+		// 空名字/空值要给出具体原因：都回「请求参数错误」的话，前端只能猜是哪一项。
+		switch {
+		case errors.Is(err, dictservice.ErrPortNameRequired):
+			response.BadRequest(c, "api.required.name", nil)
+		case errors.Is(err, dictservice.ErrPortValueRequired):
+			response.BadRequest(c, "api.required.value", nil)
+		default:
+			response.BadRequest(c, "api.bad_request", err)
+		}
 		return
 	}
 	response.Success(c, gin.H{"code": 200, "message": "Port dict added successfully"}, "api.success")
