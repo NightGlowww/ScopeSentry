@@ -30,8 +30,14 @@ if [ -n "$entry" ]; then
 else
   bad "找不到入口 chunk"
 fi
-cc404=$(curl -sSI -m 20 "$BASE/assets/gone-contract-check.js" | tr -d '\r' | awk -F': ' 'tolower($1)=="cache-control"{print $2}')
-case "$cc404" in *no-store*) ok "asset 404 cache-control = $cc404" ;; *) bad "asset 404 cache-control = ${cc404:-空}（会被缓存一年）" ;; esac
+# 只断言缓存头不够：SPA 的 HTML 兜底也会回 no-store，所以必须同时确认状态码是 404
+miss=$(curl -sS -m 20 -o /dev/null -D /tmp/cc_404h -w '%{http_code}' "$BASE/assets/gone-contract-check.js")
+cc404=$(tr -d '\r' < /tmp/cc_404h | awk -F': ' 'tolower($1)=="cache-control"{print $2}')
+if [ "$miss" = "404" ] && case "$cc404" in *no-store*) true ;; *) false ;; esac; then
+  ok "asset 缺失 → 404 且 cache-control = $cc404"
+else
+  bad "asset 缺失 → status=$miss cache-control=$cc404（会被缓存一年）"
+fi
 
 # 2) 删除类接口对不存在的 id 必须是 404（不是 200 成功）
 code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/task/delete" \
