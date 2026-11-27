@@ -496,10 +496,16 @@ const setMaxHeight = () => {
 }
 const DialogVisible = ref(false)
 const body = ref('')
+// 正文可能很大（实测最长 5.9MB、平均 1MB）：后端默认只回前 2MB 并标注是否截断
+const bodyTruncated = ref(false)
+const bodyTotalMB = ref(0)
 const action = async (id) => {
-  id.replace('md5==', '')
-  const res = await getSensitiveResultBodyApi(id)
-  body.value = res.data.body
+  // 以前这里写了 id.replace('md5==', '')，但返回值被丢掉（空操作）；
+  // 现在服务端同时接受 md5、md5==<md5> 与 SensitiveResult 的 _id，前端不用再猜格式。
+  const res: any = await getSensitiveResultBodyApi(id)
+  body.value = res?.data?.body ?? ''
+  bodyTruncated.value = !!res?.data?.truncated
+  bodyTotalMB.value = Number(res?.data?.totalBytes || 0) / (1024 * 1024)
   DialogVisible.value = true
 }
 const filterChange = async (newFilters: any) => {
@@ -723,6 +729,9 @@ const drawerAggregationData = computed<SensitiveAggregation[]>(() => {
     :max-height="maxHeight"
   >
     <ElScrollbar :max-height="maxHeight">
+      <div v-if="bodyTruncated" class="hint" style="margin-bottom: 8px">
+        正文较大，仅显示前 2MB（原始 {{ bodyTotalMB.toFixed(1) }} MB）
+      </div>
       <div :style="{ whiteSpace: 'pre-line' }">{{ body }}</div>
     </ElScrollbar>
   </Dialog>

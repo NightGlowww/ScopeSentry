@@ -3,6 +3,8 @@ package sensitive
 import (
 	"context"
 	"errors"
+	"strings"
+	"unicode/utf8"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -12,12 +14,15 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/assets/sensitive"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Service interface {
 	GetSensitiveInfo(ctx context.Context, query models.SearchRequest) ([]models.Sensitive, error)
 	GetSensitiveInfoNumber(ctx context.Context, query models.SearchRequest) (int64, int64, error)
-	GetBodyByID(ctx *gin.Context, id string) (string, error)
+	// GetBodyByID 取正文：id 支持 md5 / "md5==<md5>" / SensitiveResult 的 _id；
+	// maxBytes>0 时只返回前 maxBytes 字节，并回原始长度与是否截断。
+	GetBodyByID(ctx *gin.Context, id string, maxBytes int) (body string, total int, truncated bool, err error)
 	GetSIDStatistics(ctx *gin.Context, query models.SearchRequest) ([]models.SensitiveSIDStat, error)
 	GetMatchInfo(ctx *gin.Context, req models.SearchRequest) (*models.MatchListResponse, error)
 }
@@ -179,15 +184,51 @@ func (s *service) GetSensitiveInfoNumber(ctx context.Context, query models.Searc
 	//return totalCount, urlTotal, nil
 }
 
-func (s *service) GetBodyByID(ctx *gin.Context, id string) (string, error) {
-	content, err := s.repo.FindBodyByMD5(ctx, id)
+// 正文默认最多回 2MB：实测最长 5.9MB、平均 1MB，整段塞进前端抽屉会卡。
+const defaultBodyMaxBytes = 2 << 20
+const hardBodyMaxBytes = 8 << 20
+
+func (s *service) GetBodyByID(ctx *gin.Context, id string, maxBytes int) (string, int, bool, error) {
+	key := strings.TrimSpace(id)
+	key = strings.TrimPrefix(key, "md5==")
+	key = strings.TrimPrefix(key, "md5:")
+
+	// 列表行给的是 SensitiveResult 的 ObjectID，正文表按 md5 存 —— 先试着当 md5，
+	// 不中再当 _id 翻译一次。之前只当 md5 用，前端传 ObjectID 时永远「content not found」。
+	content, err := s.repo.FindBodyByMD5(ctx, key)
 	if err != nil {
-		return "", err
+		return "", 0, false, err
 	}
 	if content == "" {
-		return "", ErrContentNotFound
+		if oid, perr := primitive.ObjectIDFromHex(key); perr == nil {
+			if md5, merr := s.repo.FindMD5ByResultID(ctx.Request.Context(), oid); merr == nil && md5 != "" {
+				content, err = s.repo.FindBodyByMD5(ctx, md5)
+				if err != nil {
+					return "", 0, false, err
+				}
+			}
+		}
 	}
-	return content, nil
+	if content == "" {
+		return "", 0, false, ErrContentNotFound
+	}
+
+	total := len(content)
+	if maxBytes <= 0 {
+		maxBytes = defaultBodyMaxBytes
+	}
+	if maxBytes > hardBodyMaxBytes {
+		maxBytes = hardBodyMaxBytes
+	}
+	if total > maxBytes {
+		cut := content[:maxBytes]
+		// 别把多字节字符切断
+		for len(cut) > 0 && !utf8.ValidString(cut) {
+			cut = cut[:len(cut)-1]
+		}
+		return cut, total, true, nil
+	}
+	return content, total, false, nil
 }
 
 func (s *service) GetSIDStatistics(ctx *gin.Context, query models.SearchRequest) ([]models.SensitiveSIDStat, error) {

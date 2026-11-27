@@ -10,6 +10,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Repository interface {
@@ -17,6 +18,8 @@ type Repository interface {
 	Aggregate(ctx context.Context, pipeline mongo.Pipeline) ([]models.SensitiveInfo, error)
 	AggregateRaw(ctx context.Context, pipeline mongo.Pipeline) ([]bson.M, error)
 	FindBodyByMD5(ctx context.Context, md5 string) (string, error)
+	// FindMD5ByResultID 按 SensitiveResult 的 _id 取它对应的 md5
+	FindMD5ByResultID(ctx context.Context, id primitive.ObjectID) (string, error)
 	AggregateSIDStat(ctx context.Context, pipeline mongo.Pipeline) ([]models.SensitiveSIDStat, error)
 	AggregateMatchInfo(ctx context.Context, pipeline mongo.Pipeline) ([]string, error)
 	FindWithPagination(ctx context.Context, query bson.M, opts *options.FindOptions) ([]models.Sensitive, error)
@@ -103,6 +106,22 @@ func (r *repository) FindBodyByMD5(ctx context.Context, md5 string) (string, err
 		return "", fmt.Errorf("failed to find content: %w", err)
 	}
 	return result.Body, nil
+}
+
+// FindMD5ByResultID 按 SensitiveResult 的 _id 取 md5。
+// 前端列表行给的是 ObjectID，而正文表按 md5 存，两边需要一次翻译（2026-11-28 实测）。
+func (r *repository) FindMD5ByResultID(ctx context.Context, id primitive.ObjectID) (string, error) {
+	var doc struct {
+		MD5 string `bson:"md5"`
+	}
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", nil
+		}
+		return "", fmt.Errorf("find sensitive result: %w", err)
+	}
+	return doc.MD5, nil
 }
 
 func (r *repository) AggregateSIDStat(ctx context.Context, pipeline mongo.Pipeline) ([]models.SensitiveSIDStat, error) {

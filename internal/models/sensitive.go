@@ -69,11 +69,18 @@ type SensitiveRuleListItem struct {
 }
 
 type GetSensitiveBodyRequest struct {
+	// ID 可以是 md5、带 md5== 前缀的 md5，或 SensitiveResult 的 ObjectID
 	ID string `json:"id" binding:"required" example:"d41d8cd98f00b204e9800998ecf8427e"`
+	// MaxBytes 限制返回的正文长度（默认 2MB，上限 8MB）：
+	// 实测最长正文 5.9MB、平均 1MB，整段塞给抽屉会明显卡顿。
+	MaxBytes int `json:"maxBytes,omitempty"`
 }
 
 type GetSensitiveBodyResponse struct {
 	Body string `json:"body" example:"<html>content</html>"`
+	// TotalBytes 是原始正文长度；Truncated=true 表示只返回了前 MaxBytes 字节
+	TotalBytes int  `json:"totalBytes"`
+	Truncated  bool `json:"truncated"`
 }
 
 type SensitiveSIDStat struct {

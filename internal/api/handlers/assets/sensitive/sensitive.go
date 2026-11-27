@@ -95,16 +95,23 @@ func GetSensitiveInfoBody(c *gin.Context) {
 		return
 	}
 
-	body, err := sensitiveService.GetBodyByID(c, query.ID)
+	body, total, truncated, err := sensitiveService.GetBodyByID(c, query.ID, query.MaxBytes)
 	if err != nil {
+		if errors.Is(err, sensitive.ErrContentNotFound) {
+			// 找不到正文是「这条记录没有正文」，不是服务端故障（以前一律 500）
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
 		logger.Error(fmt.Sprintf("GetSensitiveInfoBody err:%v", err))
 		response.InternalServerError(c, "api.sensitive.body.failed", err)
 		return
 	}
 
 	response.Success(c, gin.H{
-		"body": body,
-	}, "")
+		"body":       body,
+		"totalBytes": total,
+		"truncated":  truncated,
+	}, "api.success")
 }
 
 // GetSensitiveInfoName godoc
