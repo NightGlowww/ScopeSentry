@@ -149,7 +149,22 @@ func (s *service) GetExportRecords(ctx context.Context) ([]models.ExportTask, er
 		})
 
 	// 调用 repository 层执行查询
-	return s.repository.GetExportRecords(ctx, bson.M{}, opts)
+	records, err := s.repository.GetExportRecords(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, err
+	}
+	// 现算「文件是否还在」：记录是一次写库、文件可能早已不在（换镜像/手工清理）。
+	// 记录数量级很小（几十条），逐条 Stat 的成本可以忽略。
+	for i := range records {
+		if records[i].State != 1 || !s.IsValidFileName(records[i].FileName) {
+			continue
+		}
+		path := filepath.Join(config.GlobalConfig.System.ExportPath(), records[i].FileName)
+		if _, statErr := os.Stat(path); statErr != nil {
+			records[i].FileMissing = true
+		}
+	}
+	return records, nil
 }
 
 // DeleteExportFiles 删除导出文件

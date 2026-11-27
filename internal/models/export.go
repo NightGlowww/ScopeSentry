@@ -40,7 +40,11 @@ type ExportTask struct {
 	FileSize   string `json:"file_size" bson:"file_size"`
 	FileType   string `json:"file_type" bson:"file_type"`
 	State      int    `json:"state"`
-	EndTime    string `json:"end_time" bson:"end_time"`
+	// FileMissing 记录在、文件不在（不落库，列表接口现算）。
+	// 容器重建/换镜像会丢掉可写层里的历史文件，用户点下载只会 404——
+	// 把这个事实显式标出来，比让用户猜「为什么下载失败」好。
+	FileMissing bool   `json:"file_missing" bson:"-"`
+	EndTime     string `json:"end_time" bson:"end_time"`
 }
 
 type ExportRun struct {

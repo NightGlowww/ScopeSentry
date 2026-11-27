@@ -134,6 +134,9 @@ export default {
     disabledNeedScope: 'Select at least one record first'
   },
   export: {
+    fileMissing: 'File missing',
+    fileMissingHint:
+      'The record exists but the file is gone from disk (container rebuild / manual cleanup). Export again, or delete this record.',
     quantityRequired: 'Enter export quantity (at least 1)',
     submitted: 'Export submitted; check the records list below for progress',
     timeRange: 'Time range',

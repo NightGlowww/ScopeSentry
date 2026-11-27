@@ -134,6 +134,8 @@ export default {
     disabledNeedScope: '请先勾选记录后再操作'
   },
   export: {
+    fileMissing: '文件缺失',
+    fileMissingHint: '记录还在，但导出文件已不在磁盘上（例如容器重建/手工清理）。可重新导出，或删除这条记录',
     quantityRequired: '请填写导出数量（至少 1 条）',
     submitted: '导出任务已提交，可在下方记录列表查看进度',
     timeRange: '时间范围',

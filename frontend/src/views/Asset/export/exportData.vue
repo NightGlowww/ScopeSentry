@@ -100,7 +100,12 @@ const exportColums = reactive<TableColumn[]>([
     formatter: (row, __: TableColumn, _: number) => {
       return (
         <>
-          <BaseButton type="success" onClick={() => download(row.file_name)}>
+          <BaseButton
+            type="success"
+            disabled={!!row.file_missing}
+            title={row.file_missing ? t('export.fileMissingHint') : ''}
+            onClick={() => download(row.file_name)}
+          >
             {t('export.download')}
           </BaseButton>
           <BaseButton type="danger" onClick={() => confirmDelete(row)}>
@@ -117,7 +122,15 @@ const exportColums = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('export.state'),
-    formatter: (_: Recordable, __: TableColumn, value: number) => {
+    formatter: (row: Recordable, __: TableColumn, value: number) => {
+      // 记录说成功、文件却不在（容器重建丢过文件）——这比「成功」更该被看见
+      if (row?.file_missing) {
+        return (
+          <ElTooltip content={t('export.fileMissingHint')} placement="top">
+            <ElTag type="warning">{t('export.fileMissing')}</ElTag>
+          </ElTooltip>
+        )
+      }
       if (value == 0) {
         return <ElTag type="info">{t('export.run')}</ElTag>
       } else if (value == 1) {
