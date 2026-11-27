@@ -97,6 +97,7 @@ export default {
     scrollTagsLeft: 'Scroll tags left',
     scrollTagsRight: 'Scroll tags right',
     cores: 'cores',
+    unknownError: 'Unknown error',
     labelSep: ': ',
     prevLabel: 'Prev',
     nextLabel: 'Next',

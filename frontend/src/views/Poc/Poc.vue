@@ -307,7 +307,7 @@ const handleSync = async () => {
     )
     getList()
   } catch (e: any) {
-    ElMessage.error(t('poc.syncFailed', { msg: e?.message || t('common.batchUnknownError') }))
+    ElMessage.error(t('poc.syncFailed', { msg: e?.message || t('common.unknownError') }))
   } finally {
     syncLoading.value = false
   }
