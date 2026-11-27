@@ -103,9 +103,16 @@ func BadRequestWithError(c *gin.Context, msgKey string, err error) {
 }
 
 func NotFound(c *gin.Context, msgKey string, err error) {
+	// 把具体原因带给前端：axios 拦截器优先展示 data 里的字符串，
+	// 丢掉了界面就只能显示笼统的「操作失败」（2026-11-28 实测）。
+	data := ""
+	if err != nil {
+		data = fmt.Sprintf("%v", err)
+	}
 	c.JSON(http.StatusNotFound, Response{
 		Code:    http.StatusNotFound,
 		Message: i18n.Translate(getLocale(c), msgKey),
+		Data:    data,
 	})
 }
 
