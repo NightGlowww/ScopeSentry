@@ -424,6 +424,7 @@ const taskColums = reactive<TableColumn[]>([
               if (row.status === 3) {
                 return [
                   h(ElDropdownItem, { command: 'export' }, () => t('task.exportTask')),
+                  h(ElDropdownItem, { command: 'export_xlsx' }, () => t('task.exportTaskXlsx')),
                   h(ElDropdownItem, { command: 'progress' }, () => t('task.taskProgress')),
                   h(ElDropdownItem, { command: 'retest' }, () => t('task.retest')),
                   h(ElDropdownItem, { command: 'delete' }, () => t('common.delete'))
@@ -433,6 +434,8 @@ const taskColums = reactive<TableColumn[]>([
                   h(ElDropdownItem, { command: 'start' }, () => t('task.start')),
                   h(ElDropdownItem, { command: 'stop' }, () => t('task.stop')), // 如果是运行中，显示“停止”按钮
                   h(ElDropdownItem, { command: 'export' }, () => t('task.exportTask')),
+                  // 多工作表 Excel：一个文件几张表，比 zip 里 5 个 CSV 更适合存档/交付
+                  h(ElDropdownItem, { command: 'export_xlsx' }, () => t('task.exportTaskXlsx')),
                   h(ElDropdownItem, { command: 'progress' }, () => t('task.taskProgress')),
                   h(ElDropdownItem, { command: 'retest' }, () => t('task.retest')),
                   h(ElDropdownItem, { command: 'delete' }, () => t('common.delete'))
