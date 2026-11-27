@@ -685,6 +685,8 @@ export default {
   },
   policy: {
     title: 'Scan policy',
+    noneYet: 'No scan policy yet',
+    goCreate: 'Create one →',
     desc: 'Store template / plugins / concurrency / rate / timeout / dictionaries as one reusable preset, then apply it in one click when creating a task (a policy is only a parameter preset, it does not take part in the execution chain)',
     create: 'New policy',
     refresh: 'Refresh',

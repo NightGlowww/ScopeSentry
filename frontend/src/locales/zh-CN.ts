@@ -668,6 +668,8 @@ export default {
   },
   policy: {
     title: '扫描策略',
+    noneYet: '还没有扫描策略',
+    goCreate: '去新建 →',
     desc: '把模板 / 插件 / 并发 / 速率 / 超时 / 字典存成一组可复用参数；建任务时选策略即可一键套用（策略只是参数预设，不参与执行链路）',
     create: '新建策略',
     refresh: '刷新',

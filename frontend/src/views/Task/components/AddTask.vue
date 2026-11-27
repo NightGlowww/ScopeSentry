@@ -28,6 +28,7 @@ import {
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { getNodeDataOnlineApi, getNodeDataApi } from '@/api/node'
 import {
   addScheduledTaskApi,
@@ -44,6 +45,8 @@ import type { ScanPolicyApplyResult, ScanPolicyConfig } from '@/api/policy/types
 import { POLICY_MAX_PAGE_SIZE, applyPolicyToTaskForm, policyFieldLabelKey } from '@/utils/policy'
 import type { PolicyConflict } from '@/utils/policy'
 const { t } = useI18n()
+// 策略为空时引导去策略页；用 router 而不是改 hash，避免 keep-alive 下弹窗残留
+const router = useRouter()
 
 const props = defineProps<{
   closeDialog: () => void
@@ -475,6 +478,12 @@ const loadPolicies = async () => {
   }
 }
 
+// 去策略页新建：先关掉建任务弹窗，再跳转——否则弹窗会盖在策略页上（keep-alive 下还会带回来）
+const goCreatePolicy = () => {
+  props.closeDialog()
+  router.push('/asset-information/policy')
+}
+
 const resetPolicy = () => {
   policyId.value = ''
   policyApplied.value = null
@@ -772,6 +781,13 @@ loadPolicies()
         />
       </ElSelect>
       <span class="policy-hint inline">{{ t('policy.pickHint') }}</span>
+      <!-- 一条策略都没有时给出口：否则下拉是空的，用户不知道去哪建 -->
+      <div v-if="!policyLoading && !policyOptions.length" class="policy-hint policy-empty">
+        {{ t('policy.noneYet') }}
+        <ElButton link type="primary" size="small" @click="goCreatePolicy">
+          {{ t('policy.goCreate') }}
+        </ElButton>
+      </div>
     </ElFormItem>
     <ElFormItem v-if="policyApplied" :label="t('policy.pickSummaryTitle')">
       <div class="policy-summary">
