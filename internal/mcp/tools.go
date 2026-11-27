@@ -583,7 +583,22 @@ func addTool[In, Out any](server *mcp.Server, allowedTools map[string]bool, name
 				zap.String("tool", tool.Name), zap.Any("panic", r))
 		}
 	}()
-	mcp.AddTool(server, tool, handler)
+	// 执行期兜底：MCP 工具跑在 jsonrpc2 自己的 goroutine 里，不在 gin.Recovery 的管辖范围。
+	// 任何一个工具里的 nil 解引用都会打死整个进程（2026-11-28 实测：get_asset_detail 传未知 id
+	// 让容器重启了 5 次）。这里把 panic 收成一条工具级错误，服务继续活着。
+	guarded := func(ctx context.Context, req *mcp.CallToolRequest, in In) (res *mcp.CallToolResult, out Out, err error) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				logger.Error("mcp: tool handler panicked",
+					zap.String("tool", tool.Name), zap.Any("panic", rec), zap.Stack("stack"))
+				r, _, e := errorResult("工具执行异常，已中断（服务未受影响）: "+tool.Name, nil)
+				var zero Out
+				res, out, err = r, zero, e
+			}
+		}()
+		return handler(ctx, req, in)
+	}
+	mcp.AddTool(server, tool, guarded)
 }
 
 var (
@@ -1752,6 +1767,10 @@ func deleteScanPolicies(ctx context.Context, _ *mcp.CallToolRequest, input delet
 	if err != nil {
 		return errorResult("删除扫描策略失败", err)
 	}
+	// 一条都没删掉说明策略不存在：不能回 ok:true（2026-11-28 全工具扫描实测）
+	if n == 0 {
+		return errorResult("策略不存在: "+strings.Join(ids, ","), nil)
+	}
 	return jsonToolResult(ginH{"ok": true, "deleted": n})
 }
 
@@ -1803,6 +1822,10 @@ func setSensitiveRuleState(ctx context.Context, _ *mcp.CallToolRequest, input se
 	n, err := d.sensitiveRuleService.RuleUpdateState(ginContext(ctx), ids, input.State)
 	if err != nil {
 		return errorResult("更新规则状态失败", err)
+	}
+	// 0 条更新说明这些 id 都不存在（或状态本来就一致且没记录被匹配），别回 ok:true 冒充成功
+	if n == 0 {
+		return errorResult("规则不存在或状态未变化: "+strings.Join(ids, ","), nil)
 	}
 	return jsonToolResult(ginH{"ok": true, "updated": n, "state": input.State})
 }

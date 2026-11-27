@@ -162,6 +162,11 @@ func Delete(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	// 一条都没删掉 = 策略不存在（2026-11-28 实测：此前回 200 + deleted:0）
+	if deleted == 0 {
+		response.NotFound(c, "api.not_found", fmt.Errorf("策略不存在: %s", strings.Join(ids, ",")))
+		return
+	}
 	response.Success(c, gin.H{"deleted": deleted, "ids": ids}, "api.success")
 }
 

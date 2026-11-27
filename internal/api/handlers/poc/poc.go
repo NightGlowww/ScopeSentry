@@ -2,6 +2,7 @@ package poc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,6 +71,11 @@ func GetPocDetail(c *gin.Context) {
 
 	result, err := pocService.GetPocDetail(c, &req)
 	if err != nil {
+		// 查不到 → 404（此前一律 500，且错误里带 mongo: no documents in result）
+		if errors.Is(err, poc.ErrPocNotFound) {
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

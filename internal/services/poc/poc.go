@@ -31,6 +31,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// ErrPocNotFound POC 不存在
+var ErrPocNotFound = errors.New("poc not found")
+
 // Service 定义POC服务接口
 type Service interface {
 	GetPocList(ctx *gin.Context, req *models.PocListRequest) (*models.PocListResponse, error)
@@ -105,6 +108,9 @@ func (s *service) GetPocDetail(ctx *gin.Context, req *models.PocDetailRequest) (
 
 	result, err := s.repo.FindOne(ctx, bson.M{"_id": id})
 	if err != nil {
+		if errors.Is(err, poc.ErrPocNotFound) {
+			return nil, ErrPocNotFound
+		}
 		return nil, fmt.Errorf("failed to get poc detail: %w", err)
 	}
 

@@ -281,11 +281,21 @@ func (s *service) GetAssetByID(ctx *gin.Context, id string) (*models.Asset, erro
 	if err != nil {
 		return nil, err
 	}
-	httpBody, err := s.assetRepo.FindBodyByHash(context.Background(), assetByID.ResponseBodyHash)
-	if err != nil {
-		return nil, err
+	// 仓库层对「查不到」返回 (nil, nil)。这里必须挡一下再解引用：
+	// 之前直接读 assetByID.ResponseBodyHash，未知 id 会 nil pointer 崩溃。
+	// REST 侧被 gin.Recovery 兜住只看到 500，而 MCP 工具跑在 jsonrpc2 的独立 goroutine 里，
+	// 没有 recovery —— 一次 get_asset_detail(未知 id) 直接把整个服务打死（2026-11-28 实测，容器重启 5 次）。
+	if assetByID == nil {
+		return nil, nil
 	}
-	assetByID.Body = httpBody.Content
+	if assetByID.ResponseBodyHash != "" {
+		httpBody, err := s.assetRepo.FindBodyByHash(context.Background(), assetByID.ResponseBodyHash)
+		if err != nil {
+			return nil, err
+		}
+		// httpBody 是值类型，查不到时 Content 为空串，不会崩
+		assetByID.Body = httpBody.Content
+	}
 	return assetByID, nil
 }
 

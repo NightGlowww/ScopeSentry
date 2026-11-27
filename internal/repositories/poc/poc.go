@@ -2,6 +2,7 @@ package poc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
@@ -12,6 +13,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// ErrPocNotFound POC 不存在（查不到就是查不到，不要把 mongo 原始错误带到上层文案）
+var ErrPocNotFound = errors.New("poc not found")
 
 // Repository 定义POC仓库接口
 type Repository interface {
@@ -64,6 +68,10 @@ func (r *repository) FindOne(ctx context.Context, query bson.M) (*models.Poc, er
 	var result models.Poc
 	err := r.collection.FindOne(ctx, query).Decode(&result)
 	if err != nil {
+		// 查不到就是查不到：不要把 mongo 的原始错误一路带到 UI/MCP 文案里
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, ErrPocNotFound
+		}
 		return nil, fmt.Errorf("failed to find document: %w", err)
 	}
 	return &result, nil
