@@ -8,6 +8,9 @@
 set -uo pipefail
 BASE=${SS_BASE:-http://127.0.0.1:8082}
 TOKEN=${SS_TOKEN:-}
+# MCP key 两个名字都认：mcp_sweep.py 用 SS_MCP_KEY，本脚本历史上用 MCP_KEY。
+# 只认一个的话，照文档传另一个名字的人会永远看到 SKIP（2026-11-28 实测踩到）。
+MCP_KEY=${MCP_KEY:-${SS_MCP_KEY:-}}
 FAIL=0
 NOPE=000000000000000000000000
 
@@ -152,7 +155,7 @@ if [ -n "${MCP_KEY:-}" ]; then
     bad "MCP 未知 id 处理异常：isError=$err_flag uptime $up_before→$up_after（进程可能被杀）"
   fi
 else
-  skip "MCP 崩溃回归需要 SS_MCP_KEY=<ssk_...>；未提供，本次跳过"
+  skip "MCP 崩溃回归需要 MCP_KEY 或 SS_MCP_KEY=<ssk_...>；未提供，本次跳过"
 fi
 
 # 16) 策略 / POC 的不存在 id 也要 404（此前 200+deleted:0、500+mongo 文案）
@@ -500,5 +503,81 @@ while IFS= read -r line; do
     *) bad "端口字典检查输出异常：$line" ;;
   esac
 done <<< "$pd"
+
+# 27) MCP 读模型与 REST 必须同源：同一份事实从两个面读出来要一致。
+#     只验 isError=false 是不够的——工具可以「成功返回一份旧数据」。
+#     需要 SS_MCP_KEY（含 get_task/get_project/get_poc 权限），否则跳过。
+if [ -n "${MCP_KEY:-}" ]; then
+  par=$(python3 - "$BASE" "$TOKEN" "$MCP_KEY" <<'PY'
+import json, sys, urllib.request, urllib.error
+base, token, mkey = sys.argv[1], sys.argv[2], sys.argv[3]
+def rest(path, body=None):
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(base + path, data=data, method='POST' if data else 'GET',
+        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
+    try:
+        return json.loads(urllib.request.urlopen(req, timeout=60).read().decode() or '{}')
+    except Exception:
+        return {}
+def mcp(tool, args):
+    body = json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call',
+                       'params': {'name': tool, 'arguments': args}}).encode()
+    req = urllib.request.Request(base + '/mcp', data=body, method='POST',
+        headers={'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream',
+                 'X-API-Key': mkey})
+    try:
+        raw = urllib.request.urlopen(req, timeout=60).read().decode()
+    except Exception:
+        return None
+    txt = [l[6:] for l in raw.splitlines() if l.startswith('data: ')]
+    if txt:
+        raw = txt[-1]
+    try:
+        r = json.loads(raw)
+    except Exception:
+        return None
+    res = r.get('result') or {}
+    body_txt = ''.join(c.get('text', '') for c in (res.get('content') or []) if c.get('type') == 'text')
+    try:
+        return json.loads(body_txt)
+    except Exception:
+        return None
+out = []
+# task
+t = (rest('/api/task/', {'pageIndex': 1, 'pageSize': 1}).get('data') or {})
+trow = (t.get('list') or [{}])[0]
+tid = trow.get('id') or trow.get('_id')
+m = mcp('get_task', {'id': tid}) or {}
+out.append('OK MCP get_task 与任务列表一致（%s）' % trow.get('name')
+           if m.get('name') == trow.get('name') else
+           'BAD get_task 不一致：mcp=%r rest=%r' % (m.get('name'), trow.get('name')))
+# project
+g = (rest('/api/project/data', {'pageIndex': 1, 'pageSize': 5}).get('data') or {})
+projs = [p for grp in (g.get('result') or {}).values() for p in grp]
+prow = projs[0] if projs else {}
+pm = mcp('get_project', {'id': prow.get('id')}) or {}
+out.append('OK MCP get_project 与项目列表一致（%s）' % prow.get('name')
+           if pm.get('name') == prow.get('name') else
+           'BAD get_project 不一致：mcp=%r rest=%r' % (pm.get('name'), prow.get('name')))
+# poc
+p = (rest('/api/poc', {'pageIndex': 1, 'pageSize': 1}).get('data') or {})
+pcrow = (p.get('list') or [{}])[0]
+pcm = mcp('get_poc', {'id': pcrow.get('id')}) or {}
+out.append('OK MCP get_poc 与 POC 列表一致' if pcm.get('name') == pcrow.get('name')
+           else 'BAD get_poc 不一致：mcp=%r rest=%r' % ((pcm.get('name') or '')[:40], (pcrow.get('name') or '')[:40]))
+print(chr(10).join(out))
+PY
+  )
+  while IFS= read -r line; do
+    case "$line" in
+      OK\ *) ok "${line#OK }" ;;
+      BAD\ *) bad "${line#BAD }" ;;
+      "") ;;
+      *) bad "MCP/REST 同源检查输出异常：$line" ;;
+    esac
+  done <<< "$par"
+else
+  skip "MCP/REST 同源检查需要 MCP_KEY 或 SS_MCP_KEY（含 get_task/get_project/get_poc）；未提供，本次跳过"
+fi
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

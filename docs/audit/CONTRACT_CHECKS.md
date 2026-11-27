@@ -8,7 +8,7 @@
 ## 用法
 
 ```bash
-SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
+SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bash scripts/ci/verify_contract.sh
 ```
 
 `SS_TOKEN` 用管理员登录后的 `access_token`（`POST /api/user/login` 的 `data.access_token`）。
@@ -44,13 +44,14 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 24 | MCP 治理三件套：① 建 key 传未知字段（如 `allowed_tools`）→ 400；② 白名单 key 调未授权工具 → `tool not allowed`，授权工具正常；③ `rateLimitPerMin=1` 的 key 第二次调用 → 429（-32029） | 这三条都是「看起来配了、实际没生效」的高危面。① 尤其危险：Go 默认忽略未知字段，写错字段名会拿到 scope=["*"] 的全权 key（2026-11-28 实测）；脚本自建 key 并在 finally 撤销 |
 | 25 | 项目名称为空（`{}` / `""` / 纯空白）→ 400，且项目列表里不存在空标题卡片 | `AddProject` 直接绑定 `models.Project` 没有必填校验，`POST {}` 会真的建出一张没有标题的卡片；重名原本也只回 500「api.error」。注意自动化里**只测空名字**，重名用例会真的建项目 |
 | 26 | 端口字典 `add` 传空 `name` 或空 `value`（含纯空白）→ 400，且字典行数不变 | `PortService.Add` 只校验了 `value`，空 `name` 照样插入 —— 端口字典会通过 `{dict.port.*}` 进入扫描参数，无名行会一路带到节点（2026-11-28 扫描「绑持久化模型无 binding 校验」的接口时发现） |
+| 27 | （需 `MCP_KEY`/`SS_MCP_KEY`）MCP `get_task` / `get_project` / `get_poc` 返回的 `name` 必须与 REST 列表/详情一致 | 只断言 `isError=false` 是不够的：工具可以「成功返回一份旧数据」。同源比对才证明读模型没自带一份缓存（2026-11-28 实测三者一致） |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 
 契约脚本管的是 REST 侧的横切口；MCP 有 71 个工具，逐个手工验不现实，所以单独一个脚本：
 
 ```bash
-SS_BASE=http://<host>:8082 SS_MCP_KEY=<全 scope 的 ssk_...> SS_ASSET_ID=<任一资产 id> \
+SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bash scripts/ci/verify_contract.sh
   python3 scripts/ci/mcp_sweep.py
 ```
 
