@@ -646,15 +646,60 @@ const router = createRouter({
 // 点进懒加载页面时会去取已经不存在的 chunk → 404 → 整个页面白屏（2026-11-27 实测：
 // /node-management 打开后 #app 是空的，失败资源是 useVisibleInterval-*.js）。
 // 这里在路由层兜住：chunk 加载失败就自动整页刷新一次（30 秒内只做一次，避免死循环）。
+// 懒加载 chunk 取不到 = 浏览器手里的 index.html 是旧版本（chunk 名已随发版变化）。
+// 直接 location.reload() 会复用缓存里的旧 index.html，于是拿同样的旧 chunk 名再失败一次，
+// 结果是整页白屏（2026-11-28 实测 /configuration/mcp-audit）：所以要用 ?v= 打破缓存。
+const isChunkLoadError = (msg: string): boolean =>
+  /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|dynamically imported module|does not provide an export named|MIME type/i.test(
+    msg
+  )
+
+const reloadWithCacheBust = () => {
+  const url = location.pathname + '?v=' + Date.now() + location.hash
+  location.replace(url)
+}
+
+// 兜底面板：连续失败时不再静默白屏，给出可点的刷新入口
+const showStaleBuildPanel = () => {
+  const host = document.getElementById('app') || document.body
+  if (document.getElementById('stale-build-panel')) return
+  const box = document.createElement('div')
+  box.id = 'stale-build-panel'
+  box.style.cssText = [
+    'position:fixed', 'inset:0', 'display:flex', 'flex-direction:column',
+    'align-items:center', 'justify-content:center', 'gap:14px', 'z-index:99999',
+    'background:var(--el-bg-color, #141414)', 'color:var(--el-text-color-primary, #e5eaf3)',
+    'font-size:14px', 'text-align:center', 'padding:24px'
+  ].join(';')
+  const title = document.createElement('div')
+  title.textContent = '系统已发布新版本，当前页面加载的是旧资源'
+  title.style.cssText = 'font-size:16px;font-weight:600'
+  const hint = document.createElement('div')
+  hint.textContent = '点击下方按钮重新加载（会带版本号绕过缓存）'
+  hint.style.cssText = 'color:var(--el-text-color-secondary, #a3a6ad)'
+  const btn = document.createElement('button')
+  btn.textContent = '重新加载'
+  btn.style.cssText = [
+    'cursor:pointer', 'border:none', 'border-radius:6px', 'padding:8px 18px',
+    'background:var(--el-color-primary, #409eff)', 'color:#fff', 'font-size:14px'
+  ].join(';')
+  btn.onclick = reloadWithCacheBust
+  box.append(title, hint, btn)
+  host.appendChild(box)
+}
+
 router.onError((err: unknown) => {
   const msg = String((err as Error)?.message || err || '')
-  const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|dynamically imported module/i.test(msg)
-  if (!isChunkError) return
+  if (!isChunkLoadError(msg)) return
   const KEY = 'chunk-reload-at'
   const last = Number(sessionStorage.getItem(KEY) || 0)
-  if (Date.now() - last < 30000) return
+  if (Date.now() - last < 30000) {
+    // 刚重载过还是失败：不再自动刷，给用户一个明确的出口
+    showStaleBuildPanel()
+    return
+  }
   sessionStorage.setItem(KEY, String(Date.now()))
-  location.reload()
+  reloadWithCacheBust()
 })
 
 export const resetRouter = (): void => {

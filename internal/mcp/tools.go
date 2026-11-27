@@ -963,6 +963,13 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 	}
 	out["pageIndex"] = input.PageIndex
 	out["pageSize"] = input.PageSize
+	// IPAsset 是「按 IP 分页、按 IP×端口×服务展开」的视图：一页 3 个 IP 可能展开成
+	// 10 条端口行，total 数的是 IP。不说明的话客户端会以为分页坏了（2026-11-28 实测）。
+	if index == "IPAsset" {
+		out["groupBy"] = "ip"
+		out["totalIsGroupCount"] = true
+		out["note"] = "按 IP 分页后按 IP×端口×服务展开，list 行数通常大于 pageSize；total 是 IP 数"
+	}
 	return jsonToolResult(out)
 }
 
