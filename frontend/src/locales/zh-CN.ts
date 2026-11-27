@@ -55,6 +55,7 @@ export default {
     startTimeText: '开始时间',
     endTimeText: '结束时间',
     changePassword: '修改密码',
+    passwordChanged: '密码已修改',
     submit: '提交',
     updatemsg: '发现新版本',
     update: '一键更新',

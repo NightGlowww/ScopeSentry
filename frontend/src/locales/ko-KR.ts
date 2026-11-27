@@ -55,6 +55,7 @@ export default {
     startTimeText: '시작 시간',
     endTimeText: '종료 시간',
     changePassword: '비밀번호 변경',
+    passwordChanged: '비밀번호가 변경되었습니다',
     submit: '제출',
     update: '원클릭 업데이트',
     updatemsg: '새 버전 확인 중',

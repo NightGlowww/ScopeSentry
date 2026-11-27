@@ -197,10 +197,9 @@ func DeleteExport(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, models.ExportResponse{
-		Message: fmt.Sprintf("已删除 %d 条导出记录", deleted),
-		Code:    200,
-	}, "api.success")
+	// 不要在 data 里塞中文文案：它绕过了 i18n，前端一旦展示出来英文界面就会蹦中文。
+	// 只回数量，文案交给顶层 message。
+	response.Success(c, gin.H{"deleted": deleted}, "api.success")
 }
 
 // DownloadExport 下载导出文件

@@ -64,14 +64,15 @@ const changePassword = async () => {
     if (valid) {
       dialogVisible.value = false
       const formData = await getFormData()
-      console.log(formData)
+      // 不要打印 formData：里面有明文新密码，会留在浏览器控制台/录屏里
       const changePasswordData: changePassword = {
         newPassword: formData.newPassword
       }
       const res = await changePasswordApi(changePasswordData)
-      console.log(res)
       if (res.code == 200) {
-        ElMessage.success(res.data.message)
+        // 后端这个接口回的是 data: null，读 res.data.message 会直接抛 TypeError，
+        // 于是「改成功了但没有任何提示」。改成本地文案，不再依赖响应体形状。
+        ElMessage.success(t('common.passwordChanged'))
       }
     }
   })

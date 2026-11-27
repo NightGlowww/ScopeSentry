@@ -55,6 +55,7 @@ export default {
     startTimeText: 'Start time',
     endTimeText: 'End time',
     changePassword: 'Change Password',
+    passwordChanged: 'Password changed',
     submit: 'Submit',
     update: 'One click update',
     updatemsg: 'Discovering new versions',

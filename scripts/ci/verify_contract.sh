@@ -276,5 +276,61 @@ while IFS= read -r line; do
     *) bad "export 检查输出异常：$line" ;;
   esac
 done <<< "$exp"
+
+# 23) 导出记录链路（创建 → 列表 → 下载 → 删除）默认跳过：它会真的落一个文件。
+#     这条路以前没人跑过（records 一直是空），而它和流式 batch 是两套代码。
+if [ "${SS_EXPORT_ROUNDTRIP:-}" = "1" ]; then
+  exprec=$(python3 - "$BASE" "$TOKEN" <<'PY'
+import json, sys, io, zipfile, urllib.request, urllib.error
+base, token = sys.argv[1], sys.argv[2]
+def call(method, path, body=None):
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(base + path, data=data, method=method,
+        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
+    try:
+        r = urllib.request.urlopen(req, timeout=180)
+        return r.getcode(), r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+out = []
+code, _ = call('POST', '/api/export', {'index': 'vulnerability', 'quantity': 2, 'type': 'search',
+                                        'filetype': 'xlsx', 'field': ['url', 'level']})
+out.append('OK 导出记录：创建接口 200' if code == 200 else 'BAD 创建导出异常 HTTP %s' % code)
+_, raw = call('GET', '/api/export/records')
+lst = (json.loads(raw.decode() or '{}').get('data') or {}).get('list') or []
+name = None
+for x in lst:
+    if x.get('file_type') == 'xlsx' and not x.get('file_missing'):
+        name = x.get('file_name'); break
+out.append('OK 导出记录：列表里能看到刚建的文件' if name else 'BAD 导出记录列表里找不到刚建的文件')
+if name:
+    c, body = call('GET', '/api/export/download?filename=' + name)
+    ok = False
+    if c == 200 and body[:2] == b'PK':
+        try:
+            z = zipfile.ZipFile(io.BytesIO(body))
+            ok = any(n.startswith('xl/worksheets/sheet') for n in z.namelist())
+        except Exception:
+            ok = False
+    out.append('OK 导出记录：下载得到可解的 xlsx（%d 字节）' % len(body) if ok else 'BAD 下载的 xlsx 不是有效 zip/缺少工作表')
+    c, _ = call('POST', '/api/export/delete', {'ids': [name]})
+    out.append('OK 导出记录：删除 200' if c == 200 else 'BAD 删除导出记录 HTTP %s' % c)
+    _, raw2 = call('GET', '/api/export/records')
+    left = (json.loads(raw2.decode() or '{}').get('data') or {}).get('list') or []
+    out.append('OK 导出记录：删除后清单为 0（清理干净）' if not left else 'BAD 删除后仍有 %d 条记录' % len(left))
+print(chr(10).join(out))
+PY
+  )
+  while IFS= read -r line; do
+    case "$line" in
+      OK\ *) ok "${line#OK }" ;;
+      BAD\ *) bad "${line#BAD }" ;;
+      "") ;;
+      *) bad "导出记录检查输出异常：$line" ;;
+    esac
+  done <<< "$exprec"
+else
+  skip "导出记录链路需要 SS_EXPORT_ROUNDTRIP=1；默认跳过（会创建并删除一条导出记录）"
+fi
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL
