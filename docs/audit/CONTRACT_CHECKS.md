@@ -141,3 +141,27 @@ python3 scripts/ci/frontend_payload_contract.py
 脚本做过正向对照：临时放一个 `res.data.message` 的探针文件，能精确报到 `user/ChangePassword`，删掉后回到 PASS。
 
 新增写接口时：如果它只回 `nil`，就别让前端去读 `data`；直接读顶层 `message` 或用本地文案。
+
+## 表格列字段 vs 接口返回（column_field_check.py）
+
+同一个 bug 出现了三次，形态完全一样：**列定义里的 field 名，接口根本不回**。
+
+- 计划任务「状态」列读 `row.state`，接口回的是 `scheduledTasks`（模型的 bson 名）→ 整列空白；
+- npoc「插入时间」列读 `row.insertTime`，接口回 `insert_time` → 整列空白；
+- 任务「策略提示」列读 `policyWarnings`，后端写了但列表投影漏了 → 整列永远是「-」。
+
+```bash
+SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> python3 scripts/ci/column_field_check.py
+```
+
+做法：把每个表格页的列 `field:` 名，和它 `fetchDataApi` 调的那个接口**实际返回的键**比对（取 5 行键的并集，
+避免 `omitempty` 字段只在有值时才出现造成误判）。输出分两档：
+
+- `缺失`（该列没有 formatter）→ 直接判 FAIL；
+- `待人工`（有 formatter，自己算值）→ 只提示，因为 formatter 允许不依赖该字段；上一轮那个 `state` 列就落在这档。
+
+当前结果：**25 个表格页通过、0 缺失、4 条待人工**（GitHub 调度间隔读 `row.config.intervalMinutes` 属嵌套、
+`ScheduledTask.state` 是修复时保留的兼容读法、`policyWarnings` 待有数据的任务出现、`insertTime` 已修）。
+
+已知限制：一个文件挂多张表时列 schema 与接口无法可靠配对（子表多走详情接口），脚本**明确跳过并计数**（当前 61 个），
+不硬配、不产噪声。要覆盖这部分得按 `<Table>` ↔ `useTable` 逐表建映射，留作后续。
