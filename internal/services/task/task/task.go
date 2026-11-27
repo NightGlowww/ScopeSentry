@@ -126,6 +126,10 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		"creatTime":  1,
 		"endTime":    1,
 		"failReason": 1,
+		// failCode/failParams 是失败原因的机器可读形态（英文界面按它渲染）；
+		// 投影里漏掉它们，后端写了前端也永远拿不到（2026-11-28 实测回填成功但列表看不到）
+		"failCode":   1,
+		"failParams": 1,
 		"node":       1,
 		"allNode":    1,
 		"startedAt":  1,

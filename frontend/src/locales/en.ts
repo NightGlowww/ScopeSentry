@@ -1099,6 +1099,10 @@ export default {
         'Marked as running, but no node is working on it and it is not queued either, with no progress written for {since}; judged failed — retest to run it again',
       nodeHeartbeatStale:
         'Node {node} stopped reporting at {at} ({after} without an update, far beyond the ~7 minutes a normal restart needs); the queue was released automatically and the task is judged failed — retest to run it again',
+      reconciledStale:
+        'No node is running this task any more; the last progress write was at {last} ({progress}% done), so it was closed as failed',
+      queueExpired:
+        'Queued for more than {after} without starting (created {created}) and expired out of the queue — retest to queue it again',
       staleNoProgress:
         'No progress for {after} and not in any node queue (last activity {last}); auto-resumed {autoResume} times without starting — usually a node restart or upgrade interrupted it'
     },

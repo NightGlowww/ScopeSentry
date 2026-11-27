@@ -37,6 +37,18 @@ func TestParse(t *testing.T) {
 			code:   "staleNoProgress",
 			want:   map[string]string{"after": "30m0s", "last": "2026-11-25 10:00:00", "autoResume": "0"},
 		},
+		{
+			name:   "reconciled stale finalize",
+			reason: "reconciled: 节点已不在执行该任务，最后一次进度写入于 2026-11-26 10:00:00（进度 92%），按失败收尾",
+			code:   "reconciledStale",
+			want:   map[string]string{"last": "2026-11-26 10:00:00", "progress": "92"},
+		},
+		{
+			name:   "queue expired",
+			reason: "排队超过 72h0m0s 仍未开始（创建于 2026-11-22 23:26:22），已过期并移出队列；需要的话 retest 即可重新排队",
+			code:   "queueExpired",
+			want:   map[string]string{"after": "72h0m0s", "created": "2026-11-22 23:26:22"},
+		},
 		{name: "unknown stays untouched", reason: "队列积压：suffix quota exceeded", code: ""},
 		{name: "empty", reason: "   ", code: ""},
 	}

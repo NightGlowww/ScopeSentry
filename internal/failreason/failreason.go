@@ -31,6 +31,18 @@ var patterns = []struct {
 		code:   "staleNoProgress",
 		fields: []string{"after", "last"},
 	},
+	// reconcile.go: StaleFinalizeReason
+	{
+		re:     regexp.MustCompile(`reconciled: 节点已不在执行该任务，最后一次进度写入于 (.+?)（进度 (\d+)%）`),
+		code:   "reconciledStale",
+		fields: []string{"last", "progress"},
+	},
+	// watchdog/pipeline.go: 排队过期
+	{
+		re:     regexp.MustCompile(`排队超过 (.+?) 仍未开始（创建于 (.+?)）`),
+		code:   "queueExpired",
+		fields: []string{"after", "created"},
+	},
 }
 
 var autoResumeRe = regexp.MustCompile(`已自动重投 (\d+) 次`)

@@ -11,7 +11,13 @@ export interface FailReasonTask {
 type Translate = (key: string, params?: Record<string, unknown>) => string
 
 // 与后端写入方一一对应：watchdog/pipeline.go（两条）与 task/task.go（一条）
-export const FAIL_CODES = ['phantomNoProgress', 'nodeHeartbeatStale', 'staleNoProgress'] as const
+export const FAIL_CODES = [
+  'phantomNoProgress',
+  'nodeHeartbeatStale',
+  'staleNoProgress',
+  'reconciledStale',
+  'queueExpired'
+] as const
 
 export const failReasonText = (task: FailReasonTask | null | undefined, t: Translate): string => {
   const raw = (task?.failReason as string) || ''

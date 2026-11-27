@@ -36,6 +36,12 @@ describe('failReasonText', () => {
   })
 
   it('登记的 code 与后端写入方保持一致（新增写入方必须同步这个列表）', () => {
-    expect([...FAIL_CODES]).toEqual(['phantomNoProgress', 'nodeHeartbeatStale', 'staleNoProgress'])
+    expect([...FAIL_CODES]).toEqual([
+      'phantomNoProgress',
+      'nodeHeartbeatStale',
+      'staleNoProgress',
+      'reconciledStale',
+      'queueExpired'
+    ])
   })
 })
