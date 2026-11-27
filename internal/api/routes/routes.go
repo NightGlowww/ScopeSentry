@@ -75,6 +75,9 @@ func SetupRouter() *gin.Engine {
 	// 前端内嵌资源：带 hash 的长缓存 + 文本响应 gzip
 	router.Use(compress.StaticCache())
 	router.Use(compress.Gzip())
+	// 列表请求的 pageSize 收敛：实测 pageSize=100000 单请求 45363 行 / 22.1MB / 15.9s，
+	// 一处拦住全部 /api 列表接口（前端最大只用到 1000，导出不走这条路）。
+	router.Use(middleware.PageSizeLimit(middleware.MaxJSONPageSize))
 
 	// 探活：K8s readiness/liveness 用；任一依赖不可用返回 503
 	router.GET("/healthz", health.Handler(
