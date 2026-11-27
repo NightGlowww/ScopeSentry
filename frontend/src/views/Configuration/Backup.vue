@@ -251,6 +251,7 @@ onBeforeUnmount(stopPolling)
       stripe
       :border="true"
       :loading="loading"
+      empty-text="还没有备份文件：点上方「创建备份」生成一份全量备份，或「上传备份包」恢复已有的备份"
       @register="tableRegister"
     />
   </ContentWrap>
