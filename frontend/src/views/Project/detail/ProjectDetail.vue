@@ -122,7 +122,7 @@ onMounted(refresh)
       <ElTabPane :label="t('asset.port')"> <Port /></ElTabPane>
       <ElTabPane :label="t('asset.service')"><Service /></ElTabPane>
       <!-- 漏洞页签：项目页要能直接回答「这个项目有哪些洞」（2026-11-27 反馈） -->
-      <ElTabPane :label="t('asset.vulnerability')"><Vulns /></ElTabPane>
+      <ElTabPane :label="t('assetOverview.vulnerability')"><Vulns /></ElTabPane>
       <!-- 任务页签：项目不能只是资产聚合，它得能回答「这个项目跑过哪些任务、结果如何」 -->
       <ElTabPane :label="t('task.projectTasks')"><Tasks /></ElTabPane>
     </ElTabs>
