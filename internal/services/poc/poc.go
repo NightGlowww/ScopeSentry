@@ -37,7 +37,8 @@ type Service interface {
 	GetPocDetail(ctx *gin.Context, req *models.PocDetailRequest) (*models.Poc, error)
 	UpdatePoc(ctx *gin.Context, req *models.PocUpdateRequest) error
 	AddPoc(ctx context.Context, req *models.PocAddRequest) (string, error)
-	DeletePoc(ctx *gin.Context, req *models.PocDeleteRequest) error
+	// DeletePoc 返回真实删除条数（0 表示这些 id 都不存在）
+	DeletePoc(ctx *gin.Context, req *models.PocDeleteRequest) (int64, error)
 	GetAllPocData(ctx context.Context) ([]models.Poc, error)
 	ImportPoc(ctx context.Context, filePath string) (*models.PocImportResponse, error)
 	ImportPocWithOptions(ctx context.Context, filePath string, overwrite bool) (*models.PocImportResponse, error)
@@ -193,19 +194,19 @@ func (s *service) AddPoc(ctx context.Context, req *models.PocAddRequest) (string
 	return pocId, nil
 }
 
-func (s *service) DeletePoc(ctx *gin.Context, req *models.PocDeleteRequest) error {
+func (s *service) DeletePoc(ctx *gin.Context, req *models.PocDeleteRequest) (int64, error) {
 	var objIDs []primitive.ObjectID
 	for _, id := range req.IDs {
 		objID, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			return fmt.Errorf("invalid id format: %w", err)
+			return 0, fmt.Errorf("invalid id format: %w", err)
 		}
 		objIDs = append(objIDs, objID)
 	}
 
-	_, err := s.repo.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": objIDs}})
+	res, err := s.repo.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": objIDs}})
 	if err != nil {
-		return fmt.Errorf("failed to delete poc: %w", err)
+		return 0, fmt.Errorf("failed to delete poc: %w", err)
 	}
 	go func() {
 		msg := models.Message{
@@ -213,12 +214,11 @@ func (s *service) DeletePoc(ctx *gin.Context, req *models.PocDeleteRequest) erro
 			Type:    "poc",
 			Content: fmt.Sprintf(`delete:%v`, strings.Join(req.IDs, ",")),
 		}
-		err = s.nodeService.RefreshConfig(ctx, msg)
-		if err != nil {
+		if err := s.nodeService.RefreshConfig(ctx, msg); err != nil {
 			logger.Error("failed to refresh config", zap.Error(err))
 		}
 	}()
-	return nil
+	return res.DeletedCount, nil
 }
 
 func (s *service) GetAllPocData(ctx context.Context) ([]models.Poc, error) {

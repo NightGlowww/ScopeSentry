@@ -3,6 +3,7 @@ package sensitive
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -12,7 +13,29 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/assets/sensitive"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+// Delete 删除敏感信息结果。
+//
+// 这是「敏感信息」页面删除按钮真正的落点（此前它打到了规则删除接口，见仓库层注释）。
+func (s *service) Delete(ctx *gin.Context, ids []string) (int64, error) {
+	objIDs := make([]primitive.ObjectID, 0, len(ids))
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return 0, fmt.Errorf("invalid id %q: %w", id, err)
+		}
+		objIDs = append(objIDs, oid)
+	}
+	if len(objIDs) == 0 {
+		return 0, fmt.Errorf("ids is required")
+	}
+	return s.repo.DeleteMany(ctx.Request.Context(), bson.M{"_id": bson.M{"$in": objIDs}})
+}
 
 type Service interface {
 	GetSensitiveInfo(ctx context.Context, query models.SearchRequest) ([]models.Sensitive, error)
@@ -20,6 +43,8 @@ type Service interface {
 	GetBodyByID(ctx *gin.Context, id string) (string, error)
 	GetSIDStatistics(ctx *gin.Context, query models.SearchRequest) ([]models.SensitiveSIDStat, error)
 	GetMatchInfo(ctx *gin.Context, req models.SearchRequest) (*models.MatchListResponse, error)
+	// Delete 删除敏感信息结果（SensitiveResult），返回真实删除条数
+	Delete(ctx *gin.Context, ids []string) (int64, error)
 }
 
 var ErrContentNotFound = errors.New("content not found")

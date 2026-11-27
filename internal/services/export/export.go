@@ -31,7 +31,8 @@ type Service interface {
 	// 复用 repository.UpdateExportTaskStatus，状态口径与后台导出完全一致。
 	FinishExportTask(ctx context.Context, fileName string, sizeMB float64) error
 	GetExportRecords(ctx context.Context) ([]models.ExportTask, error)
-	DeleteExportFiles(ctx context.Context, fileNames []string) error
+	// DeleteExportFiles 删除导出文件与记录，返回真实删除的记录数
+	DeleteExportFiles(ctx context.Context, fileNames []string) (int64, error)
 	IsValidFileName(fileName string) bool
 }
 
@@ -168,7 +169,7 @@ func (s *service) GetExportRecords(ctx context.Context) ([]models.ExportTask, er
 }
 
 // DeleteExportFiles 删除导出文件
-func (s *service) DeleteExportFiles(ctx context.Context, fileNames []string) error {
+func (s *service) DeleteExportFiles(ctx context.Context, fileNames []string) (int64, error) {
 	// 删除文件
 	for _, fileName := range fileNames {
 		if s.IsValidFileName(fileName) {

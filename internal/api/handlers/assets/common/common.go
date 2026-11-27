@@ -9,6 +9,8 @@ package common
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -107,13 +109,17 @@ func AddTag(c *gin.Context) {
 		case common.ErrInvalidRequest, common.ErrInvalidID:
 			response.NotFound(c, "api.not_found", err)
 		default:
+			if strings.Contains(err.Error(), "no documents in result") {
+				response.NotFound(c, "api.not_found", fmt.Errorf("%s 不存在: %s", req.Type, req.ID))
+				return
+			}
 			logger.Error(fmt.Sprintf("add_tag error: %v", err))
 			response.InternalServerError(c, "api.error", err)
 		}
 		return
 	}
 
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]string{"type": req.Type, "id": req.ID, "tag": req.Tag}, "api.success")
 }
 
 // DeleteTag 删除标签
@@ -137,12 +143,18 @@ func DeleteTag(c *gin.Context) {
 		case common.ErrInvalidRequest, common.ErrInvalidID:
 			response.NotFound(c, "api.not_found", err)
 		default:
+			// 资产 id 不存在时驱动层吐的是 "mongo: no documents in result"，
+			// 回 500 会让人以为服务挂了，其实是参数问题（2026-11-28 实测 delete_tag）。
+			if strings.Contains(err.Error(), "no documents in result") {
+				response.NotFound(c, "api.not_found", fmt.Errorf("%s 不存在: %s", req.Type, req.ID))
+				return
+			}
 			response.InternalServerError(c, "api.error", err)
 		}
 		return
 	}
 
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]string{"type": req.Type, "id": req.ID, "tag": req.Tag}, "api.success")
 }
 
 // UpdateStatus 更新状态

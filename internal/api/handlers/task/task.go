@@ -206,12 +206,40 @@ func DeleteTask(c *gin.Context) {
 		return
 	}
 
-	if err := taskService.DeleteTasks(c, req.IDs, req.DelA); err != nil {
+	// 先按 _id 查真实存在的任务：以前直接把 len(req.IDs) 当成删除条数，
+	// id 打错或者已经被删掉也照样报「已删除 N 个」（2026-11-28 实测）。
+	exist, err := taskService.GetTasksByIDs(c, req.IDs)
+	if err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	if len(exist) == 0 {
+		response.NotFound(c, "api.error", fmt.Errorf("任务不存在"))
+		return
+	}
+	existSet := make(map[string]bool, len(exist))
+	for _, t := range exist {
+		existSet[t.ID.Hex()] = true
+	}
+	hits := make([]string, 0, len(exist))
+	missing := make([]string, 0)
+	for _, id := range req.IDs {
+		if existSet[id] {
+			hits = append(hits, id)
+		} else {
+			missing = append(missing, id)
+		}
+	}
+	if err := taskService.DeleteTasks(c, hits, req.DelA); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	// 回一个删除条数：界面才能说「已删除 N 个」，而不是笼统的成功
-	response.Success(c, map[string]int{"deleted": len(req.IDs)}, "api.success")
+	// 回真实删除条数：界面才能说「已删除 N 个」，而不是笼统的成功
+	data := map[string]any{"deleted": len(hits)}
+	if len(missing) > 0 {
+		data["missing"] = missing
+	}
+	response.Success(c, data, "api.success")
 }
 
 // RetestTask 重测任务
@@ -275,11 +303,25 @@ func StopTask(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", fmt.Errorf("ids is required"))
 		return
 	}
-	if err := taskService.StopTasks(c, req.IDs); err != nil {
+	// 同删除：先确认任务存在，否则「暂停成功」是假的（2026-11-28 实测）
+	exist, err := taskService.GetTasksByIDs(c, req.IDs)
+	if err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	if len(exist) == 0 {
+		response.NotFound(c, "api.error", fmt.Errorf("任务不存在"))
+		return
+	}
+	hits := make([]string, 0, len(exist))
+	for _, t := range exist {
+		hits = append(hits, t.ID.Hex())
+	}
+	if err := taskService.StopTasks(c, hits); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]any{"updated": len(hits), "ids": hits}, "api.success")
 }
 
 // StartTask 开始任务（从暂停恢复）

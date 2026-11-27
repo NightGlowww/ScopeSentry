@@ -33,7 +33,9 @@ export const updateSensitiveDataApi = (
 }
 
 export const deleteSensitiveDataApi = (ids: string[]): Promise<IResponse<sensitiveRespData>> => {
-  return request.post({ url: '/api/sensitive/delete', data: { ids } })
+  // 旧地址 /api/sensitive/delete 与「敏感信息规则」删除接口同名（两个路由组都在 /api/sensitive 下），
+  // 结果点了删除提示成功、列表还在。数据删除单独挂在 /data/delete。
+  return request.post({ url: '/api/sensitive/data/delete', data: { ids } })
 }
 
 export const updateStateSensitiveDataApi = (

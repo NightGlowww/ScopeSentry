@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
@@ -165,8 +166,41 @@ func (s *service) RefreshConfig(ctx context.Context, msg models.Message) error {
 	return nil
 }
 
+// requireNodes 校验节点存在。
+//
+// 节点数据在 Redis 的 node:<name> 里，删/重启一个不存在的名字以前也是「成功」：
+// 界面弹「操作成功」，实际什么都没有发生（2026-11-28 实测 /api/node/delete、/api/node/restart）。
+func (s *service) requireNodes(ctx context.Context, names []string) error {
+	list, err := s.GetNodeData(ctx, false)
+	if err != nil {
+		return err
+	}
+	exist := make(map[string]bool, len(list))
+	for _, n := range list {
+		exist[n.Name] = true
+	}
+	var missing []string
+	for _, n := range names {
+		if n != "" && !exist[n] {
+			missing = append(missing, n)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	avail := make([]string, 0, len(exist))
+	for n := range exist {
+		avail = append(avail, n)
+	}
+	sort.Strings(avail)
+	return fmt.Errorf("节点不存在: %s（当前节点: %s）", strings.Join(missing, ", "), strings.Join(avail, ", "))
+}
+
 // DeleteNodes 删除多个节点
 func (s *service) DeleteNodes(ctx context.Context, names []string) error {
+	if err := s.requireNodes(ctx, names); err != nil {
+		return err
+	}
 	return s.nodeRepo.DeleteNodes(ctx, names)
 }
 
@@ -182,6 +216,9 @@ func (s *service) GetNodePlugin(ctx context.Context, nodeName string) ([]models.
 
 // RestartNode 重启节点
 func (s *service) RestartNode(ctx context.Context, nodeName string) error {
+	if err := s.requireNodes(ctx, []string{nodeName}); err != nil {
+		return err
+	}
 	msg := models.Message{
 		Name:    nodeName,
 		Type:    "restart",

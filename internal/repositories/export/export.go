@@ -24,8 +24,8 @@ type Repository interface {
 	UpdateExportTaskStatus(ctx context.Context, fileName string, state int, fileSize float64) error
 	// GetExportTasks 获取导出任务列表
 	GetExportTasks(ctx context.Context, filter bson.M, opts *options.FindOptions) ([]map[string]interface{}, error)
-	// DeleteExportTasks 删除导出任务
-	DeleteExportTasks(ctx context.Context, fileNames []string) error
+	// DeleteExportTasks 删除导出任务，返回真实删除的记录数
+	DeleteExportTasks(ctx context.Context, fileNames []string) (int64, error)
 	// GetCollectionCursor 获取数据集合游标
 	GetCollectionCursor(ctx context.Context, collection string, query bson.M, opts *options.FindOptions) (*mongo.Cursor, error)
 	// GetExportRecords 获取导出记录
@@ -102,15 +102,15 @@ func (r *repository) GetExportTasks(ctx context.Context, filter bson.M, opts *op
 }
 
 // DeleteExportTasks 删除导出任务
-func (r *repository) DeleteExportTasks(ctx context.Context, fileNames []string) error {
-	_, err := r.db.Collection("export").DeleteMany(
+func (r *repository) DeleteExportTasks(ctx context.Context, fileNames []string) (int64, error) {
+	res, err := r.db.Collection("export").DeleteMany(
 		ctx,
 		bson.M{"file_name": bson.M{"$in": fileNames}},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete export tasks: %w", err)
+		return 0, fmt.Errorf("failed to delete export tasks: %w", err)
 	}
-	return nil
+	return res.DeletedCount, nil
 }
 
 // GetCollectionCursor 获取数据集合游标

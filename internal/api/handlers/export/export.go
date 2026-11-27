@@ -191,14 +191,14 @@ func DeleteExport(c *gin.Context) {
 		return
 	}
 
-	err := exportService.DeleteExportFiles(c, ids)
+	deleted, err := exportService.DeleteExportFiles(c, ids)
 	if err != nil {
 		response.InternalServerError(c, "api.delete_failed", err)
 		return
 	}
 
 	response.Success(c, models.ExportResponse{
-		Message: "Export files deleted successfully",
+		Message: fmt.Sprintf("已删除 %d 条导出记录", deleted),
 		Code:    200,
 	}, "api.success")
 }

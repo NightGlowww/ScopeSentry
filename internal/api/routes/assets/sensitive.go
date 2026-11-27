@@ -47,6 +47,15 @@ func registerSensitivveRoutes() models.RouteGroup {
 				Handler:     sensitive.GetSensitiveMatchInfo,
 				Middlewares: common.WithAuth(),
 			},
+			{
+				// 数据删除。注意不能挂在 /sensitive/delete：那个路径属于「敏感信息规则」
+				// （routes/sensitive_rule 也挂在 /api/sensitive 下），历史上就是因为撞在一起，
+				// 敏感信息页的删除按钮实际删的是规则（2026-11-28 实测）。
+				Method:      "POST",
+				Path:        "/data/delete",
+				Handler:     sensitive.DeleteData,
+				Middlewares: common.WithAuth(),
+			},
 		},
 	}
 }

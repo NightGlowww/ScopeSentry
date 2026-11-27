@@ -2170,10 +2170,11 @@ func deleteExportFiles(ctx context.Context, _ *mcp.CallToolRequest, input delete
 			noFile = append(noFile, n)
 		}
 	}
-	if err := d.exportService.DeleteExportFiles(ctx, names); err != nil {
+	records, err := d.exportService.DeleteExportFiles(ctx, names)
+	if err != nil {
 		return errorResult("删除导出文件失败", err)
 	}
-	res := ginH{"ok": true, "deleted": len(names), "filesRemoved": len(onDisk)}
+	res := ginH{"ok": true, "deleted": len(names), "filesRemoved": len(onDisk), "recordsRemoved": records}
 	if len(noFile) > 0 {
 		res["missingFiles"] = noFile
 	}

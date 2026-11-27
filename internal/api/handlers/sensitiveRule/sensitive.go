@@ -8,6 +8,7 @@
 package sensitiveRule
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -114,11 +115,16 @@ func Delete(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if _, err := getSensitiveService().RuleDelete(c, req.IDs); err != nil {
+	deleted, err := getSensitiveService().RuleDelete(c, req.IDs)
+	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	if deleted == 0 {
+		response.NotFound(c, "api.error", fmt.Errorf("规则不存在"))
+		return
+	}
+	response.Success(c, map[string]any{"deleted": deleted, "requested": len(req.IDs)}, "api.success")
 }
 
 func getSensitiveService() svc.Service {

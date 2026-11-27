@@ -155,10 +155,11 @@ func Delete(c *gin.Context) {
 	}
 	ctx := context.Background()
 	if err := nodeService.DeleteNodes(ctx, req.Names); err != nil {
-		response.InternalServerError(c, "api.error", err)
+		// 节点不存在是调用方参数问题（名字打错/节点已下线），不是服务端故障
+		response.NotFound(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]int{"deleted": len(req.Names)}, "api.success")
 }
 
 // NodeLogRequest 节点日志请求
@@ -234,10 +235,10 @@ func RestartNode(c *gin.Context) {
 	}
 	ctx := context.Background()
 	if err := nodeService.RestartNode(ctx, req.Name); err != nil {
-		response.InternalServerError(c, "api.error", err)
+		response.NotFound(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]string{"node": req.Name}, "api.success")
 }
 
 func init() {
