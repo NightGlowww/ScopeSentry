@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElTabs, ElTabPane, ElTag, ElDescriptions, ElDescriptionsItem } from 'element-plus'
+import { ElTabs, ElTabPane, ElTag, ElButton, ElDialog, ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
+import AddProject from '../components/AddProject.vue'
+import { deleteProjectApi } from '@/api/project'
 import Dashboard from './components/Dashboard.vue'
 import Subdomain from './components/Subdomain.vue'
 import Port from './components/Port.vue'
@@ -19,7 +22,9 @@ const projectId = String(query.id || '')
 // 只有一排页签，用户不知道自己站在哪儿（2026-11-27 反馈：项目管理像残废）。
 const info = ref<any>(null)
 const counts = ref<any>(null)
-onMounted(async () => {
+const router = useRouter()
+const editVisible = ref(false)
+const refresh = async () => {
   if (!projectId) return
   try {
     const [i, c] = await Promise.all([
@@ -31,7 +36,30 @@ onMounted(async () => {
   } catch (e) {
     // 头信息失败不该阻断页签，静默即可
   }
-})
+}
+const closeEdit = () => {
+  editVisible.value = false
+  refresh()
+}
+const onDelete = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `删除项目「${info.value?.name || projectId}」？项目下的任务不会被删除，但会失去归属。`,
+      '删除项目',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteProjectApi([projectId], false)
+    ElMessage.success('项目已删除')
+    router.push('/project-management/index')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '删除失败')
+  }
+}
+onMounted(refresh)
 </script>
 
 <template>
@@ -53,6 +81,10 @@ onMounted(async () => {
           </span>
           <span v-else class="muted">未设置根域名</span>
         </div>
+        <div class="head-actions">
+          <ElButton size="small" @click="editVisible = true">编辑项目</ElButton>
+          <ElButton size="small" type="danger" plain @click="onDelete">删除项目</ElButton>
+        </div>
       </div>
       <div v-if="counts" class="head-stats">
         <div class="stat"><b>{{ counts.assetCount ?? 0 }}</b><span>资产</span></div>
@@ -61,6 +93,16 @@ onMounted(async () => {
         <div class="stat"><b>{{ counts.vulCount ?? 0 }}</b><span>漏洞</span></div>
       </div>
     </div>
+    <!-- 编辑复用列表页那个表单，避免两处表单逻辑漂移 -->
+    <ElDialog v-model="editVisible" title="编辑项目" width="640px">
+      <AddProject
+        v-if="editVisible"
+        :closeDialog="closeEdit"
+        :projectid="projectId"
+        :getProjectData="() => {}"
+        :schedule="true"
+      />
+    </ElDialog>
     <ElTabs type="border-card">
       <ElTabPane :label="t('project.overview')"><Dashboard /></ElTabPane>
       <ElTabPane :label="t('subdomain.subdomainName')"><Subdomain /></ElTabPane>
@@ -89,6 +131,7 @@ onMounted(async () => {
 .pname { font-size: 18px; font-weight: 700; }
 .head-scope { margin-top: 6px; font-size: 12px; color: var(--el-text-color-secondary); }
 .muted { color: var(--el-text-color-placeholder); }
+.head-actions { display: flex; gap: 8px; }
 .head-stats { display: flex; gap: 24px; }
 .stat { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 .stat b { font-size: 18px; }
