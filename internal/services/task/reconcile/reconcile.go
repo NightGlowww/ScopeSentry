@@ -51,9 +51,17 @@ func RunOnce(ctx context.Context) (int, int, int, error) {
 		}
 	}
 
+	// 只有心跳新鲜的节点才算「能把队列跑掉的节点」。
+	// 不区分的话，队列挂在早已离线的节点上，任务就永远停在「待开始」——
+	// 既没人领取、也不满足「僵死收尾」的前提（2026-11-28 实测 7 条任务卡在这里）。
+	live := liveNodes(ctx, names)
+
 	queued := map[primitive.ObjectID]struct{}{}
 	current := map[primitive.ObjectID]struct{}{}
 	for name := range names {
+		if !live[name] {
+			continue
+		}
 		items, lerr := redisc.Client.LRange(ctx, "NodeTask:"+name, 0, -1).Result()
 		if lerr == nil {
 			for _, raw := range items {
@@ -190,6 +198,35 @@ const (
 	// progressTimeLayout 节点写进 hash 的时间格式（本地时区）。
 	progressTimeLayout = "2006-01-02 15:04:05"
 )
+
+// nodeStaleAfter 节点心跳停更多久算离线。与 watchdog.StaleAfter 取同一个数：
+// 扫描器配置更新是 os.Exit(0) 重启，实测从退出到心跳恢复约 7 分钟，
+// 阈值小于这个数会把「正在重启的节点」误判成离线。
+const nodeStaleAfter = 15 * time.Minute
+
+// liveNodes 判断哪些节点还活着（心跳 updateTime 在阈值内）。
+// 读不到心跳/时间解析失败的节点一律按「不活」处理：宁可让任务收尾，
+// 也不要让它永远挂在「待开始」里等一个可能再也不会回来的节点。
+func liveNodes(ctx context.Context, names map[string]struct{}) map[string]bool {
+	out := make(map[string]bool, len(names))
+	now := time.Now()
+	for name := range names {
+		values, err := redisc.Client.HGetAll(ctx, "node:"+name).Result()
+		if err != nil {
+			continue
+		}
+		ts := strings.TrimSpace(values["updateTime"])
+		if ts == "" {
+			continue
+		}
+		parsed, perr := time.ParseInLocation(progressTimeLayout, ts, time.Local)
+		if perr != nil {
+			continue
+		}
+		out[name] = now.Sub(parsed) <= nodeStaleAfter
+	}
+	return out
+}
 
 // ShouldFinalizeStale 纯判断：最后一次进度写入距今是否已超过宽限期。
 // lastEnd 为零值（没有任何进度信号）时返回 false——没有证据就不动它。
