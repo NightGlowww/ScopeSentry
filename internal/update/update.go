@@ -28,6 +28,8 @@ func normalizeVersion(version string) string {
 func Update() error {
 	// 确保 API Key 索引存在（幂等操作）
 	Update20()
+	// 给历史终态任务补产出快照（幂等、后台执行，已有 stats 的不动）
+	Update21()
 
 	configColl := mongodb.DB.Collection("config")
 	var result struct {
