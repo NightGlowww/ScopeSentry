@@ -50,7 +50,9 @@ export const getAssetCardApi = (
 }
 
 export const getAssetScreenshotApi = (id: string): Promise<IResponse<AssetScreenshot>> => {
-  return request.post({ url: '/api/asset/screenshot', data: { id } })
+  // 之前是 /api/asset/screenshot：既少了 /assets 段，也没有对应路由（一直 gin 404）。
+  // 现已与 /api/assets/asset/{detail,changelog} 同一前缀注册。
+  return request.post({ url: '/api/assets/asset/screenshot', data: { id } })
 }
 
 export const getAssetStatisticsPortApi = (
