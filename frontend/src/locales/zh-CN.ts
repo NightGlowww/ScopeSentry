@@ -973,6 +973,8 @@ export default {
   },
   dashboard: {
     nodesOnline: '节点 {a}/{b} 在线',
+    updateStarted:
+      '更新已开始，服务端会自行下载并替换，稍后可在版本列表看到新版本',
     nodesHigh: '{n} 台高压 (≥90%)',
     nodesWarm: '{n} 台偏高 (≥70%)',
     nodesFine: '节点内存正常',
@@ -1682,6 +1684,7 @@ export default {
   },
   plugin: {
     name: '插件名称',
+    keyInvalid: '插件密钥无效或已过期，请重新填写',
     status: '状态',
     version: '版本',
     parameter: '参数',

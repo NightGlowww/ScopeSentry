@@ -3,7 +3,7 @@ import { confirmDialog } from '@/utils/confirm'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, onMounted } from 'vue'
-import { ElButton, ElCol, ElInput, ElRow, ElText, ElForm, ElFormItem } from 'element-plus'
+import { ElButton, ElCol, ElInput, ElRow, ElText, ElForm, ElFormItem, ElMessage } from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -137,10 +137,20 @@ const pageMontForm = reactive({
 })
 const addPageMonitSaveLoading = ref(false)
 const submitAddPageMonitForm = async () => {
+  // 之前没有 try/finally：接口一失败，loading 永远停在 true，弹窗变成一个按不动的死按钮，
+  // 而且成功后不刷新列表，新加的 URL 要手刷才出现（2026-11-28 实测）
   addPageMonitSaveLoading.value = true
-  await addScheduledTaskPageMonitApi(pageMontForm.url)
-  addPageMonitSaveLoading.value = false
-  dialogVisible.value = false
+  try {
+    await addScheduledTaskPageMonitApi(pageMontForm.url)
+    ElMessage.success(t('common.success'))
+    pageMontForm.url = ''
+    dialogVisible.value = false
+    getList()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('common.operateFailed'))
+  } finally {
+    addPageMonitSaveLoading.value = false
+  }
 }
 </script>
 

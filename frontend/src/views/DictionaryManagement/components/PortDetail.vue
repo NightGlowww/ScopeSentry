@@ -8,7 +8,8 @@ import {
   FormInstance,
   ElForm,
   ElButton,
-  ElDivider
+  ElDivider,
+  ElMessage
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, ref } from 'vue'
@@ -38,12 +39,13 @@ const rules = reactive<FormRules<RuleForm>>({
 const saveLoading = ref(false)
 const ruleFormRef = ref<FormInstance>()
 const submitForm = async (formEl: FormInstance | undefined) => {
-  saveLoading.value = true
+  // 原来在 if (!formEl) return 之前就把 loading 打开了：没有表单实例时按钮永远转圈
   if (!formEl) return
-  await formEl.validate(async (valid, fields) => {
-    if (valid) {
+  saveLoading.value = true
+  try {
+    await formEl.validate(async (valid) => {
+      if (!valid) return
       let res
-      console.log('submit!')
       if (localSensitiveForm.value.id != '') {
         res = await upgradePortDictDataApi(
           localSensitiveForm.value.id,
@@ -57,15 +59,15 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         )
       }
       if (res.code === 200) {
+        ElMessage.success(t('common.success'))
         props.getList()
         props.closeDialog()
       }
-      saveLoading.value = false
-    } else {
-      console.log('error submit!', fields)
-      saveLoading.value = false
-    }
-  })
+    })
+  } finally {
+    // 校验不通过、接口报错都要收掉 loading，否则 Save 会永远转圈
+    saveLoading.value = false
+  }
 }
 </script>
 <template>

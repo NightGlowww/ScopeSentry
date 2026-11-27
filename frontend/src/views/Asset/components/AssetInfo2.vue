@@ -190,16 +190,21 @@ const getAssetstatistics = async () => {
   AssetstatisticsData.value.Product = []
   staticLoading.value = true
   AssetstatisticsData.value.Icon = []
-  const [portRes, serviceRes, productRes] = await Promise.all([
-    getAssetStatisticsPortApi(searchParams.value, filter),
-    getAssetStatisticsTypeApi(searchParams.value, filter),
-    getAssetStatisticsappApi(searchParams.value, filter)
-  ])
+  try {
+    const [portRes, serviceRes, productRes] = await Promise.all([
+      getAssetStatisticsPortApi(searchParams.value, filter),
+      getAssetStatisticsTypeApi(searchParams.value, filter),
+      getAssetStatisticsappApi(searchParams.value, filter)
+    ])
 
-  AssetstatisticsData.value.Port = portRes.data.Port
-  AssetstatisticsData.value.Service = serviceRes.data.Service
-  AssetstatisticsData.value.Product = productRes.data.Product
-  staticLoading.value = false
+    AssetstatisticsData.value.Port = portRes.data.Port
+    AssetstatisticsData.value.Service = serviceRes.data.Service
+    AssetstatisticsData.value.Product = productRes.data.Product
+  } catch (error) {
+    // 三个统计接口任一失败：错误提示由拦截器统一弹，这里只保证 loading 一定收掉
+  } finally {
+    staticLoading.value = false
+  }
   iconPage = 1
   iconPageSize = 50
   let iconRes = await getAssetStatisticsiconApi(searchParams.value, filter, iconPage, iconPageSize)

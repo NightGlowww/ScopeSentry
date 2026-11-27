@@ -10,7 +10,8 @@ import {
   ElButton,
   ElDivider,
   ElSelectV2,
-  ElSwitch
+  ElSwitch,
+  ElMessage
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, ref } from 'vue'
@@ -78,12 +79,13 @@ const colorOptions = [
 const saveLoading = ref(false)
 const ruleFormRef = ref<FormInstance>()
 const submitForm = async (formEl: FormInstance | undefined) => {
-  saveLoading.value = true
+  // 同 PortDetail：loading 开在早退之前，没表单实例就永远转圈
   if (!formEl) return
-  await formEl.validate(async (valid, fields) => {
-    if (valid) {
+  saveLoading.value = true
+  try {
+    await formEl.validate(async (valid) => {
+      if (!valid) return
       let res
-      console.log('submit!')
       if (localSensitiveForm.value.id != '') {
         res = await updateSensitiveDataApi(
           localSensitiveForm.value.id,
@@ -101,15 +103,14 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         )
       }
       if (res.code === 200) {
+        ElMessage.success(t('common.success'))
         props.getList()
         props.closeDialog()
       }
-      saveLoading.value = false
-    } else {
-      console.log('error submit!', fields)
-      saveLoading.value = false
-    }
-  })
+    })
+  } finally {
+    saveLoading.value = false
+  }
 }
 </script>
 <template>

@@ -14,7 +14,7 @@ import {
 import { useI18n } from '@/hooks/web/useI18n'
 import { Dialog } from '@/components/Dialog'
 import { defineProps } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { deleteProjectApi } from '@/api/project'
 import AddProject from './AddProject.vue'
 import { useIcon } from '@/hooks/web/useIcon'
@@ -86,6 +86,9 @@ const del = (id: string) => {
       ])
   }).then(async () => {
     await deleteProjectApi([id], deleteAsset.value)
+    // 原来删完不刷新：卡片留在原地，用户以为没删掉（刷新回调在这份文件里是有的）
+    ElMessage.success(t('common.success'))
+    props.getProjectTag(currentPage.value, pageSize.value)
   })
 }
 const editIcon = useIcon({ icon: 'uil:edit' })

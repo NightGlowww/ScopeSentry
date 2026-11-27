@@ -1004,6 +1004,8 @@ export default {
   },
   dashboard: {
     nodesOnline: '{a}/{b} nodes online',
+    updateStarted:
+      'Update started. The server downloads and replaces the build; the new version appears shortly.',
     nodesHigh: '{n} at ≥90% memory',
     nodesWarm: '{n} at ≥70% memory',
     nodesFine: 'node memory fine',
@@ -1734,6 +1736,7 @@ export default {
   },
   plugin: {
     runOnce: 'Run once',
+    keyInvalid: 'The plugin key is invalid or expired. Enter it again.',
     runOnceConfirm: 'Run this plugin once?',
     runOnceSuccess: 'Plugin ran successfully',
     runOnceFailed: 'Plugin run failed',

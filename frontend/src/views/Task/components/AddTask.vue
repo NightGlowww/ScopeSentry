@@ -240,6 +240,8 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         }
       }
       if (res.code === 200) {
+        // 业务成功文案是通用的 api.success，全局拦截器按噪音规则不弹，这里补一个确认
+        ElMessage.success(t('common.success'))
         props.closeDialog()
         props.getList()
       }

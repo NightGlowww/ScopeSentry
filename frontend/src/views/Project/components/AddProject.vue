@@ -121,7 +121,15 @@ const dataLoading = ref(false)
 const getProjectInfo = async () => {
   if (props.projectid != '') {
     dataLoading.value = true
-    const res = await getProjectContentDataApi(props.projectid)
+    let res: any
+    try {
+      res = await getProjectContentDataApi(props.projectid)
+    } catch (error: any) {
+      ElMessage.error(error?.message || t('common.operateFailed'))
+      return
+    } finally {
+      dataLoading.value = false
+    }
     projectForm.name = res.data.name
     projectForm.tag = res.data.tag
     projectForm.target = res.data.target
@@ -133,7 +141,6 @@ const getProjectInfo = async () => {
     projectForm.duplicates = res.data.duplicates
     projectForm.ignore = res.data.ignore
     projectForm.template = res.data.template
-    dataLoading.value = false
   }
 }
 

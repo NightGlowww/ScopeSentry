@@ -60,6 +60,14 @@ const overviewError = ref(false)
 
 const getProjectInfo = async () => {
   projectInfoLoading.value = true
+  try {
+    await loadProjectInfoData()
+  } finally {
+    projectInfoLoading.value = false
+  }
+}
+
+const loadProjectInfoData = async () => {
   // 两个接口互不依赖：一个失败不应该把另一个的已有数据清空
   const [infoRes, countRes] = await Promise.allSettled([
     getProjectInfoApi(query.id as string),
@@ -85,8 +93,6 @@ const getProjectInfo = async () => {
   } else {
     overviewError.value = true
   }
-
-  projectInfoLoading.value = false
 }
 
 const projectNameIcon = useIcon({ icon: 'icon-park:edit-name' })
@@ -238,6 +244,14 @@ const projectStatisLoading = ref(false)
 const filter = reactive<{ [key: string]: any }>({})
 const getAssetstatistics = async () => {
   projectStatisLoading.value = true
+  try {
+    await loadAssetStatistics()
+  } finally {
+    projectStatisLoading.value = false
+  }
+}
+
+const loadAssetStatistics = async () => {
   filter.project = [query.id as string]
   AssetstatisticsData.value.Port = []
   AssetstatisticsData.value.Service = []
@@ -260,7 +274,6 @@ const getAssetstatistics = async () => {
   AssetstatisticsData.value.Product = pick(productRes, 'Product')
   // POST /api/asset/statistics/title 目前后端未注册（ISLANDS P2-1），这里按空数组处理
   AssetstatisticsData.value.Title = pick(titleRes, 'Title')
-  projectStatisLoading.value = false
 }
 
 const getAllApi = async () => {

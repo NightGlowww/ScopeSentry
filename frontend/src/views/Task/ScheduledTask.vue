@@ -41,7 +41,6 @@ const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 const search = ref('')
 const handleSearch = () => {
-  console.log('as')
   // 搜索等于换结果集：不回第 1 页的话，停在第 N 页搜一个小结果会看到空表（2026-11-27）
   if (currentPage.value !== 1) {
     currentPage.value = 1
@@ -152,10 +151,6 @@ const taskColums = reactive<TableColumn[]>([
     }
   }
 ])
-
-// const taskRunNow = async (id) => {
-//   await taskRunApi(id)
-// }
 
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
@@ -269,7 +264,11 @@ const submitConfigPageMonitForm = async () => {
       pageMontForm.allNode,
       pageMontForm.scheduledTasks
     )
+    // 保存成功原来没有任何反馈：弹窗不关、列表那行数字没变化，用户无法判断存没存
+    ElMessage.success(t('common.success'))
     getList()
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('common.operateFailed'))
   } finally {
     ConfigPageMonitSaveLoading.value = false
   }

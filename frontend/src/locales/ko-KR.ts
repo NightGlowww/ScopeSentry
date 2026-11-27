@@ -997,6 +997,8 @@ export default {
   },
   dashboard: {
     nodesOnline: '노드 {a}/{b} 온라인',
+    updateStarted:
+      '업데이트가 시작되었습니다. 서버가 내려받아 교체하며 새 버전은 잠시 후 목록에 표시됩니다.',
     nodesHigh: '{n}대 90% 이상',
     nodesWarm: '{n}대 70% 이상',
     nodesFine: '노드 메모리 정상',
@@ -1720,6 +1722,7 @@ export default {
     visualGeneratorAction: '기술 식별 규칙을 빠르게 생성할 수 있습니다.'
   },
   plugin: {
+    keyInvalid: '플러그인 키가 유효하지 않거나 만료되었습니다. 다시 입력하세요.',
     name: '이름',
     status: '상태',
     version: '버전',

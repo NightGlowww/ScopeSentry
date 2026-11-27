@@ -109,7 +109,6 @@ const notificationConfigForm = reactive({
 })
 const getNotificationConfig = async () => {
   const res = await getNotificationConfigApi()
-  console.log(res)
   notificationConfigForm.dirScanNotification = res.data.dirScanNotification
   notificationConfigForm.portScanNotification = res.data.portScanNotification
   notificationConfigForm.sensitiveNotification = res.data.sensitiveNotification
@@ -121,17 +120,24 @@ const getNotificationConfig = async () => {
 getNotificationConfig()
 const updateNotificationSaveLoading = ref(false)
 const updateNotificationConfig = async () => {
+  // 开关一拨就保存，但原来既没有成功也没有失败提示，失败还会把 loading 卡在 true
   updateNotificationSaveLoading.value = true
-  await updateNotificationConfigApi(
-    notificationConfigForm.dirScanNotification,
-    notificationConfigForm.portScanNotification,
-    notificationConfigForm.sensitiveNotification,
-    notificationConfigForm.subdomainNotification,
-    notificationConfigForm.subdomainTakeoverNotification,
-    notificationConfigForm.pageMonNotification,
-    notificationConfigForm.vulNotification
-  )
-  updateNotificationSaveLoading.value = false
+  try {
+    await updateNotificationConfigApi(
+      notificationConfigForm.dirScanNotification,
+      notificationConfigForm.portScanNotification,
+      notificationConfigForm.sensitiveNotification,
+      notificationConfigForm.subdomainNotification,
+      notificationConfigForm.subdomainTakeoverNotification,
+      notificationConfigForm.pageMonNotification,
+      notificationConfigForm.vulNotification
+    )
+    ElMessage.success(t('common.success'))
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('common.operateFailed'))
+  } finally {
+    updateNotificationSaveLoading.value = false
+  }
 }
 const dialogVisible = ref(false)
 const addNotification = async () => {

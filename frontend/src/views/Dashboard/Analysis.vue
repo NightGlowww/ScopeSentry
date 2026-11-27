@@ -12,7 +12,8 @@ import {
   ElFormItem,
   ElInput,
   ElTag,
-  ElPopconfirm
+  ElPopconfirm,
+  ElMessage
 } from 'element-plus'
 
 import { Table, TableColumn } from '@/components/Table'
@@ -424,9 +425,20 @@ const UpdatedialogVisible = ref(false)
 const keyDialogVisible = ref(false)
 async function handleSubmit() {
   const key = localStorage.getItem(`plugin_key`) as string
-  const res = await UPDATEsYSTEMApi(form.value.server, form.value.scan, key)
-  if (res.code == 505) {
-    localStorage.removeItem('plugin_key')
+  // 原来提交成功什么都不发生：弹窗不关、没有提示，用户以为按钮没生效
+  try {
+    const res = await UPDATEsYSTEMApi(form.value.server, form.value.scan, key)
+    if (res.code == 505) {
+      localStorage.removeItem('plugin_key')
+      ElMessage.error(t('plugin.keyInvalid'))
+      return
+    }
+    if (res.code == 200) {
+      ElMessage.success(t('dashboard.updateStarted'))
+      UpdatedialogVisible.value = false
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || t('common.operateFailed'))
   }
 }
 </script>

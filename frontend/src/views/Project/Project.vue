@@ -10,6 +10,7 @@ import {
   ElDropdownMenu,
   ElDropdownItem,
   ElIcon,
+  ElMessage,
   ElMessageBox
 } from 'element-plus'
 import { ArrowDown, Delete, Search } from '@element-plus/icons-vue'
@@ -59,11 +60,15 @@ const currentpageSize = ref(50)
 
 const loading = ref(false)
 const handleSearch = async () => {
+  // 取标签失败时原来两个 loading 都停在 true：整页遮罩不消失，也没法再搜
   loading.value = true
   projectListLoading.value = true
-  await getProjectTag(currentPage.value, currentpageSize.value)
-  loading.value = false
-  projectListLoading.value = false
+  try {
+    await getProjectTag(currentPage.value, currentpageSize.value)
+  } finally {
+    loading.value = false
+    projectListLoading.value = false
+  }
 }
 handleSearch()
 const multipleSelection = ref(false)
@@ -85,10 +90,15 @@ const delSelect = async () => {
           }
         })
       ])
-  }).then(async () => {
-    await deleteProjectApi(selectedRowIds.value, deleteAsset.value)
-    getProjectTag(currentPage.value, currentpageSize.value)
   })
+    .then(async () => {
+      await deleteProjectApi(selectedRowIds.value, deleteAsset.value)
+      ElMessage.success(t('common.success'))
+      getProjectTag(currentPage.value, currentpageSize.value)
+    })
+    .catch(() => {
+      // 取消删除也会走到这里（ElMessageBox 以 reject 表示取消），不需要提示
+    })
 }
 const selectedRowIds = ref([])
 </script>
