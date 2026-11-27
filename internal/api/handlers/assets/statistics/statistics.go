@@ -70,7 +70,7 @@ func GetAssetPortStatistics(c *gin.Context) {
 // @Success 200 {object} response.Response{data=statistics.TitleStatisticsResponse}
 // @Router /api/v1/assets/statistics/title [post]
 func GetAssetTitleStatistics(c *gin.Context) {
-	var req models.TitleStatisticsRequest
+	var req models.SearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "api.bad_request", err)
 		return

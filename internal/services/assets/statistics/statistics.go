@@ -13,7 +13,7 @@ import (
 type Service interface {
 	GetStatisticsData(ctx *gin.Context) (*models.StatisticsData, error)
 	GetPortStatistics(ctx *gin.Context, req *models.SearchRequest) (*models.PortStatisticsResponse, error)
-	GetTitleStatistics(ctx *gin.Context, req *models.TitleStatisticsRequest) (*models.TitleStatisticsResponse, error)
+	GetTitleStatistics(ctx *gin.Context, req *models.SearchRequest) (*models.TitleStatisticsResponse, error)
 	GetTypeStatistics(ctx *gin.Context, req *models.SearchRequest) (*models.TypeStatisticsResponse, error)
 	GetIconStatistics(ctx *gin.Context, req *models.SearchRequest) (*models.IconStatisticsResponse, error)
 	GetAppStatistics(ctx *gin.Context, req *models.SearchRequest) (*models.AppStatisticsResponse, error)
@@ -147,17 +147,20 @@ func (s *service) GetPortStatistics(ctx *gin.Context, query *models.SearchReques
 	}, nil
 }
 
-func (s *service) GetTitleStatistics(ctx *gin.Context, req *models.TitleStatisticsRequest) (*models.TitleStatisticsResponse, error) {
+func (s *service) GetTitleStatistics(ctx *gin.Context, req *models.SearchRequest) (*models.TitleStatisticsResponse, error) {
 	// 原来整个函数体是注释掉的，直接 return nil, nil ——
 	// 前端「标题」面板因此永远空着（2026-11-27 实测：接口 200 但 data=null）。
-	match := bson.M{
-		"title": bson.M{"$nin": []interface{}{nil, ""}},
+	// 必须走 BuildSearchQuery：项目作用域（filter.project）要靠它翻译成实际的 Mongo 条件，
+	// 手写 $match 拿到的 filter.project 是原始 id 数组，匹配不到任何文档（实测一直空）。
+	req.Index = "asset"
+	searchQuery, err := s.assetService.BuildSearchQuery(*req)
+	if err != nil {
+		return nil, err
 	}
-	for k, v := range req.Filter {
-		match[k] = v
-	}
+	filter := bson.M(searchQuery)
+	filter["title"] = bson.M{"$nin": []interface{}{nil, ""}}
 	pipeline := []bson.M{
-		{"$match": match},
+		{"$match": filter},
 		{"$group": bson.M{"_id": "$title", "number": bson.M{"$sum": 1}}},
 		{"$sort": bson.M{"number": -1}},
 		{"$limit": 50},
