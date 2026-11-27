@@ -1,6 +1,6 @@
 /** * App 根组件：初始化主题（日间/夜间/跟随系统） */
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '@/store/modules/app'
 import { ConfigGlobal } from '@/components/ConfigGlobal'
 import { useDesign } from '@/hooks/web/useDesign'
@@ -23,15 +23,73 @@ appStore.initTheme()
 // 初始化标签页高度
 const tagsViewEnabled = appStore.getTagsView
 setCssVar('--tags-view-height', tagsViewEnabled ? '42px' : '0px')
+
+// ---- 版本哨兵 ----
+// 部署后浏览器常常还在跑旧的 index-*.js（SPA 不会重新请求文档），
+// 界面看起来像「改了个寂寞」：标签空白、按钮没反应、页面缺块。
+// 这里定时拉一次 index.html，比对当前加载的入口 JS 文件名，不一致就提示刷新。
+const currentEntry = (() => {
+  const s = document.querySelector('script[src*="/assets/index-"]') as HTMLScriptElement | null
+  return s ? s.src.split('/').pop() || '' : ''
+})()
+const staleBuild = ref('')
+let timer: number | undefined
+
+const checkBuild = async () => {
+  try {
+    const res = await fetch(`${location.origin}/?__v=${Date.now()}`, { cache: 'no-store' })
+    if (!res.ok) return
+    const html = await res.text()
+    const m = html.match(/assets\/(index-[A-Za-z0-9_-]+\.js)/)
+    if (m && currentEntry && m[1] !== currentEntry) {
+      staleBuild.value = m[1]
+    }
+  } catch {
+    // 网络抖动不打扰用户
+  }
+}
+
+onMounted(() => {
+  checkBuild()
+  timer = window.setInterval(checkBuild, 5 * 60 * 1000)
+})
+onUnmounted(() => {
+  if (timer) window.clearInterval(timer)
+})
 </script>
 
 <template>
   <ConfigGlobal :size="currentSize">
+    <div v-if="staleBuild" class="stale-build-bar">
+      系统已发布新版本（{{ staleBuild }}），当前页面仍在跑旧代码，可能导致功能异常。
+      <a @click="() => location.reload()">点此刷新</a>
+    </div>
     <RouterView :class="greyMode ? `${prefixCls}-grey-mode` : ''" />
   </ConfigGlobal>
 </template>
 
 <style lang="less">
+.stale-build-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3000;
+  padding: 6px 16px;
+  font-size: 13px;
+  text-align: center;
+  color: #7a4b00;
+  background: #fff7e6;
+  border-bottom: 1px solid #ffd591;
+
+  a {
+    margin-left: 6px;
+    color: #1677ff;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+}
+
 @prefix-cls: ~'@{namespace}-app';
 
 .size {
