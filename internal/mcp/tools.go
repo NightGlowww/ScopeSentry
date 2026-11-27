@@ -89,6 +89,82 @@ type deps struct {
 	auditRepo auditrepo.Repository
 }
 
+// mcpMaxPageSize 是分页类工具的单页硬上限。
+// 依据：list_assets 传 pageSize=100000 实测返回 45363 行 / 29.4MB / 26s，
+// 客户端超时、LLM 上下文直接被顶爆；而 list_pocs / list_fingerprints 早就有 200 上限，
+// 同族工具行为不一致（2026-11-28 审计）。
+const mcpMaxPageSize = 200
+
+// capPageSize 统一收敛分页参数：页码至少 1，单页不超过 mcpMaxPageSize。
+func capPageSize(pageIndex, pageSize *int) {
+	if *pageIndex <= 0 {
+		*pageIndex = 1
+	}
+	if *pageSize <= 0 {
+		*pageSize = 20
+	}
+	if *pageSize > mcpMaxPageSize {
+		*pageSize = mcpMaxPageSize
+	}
+}
+
+// mcpListTextLimit 是列表类响应里单个长文本字段的保留长度。
+// 列表要回答「有哪些」，正文属于详情类工具（get_poc / get_scan_template）。
+const mcpListTextLimit = 512
+
+// truncateListFields 把 list/items 里指定字段的超长文本截断，并标注 <field>Truncated / <field>Length。
+// 背景：list_pocs 默认 200 条、每条带完整 YAML，实测单次响应 12.4MB（2026-11-28）。
+func truncateListFields(v any, fields ...string) any {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return v
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return v
+	}
+	touched := false
+	for _, key := range []string{"list", "items", "data"} {
+		arr, ok := m[key].([]any)
+		if !ok {
+			continue
+		}
+		for _, it := range arr {
+			item, ok := it.(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, f := range fields {
+				s, ok := item[f].(string)
+				if !ok || len(s) <= mcpListTextLimit {
+					continue
+				}
+				item[f] = truncateRunes(s, mcpListTextLimit)
+				item[f+"Truncated"] = true
+				item[f+"Length"] = len(s)
+				touched = true
+			}
+		}
+	}
+	if !touched {
+		return v
+	}
+	m["truncatedNote"] = fmt.Sprintf("长文本字段已截断到 %d 字符，完整内容请用对应详情工具获取", mcpListTextLimit)
+	return m
+}
+
+// truncateRunes 按字符（非字节）截断，避免切坏 UTF-8。
+func truncateRunes(s string, limit int) string {
+	if len(s) <= limit {
+		return s
+	}
+	r := []rune(s)
+	if len(r) <= limit {
+		return s
+	}
+	return string(r[:limit])
+}
+
 var d = &deps{
 	projectService:       project.NewService(),
 	taskService:          task.NewService(),
@@ -532,12 +608,7 @@ func listProjects(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp
 }
 
 func listProjectsData(ctx context.Context, _ *mcp.CallToolRequest, input listProjectsDataInput) (*mcp.CallToolResult, any, error) {
-	if input.PageIndex <= 0 {
-		input.PageIndex = 1
-	}
-	if input.PageSize <= 0 {
-		input.PageSize = 20
-	}
+	capPageSize(&input.PageIndex, &input.PageSize)
 	c := ginContext(ctx)
 	result, err := d.projectService.GetProjectsData(c, input.Search, input.PageIndex, input.PageSize)
 	if err != nil {
@@ -623,12 +694,7 @@ type listTasksInput struct {
 }
 
 func listTasks(ctx context.Context, _ *mcp.CallToolRequest, input listTasksInput) (*mcp.CallToolResult, any, error) {
-	if input.PageIndex <= 0 {
-		input.PageIndex = 1
-	}
-	if input.PageSize <= 0 {
-		input.PageSize = 20
-	}
+	capPageSize(&input.PageIndex, &input.PageSize)
 	c := ginContext(ctx)
 	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, nil, "", "", "")
 	if err != nil {
@@ -663,17 +729,13 @@ type listScanTemplatesInput struct {
 }
 
 func listScanTemplates(ctx context.Context, _ *mcp.CallToolRequest, input listScanTemplatesInput) (*mcp.CallToolResult, any, error) {
-	if input.PageIndex <= 0 {
-		input.PageIndex = 1
-	}
-	if input.PageSize <= 0 {
-		input.PageSize = 20
-	}
+	capPageSize(&input.PageIndex, &input.PageSize)
 	result, err := d.templateService.List(ctx, input.PageIndex, input.PageSize, input.Query)
 	if err != nil {
 		return errorResult("获取模板列表失败", err)
 	}
-	return jsonToolResult(result)
+	// 模板里 template_json 可达数百 KB，列表只要「有哪些」，正文留给 get_scan_template。
+	return jsonToolResult(truncateListFields(result, "template_json", "templateJson", "vullist"))
 }
 
 type getScanTemplateInput struct {
@@ -928,12 +990,8 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 	if err != nil {
 		return errorResult(err.Error(), nil)
 	}
-	if input.PageIndex <= 0 {
-		input.PageIndex = 1
-	}
-	if input.PageSize <= 0 {
-		input.PageSize = 20
-	}
+	capped := input.PageSize > mcpMaxPageSize
+	capPageSize(&input.PageIndex, &input.PageSize)
 
 	query := models.SearchRequest{
 		PageIndex:        input.PageIndex,
@@ -974,6 +1032,10 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 	}
 	out["pageIndex"] = input.PageIndex
 	out["pageSize"] = input.PageSize
+	if capped {
+		out["pageSizeCapped"] = mcpMaxPageSize
+		out["note"] = fmt.Sprintf("pageSize 已收敛到上限 %d；大结果集请按页取或用 count_assets 拿总数", mcpMaxPageSize)
+	}
 	// IPAsset 是「按 IP 分页、按 IP×端口×服务展开」的视图：一页 3 个 IP 可能展开成
 	// 10 条端口行，total 数的是 IP。不说明的话客户端会以为分页坏了（2026-11-28 实测）。
 	if index == "IPAsset" {
@@ -1324,7 +1386,8 @@ func listPocs(ctx context.Context, _ *mcp.CallToolRequest, input listPocsInput) 
 	if err != nil {
 		return errorResult("获取 POC 列表失败", err)
 	}
-	return jsonToolResult(res)
+	// 200 条带完整 YAML 实测 12.4MB；列表只回摘要，正文用 get_poc。
+	return jsonToolResult(truncateListFields(res, "content"))
 }
 
 type getPocInput struct {
@@ -1362,7 +1425,8 @@ func listFingerprints(ctx context.Context, _ *mcp.CallToolRequest, input listFin
 	if err != nil {
 		return errorResult("获取指纹列表失败", err)
 	}
-	return jsonToolResult(ginH{"list": list, "total": total})
+	// rule 是整段指纹 YAML，600 条一页能到几百 KB；列表只回摘要。
+	return jsonToolResult(truncateListFields(ginH{"list": list, "total": total}, "rule"))
 }
 
 type listDictionariesInput struct {
