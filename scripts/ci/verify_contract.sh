@@ -212,5 +212,31 @@ case "$cmp" in
   ok*) ok "列表 total 与总数接口一致（${cmp#ok } 个集合）" ;;
   *)   bad "列表 total 与总数接口不一致：${cmp#bad }" ;;
 esac
+# 21) 备份恢复是最危险的接口：必须三重把门 —— 缺 confirm / confirm 不对 / 归档不存在，
+#     一律拒绝，且拒绝之后备份清单不能变。下载 404 也不能把服务器绝对路径吐给客户端。
+bn=$(curl -sS -m 30 "$BASE/api/backup/list" -H "Authorization: Bearer $TOKEN" \
+  | python3 -c 'import json,sys;d=json.load(sys.stdin).get("data") or [];print(len(d) if isinstance(d,list) else -1)' 2>/dev/null || echo x)
+NONEXIST=backup-20200101-000000.tar.gz
+r1=$(curl -sS -m 60 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/backup/restore" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "{\"name\":\"$NONEXIST\"}")
+[ "$r1" = "400" ] && ok "backup/restore 缺 confirm → 400" || bad "backup/restore 缺 confirm → $r1（应为 400）"
+r2=$(curl -sS -m 60 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/backup/restore" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "{\"name\":\"$NONEXIST\",\"confirm\":\"restore\"}")
+[ "$r2" = "400" ] && ok "backup/restore confirm 大小写不符 → 400" || bad "backup/restore confirm 大小写不符 → $r2（应为 400）"
+r3=$(curl -sS -m 60 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/backup/restore" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "{\"name\":\"$NONEXIST\",\"confirm\":\"RESTORE\"}")
+[ "$r3" = "404" ] && ok "backup/restore 归档不存在 → 404（不会空跑一次恢复）" || bad "backup/restore 归档不存在 → $r3（应为 404）"
+r4=$(curl -sS -m 60 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/backup/restore" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d '{"name":"../x.tar.gz","confirm":"RESTORE"}')
+[ "$r4" = "400" ] && ok "backup/restore 路径穿越名 → 400" || bad "backup/restore 路径穿越名 → $r4（应为 400）"
+dl=$(curl -sS -m 30 "$BASE/api/backup/download/$NONEXIST" -H "Authorization: Bearer $TOKEN")
+if printf '%s' "$dl" | grep -q '"/data/\|/scopesentry-backups/'; then
+  bad "backup/download 404 泄露了服务器绝对路径：$(printf '%s' "$dl" | head -c 80)"
+else
+  ok "backup/download 404 不回服务器绝对路径"
+fi
+bn2=$(curl -sS -m 30 "$BASE/api/backup/list" -H "Authorization: Bearer $TOKEN" \
+  | python3 -c 'import json,sys;d=json.load(sys.stdin).get("data") or [];print(len(d) if isinstance(d,list) else -1)' 2>/dev/null || echo x)
+if [ "$bn" = "$bn2" ]; then ok "无效恢复请求后备份份数不变（$bn）"; else bad "备份份数被改动：$bn → $bn2"; fi
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

@@ -101,10 +101,12 @@ func Download(c *gin.Context) {
 	info, statErr := os.Stat(full)
 	if statErr != nil {
 		if os.IsNotExist(statErr) {
-			response.NotFound(c, "api.not_found", statErr)
+			// 不要把 os.Stat 的原始错误透给客户端：它带着服务器绝对路径
+			// （/data/scopesentry-backups/...），等于顺手暴露部署目录结构。
+			response.NotFound(c, "api.not_found", fmt.Errorf("%s not found", name))
 			return
 		}
-		response.InternalServerError(c, "api.server_error", statErr)
+		response.InternalServerError(c, "api.server_error", nil)
 		return
 	}
 	if !info.Mode().IsRegular() {
