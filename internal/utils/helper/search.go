@@ -319,6 +319,41 @@ func StringToPostfix(expression string) ([]string, error) {
 	return result, nil
 }
 
+// cmpToMongo 把 DSL 里的比较符映射成 Mongo 操作符。
+var cmpToMongo = map[string]string{
+	">=": "$gte",
+	"<=": "$lte",
+	">":  "$gt",
+	"<":  "$lt",
+}
+
+// stringNumericFields：库里以字符串保存、但语义是数字的字段。
+// 这些字段做区间比较必须先用 $convert 转数字，否则类型不匹配永远命中 0 条。
+var stringNumericFields = map[string]bool{
+	"port": true,
+}
+
+// splitComparison 识别 "key>=100" 这类比较表达式。
+// 只在「没有 == / != 」时调用，避免把 "a==b" 误判成 "a>"。
+func splitComparison(expr string) (op, key, value string, ok bool) {
+	for _, candidate := range []string{">=", "<=", ">", "<"} {
+		if idx := strings.Index(expr, candidate); idx > 0 {
+			k := strings.TrimSpace(expr[:idx])
+			// key 里不能再出现 = ! < >：title=<script> 里的 "<" 是值的一部分，不是比较符。
+			if strings.ContainsAny(k, "=!<>") {
+				return "", "", "", false
+			}
+			v := strings.TrimSpace(expr[idx+len(candidate):])
+			v = strings.Trim(v, "\"")
+			if k == "" || v == "" {
+				return "", "", "", false
+			}
+			return candidate, k, v, true
+		}
+	}
+	return "", "", "", false
+}
+
 // SearchToMongoDB 将搜索表达式转换为MongoDB查询
 func SearchToMongoDB(expressionRaw string, keyword map[string]string) ([]map[string]interface{}, error) {
 	if expressionRaw == "" {
@@ -358,6 +393,40 @@ func SearchToMongoDB(expressionRaw string, keyword map[string]string) ([]map[str
 			stack = append(stack, map[string]interface{}{
 				"$or": []map[string]interface{}{left, right},
 			})
+		} else if cmpOp, cmpKey, cmpVal, isCmp := splitComparison(expr); isCmp {
+			// 数值区间比较：ARL-Next 1.5.2 修的就是这块（高级数值比较）。
+			// 之前 >= / <= / > / < 没有任何分支：port>=1000 落入 "=" 分支后 key 变成 "port>"，
+			// 关键字表查不到，条件被静默丢掉 —— 结果返回全量 45363 条，看起来像「筛了但没用」。
+			if mongoKey, ok := keyword[cmpKey]; ok {
+				num, numErr := strconv.Atoi(cmpVal)
+				if numErr != nil {
+					return nil, fmt.Errorf("%s %s %q：比较值必须是数字", cmpKey, cmpOp, cmpVal)
+				}
+				mongoOp := cmpToMongo[cmpOp]
+				if stringNumericFields[mongoKey] {
+					// port 在库里是字符串（"443"），直接 $gte 数字永远匹配不到。
+					// 用 $expr + $convert 显式转数字；onError/onNull 给 null，
+					// 这样 "https"、"80,443" 这类脏值只是不参与比较，不会让整个查询报错。
+					stack = append(stack, map[string]interface{}{
+						"$expr": map[string]interface{}{
+							mongoOp: []interface{}{
+								map[string]interface{}{"$convert": map[string]interface{}{
+									"input": "$" + mongoKey, "to": "int", "onError": nil, "onNull": nil,
+								}},
+								num,
+							},
+						},
+					})
+				} else {
+					stack = append(stack, map[string]interface{}{
+						mongoKey: map[string]interface{}{mongoOp: num},
+					})
+				}
+			} else {
+				// 未知字段 + 比较运算符 = 无法解释的条件。以前静默丢弃会退化成全量查询，
+				// 用户以为筛过了，实际什么都没筛（2026-11-28 实测 port>=1000 → 45363 条）。
+				return nil, fmt.Errorf("不支持的比较字段：%s（可用字段见搜索帮助）", cmpKey)
+			}
 		} else if strings.Contains(expr, "!=") {
 			parts := strings.SplitN(expr, "!=", 2)
 			key := strings.TrimSpace(parts[0])
@@ -707,4 +776,3 @@ func normalizeTimeBound(v string, end bool) string {
 	}
 	return ""
 }
-

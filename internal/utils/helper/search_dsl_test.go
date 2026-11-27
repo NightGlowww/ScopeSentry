@@ -44,3 +44,49 @@ func TestSearchToMongoDBEmpty(t *testing.T) {
 		t.Fatalf("empty expr => %v, %v; want [{}]", got, err)
 	}
 }
+
+// 数值区间比较（ARL-Next 1.5.2 对齐）：
+//
+//	field>=n / <=n / >n / <n  -> {"$gte|$lte|$gt|$lt": n}
+//	port 在库里是字符串，必须走 $expr + $convert，否则永远命中 0 条
+//	未知字段 + 比较符 -> 报错（以前静默丢弃 = 退化成全量查询）
+func TestSearchToMongoDBNumericComparison(t *testing.T) {
+	kw := map[string]string{"port": "port", "statuscode": "statuscode"}
+
+	// statuscode 是数值字段：直接 $gte
+	got, err := SearchToMongoDB("statuscode>=400", kw)
+	if err != nil {
+		t.Fatalf("statuscode>=400: %v", err)
+	}
+	b, _ := json.Marshal(got)
+	if want := `[{"statuscode":{"$gte":400}}]`; string(b) != want {
+		t.Fatalf("statuscode>=400:\n got %s\nwant %s", b, want)
+	}
+
+	// port 是字符串字段：必须是 $expr + $convert，且带 onError/onNull
+	got, err = SearchToMongoDB("port>=1000", kw)
+	if err != nil {
+		t.Fatalf("port>=1000: %v", err)
+	}
+	b, _ = json.Marshal(got)
+	if want := `[{"$expr":{"$gte":[{"$convert":{"input":"$port","onError":null,"onNull":null,"to":"int"}},1000]}}]`; string(b) != want {
+		t.Fatalf("port>=1000:\n got %s\nwant %s", b, want)
+	}
+
+	// 未知字段：报错，而不是静默返回全量
+	if _, err := SearchToMongoDB("nope>=1", kw); err == nil {
+		t.Fatalf("unknown field comparison should fail")
+	}
+
+	// 值里带 < > 的普通等值查询不能被误判成比较：title=<script> 走 = 分支
+	kw2 := map[string]string{"title": "title"}
+	got, err = SearchToMongoDB("title=<script>", kw2)
+	if err != nil {
+		t.Fatalf("title=<script>: %v", err)
+	}
+	b, _ = json.Marshal(got)
+	// encoding/json 会把 < > 转义成 \u003c / \u003e
+	if want := "[{\"title\":{\"$options\":\"i\",\"$regex\":\"\\u003cscript\\u003e\"}}]"; string(b) != want {
+		t.Fatalf("title=<script>:\n got %s\nwant %s", b, want)
+	}
+}
