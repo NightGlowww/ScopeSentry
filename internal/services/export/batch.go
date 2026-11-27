@@ -16,6 +16,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	exportrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/export"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export/exportfilter"
+	"github.com/xuri/excelize/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -578,4 +579,100 @@ func normalizeValue(v interface{}) interface{} {
 	default:
 		return v
 	}
+}
+
+// taskSheetNames 任务导出工作簿里的工作表名（≤31 字符、不含 Excel 禁用字符）。
+// 用中文而不是 type：打开文件的人要看的是「资产/子域名/URL/漏洞/敏感信息」。
+var taskSheetNames = map[string]string{
+	"site":          "资产",
+	"domain":        "子域名",
+	"url":           "URL",
+	"vulnerability": "漏洞",
+	"wih":           "敏感信息",
+	"ip":            "IP",
+	"ip_port":       "IP端口",
+	"cip":           "ICP主体",
+	"asset_ip":      "资产IP",
+	"asset_domain":  "资产域名",
+	"asset_site":    "资产站点",
+	"asset_wih":     "资产敏感信息",
+	"sensitive":     "敏感信息",
+	"fileleak":      "文件泄露",
+	"npoc_service":  "服务维度",
+}
+
+func taskSheetName(exportType string) string {
+	if name, ok := taskSheetNames[exportType]; ok {
+		return name
+	}
+	if exportType == "" {
+		return "sheet"
+	}
+	return exportType
+}
+
+// StreamXLSX 把按任务导出的多个集合写进**一个**工作簿，每个集合一张工作表。
+//
+// 与 Stream（zip 内每集合一个 CSV）并存：CSV 适合直接丢进别的工具，
+// xlsx 适合人看（对齐 ARL-Next 1.5.2 的多工作表导出）。空集合也会留一张只有表头的表，
+// 让「这次任务没产出敏感信息」是可见的，而不是缺一张表让人猜。
+func (p *TaskExportPlan) StreamXLSX(ctx context.Context, w io.Writer) (int64, error) {
+	f := excelize.NewFile()
+	defer func() { _ = f.Close() }()
+
+	var written int64
+	for i, plan := range p.Files {
+		sheet := taskSheetName(plan.Type)
+		if i == 0 {
+			if err := f.SetSheetName("Sheet1", sheet); err != nil {
+				return written, err
+			}
+		} else if _, err := f.NewSheet(sheet); err != nil {
+			return written, err
+		}
+
+		sw, err := f.NewStreamWriter(sheet)
+		if err != nil {
+			return written, err
+		}
+		header := make([]interface{}, len(plan.Fields))
+		for col, field := range plan.Fields {
+			header[col] = field
+		}
+		if err := sw.SetRow("A1", header); err != nil {
+			return written, err
+		}
+
+		// RowCount=0 的集合只留表头：不查库，也避免 limit=0 被当成「不限量」。
+		if plan.RowCount <= 0 {
+			if err := sw.Flush(); err != nil {
+				return written, err
+			}
+			continue
+		}
+		rowNum := 2
+		err = plan.eachRow(ctx, plan.RowCount, func(row []string) error {
+			cells := make([]interface{}, len(row))
+			for col, v := range row {
+				cells[col] = sanitizeExcelValue(v)
+			}
+			if err := sw.SetRow(getCellName(1, rowNum), cells); err != nil {
+				return err
+			}
+			rowNum++
+			return nil
+		})
+		if err != nil {
+			return written, err
+		}
+		if err := sw.Flush(); err != nil {
+			return written, err
+		}
+		written += plan.RowCount
+	}
+
+	if err := f.Write(w); err != nil {
+		return written, err
+	}
+	return written, nil
 }

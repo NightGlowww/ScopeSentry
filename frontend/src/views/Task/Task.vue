@@ -379,7 +379,12 @@ const taskColums = reactive<TableColumn[]>([
           // 导出与任务进度从行内按钮收进下拉：一行放 4 个按钮 + 下拉，
           // 268px 根本放不下，最后一个会被裁掉（2026-11-25 截图复现）。
           case 'export':
-            exportTask(row)
+            exportTask(row, 'zip')
+            break
+          // 多工作表 Excel：任务存档时人要看的是「一个文件几张表」，
+          // zip + 5 个 CSV 还得自己拼（对齐 ARL-Next 1.5.2）
+          case 'export_xlsx':
+            exportTask(row, 'xlsx')
             break
           case 'progress':
             getProgressInfo(row.id)
@@ -465,15 +470,15 @@ let getProgressInfoID = ''
 // 按任务导出：后端流式返回 zip（每个集合一个 CSV）。
 // 任务跑完想存档时，不用再去导出页手选类型和筛选。
 const exportingId = ref('')
-const exportTask = async (row: any) => {
+const exportTask = async (row: any, format: 'zip' | 'xlsx' = 'zip') => {
   if (!row?.id) return
   exportingId.value = row.id
   try {
-    const blob = await exportTaskApi(row.id)
+    const blob = await exportTaskApi(row.id, format)
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'task-' + (row.name || row.id) + '.zip'
+    a.download = 'task-' + (row.name || row.id) + '.' + format
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

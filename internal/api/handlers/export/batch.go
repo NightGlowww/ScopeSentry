@@ -91,6 +91,19 @@ func TaskExport(c *gin.Context) {
 	}
 
 	filename := fmt.Sprintf(export.TaskExportFileName, safeFileToken(taskID), time.Now().Format(exportTimeStamp))
+
+	// format=xlsx：同一个任务产出**一个工作簿**，每个集合一张工作表（对齐 ARL-Next 1.5.2）。
+	// 默认仍是 zip（每集合一个 CSV），因为 CSV 更适合再喂给别的工具。
+	if strings.EqualFold(strings.TrimSpace(c.Query("format")), "xlsx") {
+		filename = strings.TrimSuffix(filename, ".zip") + ".xlsx"
+		writeDownloadHeaders(c, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename, plan.RowCount)
+		written, err := plan.StreamXLSX(c.Request.Context(), c.Writer)
+		if err != nil {
+			logger.Error(fmt.Sprintf("task export xlsx %s aborted after %d/%d rows: %v", taskID, written, plan.RowCount, err))
+		}
+		return
+	}
+
 	writeDownloadHeaders(c, "application/zip", filename, plan.RowCount)
 
 	written, err := plan.Stream(c.Request.Context(), c.Writer)
