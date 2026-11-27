@@ -550,8 +550,7 @@ export default {
     selectedCount: '선택 {count}건',
     selectFirst: '삭제할 기록을 먼저 선택하세요',
     deleteConfirm: '선택한 파일 유출 기록 {count}건을 삭제할까요? 삭제 후에는 되돌릴 수 없습니다',
-    empty:
-      '데이터는 스캐너 측 파일 유출 탐지에서 나옵니다. 노드가 파일 유출 모듈을 실행한 뒤에야 해당 기록이 이곳에 나타납니다. 목록이 비어 있다면 해당 노드가 업그레이드되었는지, 모듈을 실행했는지 확인하세요.'
+    empty: '파일 유출 기록이 없습니다'
   },
   npocService: {
     noSourceHint:

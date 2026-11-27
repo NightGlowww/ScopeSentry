@@ -541,8 +541,9 @@ export default {
     selectedCount: '已选 {count} 条',
     selectFirst: '请先勾选要删除的记录',
     deleteConfirm: '确认删除选中的 {count} 条文件泄露记录？删除后不可恢复',
-    empty:
-      '数据来自扫描端的文件泄露检测：节点跑完文件泄露模块后，命中结果才会出现在这里。列表为空时，先确认对应节点已升级并跑过该模块'
+    // 表格空态只放一句：完整说明在 noSourceHint（页面顶部横幅），
+    // 两处都写一大段等于重复说同一件事，还把空表格撑得很难看（2026-11-27）
+    empty: '暂无文件泄露记录'
   },
   npocService: {
     noSourceHint:
@@ -557,7 +558,7 @@ export default {
     selectedCount: '已选 {count} 条',
     selectFirst: '请先勾选要删除的记录',
     deleteConfirm: '确认删除选中的 {count} 条 NPoC 服务记录？删除后不可恢复',
-    empty: '暂无已确认的服务。跑过 PortFingerprint 的目标会陆续出现，协议通常为 http / https / smtp / ssh / redis 等。'
+    empty: '暂无已确认的服务'
   },
   cip: {
     noSourceHint: "备案信息读模型依赖 RootDomain 的 icp/company 字段，当前没有写入方，页面会始终为空。",

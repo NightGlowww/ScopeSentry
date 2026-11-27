@@ -553,8 +553,7 @@ export default {
     selectedCount: '{count} selected',
     selectFirst: 'Select the records to delete first',
     deleteConfirm: 'Delete the {count} selected file leak records? This cannot be undone',
-    empty:
-      'Data comes from file leak detection on the scanner side: records appear only after a node has run the file leak module. If the list is empty, check that the node is upgraded and has run that module.'
+    empty: 'No file leak records yet'
   },
   npocService: {
     noSourceHint:
