@@ -7,7 +7,9 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	redisdb "github.com/Autumn-27/ScopeSentry/internal/database/redis"
+	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	redisdriver "github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -194,6 +196,23 @@ func (r *repository) ExplainTrend(ctx context.Context, collection, timeField str
 // 用 SCAN 而不是 KEYS（KEYS 在大 key 空间会阻塞 Redis）；
 // 拿到 key 列表后用一条 pipeline 批量 HGETALL，避免逐节点往返。
 // 节点数量级很小（部署级个位数到几十），这里不做分页。
+// heartbeatHashKeys 只保留 node:<name> 这一层的键。
+// node:<name>:currentTask 之类是字符串键，HGETALL 会 WRONGTYPE（2026-11-28 生产实测）。
+func heartbeatHashKeys(keys []string) []string {
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if !strings.HasPrefix(key, "node:") {
+			continue
+		}
+		rest := strings.TrimPrefix(key, "node:")
+		if rest == "" || strings.Contains(rest, ":") {
+			continue
+		}
+		out = append(out, key)
+	}
+	return out
+}
+
 func (r *repository) NodeHeartbeats(ctx context.Context) ([]NodeHeartbeat, error) {
 	if r.redisClient == nil {
 		return nil, fmt.Errorf("dashboard: redis client is not initialized")
@@ -212,17 +231,25 @@ func (r *repository) NodeHeartbeats(ctx context.Context) ([]NodeHeartbeat, error
 			break
 		}
 	}
-	if len(keys) == 0 {
+	// 只保留 node:<name> 这一层：node:<name>:currentTask 是字符串键，
+	// 对它 HGETALL 会 WRONGTYPE，而 pipeline 里任何一个命令报错都会让
+	// pipe.Exec 整体失败 —— 结果是控制台/仪表盘「节点 0 / 0」，
+	// 而节点其实在线（2026-11-28 生产实测，日志 44 次 'read node heartbeats: WRONGTYPE'）。
+	hashes := heartbeatHashKeys(keys)
+	if len(hashes) == 0 {
 		return []NodeHeartbeat{}, nil
 	}
+	keys = hashes
 
 	pipe := r.redisClient.Pipeline()
 	cmds := make([]*redisdriver.MapStringStringCmd, len(keys))
 	for i, key := range keys {
 		cmds[i] = pipe.HGetAll(ctx, key)
 	}
+	// 单个 key 类型不符不该拖垮整个统计：Exec 的聚合错误忽略，
+	// 逐个看命令自身的错误（下面 cmds[i].Result() 已经会跳过失败项）。
 	if _, err := pipe.Exec(ctx); err != nil && err != redisdriver.Nil {
-		return nil, fmt.Errorf("dashboard: read node heartbeats: %w", err)
+		logger.Warn("dashboard: some node heartbeat reads failed", zap.String("err", err.Error()))
 	}
 
 	out := make([]NodeHeartbeat, 0, len(keys))
