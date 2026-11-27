@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -181,7 +182,7 @@ func TriageResults(c *gin.Context) {
 	}
 	operator, _ := c.Get("username")
 	operatorName, _ := operator.(string)
-	updated, err := resultRepo.Triage(c.Request.Context(), ids, status, operatorName)
+	matched, modified, err := resultRepo.Triage(c.Request.Context(), ids, status, operatorName)
 	if err != nil {
 		if errors.Is(err, githubrepo.ErrInvalidID) {
 			response.BadRequestWithError(c, "api.bad_request", err)
@@ -191,7 +192,12 @@ func TriageResults(c *gin.Context) {
 		response.InternalServerError(c, "api.server_error", err)
 		return
 	}
-	response.Success(c, gin.H{"updated": updated, "status": status, "ids": ids}, "api.success")
+	// matched=0：结果 id 一条都不存在 → 404（此前一律 200 + updated:0）
+	if matched == 0 {
+		response.NotFound(c, "api.not_found", fmt.Errorf("%w: %s", githubrepo.ErrResultNotFound, strings.Join(ids, ",")))
+		return
+	}
+	response.Success(c, gin.H{"updated": modified, "matched": matched, "status": status, "ids": ids}, "api.success")
 }
 
 // IgnoredRepos 黑名单仓库：action = list | add | remove

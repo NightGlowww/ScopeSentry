@@ -28,6 +28,10 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 8 | 持 `asset:read` 的 key 调 `tools/list` 只能看到 22 个工具 | 看不到权限外的工具，agent 才不会反复撞 403（脚本临时建 key，跑完立即撤） |
 | 9 | `count_assets` 的 total == 仪表盘 stats 的 asset | 同一个事实源被两处各算一遍，最容易一处悄悄归零 |
 | 10 | `/api/node` 的节点数/在线数 == `/api/console/info` 的 nodeCount/nodeOnline | 2026-11-28 实测：SCAN node:* 带回字符串键导致 pipeline 失败，控制台一直显示 0/0，而节点在线 |
+| 11 | `POST /api/icp/task/stop` 传不存在 id → 404 | 曾经回 200，还会给这个不存在的 id 往 `icp_task_log` 写一条「收到停止请求」——幻影日志（2026-11-28 实测） |
+| 12 | `POST /api/icp/task/delete` 传不存在 id → 404 | 同一批接口，曾经回 200 + 全零；而幻影日志会让它报 `deletedLogs:1`，像是删掉了真东西 |
+| 13 | `POST /api/github/task/delete` 传不存在 id → 404 | GitHub 采集面同款假成功 |
+| 14 | 两次无效删除后 ICP 任务总数不变 | 兜住任何「拒绝分支顺手改了状态/写了日志」的回归 |
 
 ## 何时跑
 

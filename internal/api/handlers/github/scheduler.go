@@ -2,6 +2,7 @@ package github
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -117,7 +118,7 @@ func StopSchedulers(c *gin.Context) {
 		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
 		return
 	}
-	updated, err := svc().StopTasks(c.Request.Context(), ids)
+	matched, modified, err := svc().StopTasks(c.Request.Context(), ids)
 	if err != nil {
 		if errors.Is(err, githubrepo.ErrInvalidID) {
 			response.BadRequestWithError(c, "api.bad_request", err)
@@ -126,7 +127,12 @@ func StopSchedulers(c *gin.Context) {
 		response.InternalServerError(c, "api.server_error", err)
 		return
 	}
-	response.Success(c, gin.H{"updated": updated, "ids": ids}, "api.success")
+	// matched=0 → 404：id 一条都不存在，不能回「已暂停」
+	if matched == 0 {
+		response.NotFound(c, "api.not_found", fmt.Errorf("%w: %s", githubrepo.ErrTaskNotFound, strings.Join(ids, ",")))
+		return
+	}
+	response.Success(c, gin.H{"updated": modified, "matched": matched, "ids": ids}, "api.success")
 }
 
 // RecoverSchedulers 恢复被暂停的周期任务

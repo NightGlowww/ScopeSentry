@@ -107,5 +107,22 @@ else
   bad "节点口径不一致：/api/node=$api_n/$api_online console/info=$con_n/$con_online"
 fi
 
+# 10) 不存在的 id 不许演成「成功」：ICP / GitHub 的批量操作曾经一律 200 + 计数 0，
+#     更糟的是 ICP stop 会给不存在的 id 写一条「收到停止请求」日志（随后 delete 报 deletedLogs=1）。
+for pair in "icp/task/stop:{\"ids\":[\"$NOPE\"]}" "icp/task/delete:{\"ids\":[\"$NOPE\"]}" "github/task/delete:{\"ids\":[\"$NOPE\"]}"; do
+  path=${pair%%:*}; body=${pair#*:}
+  code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST "$BASE/api/$path" \
+    -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" -d "$body")
+  if [ "$code" = "404" ]; then ok "$path 不存在 id → 404"; else bad "$path 不存在 id → $code（应为 404）"; fi
+done
+# ICP 任务总数在两次删除不存在的 id 之后不许变化（幻影日志也一并被这条兜住）
+icp_total=$(curl -sS -m 20 -X POST "$BASE/api/icp/task/overview_count" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -d '{}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["total"])' 2>/dev/null || echo x)
+curl -sS -m 20 -o /dev/null -X POST "$BASE/api/icp/task/delete" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -d "{\"ids\":[\"$NOPE\"]}" || true
+icp_total2=$(curl -sS -m 20 -X POST "$BASE/api/icp/task/overview_count" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -d '{}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["total"])' 2>/dev/null || echo x)
+if [ "$icp_total" = "$icp_total2" ]; then ok "ICP 任务总数不受无效删除影响（$icp_total）"; else bad "ICP 任务总数被无效删除改变：$icp_total → $icp_total2"; fi
+
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

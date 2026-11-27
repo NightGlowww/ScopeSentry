@@ -148,7 +148,7 @@ func StopTasks(c *gin.Context) {
 		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
 		return
 	}
-	updated, err := svc().StopTasks(c.Request.Context(), ids)
+	matched, modified, err := svc().StopTasks(c.Request.Context(), ids)
 	if err != nil {
 		status := http.StatusInternalServerError
 		key := "api.server_error"
@@ -159,7 +159,13 @@ func StopTasks(c *gin.Context) {
 		c.JSON(status, response.Response{Code: status, Message: key, Data: err.Error()})
 		return
 	}
-	response.Success(c, gin.H{"updated": updated, "ids": ids}, "api.success")
+	// matched=0：这些 id 一条都不存在 → 404（此前一律 200 + updated:0，调用方分不清
+	// 「本来就停了」和「id 打错了」）。matched>0 但 modified=0 是幂等成功。
+	if matched == 0 {
+		response.NotFound(c, "api.not_found", fmt.Errorf("%w: %s", githubrepo.ErrTaskNotFound, strings.Join(ids, ",")))
+		return
+	}
+	response.Success(c, gin.H{"updated": modified, "matched": matched, "ids": ids}, "api.success")
 }
 
 // DeleteTasks 删除任务（连带删除其结果）

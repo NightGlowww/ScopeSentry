@@ -335,7 +335,7 @@ func TestGithubTriageIgnoredAndExport(t *testing.T) {
 
 	// triage
 	ids := []string{results[0].ID.Hex()}
-	updated, err := repo.Triage(ctx, ids, models.GithubResultStatusTriaged, "tester")
+	_, updated, err := repo.Triage(ctx, ids, models.GithubResultStatusTriaged, "tester")
 	if err != nil {
 		t.Fatalf("triage: %v", err)
 	}

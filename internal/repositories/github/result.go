@@ -15,6 +15,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// ErrResultNotFound 结果不存在（批量研判时用来区分「id 打错了」和「状态本来就一致」）
+var ErrResultNotFound = errors.New("github result not found")
+
 // Hit 采集到的一条命中（service 层归一后的结构，与存储模型解耦）
 type Hit struct {
 	Repo     string
@@ -44,7 +47,8 @@ type ResultRepository interface {
 	List(ctx context.Context, q models.GithubResultListQuery) ([]models.GithubResult, int64, error)
 	Overview(ctx context.Context, q models.GithubResultListQuery) ([]models.GithubResultOverviewRow, int64, error)
 	DailyStats(ctx context.Context, q models.GithubResultListQuery, days int) ([]models.GithubDailyStat, error)
-	Triage(ctx context.Context, ids []string, status, operator string) (int64, error)
+	// Triage 批量改研判状态。matched=0 说明 id 不存在；modified=0 但 matched>0 只是状态本就一致。
+	Triage(ctx context.Context, ids []string, status, operator string) (matched, modified int64, err error)
 	Iterate(ctx context.Context, q models.GithubResultListQuery, limit int, fn func(*models.GithubResult) error) error
 	DeleteByTaskIDs(ctx context.Context, taskIDs []string) (int64, error)
 	CountByTask(ctx context.Context, taskID string) (int64, error)
@@ -331,21 +335,21 @@ func statsLocation() *time.Location {
 	return time.UTC
 }
 
-func (r *resultRepository) Triage(ctx context.Context, ids []string, status, operator string) (int64, error) {
+func (r *resultRepository) Triage(ctx context.Context, ids []string, status, operator string) (matched, modified int64, err error) {
 	collection, err := r.coll()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	oids := make([]primitive.ObjectID, 0, len(ids))
 	for _, id := range ids {
 		oid, err := parseObjectID(id)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 		oids = append(oids, oid)
 	}
 	if len(oids) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 	now := time.Now()
 	res, err := collection.UpdateMany(ctx,
@@ -358,9 +362,9 @@ func (r *resultRepository) Triage(ctx context.Context, ids []string, status, ope
 		}},
 	)
 	if err != nil {
-		return 0, fmt.Errorf("github_result: triage: %w", err)
+		return 0, 0, fmt.Errorf("github_result: triage: %w", err)
 	}
-	return res.ModifiedCount, nil
+	return res.MatchedCount, res.ModifiedCount, nil
 }
 
 func (r *resultRepository) Iterate(ctx context.Context, q models.GithubResultListQuery, limit int, fn func(*models.GithubResult) error) error {

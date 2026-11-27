@@ -31,7 +31,9 @@ type TaskRepository interface {
 	// Finish 结束一次运行：写回状态、统计（累加）、lastRunAt / nextRunAt
 	Finish(ctx context.Context, id string, state int, stats models.GithubTaskStats,
 		lastRunAt *time.Time, nextRunAt *time.Time, lastError string) error
-	SetState(ctx context.Context, ids []string, state int) (int64, error)
+	// SetState 批量改状态。返回 matched（命中了几条真实记录）与 modified（真正被改动的条数）：
+	// 只有 matched=0 才说明 id 根本不存在，modified=0 可能只是状态本来就一致（幂等）。
+	SetState(ctx context.Context, ids []string, state int) (matched, modified int64, err error)
 	UpdateSchedule(ctx context.Context, id string, patch SchedulePatch) error
 	Delete(ctx context.Context, ids []string) (int64, error)
 	// DueScheduled 取到点该跑的周期任务（intervalMinutes > 0 且未被暂停）
@@ -213,30 +215,30 @@ func (r *taskRepository) Finish(ctx context.Context, id string, state int, stats
 	return nil
 }
 
-func (r *taskRepository) SetState(ctx context.Context, ids []string, state int) (int64, error) {
+func (r *taskRepository) SetState(ctx context.Context, ids []string, state int) (matched, modified int64, err error) {
 	collection, err := r.coll()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	oids := make([]primitive.ObjectID, 0, len(ids))
 	for _, id := range ids {
 		oid, err := parseObjectID(id)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 		oids = append(oids, oid)
 	}
 	if len(oids) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 	res, err := collection.UpdateMany(ctx,
 		bson.M{"_id": bson.M{"$in": oids}},
 		bson.M{"$set": bson.M{"state": state}},
 	)
 	if err != nil {
-		return 0, fmt.Errorf("github_task: set state: %w", err)
+		return 0, 0, fmt.Errorf("github_task: set state: %w", err)
 	}
-	return res.ModifiedCount, nil
+	return res.MatchedCount, res.ModifiedCount, nil
 }
 
 func (r *taskRepository) UpdateSchedule(ctx context.Context, id string, patch SchedulePatch) error {
