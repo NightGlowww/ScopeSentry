@@ -25,7 +25,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 5 | `POST /api/assets/asset` 传 `pageSize=100000` → 行数 ≤ 5000 且带 `X-Pagesize-Clamped` | 曾经单请求 45363 行 / 22.1MB / 15.9s |
 | 6 | `GET /api/mcp/tools` 工具数 ≥ 60 且每条都有 scope | scope 漏登记会让受限 key 被默认拒绝 |
 | 7 | `GET /api/export/records` 的 `list` 是数组 | 空集曾经返回 `null`，表格拿不到数组 |
-| 8 | 持 `asset:read` 的 key 调 `tools/list` 只能看到 22 个工具 | 看不到权限外的工具，agent 才不会反复撞 403（脚本临时建 key，跑完立即撤） |
+| 8 | 持 `asset:read` 的 key 调 `tools/list`，可见工具数 == `/api/mcp/tools` 里登记为该 scope 的工具数 | 看不到权限外的工具，agent 才不会反复撞 403（脚本临时建 key，跑完立即撤；数字从接口算，不写死） |
 | 9 | `count_assets` 的 total == 仪表盘 stats 的 asset | 同一个事实源被两处各算一遍，最容易一处悄悄归零 |
 | 10 | `/api/node` 的节点数/在线数 == `/api/console/info` 的 nodeCount/nodeOnline | 2026-11-28 实测：SCAN node:* 带回字符串键导致 pipeline 失败，控制台一直显示 0/0，而节点在线 |
 | 11 | `POST /api/icp/task/stop` 传不存在 id → 404 | 曾经回 200，还会给这个不存在的 id 往 `icp_task_log` 写一条「收到停止请求」——幻影日志（2026-11-28 实测） |
@@ -65,3 +65,34 @@ SS_BASE=http://<host>:8082 SS_MCP_KEY=<全 scope 的 ssk_...> SS_ASSET_ID=<任�
 
 新增不变量时：先想清楚「它失败时用户会看到什么」，再按同样的 `ok/bad` 风格追加一节。
 新增 MCP 工具时：同时在 `scripts/ci/mcp_sweep.py` 的 READ/GUARD 表里加一行，否则它不会被任何回归覆盖。
+
+## 界面文案不许硬编码中文（i18n_guard.py）
+
+英文界面走查只能覆盖「渲染出来看得见」的部分。真正的漏网在其它地方：
+`aria-label`、`ElTooltip content`、`ElMessageBox` 的确认文案、删除确认、
+单位后缀（`N 条` / `N 台已暂停` / `核`）、标签与值之间的全角冒号——
+只有摸到那条路径才会暴露，而且一暴露就是「英文界面里蹦出中文」。
+
+所以把这套判据做成静态检查（2026-11-28 一轮扫出 24 个文件、60+ 处）：
+
+```bash
+python3 scripts/ci/i18n_guard.py            # 扫描 frontend/src 的路由页面与公共组件
+python3 scripts/ci/i18n_guard.py --demo     # 连未挂路由的 views/Components 一起扫
+```
+
+判据：
+
+1. `<template>` 块内的裸文本、以及 `aria-label`/`title`/`placeholder`/`content` 属性值出现 CJK；
+2. `<script>` 里引号内出现 CJK（先按引号状态切掉行尾 `//` 注释，`console.*` 整行跳过）；
+3. `<!-- -->` 注释（含跨行）先整段抹成空格，行号保持不变——注释里的中文不算文案。
+
+例外只有两条，写在脚本 `ALLOW` 里并注明理由：
+`Task.vue` 用 `排队超过` 回落匹配老任务的 `failReason`（没有 `failCode` 的历史数据）、
+`plugin.vue` 的 `tags.includes('内置')` 比对的是后端 tag 值本身。
+
+同一轮还改掉两处真问题，不是文案问题：
+
+- APP / 小程序搜索帮助里，关键字写的是 `name`，示例却给 `domain="百度"`——照示例输入查不到数据；已改成 `name="百度"` 并随语言切换（`Baidu` / `바이두`）。
+- 标签与值的分隔符原来是写死的全角冒号，英文界面也照输出；改为 `common.labelSep`（中文 `：` / 英文与韩文 `: `）。
+
+结论看最后一行 `I18N_GUARD=PASS|FAIL`。

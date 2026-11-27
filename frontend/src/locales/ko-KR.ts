@@ -220,6 +220,7 @@ export default {
     keywords: '검색어',
     explain: '설명',
     example: '예시',
+    exampleAppName: 'name="바이두"',
     app: '지정한 구성 요소 검색',
     body: 'HTTP 응답 본문 검색',
     header: 'HTTP 요청 헤더 검색',

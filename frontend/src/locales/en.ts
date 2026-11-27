@@ -220,6 +220,7 @@ export default {
     keywords: 'Keywords',
     explain: 'Explain',
     example: 'Example',
+    exampleAppName: 'name="Baidu"',
     app: 'Retrieve specified component',
     body: 'Retrieve HTTP response body',
     header: 'Retrieve HTTP request header',

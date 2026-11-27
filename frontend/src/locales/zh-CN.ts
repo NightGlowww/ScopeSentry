@@ -219,6 +219,7 @@ export default {
     keywords: '关键字',
     explain: '说明',
     example: '示例',
+    exampleAppName: 'name="百度"',
     app: '检索指定组件',
     body: '检索HTTP响应体',
     header: '检索HTTP请求头',
