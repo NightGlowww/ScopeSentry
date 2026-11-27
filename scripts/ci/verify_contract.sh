@@ -63,6 +63,23 @@ if [ "${total:-0}" -ge 60 ] 2>/dev/null && [ "${unscoped:-1}" = "0" ]; then ok "
 # 5) 清空后的列表接口必须回 [] 而不是 null
 shape=$(curl -sS -m 20 "$BASE/api/export/records" -H "Authorization: Bearer $TOKEN" | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"];print(type(d["list"]).__name__)' 2>/dev/null || echo err)
 [ "$shape" = "list" ] && ok "export/records list 类型 = list" || bad "export/records list 类型 = ${shape:-err}"
+# 6) 受限 key 的 tools/list 必须被裁剪：agent 不该看到自己调不动的工具。
+#    顺带把「scope → 可见工具数」这条映射也验掉（asset:read 应为 22）。
+created=$(curl -sS -m 20 -X POST "$BASE/api/mcp/keys" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -d '{"name":"contract-toolslist-probe","scope":["asset:read"],"tools":[],"rateLimitPerMin":0}')
+probe_key=$(printf '%s' "$created" | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["key"])' 2>/dev/null || echo "")
+probe_id=$(printf '%s' "$created" | python3 -c 'import json,sys;print(json.load(sys.stdin)["data"]["id"])' 2>/dev/null || echo "")
+if [ -n "$probe_key" ]; then
+  visible=$(curl -sS -m 30 -X POST "$BASE/mcp" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' -H "X-API-Key: $probe_key" \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+    | sed -n 's/^data: //p;' | tail -1 \
+    | python3 -c 'import json,sys;d=json.load(sys.stdin);print(len((d.get("result") or {}).get("tools") or []))' 2>/dev/null || echo 0)
+  if [ "${visible:-0}" = "22" ]; then ok "asset:read key tools/list 可见 22 个工具"; else bad "asset:read key tools/list 可见 ${visible:-0} 个（应为 22）"; fi
+  curl -sS -m 20 -X DELETE "$BASE/api/mcp/keys/$probe_id" -H "Authorization: Bearer $TOKEN" >/dev/null || true
+else
+  bad "无法创建探针 key（检查 SS_TOKEN 权限）"
+fi
 
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

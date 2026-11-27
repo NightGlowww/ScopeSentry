@@ -25,6 +25,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 5 | `POST /api/assets/asset` 传 `pageSize=100000` → 行数 ≤ 5000 且带 `X-Pagesize-Clamped` | 曾经单请求 45363 行 / 22.1MB / 15.9s |
 | 6 | `GET /api/mcp/tools` 工具数 ≥ 60 且每条都有 scope | scope 漏登记会让受限 key 被默认拒绝 |
 | 7 | `GET /api/export/records` 的 `list` 是数组 | 空集曾经返回 `null`，表格拿不到数组 |
+| 8 | 持 `asset:read` 的 key 调 `tools/list` 只能看到 22 个工具 | 看不到权限外的工具，agent 才不会反复撞 403（脚本临时建 key，跑完立即撤） |
 
 ## 何时跑
 
