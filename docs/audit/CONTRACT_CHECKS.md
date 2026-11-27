@@ -39,6 +39,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 19 | `GET /api/mcp/logs` 的 `data.list` 是数组 | 同一批接口里 `export/records` 曾经回 `null`，表格 `.map()` 直接崩 |
 | 20 | asset / crawler / url / sensitive / dirscan 五个集合的列表 `data.total` 都存在，且 == `/api/assets/common/total` 同筛选下的 `total` | 列表原本只有部分集合回 total，前端另打一次总数接口；那次调用只在「搜索/筛选变化」时触发，时间筛选变了 total 停在旧值（2026-11-28 实测 45363 → 切「近 7 天」仍显示 45363） |
 | 21 | 备份恢复三重把门：缺 `confirm` / `confirm` 大小写不符 → 400；`confirm=RESTORE` 但归档不存在 → 404；名字含 `../` → 400；且无效请求后备份份数不变；`download` 404 的 `data` 不含服务器绝对路径 | 恢复会覆盖线上库，是唯一「点错就回不去」的接口。而 `download` 曾经把 `stat /data/scopesentry-backups/...` 原样透给客户端，等于顺手暴露部署目录（2026-11-28 实测） |
+| 22 | `POST /api/export/preview`（type=domain）的 `collection` 是 `subdomain`、字段非空、总数 > 0；`/api/export/batch` 传非法字段或非法 type → 400 且把可用字段/类型列出来 | 导出链路此前从未被验证过（records 一直是空的）。批量导出是先 `writeDownloadHeaders` 再流式写，入参校验一旦晚一步，用户就只能拿到半截 CSV 而状态码已改不了（2026-11-28 实测：214765 行 / 16.2MB，表头带 BOM，`Content-Disposition` 正常） |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 

@@ -238,5 +238,43 @@ fi
 bn2=$(curl -sS -m 30 "$BASE/api/backup/list" -H "Authorization: Bearer $TOKEN" \
   | python3 -c 'import json,sys;d=json.load(sys.stdin).get("data") or [];print(len(d) if isinstance(d,list) else -1)' 2>/dev/null || echo x)
 if [ "$bn" = "$bn2" ]; then ok "无效恢复请求后备份份数不变（$bn）"; else bad "备份份数被改动：$bn → $bn2"; fi
+# 22) 导出链路：预览要给出集合/字段/总数；批量导出的入参校验必须在下发任何字节之前
+#     （writeDownloadHeaders 一旦跑过，状态码就改不了，只能吐出半截 CSV）。
+exp=$(python3 - "$BASE" "$TOKEN" <<'PY'
+import json, sys, urllib.request, urllib.error
+base, token = sys.argv[1], sys.argv[2]
+def post(path, body):
+    req = urllib.request.Request(base + path, data=json.dumps(body).encode(),
+        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
+    try:
+        return json.loads(urllib.request.urlopen(req, timeout=90).read().decode())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read().decode() or '{}')
+        except Exception:
+            return {}
+out = []
+d = (post('/api/export/preview', {'type': 'domain'}).get('data') or {})
+if d.get('collection') == 'subdomain' and d.get('fields') and (d.get('total') or 0) > 0:
+    out.append('OK export/preview(domain) 集合=%s 字段=%d 总数=%s' % (d.get('collection'), len(d.get('fields')), d.get('total')))
+else:
+    out.append('BAD export/preview(domain) 形状异常: %s' % json.dumps(d, ensure_ascii=False)[:120])
+b1 = post('/api/export/batch', {'type': 'domain', 'fields': ['domain']})
+out.append('OK export/batch 非法字段 → 400 并列出可用字段' if 'is not a field of' in json.dumps(b1, ensure_ascii=False)
+           else 'BAD export/batch 非法字段没被拦下: %s' % json.dumps(b1, ensure_ascii=False)[:100])
+b2 = post('/api/export/batch', {'type': 'nope', 'fields': ['x']})
+out.append('OK export/batch 非法类型 → 400 并列出支持的 type' if 'unknown export type' in json.dumps(b2, ensure_ascii=False)
+           else 'BAD export/batch 非法类型没被拦下: %s' % json.dumps(b2, ensure_ascii=False)[:100])
+print(chr(10).join(out))
+PY
+)
+while IFS= read -r line; do
+  case "$line" in
+    OK\ *) ok "${line#OK }" ;;
+    BAD\ *) bad "${line#BAD }" ;;
+    "") ;;
+    *) bad "export 检查输出异常：$line" ;;
+  esac
+done <<< "$exp"
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL
