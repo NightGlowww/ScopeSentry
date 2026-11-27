@@ -40,8 +40,6 @@ const props = defineProps<{
   activeSegment?: 'tableSegment' | 'cardSegment' // 可选属性
   setActiveSegment?: (segment: 'tableSegment' | 'cardSegment', flag: boolean) => void // 可选方法
   getFilter: () => { [key: string]: any }
-  // 页面「发现时间」的起点，透传给导出弹窗做默认时间范围
-  timeFrom?: string
   iconData?: { value: string; number: number; icon_hash: string }[]
   // 资产页专用：打开「标签颜色」设置（issue #217）
   openTagColorSetting?: () => void

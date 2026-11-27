@@ -1082,7 +1082,6 @@ const confirmSelectedIcons = () => {
     :activeSegment="activeSegment"
     :setActiveSegment="setActiveSegment"
     :getFilter="getFilter"
-    :timeFrom="timeFrom"
     :iconData="AssetstatisticsData.Icon"
     :openTagColorSetting="openTagColorSetting"
     :openAddAsset="openAddAsset"
