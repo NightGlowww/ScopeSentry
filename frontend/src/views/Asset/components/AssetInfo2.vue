@@ -318,28 +318,15 @@ let crudSchemas = reactive<CrudSchema[]>([
           </ElTooltip>
         )
       }
-      let color = ''
-      if (statusValue < 300) {
-        color = '#2eb98a'
-      } else if (statusValue < 400) {
-        color = '#ff5252'
-      } else {
-        color = '#ff5252'
-      }
+      // 颜色语义：2xx 成功=绿，3xx 重定向=蓝（302 不是错误），
+      // 4xx 客户端错误=橙（401/403/404 在资产测绘里是常态，不该满屏红），5xx=红。
+      // 原实现把 3xx 和 4xx/5xx 一起涂成红色，导致整列 302 都是红的（2026-11-27 反馈）。
+      const color = statusColor(statusValue)
       return (
-        <ElRow gutter={10}>
-          <ElCol span={2}>
-            <Icon
-              icon="clarity:circle-solid"
-              color={color}
-              size={6}
-              style={'transform: translateY(-35%)'}
-            />
-          </ElCol>
-          <ElCol span={18}>
-            <ElText>{statusValue}</ElText>
-          </ElCol>
-        </ElRow>
+        <span style={'display:inline-flex;align-items:center;gap:6px;line-height:1'}>
+          <Icon icon="clarity:circle-solid" color={color} size={6} />
+          <span>{statusValue}</span>
+        </span>
       )
     },
     filters: [
@@ -699,7 +686,9 @@ let crudSchemas = reactive<CrudSchema[]>([
         </>
       )
     },
-    minWidth: 100
+    // 原来是 100px：两个按钮（详情 + 查看该主机漏洞）放不下，
+    // 第二个按钮被裁成「详情 …」，看着像多出来一个不知道含义的省略号（2026-11-27 反馈）
+    minWidth: 210
   }
 ])
 
@@ -1036,15 +1025,18 @@ const getAssetCardData = async () => {
     }
   })
 }
-const getStatusColor = (statusValue) => {
-  if (statusValue < 300) {
-    return '#2eb98a' // 绿色，表示成功
-  } else if (statusValue < 400) {
-    return '#ff9800' // 橙色，表示重定向
-  } else {
-    return '#ff5252' // 红色，表示错误
-  }
+// 状态码配色（表格与卡片共用，避免两处各写一套而语义不一致）
+// 2xx 绿 / 3xx 蓝 / 4xx 橙 / 5xx 红
+const statusColor = (statusValue: any): string => {
+  const n = Number(statusValue)
+  if (!Number.isFinite(n)) return '#909399' // 无效值用中性灰，不要伪装成错误
+  if (n >= 500) return '#f56c6c'
+  if (n >= 400) return '#e6a23c'
+  if (n >= 300) return '#409eff'
+  if (n >= 200) return '#2eb98a'
+  return '#909399'
 }
+const getStatusColor = (statusValue: any) => statusColor(statusValue)
 const getFilter = () => {
   return filter
 }
