@@ -417,5 +417,45 @@ while IFS= read -r line; do
     *) bad "MCP 治理检查输出异常：$line" ;;
   esac
 done <<< "$gov"
+
+# 25) 项目名称必填：空名字不写库（否则列表里出现一张没有标题的卡片）。
+#     注意只测「空/空白」——重名用例会真的建出一个项目，不能放进自动化。
+pj=$(python3 - "$BASE" "$TOKEN" <<'PY'
+import json, sys, urllib.request, urllib.error
+base, token = sys.argv[1], sys.argv[2]
+def post(path, body):
+    req = urllib.request.Request(base + path, data=json.dumps(body).encode(), method='POST',
+        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
+    try:
+        r = urllib.request.urlopen(req, timeout=60)
+        return r.getcode(), json.loads(r.read().decode() or '{}')
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read().decode() or '{}')
+        except Exception:
+            return e.code, {}
+out = []
+for body in ({}, {'name': ''}, {'name': '   '}):
+    c, d = post('/api/project/add', body)
+    out.append('OK 项目名称为空被拒（%s）' % json.dumps(body, ensure_ascii=False)
+               if c == 400 else 'BAD 空名称没被拒：%s -> %s' % (json.dumps(body, ensure_ascii=False), c))
+_, allp = post('/api/project/data', {'pageIndex': 1, 'pageSize': 50})
+res = ((allp.get('data') or {}).get('result') or {})
+projs = {p.get('id'): p for grp in res.values() for p in grp if p.get('id')}
+names = [p.get('name') for p in projs.values()]
+bad = [n for n in names if not (n or '').strip()]
+out.append('OK 项目列表里没有空标题卡片（去重后 %d 个）' % len(names) if not bad
+           else 'BAD 列表里出现空标题项目：%s' % bad)
+print(chr(10).join(out))
+PY
+)
+while IFS= read -r line; do
+  case "$line" in
+    OK\ *) ok "${line#OK }" ;;
+    BAD\ *) bad "${line#BAD }" ;;
+    "") ;;
+    *) bad "项目名校验输出异常：$line" ;;
+  esac
+done <<< "$pj"
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL
