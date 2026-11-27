@@ -55,6 +55,10 @@ func GetPortData(c *gin.Context) {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
+	// 空结果回 []，别回 null：前端直接 res.data.list.map() 时 null 会炸（同 export/records 那条不变量）
+	if list == nil {
+		list = []models.PortDoc{}
+	}
 	response.Success(c, gin.H{"list": list, "total": total}, "api.success")
 }
 
