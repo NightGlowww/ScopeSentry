@@ -54,7 +54,7 @@ const saveLoading = ref(false)
     <template #header>
       <ElRow>
         <ElCol :span="3" style="height: 100%">
-          <span>{{ t('configuration.rad') }}</span>
+          <span>{{ t('rad.title') }}</span>
         </ElCol>
         <ElCol :span="2" :offset="19">
           <ElButton type="primary" @click="confirmAdd" :loading="saveLoading">{{

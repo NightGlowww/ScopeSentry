@@ -1087,6 +1087,22 @@ export default {
       '이 노드를 기다리는 작업 {n}개: 노드는 한 번에 하나만 실행하므로 앞 작업이 끝나야 시작됩니다'
   },
   task: {
+    module: {
+      TargetHandler: '대상분석',
+      SubdomainScan: '서브도메인 스캔',
+      SubdomainSecurity: '서브도메인 보안 검사',
+      PortScanPreparation: '포트 스캔 준비',
+      PortScan: '포트 스캔',
+      PortFingerprint: '포트 핑거프린트',
+      AssetMapping: '자산 매핑',
+      AssetHandle: '자산 처리',
+      URLScan: 'URL 스캔',
+      WebCrawler: '크롤러',
+      URLSecurity: 'URL 보안 검사',
+      DirScan: '디렉터리 스캔',
+      VulnerabilityScan: '취약점 스캔',
+      PageMonitoring: '페이지 모니터링'
+    },
     failCode: {
       phantomNoProgress:
         '실행 중으로 표시되어 있지만 어떤 노드도 실행 중이 아니고 대기열에도 없으며 {since} 동안 진행 기록이 없습니다. 실패로 판정했습니다 — 재테스트로 다시 실행하세요',
@@ -1558,7 +1574,36 @@ export default {
       '"{name}" API Key를 삭제하시겠습니까? 이 키를 사용하는 MCP 클라이언트가 더 이상 연결되지 않습니다.',
     usageTitle: 'MCP 연동',
     usageDesc:
-      'API Key는 Cursor 등의 MCP 클라이언트가 ScopeSentry에 인증할 때 사용합니다. 생성 후 MCP 클라이언트의 헤더에 키를 설정하세요.'
+      'API Key는 Cursor 등의 MCP 클라이언트가 ScopeSentry에 인증할 때 사용합니다. 생성 후 MCP 클라이언트의 헤더에 키를 설정하세요.',
+    exampleApiKey: 'YOUR_API_KEY',
+    toolCatalogButton: '도구 목록 ({count})',
+    catalogTitle: 'MCP 도구·권한 대응표',
+    catalogSearchPlaceholder: '도구 이름 또는 scope 로 검색',
+    catalogSummary:
+      '총 {n}개 도구, 목록은 백엔드 mcpguard.ToolScopes 에서 가져오며 새 도구는 자동으로 표시됩니다',
+    catalogToolColumn: '도구',
+    catalogScopeColumn: '필요한 scope',
+    scopeAssetRead:
+      'asset:read (자산/POC/지문/사전/대시보드/자산 그룹/자산 범위/ICP/감사, 읽기 전용)',
+    scopeAssetWrite:
+      'asset:write (태그 지정/내보내기/규칙 활성화·비활성화/사전 관리/자산 그룹 생성/자산 그룹 삭제/자산 범위 생성)',
+    scopeIcpWrite: 'icp:write (ICP 주체 작업 생성/ICP 작업 중지)',
+    scopeTaskRead: 'task:read (작업, 스캔 정책 조회)',
+    scopeTaskWrite: 'task:write (작업 시작·중지·삭제, 정책 추가·삭제)',
+    scopePluginWrite: 'plugin:write (플러그인 설치/재검사/제거)',
+    scopeNodeWrite: 'node:write (노드 재시작/삭제)',
+    scopeToolCount: '{n}개 도구',
+    scopeHistory: '* (기존 키)',
+    rateLimitPerMin: '분당 한도',
+    rateUnlimited: '제한 없음',
+    expiresColumn: '만료',
+    expiresNever: '영구',
+    actionDisable: '비활성화',
+    actionEnable: '활성화',
+    toolsWhitelist: '도구 허용 목록',
+    toolsPlaceholder: '비우면 선택한 scope 의 모든 도구, list_* 같은 접두사도 입력할 수 있습니다',
+    toolsSelected: '선택 {n}개, 비어 있으면 제한 없음',
+    rateFollowGlobal: '0 = 전역 설정 따름'
   },
   configuration: {
     subfinder: 'subfinder 설정',
@@ -2340,5 +2385,23 @@ export default {
     levelMedium: '중간',
     levelLow: '낮음',
     levelInfo: '정보'
+  },
+
+  rad: {
+    title: 'rad 설정'
+  },
+  auditLog: {
+    time: '시간',
+    operator: '작업자',
+    method: '메서드',
+    path: '엔드포인트',
+    status: '상태',
+    durationMs: '소요 시간(ms)',
+    ip: 'IP',
+    userAgent: 'User-Agent',
+    pathPlaceholder: '경로 키워드, 예: /api/task',
+    query: '조회',
+    reset: '초기화',
+    emptyText: '데이터 없음'
   }
 }

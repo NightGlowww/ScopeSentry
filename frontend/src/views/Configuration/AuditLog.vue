@@ -4,8 +4,11 @@ import { ElButton, ElCol, ElRow, ElInput, ElSelect, ElOption, ElTag } from 'elem
 import { ContentWrap } from '@/components/ContentWrap'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
+import { useI18n } from '@/hooks/web/useI18n'
 import { listAuditLogsApi } from '@/api/audit'
 import { formatTime } from '@/utils'
+
+const { t } = useI18n('auditLog')
 
 const filters = reactive({
   user: '',
@@ -24,22 +27,30 @@ const statusOptions = [
 const fmt = (v?: string) => (v ? formatTime(v, 'yyyy-MM-dd HH:mm:ss') : '-')
 
 const columns = reactive<TableColumn[]>([
-  { field: 'at', label: '时间', minWidth: 165, formatter: (_r, __: TableColumn, v?: string) => fmt(v) },
-  { field: 'user', label: '操作者', width: 120 },
+  {
+    field: 'at',
+    label: t('time'),
+    minWidth: 165,
+    formatter: (_r, __: TableColumn, v?: string) => fmt(v)
+  },
+  { field: 'user', label: t('operator'), width: 120 },
   {
     field: 'method',
-    label: '方法',
+    label: t('method'),
     width: 90,
     formatter: (_r, __: TableColumn, v: string) => (
-      <ElTag type={v === 'DELETE' ? 'danger' : v === 'POST' || v === 'PUT' ? 'warning' : 'info'} effect="light">
+      <ElTag
+        type={v === 'DELETE' ? 'danger' : v === 'POST' || v === 'PUT' ? 'warning' : 'info'}
+        effect="light"
+      >
         {v}
       </ElTag>
     )
   },
-  { field: 'path', label: '接口', minWidth: 240 },
+  { field: 'path', label: t('path'), minWidth: 240 },
   {
     field: 'status',
-    label: '状态',
+    label: t('status'),
     width: 90,
     formatter: (_r, __: TableColumn, v: number) => (
       <ElTag type={v >= 500 ? 'danger' : v >= 400 ? 'warning' : 'success'} effect="light">
@@ -47,9 +58,9 @@ const columns = reactive<TableColumn[]>([
       </ElTag>
     )
   },
-  { field: 'durationMs', label: '耗时(ms)', width: 100 },
-  { field: 'ip', label: 'IP', minWidth: 130 },
-  { field: 'ua', label: 'User-Agent', minWidth: 200 }
+  { field: 'durationMs', label: t('durationMs'), width: 100 },
+  { field: 'ip', label: t('ip'), minWidth: 130 },
+  { field: 'ua', label: t('userAgent'), minWidth: 200 }
 ])
 
 const { tableRegister, tableState, tableMethods } = useTable({
@@ -84,24 +95,29 @@ const reset = () => {
   <ContentWrap>
     <ElRow :gutter="12" class="mb-10px">
       <ElCol :span="4">
-        <ElInput v-model="filters.user" placeholder="操作者" clearable />
+        <ElInput v-model="filters.user" :placeholder="t('operator')" clearable />
       </ElCol>
       <ElCol :span="5">
-        <ElInput v-model="filters.path" placeholder="接口路径关键字，如 /api/task" clearable />
+        <ElInput v-model="filters.path" :placeholder="t('pathPlaceholder')" clearable />
       </ElCol>
       <ElCol :span="3">
-        <ElSelect v-model="filters.method" placeholder="方法" clearable style="width: 100%">
+        <ElSelect v-model="filters.method" :placeholder="t('method')" clearable style="width: 100%">
           <ElOption v-for="m in methodOptions" :key="m" :label="m" :value="m" />
         </ElSelect>
       </ElCol>
       <ElCol :span="3">
-        <ElSelect v-model="filters.statusMin" placeholder="状态" clearable style="width: 100%">
+        <ElSelect
+          v-model="filters.statusMin"
+          :placeholder="t('status')"
+          clearable
+          style="width: 100%"
+        >
           <ElOption v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
         </ElSelect>
       </ElCol>
       <ElCol :span="6">
-        <ElButton type="primary" @click="getList">查询</ElButton>
-        <ElButton @click="reset">重置</ElButton>
+        <ElButton type="primary" @click="getList">{{ t('query') }}</ElButton>
+        <ElButton @click="reset">{{ t('reset') }}</ElButton>
       </ElCol>
     </ElRow>
 
@@ -110,6 +126,7 @@ const reset = () => {
       v-model:currentPage="currentPage"
       :columns="columns"
       :data="dataList"
+      :empty-text="t('emptyText')"
       stripe
       border
       :loading="loading"

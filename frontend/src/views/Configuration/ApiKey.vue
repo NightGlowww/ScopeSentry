@@ -41,37 +41,36 @@ import { formatTime } from '@/utils'
 const { t } = useI18n()
 const { copy, copied } = useClipboard()
 
-const mcpConfigExample = `{
+const mcpConfigExample = computed(
+  () => `{
   "mcpServers": {
     "scopesentry": {
       "url": "http://your-host:8082/mcp",
       "headers": {
-        "X-API-Key": "ssk_你的密钥"
+        "X-API-Key": "ssk_${t('apiKey.exampleApiKey')}"
       }
     }
   }
 }`
+)
 
 // 与后端 mcpguard 的 scope 常量一一对应
-const SCOPE_OPTIONS = [
-  { value: 'asset:read', label: 'asset:read（资产/POC/指纹/字典/看板/资产组/地契/ICP/审计 只读）' },
-  {
-    value: 'asset:write',
-    label: 'asset:write（打标签/导出/规则启停/字典维护/建资产组/删资产组/建地契）'
-  },
-  { value: 'icp:write', label: 'icp:write（建 ICP 主体任务/停止 ICP 任务）' },
-  { value: 'task:read', label: 'task:read（任务、扫描策略查询）' },
-  { value: 'task:write', label: 'task:write（任务启停删、策略增删）' },
+const SCOPE_OPTIONS = computed<{ value: string; label: string }[]>(() => [
+  { value: 'asset:read', label: t('apiKey.scopeAssetRead') },
+  { value: 'asset:write', label: t('apiKey.scopeAssetWrite') },
+  { value: 'icp:write', label: t('apiKey.scopeIcpWrite') },
+  { value: 'task:read', label: t('apiKey.scopeTaskRead') },
+  { value: 'task:write', label: t('apiKey.scopeTaskWrite') },
   { value: 'project:read', label: 'project:read' },
   { value: 'project:write', label: 'project:write' },
   { value: 'template:read', label: 'template:read' },
   { value: 'template:write', label: 'template:write' },
   { value: 'plugin:read', label: 'plugin:read' },
-  { value: 'plugin:write', label: 'plugin:write（插件安装/重检/卸载）' },
+  { value: 'plugin:write', label: t('apiKey.scopePluginWrite') },
   { value: 'node:read', label: 'node:read' },
-  { value: 'node:write', label: 'node:write（节点重启/删除）' },
+  { value: 'node:write', label: t('apiKey.scopeNodeWrite') },
   { value: '*', label: '*' }
-]
+])
 
 // 工具 ↔ scope 对照：来自后端 mcpguard.ToolScopes（唯一真相源）。
 // 只写死在界面上的「asset:read（资产/…只读）」解释不了「这个 scope 到底能调几个工具」。
@@ -100,7 +99,7 @@ const openToolCatalog = async () => {
 }
 const scopeLabel = (o: { value: string; label: string }) => {
   const n = scopeTools.value[o.value]
-  return n ? `${o.label} · ${n} 个工具` : o.label
+  return n ? `${o.label} · ${t('apiKey.scopeToolCount', { n })}` : o.label
 }
 // 工具白名单候选：只列当前已选 scope 下的工具（选了 * 就给全部）。
 // 空选 = 不限制，按 scope 放行全部 —— 与后端 ToolAllowed 的语义一致。
@@ -112,7 +111,9 @@ const toolsForScopes = (scopes: string[]) => {
 const filteredCatalog = computed(() => {
   const q = catalogSearch.value.trim().toLowerCase()
   if (!q) return toolCatalog.value
-  return toolCatalog.value.filter((it) => it.name.toLowerCase().includes(q) || it.scope.toLowerCase().includes(q))
+  return toolCatalog.value.filter(
+    (it) => it.name.toLowerCase().includes(q) || it.scope.toLowerCase().includes(q)
+  )
 })
 
 const formatDateTime = (value?: string) => {
@@ -136,21 +137,23 @@ const columns = reactive<TableColumn[]>([
     label: 'Scope',
     minWidth: 200,
     formatter: (_row, __: TableColumn, value: string[]) => {
-      if (!value || value.length === 0) return '*（历史 key）'
+      if (!value || value.length === 0) return t('apiKey.scopeHistory')
       return value.join(', ')
     }
   },
   {
     field: 'rateLimitPerMin',
-    label: '限速/分',
+    label: t('apiKey.rateLimitPerMin'),
     width: 90,
-    formatter: (_row, __: TableColumn, value: number) => (value ? String(value) : '不限')
+    formatter: (_row, __: TableColumn, value: number) =>
+      value ? String(value) : t('apiKey.rateUnlimited')
   },
   {
     field: 'expiresAt',
-    label: '过期',
+    label: t('apiKey.expiresColumn'),
     minWidth: 160,
-    formatter: (_row, __: TableColumn, value?: string) => (value ? formatDateTime(value) : '长期')
+    formatter: (_row, __: TableColumn, value?: string) =>
+      value ? formatDateTime(value) : t('apiKey.expiresNever')
   },
   {
     field: 'createdBy',
@@ -185,9 +188,11 @@ const columns = reactive<TableColumn[]>([
     width: 190,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
-        <BaseButton type="primary" onClick={() => openEditDialog(row)}>{t('apiKey.edit')}</BaseButton>
+        <BaseButton type="primary" onClick={() => openEditDialog(row)}>
+          {t('apiKey.edit')}
+        </BaseButton>
         <BaseButton type={row.enabled ? 'warning' : 'success'} onClick={() => handleToggle(row)}>
-          {row.enabled ? '禁用' : '启用'}
+          {row.enabled ? t('apiKey.actionDisable') : t('apiKey.actionEnable')}
         </BaseButton>
         <BaseButton type="danger" onClick={() => handleDelete(row)}>
           {t('common.delete')}
@@ -263,7 +268,13 @@ const editDialogVisible = ref(false)
 const editLoading = ref(false)
 const editingId = ref('')
 // tools 改成数组：原来是一串逗号文本，用户得自己敲工具名，敲错一个就是「明明给了权限却调不动」
-const editForm = ref({ name: '', scope: [] as string[], tools: [] as string[], rateLimitPerMin: 0, expiresAt: '' })
+const editForm = ref({
+  name: '',
+  scope: [] as string[],
+  tools: [] as string[],
+  rateLimitPerMin: 0,
+  expiresAt: ''
+})
 
 const openEditDialog = (row) => {
   editingId.value = row.id
@@ -346,7 +357,9 @@ const closeKeyDialog = () => {
         <ElButton type="primary" @click="openCreateDialog">{{ t('apiKey.createTitle') }}</ElButton>
       </ElCol>
       <ElCol :span="4">
-        <ElButton @click="openToolCatalog">工具清单（{{ toolCatalog.length || '…' }}）</ElButton>
+        <ElButton @click="openToolCatalog">{{
+          t('apiKey.toolCatalogButton', { count: toolCatalog.length || '…' })
+        }}</ElButton>
       </ElCol>
     </ElRow>
 
@@ -375,10 +388,15 @@ const closeKeyDialog = () => {
       </ElFormItem>
       <ElFormItem label="Scope">
         <ElSelect v-model="editForm.scope" multiple filterable style="width: 100%">
-          <ElOption v-for="o in SCOPE_OPTIONS" :key="o.value" :label="scopeLabel(o)" :value="o.value" />
+          <ElOption
+            v-for="o in SCOPE_OPTIONS"
+            :key="o.value"
+            :label="scopeLabel(o)"
+            :value="o.value"
+          />
         </ElSelect>
       </ElFormItem>
-      <ElFormItem label="工具白名单">
+      <ElFormItem :label="t('apiKey.toolsWhitelist')">
         <ElSelect
           v-model="editForm.tools"
           multiple
@@ -388,37 +406,53 @@ const closeKeyDialog = () => {
           collapse-tags
           collapse-tags-tooltip
           style="width: 100%"
-          placeholder="留空 = 该 scope 下全部工具；也可输入 list_* 这类前缀"
+          :placeholder="t('apiKey.toolsPlaceholder')"
         >
           <ElOption v-for="n in toolsForScopes(editForm.scope)" :key="n" :label="n" :value="n" />
         </ElSelect>
-        <div class="hint-text">已选 {{ editForm.tools.length }} 个；空 = 不限制</div>
+        <div class="hint-text">{{ t('apiKey.toolsSelected', { n: editForm.tools.length }) }}</div>
       </ElFormItem>
-      <ElFormItem label="限速/分">
-        <ElInputNumber v-model="editForm.rateLimitPerMin" :min="0" :max="100000" controls-position="right" />
+      <ElFormItem :label="t('apiKey.rateLimitPerMin')">
+        <ElInputNumber
+          v-model="editForm.rateLimitPerMin"
+          :min="0"
+          :max="100000"
+          controls-position="right"
+        />
       </ElFormItem>
       <ElFormItem :label="t('apiKey.expiresAt')">
-        <ElDatePicker v-model="editForm.expiresAt" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+        <ElDatePicker
+          v-model="editForm.expiresAt"
+          type="date"
+          value-format="YYYY-MM-DD"
+          style="width: 100%"
+        />
       </ElFormItem>
     </ElForm>
     <template #footer>
       <div style="text-align: right">
         <ElButton @click="editDialogVisible = false">{{ t('common.cancel') }}</ElButton>
-        <ElButton type="primary" :loading="editLoading" @click="handleSaveEdit">{{ t('common.save') }}</ElButton>
+        <ElButton type="primary" :loading="editLoading" @click="handleSaveEdit">{{
+          t('common.save')
+        }}</ElButton>
       </div>
     </template>
   </Dialog>
 
-  <Dialog v-model="catalogVisible" title="MCP 工具与权限对照" center :maxHeight="560">
+  <Dialog v-model="catalogVisible" :title="t('apiKey.catalogTitle')" center :maxHeight="560">
     <div class="catalog-toolbar">
-      <ElInput v-model="catalogSearch" placeholder="按工具名或 scope 搜索" clearable />
+      <ElInput
+        v-model="catalogSearch"
+        :placeholder="t('apiKey.catalogSearchPlaceholder')"
+        clearable
+      />
       <span class="catalog-hint">
-        共 {{ toolCatalog.length }} 个工具；列表来自后端 mcpguard.ToolScopes，新增工具会在这里自动出现
+        {{ t('apiKey.catalogSummary', { n: toolCatalog.length }) }}
       </span>
     </div>
     <ElTable :data="filteredCatalog" size="small" max-height="420" style="width: 100%">
-      <ElTableColumn prop="name" label="工具" min-width="240" />
-      <ElTableColumn prop="scope" label="所需 scope" width="160" />
+      <ElTableColumn prop="name" :label="t('apiKey.catalogToolColumn')" min-width="240" />
+      <ElTableColumn prop="scope" :label="t('apiKey.catalogScopeColumn')" width="160" />
     </ElTable>
     <template #footer>
       <div style="text-align: right">
@@ -450,7 +484,7 @@ const closeKeyDialog = () => {
           </ElCheckbox>
         </ElCheckboxGroup>
       </ElFormItem>
-      <ElFormItem label="工具白名单">
+      <ElFormItem :label="t('apiKey.toolsWhitelist')">
         <ElSelect
           v-model="form.tools"
           multiple
@@ -460,15 +494,15 @@ const closeKeyDialog = () => {
           collapse-tags
           collapse-tags-tooltip
           style="width: 100%"
-          placeholder="留空 = 该 scope 下全部工具；也可输入 list_* 这类前缀"
+          :placeholder="t('apiKey.toolsPlaceholder')"
         >
           <ElOption v-for="n in toolsForScopes(form.scope)" :key="n" :label="n" :value="n" />
         </ElSelect>
-        <div class="hint-text">已选 {{ form.tools.length }} 个；空 = 不限制</div>
+        <div class="hint-text">{{ t('apiKey.toolsSelected', { n: form.tools.length }) }}</div>
       </ElFormItem>
-      <ElFormItem label="限速/分">
+      <ElFormItem :label="t('apiKey.rateLimitPerMin')">
         <ElInputNumber v-model="form.rateLimitPerMin" :min="0" :max="100000" />
-        <span class="hint-text">0 = 跟随全局配置</span>
+        <span class="hint-text">{{ t('apiKey.rateFollowGlobal') }}</span>
       </ElFormItem>
       <ElFormItem>
         <ElButton type="primary" :loading="createLoading" @click="handleCreate">

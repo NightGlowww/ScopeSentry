@@ -1094,6 +1094,22 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    module: {
+      TargetHandler: 'Target parsing',
+      SubdomainScan: 'Subdomain scan',
+      SubdomainSecurity: 'Subdomain security',
+      PortScanPreparation: 'Port scan prep',
+      PortScan: 'Port scan',
+      PortFingerprint: 'Port fingerprint',
+      AssetMapping: 'Asset mapping',
+      AssetHandle: 'Asset handling',
+      URLScan: 'URL scan',
+      WebCrawler: 'Crawler',
+      URLSecurity: 'URL security',
+      DirScan: 'Directory scan',
+      VulnerabilityScan: 'Vulnerability scan',
+      PageMonitoring: 'Page monitoring'
+    },
     failCode: {
       phantomNoProgress:
         'Marked as running, but no node is working on it and it is not queued either, with no progress written for {since}; judged failed — retest to run it again',
@@ -1570,7 +1586,37 @@ export default {
     deleteConfirm: 'Delete API Key "{name}"? MCP clients using this key will stop working.',
     usageTitle: 'MCP Integration',
     usageDesc:
-      'API Keys authenticate MCP clients (such as Cursor) to ScopeSentry. Configure the key in your MCP client headers after creation.'
+      'API Keys authenticate MCP clients (such as Cursor) to ScopeSentry. Configure the key in your MCP client headers after creation.',
+    exampleApiKey: 'YOUR_API_KEY',
+    toolCatalogButton: 'Tool Catalog ({count})',
+    catalogTitle: 'MCP Tools and Permissions',
+    catalogSearchPlaceholder: 'Search by tool name or scope',
+    catalogSummary:
+      '{n} tools in total; the list comes from the backend mcpguard.ToolScopes, and new tools appear here automatically',
+    catalogToolColumn: 'Tool',
+    catalogScopeColumn: 'Required Scope',
+    scopeAssetRead:
+      'asset:read (assets/POCs/fingerprints/dictionaries/dashboard/asset groups/asset scopes/ICP/audit, read-only)',
+    scopeAssetWrite:
+      'asset:write (tagging/export/rule toggle/dictionary maintenance/create asset group/delete asset group/create asset scope)',
+    scopeIcpWrite: 'icp:write (create ICP entity task/stop ICP task)',
+    scopeTaskRead: 'task:read (tasks, scan policy queries)',
+    scopeTaskWrite: 'task:write (start/stop/delete tasks, add/delete policies)',
+    scopePluginWrite: 'plugin:write (install/recheck/uninstall plugins)',
+    scopeNodeWrite: 'node:write (restart/delete nodes)',
+    scopeToolCount: '{n} tools',
+    scopeHistory: '* (legacy key)',
+    rateLimitPerMin: 'Rate Limit/min',
+    rateUnlimited: 'Unlimited',
+    expiresColumn: 'Expires',
+    expiresNever: 'Never',
+    actionDisable: 'Disable',
+    actionEnable: 'Enable',
+    toolsWhitelist: 'Tool Allowlist',
+    toolsPlaceholder:
+      'Leave empty for all tools in the selected scope; prefixes such as list_* are also accepted',
+    toolsSelected: 'Selected {n}; empty = no restriction',
+    rateFollowGlobal: '0 = follow global configuration'
   },
   configuration: {
     subfinder: 'subfinder configuration',
@@ -2367,5 +2413,23 @@ export default {
     levelMedium: 'Medium',
     levelLow: 'Low',
     levelInfo: 'Info'
+  },
+
+  rad: {
+    title: 'rad configuration'
+  },
+  auditLog: {
+    time: 'Time',
+    operator: 'Operator',
+    method: 'Method',
+    path: 'Endpoint',
+    status: 'Status',
+    durationMs: 'Duration (ms)',
+    ip: 'IP',
+    userAgent: 'User-Agent',
+    pathPlaceholder: 'Path keyword, e.g. /api/task',
+    query: 'Query',
+    reset: 'Reset',
+    emptyText: 'No Data'
   }
 }

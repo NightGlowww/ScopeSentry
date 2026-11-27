@@ -1061,6 +1061,22 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    module: {
+      TargetHandler: '目标解析',
+      SubdomainScan: '子域名扫描',
+      SubdomainSecurity: '子域安全检测',
+      PortScanPreparation: '端口扫描预处理',
+      PortScan: '端口扫描',
+      PortFingerprint: '端口指纹识别',
+      AssetMapping: '资产映射',
+      AssetHandle: '资产处理',
+      URLScan: 'URL 扫描',
+      WebCrawler: '爬虫',
+      URLSecurity: 'URL 安全检测',
+      DirScan: '目录扫描',
+      VulnerabilityScan: '漏洞扫描',
+      PageMonitoring: '页面监控'
+    },
     failCode: {
       phantomNoProgress:
         '任务标记为运行中，但没有任何节点在跑、也不在队列里，且 {since} 没有进度写入；判定为失败，可重新测试重跑',
@@ -1526,7 +1542,33 @@ export default {
     deleteConfirm: '确定要删除 API Key「{name}」吗？删除后使用该 Key 的 MCP 客户端将无法连接。',
     usageTitle: 'MCP 集成说明',
     usageDesc:
-      'API Key 用于 MCP 客户端（如 Cursor）连接 ScopeSentry。创建后请将 Key 配置到 MCP 客户端的 headers 中。'
+      'API Key 用于 MCP 客户端（如 Cursor）连接 ScopeSentry。创建后请将 Key 配置到 MCP 客户端的 headers 中。',
+    exampleApiKey: '你的密钥',
+    toolCatalogButton: '工具清单（{count}）',
+    catalogTitle: 'MCP 工具与权限对照',
+    catalogSearchPlaceholder: '按工具名或 scope 搜索',
+    catalogSummary: '共 {n} 个工具；列表来自后端 mcpguard.ToolScopes，新增工具会在这里自动出现',
+    catalogToolColumn: '工具',
+    catalogScopeColumn: '所需 scope',
+    scopeAssetRead: 'asset:read（资产/POC/指纹/字典/看板/资产组/地契/ICP/审计 只读）',
+    scopeAssetWrite: 'asset:write（打标签/导出/规则启停/字典维护/建资产组/删资产组/建地契）',
+    scopeIcpWrite: 'icp:write（建 ICP 主体任务/停止 ICP 任务）',
+    scopeTaskRead: 'task:read（任务、扫描策略查询）',
+    scopeTaskWrite: 'task:write（任务启停删、策略增删）',
+    scopePluginWrite: 'plugin:write（插件安装/重检/卸载）',
+    scopeNodeWrite: 'node:write（节点重启/删除）',
+    scopeToolCount: '{n} 个工具',
+    scopeHistory: '*（历史 key）',
+    rateLimitPerMin: '限速/分',
+    rateUnlimited: '不限',
+    expiresColumn: '过期',
+    expiresNever: '长期',
+    actionDisable: '禁用',
+    actionEnable: '启用',
+    toolsWhitelist: '工具白名单',
+    toolsPlaceholder: '留空 = 该 scope 下全部工具；也可输入 list_* 这类前缀',
+    toolsSelected: '已选 {n} 个；空 = 不限制',
+    rateFollowGlobal: '0 = 跟随全局配置'
   },
   configuration: {
     subfinder: 'subfinder配置',
@@ -2303,5 +2345,23 @@ export default {
     levelMedium: '中危',
     levelLow: '低危',
     levelInfo: '信息'
+  },
+
+  rad: {
+    title: 'rad配置'
+  },
+  auditLog: {
+    time: '时间',
+    operator: '操作者',
+    method: '方法',
+    path: '接口',
+    status: '状态',
+    durationMs: '耗时(ms)',
+    ip: 'IP',
+    userAgent: 'User-Agent',
+    pathPlaceholder: '接口路径关键字，如 /api/task',
+    query: '查询',
+    reset: '重置',
+    emptyText: '暂无数据'
   }
 }

@@ -248,7 +248,7 @@ const taskColums = reactive<TableColumn[]>([
         h(
           'div',
           { class: slow ? 'progress-sub progress-sub--slow' : 'progress-sub' },
-          moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed
+          moduleStageLabel(mod, t) + ' @ ' + (row.currentTarget || '-') + elapsed
         ),
         // 预计剩余：按「已用时间 ÷ 已完成比例」线性外推。
         // 百分比本身回答不了「还要多久」，这是最常见的追问（2026-11-21）。
