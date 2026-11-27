@@ -140,6 +140,31 @@ const taskColums = reactive<TableColumn[]>([
     }
   },
   {
+    field: 'status',
+    label: t('common.state'),
+    formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
+      // 与任务页同一套配色：待开始/运行中/暂停/完成/失败
+      const map: Record<number, { type: any; text: string }> = {
+        0: { type: 'primary', text: t('task.waitStart') },
+        1: { type: 'info', text: t('task.running') },
+        2: { type: 'warning', text: t('task.stop') },
+        3: { type: 'success', text: t('task.finish') },
+        4: { type: 'danger', text: t('task.failed') }
+      }
+      const item = map[cellValue] || { type: 'default', text: '—' }
+      // 排队中额外说明：状态是待开始但进度不为 0，就是「排在别人后面等着重跑」
+      const tip =
+        cellValue === 0 && Number(row?.progress) > 0
+          ? row?.queuePos
+            ? t('task.queuedAt', { n: row.queuePos })
+            : t('task.queuedHint')
+          : String(row?.failReason || '')
+      return h(ElTooltip, { effect: 'dark', placement: 'left', content: tip, disabled: !tip }, () =>
+        h(ElTag, { type: item.type, size: 'small' }, () => item.text)
+      )
+    }
+  },
+  {
     field: 'creatTime',
     label: t('task.createTime')
   }
@@ -276,18 +301,28 @@ const taskData = ref<
     name: string
     taskNum: string
     progress: string
+    status: number
+    // 排队信息：进度 92% 但状态是「待开始」时，只有这两个字段能解释为什么
+    queued?: boolean
+    queuePos?: number
+    failReason?: string
     creatTime: string
   }[]
 >([])
 
 const getTaskData = async () => {
   const res = await getTaskDataApi('', 1, 10)
-  console.log(res)
+  // 只挑表格要用的字段，但 status/排队信息必须带上：
+  // 首页只看进度条会把「排队中 92%」误读成「跑到 92% 卡住了」（2026-11-28）
   taskData.value = reactive(
     res.data.list.map((task) => ({
       name: task.name,
       taskNum: task.taskNum,
       progress: task.progress,
+      status: task.status,
+      queued: task.queued,
+      queuePos: task.queuePos,
+      failReason: task.failReason,
       creatTime: task.creatTime
     }))
   )

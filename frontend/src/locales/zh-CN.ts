@@ -1062,6 +1062,8 @@ export default {
     cmdFailHint: '本次工具失败 {n} 次，产出可能不完整',
     exportTask: '导出任务结果（CSV 包）',
     exportTaskXlsx: '导出任务结果（Excel 多表）',
+    queuedAt: '排队中：第 {n} 位，等前面的任务跑完',
+    queuedHint: '排队中：等待节点领取（进度来自上一轮，不代表这次跑到这里）',
     output: '产出',
     outputAsset: '资产 {n}',
     outputSubdomain: '子域名 {n}',
