@@ -330,17 +330,38 @@ func (s *Service) Resume(ctx context.Context, id string) (*models.IcpTask, error
 }
 
 // Stop 暂停任务；已完成的任务不覆写状态
+//
+// 日志只给真实存在且处于可暂停状态的任务写：早期实现对传入的每个 id 无条件 appendLog，
+// 于是对不存在的 id 调 stop 会在 icp_task_log 里留下一条幻影「收到停止请求」，
+// 再 delete 同一个 id 就会返回 deletedLogs=1 —— 任务从来没存在过，日志却说删掉了一条。
 func (s *Service) Stop(ctx context.Context, ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, fmt.Errorf("%w: ids 不能为空", ErrInvalidInput)
 	}
-	updated, err := s.tasks.SetState(ctx, ids, models.IcpTaskStatePaused, []int{
+	existing, err := s.tasks.GetMany(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	if len(existing) == 0 {
+		return 0, fmt.Errorf("%w: %s", ErrTaskNotFound, strings.Join(ids, ","))
+	}
+	stoppable := make([]string, 0, len(existing))
+	for i := range existing {
+		switch existing[i].State {
+		case models.IcpTaskStateWaiting, models.IcpTaskStateRunning, models.IcpTaskStatePaused:
+			stoppable = append(stoppable, existing[i].ID.Hex())
+		}
+	}
+	if len(stoppable) == 0 {
+		return 0, nil
+	}
+	updated, err := s.tasks.SetState(ctx, stoppable, models.IcpTaskStatePaused, []int{
 		models.IcpTaskStateWaiting, models.IcpTaskStateRunning, models.IcpTaskStatePaused,
 	})
 	if err != nil {
 		return 0, err
 	}
-	for _, id := range ids {
+	for _, id := range stoppable {
 		s.appendLog(ctx, id, IcpLogLevelWarn, "收到停止请求：任务进入暂停（可 resume 继续）")
 	}
 	return updated, nil
@@ -362,6 +383,10 @@ func (s *Service) Delete(ctx context.Context, ids []string) (int64, int64, int64
 	logs, err := s.logs.DeleteByTaskIDs(ctx, ids)
 	if err != nil {
 		return tasks, results, logs, err
+	}
+	// 一条都没删掉说明这些 id 根本不存在：返回 404，而不是 200 + 全零让前端弹「已删除」
+	if tasks == 0 && results == 0 && logs == 0 {
+		return 0, 0, 0, fmt.Errorf("%w: %s", ErrTaskNotFound, strings.Join(ids, ","))
 	}
 	return tasks, results, logs, nil
 }

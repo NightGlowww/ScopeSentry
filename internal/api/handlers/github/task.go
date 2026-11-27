@@ -2,6 +2,7 @@ package github
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -184,6 +185,11 @@ func DeleteTasks(c *gin.Context) {
 			return
 		}
 		response.InternalServerError(c, "api.server_error", err)
+		return
+	}
+	// 一条都没删掉说明这些 id 根本不存在：返回 404，而不是 200 + 全零
+	if tasks == 0 && results == 0 {
+		response.NotFound(c, "api.not_found", fmt.Errorf("%w: %s", githubrepo.ErrTaskNotFound, strings.Join(ids, ",")))
 		return
 	}
 	response.Success(c, gin.H{"deletedTasks": tasks, "deletedResults": results, "ids": ids}, "api.success")

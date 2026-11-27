@@ -47,6 +47,10 @@ type TaskRepository interface {
 	FinishRun(ctx context.Context, id string, state int, stats models.IcpTaskStats, lastError string) error
 	// SetState 批量改状态，from 为空表示不限制来源状态
 	SetState(ctx context.Context, ids []string, state int, from []int) (int64, error)
+	// GetMany 批量取任务。写日志前必须先确认任务真实存在：
+	// 否则给一个不存在的 id 调 stop，就会在 icp_task_log 里留下一条幻影「收到停止请求」，
+	// 随后 delete 该 id 会报 deletedLogs=1（2026-11-28 实测）。
+	GetMany(ctx context.Context, ids []string) ([]models.IcpTask, error)
 	Delete(ctx context.Context, ids []string) (int64, error)
 	// OverviewCounts 各状态任务数（聚合，allowDiskUse）
 	OverviewCounts(ctx context.Context) (map[string]int64, error)
@@ -279,6 +283,34 @@ func (r *taskRepository) SetState(ctx context.Context, ids []string, state int, 
 		return 0, fmt.Errorf("icp_task: set state: %w", err)
 	}
 	return res.ModifiedCount, nil
+}
+
+func (r *taskRepository) GetMany(ctx context.Context, ids []string) ([]models.IcpTask, error) {
+	oids := make([]primitive.ObjectID, 0, len(ids))
+	for _, id := range ids {
+		oid, err := parseObjectID(id)
+		if err != nil {
+			return nil, err
+		}
+		oids = append(oids, oid)
+	}
+	if len(oids) == 0 {
+		return nil, nil
+	}
+	collection, err := r.coll()
+	if err != nil {
+		return nil, err
+	}
+	cur, err := collection.Find(ctx, bson.M{"_id": bson.M{"$in": oids}})
+	if err != nil {
+		return nil, fmt.Errorf("icp_task: get many: %w", err)
+	}
+	defer func() { _ = cur.Close(ctx) }()
+	tasks := make([]models.IcpTask, 0, len(oids))
+	if err := cur.All(ctx, &tasks); err != nil {
+		return nil, fmt.Errorf("icp_task: get many: %w", err)
+	}
+	return tasks, nil
 }
 
 func (r *taskRepository) Delete(ctx context.Context, ids []string) (int64, error) {
