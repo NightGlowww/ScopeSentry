@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ElCard, ElSkeleton } from 'element-plus'
-import { CountTo } from '@/components/CountTo'
 import { useDesign } from '@/hooks/web/useDesign'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, ref, reactive } from 'vue'
@@ -128,13 +127,13 @@ const cards = computed(() => [
               </div>
               <div :class="`${prefixCls}__meta`">
                 <div :class="`${prefixCls}__label`">{{ card.label }}</div>
-                <CountTo
-                  v-if="card.value !== null"
-                  :class="`${prefixCls}__value`"
-                  :start-val="0"
-                  :end-val="card.value"
-                  :duration="1600"
-                />
+                <!-- 原来用 CountTo 从 0 滚到目标值（1.6s）。对监控面板是负担：
+                     首屏 1.6 秒里显示的是错误数字，后台标签页 rAF 被节流会**停在中间值**
+                     （实测停在「资产总数 314」这种读不完的数，看着像数据丢了）。
+                     直接显示最终值，并加千分位。 -->
+                <div v-if="card.value !== null" :class="`${prefixCls}__value`">
+                  {{ Number(card.value).toLocaleString() }}
+                </div>
                 <div v-else :class="`${prefixCls}__value`">
                   {{ t('dashboard.statsUnavailable') }}
                 </div>
