@@ -457,5 +457,48 @@ while IFS= read -r line; do
     *) bad "项目名校验输出异常：$line" ;;
   esac
 done <<< "$pj"
+
+# 26) 端口字典：空名称/空值一律 400，且字典行数不变（name 曾经完全不校验）。
+#     端口字典会通过 {dict.port.*} 进入扫描参数，无名行会一路带到节点。
+pd=$(python3 - "$BASE" "$TOKEN" <<'PY'
+import json, sys, urllib.request, urllib.error
+base, token = sys.argv[1], sys.argv[2]
+def post(path, body):
+    req = urllib.request.Request(base + path, data=json.dumps(body).encode(), method='POST',
+        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
+    try:
+        r = urllib.request.urlopen(req, timeout=60)
+        return r.getcode(), json.loads(r.read().decode() or '{}')
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read().decode() or '{}')
+        except Exception:
+            return e.code, {}
+def rows():
+    _, d = post('/api/dictionary/port/data', {'name': 'port', 'pageIndex': 1, 'pageSize': 1})
+    data = d.get('data') or {}
+    return data.get('total') if isinstance(data, dict) else None
+out = []
+before = rows()
+cases = [({'value': '80'}, 'name'), ({'name': '  ', 'value': '80'}, 'name'),
+         ({'name': 'http'}, 'value'), ({'name': 'http', 'value': '  '}, 'value')]
+for body, field in cases:
+    c, d = post('/api/dictionary/port/add', body)
+    out.append('OK 端口字典拒绝空 %s（%s）' % (field, json.dumps(body, ensure_ascii=False))
+               if c == 400 else 'BAD 端口字典没拒绝空 %s：%s -> %s' % (field, json.dumps(body, ensure_ascii=False), c))
+after = rows()
+out.append('OK 端口字典行数不变（%s）' % before if before == after
+           else 'BAD 端口字典行数变了：%s -> %s' % (before, after))
+print(chr(10).join(out))
+PY
+)
+while IFS= read -r line; do
+  case "$line" in
+    OK\ *) ok "${line#OK }" ;;
+    BAD\ *) bad "${line#BAD }" ;;
+    "") ;;
+    *) bad "端口字典检查输出异常：$line" ;;
+  esac
+done <<< "$pd"
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

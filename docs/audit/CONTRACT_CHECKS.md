@@ -43,6 +43,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 23 | （需 `SS_EXPORT_ROUNDTRIP=1`）导出记录链路：创建 → 列表可见 → 下载是有效 xlsx（zip + worksheet）→ 删除 → 清单归零 | 这条链路和流式 batch 是两套代码，`records` 一直是空的意味着从没跑过。默认跳过是因为它会真的落一个文件 |
 | 24 | MCP 治理三件套：① 建 key 传未知字段（如 `allowed_tools`）→ 400；② 白名单 key 调未授权工具 → `tool not allowed`，授权工具正常；③ `rateLimitPerMin=1` 的 key 第二次调用 → 429（-32029） | 这三条都是「看起来配了、实际没生效」的高危面。① 尤其危险：Go 默认忽略未知字段，写错字段名会拿到 scope=["*"] 的全权 key（2026-11-28 实测）；脚本自建 key 并在 finally 撤销 |
 | 25 | 项目名称为空（`{}` / `""` / 纯空白）→ 400，且项目列表里不存在空标题卡片 | `AddProject` 直接绑定 `models.Project` 没有必填校验，`POST {}` 会真的建出一张没有标题的卡片；重名原本也只回 500「api.error」。注意自动化里**只测空名字**，重名用例会真的建项目 |
+| 26 | 端口字典 `add` 传空 `name` 或空 `value`（含纯空白）→ 400，且字典行数不变 | `PortService.Add` 只校验了 `value`，空 `name` 照样插入 —— 端口字典会通过 `{dict.port.*}` 进入扫描参数，无名行会一路带到节点（2026-11-28 扫描「绑持久化模型无 binding 校验」的接口时发现） |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 
