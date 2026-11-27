@@ -87,6 +87,20 @@ const nodeColumns = reactive<TableColumn[]>([
     }
   },
   {
+    field: 'queueLen',
+    label: t('node.queueLen'),
+    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
+      const n = Number(cellValue || 0)
+      // 0 不显示标签，免得每行都是个「0」；>0 给个提示说明「节点一次只跑一个」
+      if (!n) return h('span', { class: 'queue-zero' }, '-')
+      return h(
+        ElTooltip,
+        { effect: 'dark', placement: 'top', content: t('node.queueLenHint', { n }) },
+        () => h(ElTag, { round: true, effect: 'plain', type: 'warning' }, () => String(n))
+      )
+    }
+  },
+  {
     field: 'state',
     label: t('node.nodeStatus'),
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
@@ -263,6 +277,8 @@ const nodeData = ref<
     cpuNum: number
     memNum: number
     containerMem?: number
+    // 排队任务数：节点一次只跑一个任务，队列深度直接决定「下一个任务什么时候开始」
+    queueLen?: number
   }[]
 >([])
 
@@ -278,7 +294,8 @@ const getNodeState = async () => {
         cpuNum: node.cpuNum,
         memNum: node.memNum,
         // 容器内存才是节点的真实压力（宿主 memNum 看不出 cgroup 限制）
-        containerMem: node.containerMem
+        containerMem: node.containerMem,
+        queueLen: node.queueLen
       }))
       nodeUsageData.value = reactive(
         res.data.list.map((node) => ({

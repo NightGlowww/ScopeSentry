@@ -1091,6 +1091,8 @@ export default {
     cmdFailHint: '{n} tool failure(s) during this task; results may be incomplete',
     exportTask: 'Export results (CSV bundle)',
     exportTaskXlsx: 'Export results (multi-sheet Excel)',
+    queueLen: 'Queued',
+    queueLenHint: '{n} tasks waiting for this node; it runs one at a time',
     queuedAt: 'Queued: position {n}, waiting for earlier tasks',
     queuedHint: 'Queued: waiting for a node (progress is from a previous run)',
     output: 'Output',
