@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ElButton, ElCard, ElCol, ElRow } from 'element-plus'
+import { ElButton, ElCard, ElCol, ElRow, ElTooltip } from 'element-plus'
 import { getAssetOverviewCountApi } from '@/api/assetOverview'
 import type { AssetOverviewCount } from '@/api/assetOverview/types'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -72,7 +72,21 @@ onMounted(load)
     </template>
     <ElRow :gutter="12">
       <ElCol v-for="card in cards" :key="card.key" :xs="12" :sm="8" :md="6" :lg="4" :xl="4">
-        <div class="overview-item">
+        <!-- 漏洞这一格后天就排除了「已忽略」（status=3），
+             而漏洞列表页显示的是全部候选——两边数字天然差几条。
+             不写清楚会被当成数据不一致（2026-11-27 实测 3 vs 4）。 -->
+        <ElTooltip
+          v-if="card.key === 'vulnerability'"
+          content="不含「已忽略」的漏洞；漏洞结果列表里显示的是全部候选，所以两边会差几条"
+          placement="top"
+          effect="light"
+        >
+          <div class="overview-item">
+            <div class="overview-label">{{ t(card.labelKey) }} <span class="overview-hint">?</span></div>
+            <div class="overview-value">{{ formatCount(counts[card.key]) }}</div>
+          </div>
+        </ElTooltip>
+        <div v-else class="overview-item">
           <div class="overview-label">{{ t(card.labelKey) }}</div>
           <div class="overview-value">{{ formatCount(counts[card.key]) }}</div>
         </div>
@@ -85,6 +99,19 @@ onMounted(load)
 </template>
 
 <style scoped>
+.overview-hint {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 10px;
+  color: var(--el-text-color-secondary);
+  border: 1px solid var(--el-border-color);
+  cursor: help;
+}
+
 .overview-card {
   margin-bottom: 12px;
 }

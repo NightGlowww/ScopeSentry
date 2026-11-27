@@ -80,6 +80,11 @@ const emptyHint = useEmptyHint(searchParams)
 const handleSearch = (data: any) => {
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
+  // 搜索等于换结果集：不回第 1 页的话，停在第 N 页搜一个小结果会看到空表（2026-11-27）
+  if (currentPage.value !== 1) {
+    currentPage.value = 1
+    return
+  }
   getList()
 }
 const crudSchemas = reactive<CrudSchema[]>([

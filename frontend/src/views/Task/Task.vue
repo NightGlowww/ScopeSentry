@@ -83,6 +83,9 @@ watch(statusFilter, (v) => {
 })
 const handleSearch = () => {
   sessionStorage.setItem(SEARCH_KEY, search.value || '')
+  // 换了搜索词就回第 1 页：原来停在第 5 页搜一个只有 2 条结果的关键词，
+  // 会看到空表格，还以为是「没搜到」（2026-11-27）
+  currentPage.value = 1
   getList()
 }
 // 任务总耗时：创建 → 结束（运行中则算到现在）

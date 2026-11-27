@@ -847,6 +847,10 @@ const timeFrom = computed(() => {
 const onTimeFilterChange = (v?: string) => {
   // 直接用事件带过来的值，避免 v-model 尚未落定时读到旧值
   if (v) timeRange.value = v
+  // 时间范围变了等于换了结果集，必须回第 1 页：
+  // handleSearch 内部只在「搜索表达式/筛选」变化时才重置页码，时间不在那个判断里，
+  // 于是停在第 300 页切「近 7 天」会直接看到空表格（2026-11-27）
+  currentPage.value = 1
   handleSearch(searchParams.value || '')
 }
 

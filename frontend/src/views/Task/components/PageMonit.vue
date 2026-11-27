@@ -19,6 +19,11 @@ const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 const search = ref('')
 const handleSearch = () => {
+  // 搜索等于换结果集：不回第 1 页的话，停在第 N 页搜一个小结果会看到空表（2026-11-27）
+  if (currentPage.value !== 1) {
+    currentPage.value = 1
+    return
+  }
   getList()
 }
 const taskColums = reactive<TableColumn[]>([
