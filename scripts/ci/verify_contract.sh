@@ -13,6 +13,8 @@ NOPE=000000000000000000000000
 
 ok()   { echo "   OK   $1"; }
 bad()  { echo "   FAIL $1"; FAIL=1; }
+# skip：需要额外凭据才能跑的检查。跳过不算失败（否则没配 key 的环境每次都是红的）
+skip() { echo "   SKIP $1"; }
 need() { local name="$1" got="$2"; if [ -n "$got" ]; then ok "$name = $got"; else bad "$name 为空"; fi }
 
 postj() { # path body -> body
@@ -150,7 +152,7 @@ if [ -n "${MCP_KEY:-}" ]; then
     bad "MCP 未知 id 处理异常：isError=$err_flag uptime $up_before→$up_after（进程可能被杀）"
   fi
 else
-  bad "未提供 MCP_KEY，跳过 MCP 崩溃回归（导出 SS_MCP_KEY=<ssk_...>）"
+  skip "MCP 崩溃回归需要 SS_MCP_KEY=<ssk_...>；未提供，本次跳过"
 fi
 
 # 16) 策略 / POC 的不存在 id 也要 404（此前 200+deleted:0、500+mongo 文案）
