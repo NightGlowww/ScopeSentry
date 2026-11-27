@@ -70,7 +70,9 @@ const columns = reactive<TableColumn[]>([
     field: 'insertTime',
     label: t('npocService.insertTime'),
     width: 180,
-    formatter: (row: NpocServiceRow) => timeText(row.insertTime)
+    // 接口回的是 insert_time（snake_case）：只读 insertTime 会让这一列永远是空的。
+    formatter: (row: NpocServiceRow) =>
+      timeText((row as unknown as { insert_time?: string }).insert_time ?? row.insertTime)
   }
 ])
 

@@ -137,6 +137,9 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		// 不带这两个字段前端只能显示「—」，点进详情才知道（2026-11-28）
 		"stats":         1,
 		"statsFrozenAt": 1,
+		// 策略套用提示同样要投影：任务创建时写进 policyWarnings（模板没有全局并发字段之类），
+		// 不带上它列表里「策略提示」列永远是「-」，用户看不到自己配的策略为什么没生效。
+		"policyWarnings": 1,
 	}
 
 	// 分页查询
