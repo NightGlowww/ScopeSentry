@@ -47,7 +47,6 @@ func registerSensitivveRoutes() models.RouteGroup {
 				Handler:     sensitive.GetSensitiveMatchInfo,
 				Middlewares: common.WithAuth(),
 			},
-
 		},
 	}
 }

@@ -95,10 +95,16 @@ func BadRequest(c *gin.Context, msgKey string, err error) {
 // BadRequestWithError 返回 400，并把具体错误放进 data，便于前端展示失败原因
 // （例如"请选择要同步的任务"、"项目名称已存在"）。
 func BadRequestWithError(c *gin.Context, msgKey string, err error) {
+	// 只传 msgKey 不传 err 时 data 必须是空串：fmt.Sprintf("%v", nil) 会得到 "<nil>"，
+	// 前端优先展示 data —— 用户就会看到「<nil>」（2026-11-28 实测）。
+	data := ""
+	if err != nil {
+		data = fmt.Sprintf("%v", err)
+	}
 	c.JSON(http.StatusBadRequest, Response{
 		Code:    http.StatusBadRequest,
 		Message: i18n.Translate(getLocale(c), msgKey),
-		Data:    fmt.Sprintf("%v", err),
+		Data:    data,
 	})
 }
 
@@ -125,10 +131,15 @@ func InternalServerError(c *gin.Context, msgKey string, err error) {
 	}
 
 	logger.Error(fmt.Sprintf("InternalServerError at %s: %v", callerInfo, err))
+	// 同上：nil 不能变成 "<nil>"，否则前端会把它当具体原因显示出来
+	data := ""
+	if err != nil {
+		data = fmt.Sprintf("%v", err)
+	}
 	c.JSON(http.StatusInternalServerError, Response{
 		Code:    http.StatusInternalServerError,
 		Message: i18n.Translate(getLocale(c), msgKey),
-		Data:    fmt.Sprintf("%v", err),
+		Data:    data,
 	})
 }
 

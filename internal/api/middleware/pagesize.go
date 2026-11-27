@@ -16,8 +16,10 @@ import (
 // MaxJSONPageSize 是 JSON 列表请求里 pageSize 的硬上限。
 //
 // 依据（2026-11-28 实测 /api/assets/asset）：
-//   pageSize=5000   →  5000 行 /  4.2MB / 2.7s
-//   pageSize=100000 → 45363 行 / 22.1MB / 15.9s
+//
+//	pageSize=5000   →  5000 行 /  4.2MB / 2.7s
+//	pageSize=100000 → 45363 行 / 22.1MB / 15.9s
+//
 // 单个请求就能把一个核顶住十几秒、堆一次性涨上百 MB；而前端最大只用到 1000，
 // 导出走的是独立的游标/流式路径，不经过这里。
 const MaxJSONPageSize = 5000

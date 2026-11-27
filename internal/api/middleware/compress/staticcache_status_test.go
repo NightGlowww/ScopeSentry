@@ -14,10 +14,10 @@ import (
 func TestStaticCacheOnlyCachesSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, tc := range []struct {
-		name       string
-		path       string
-		status     int
-		wantCC     string
+		name   string
+		path   string
+		status int
+		wantCC string
 	}{
 		{"assets 200 长缓存", "/assets/index-abc.js", http.StatusOK, "public, max-age=31536000, immutable"},
 		{"assets 404 不缓存", "/assets/gone-abc.js", http.StatusNotFound, "no-store"},

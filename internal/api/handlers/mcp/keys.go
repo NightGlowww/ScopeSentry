@@ -10,12 +10,29 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/apikey"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
 
 // MCP Key 治理接口（对标 ARL-Next mcp keys）。
 
 var keyService = apikey.NewService()
+
+// keyIDParam 取路径里的 key id 并校验格式。
+// 以前只判空：随便写一段非 ObjectID（例如把 /update 当路径）会一路走到 mongo，
+// 报 500「the provided hex string is not a valid ObjectID」——那是参数问题，不是服务端故障。
+func keyIDParam(c *gin.Context) (string, bool) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		response.BadRequestWithError(c, "api.required.id", nil)
+		return "", false
+	}
+	if _, err := primitive.ObjectIDFromHex(id); err != nil {
+		response.BadRequestWithError(c, "api.bad_request.id", nil)
+		return "", false
+	}
+	return id, true
+}
 
 // respondMCPError 统一错误出口：可判定的转 400/404，其余 500
 func respondMCPError(c *gin.Context, err error) {
@@ -97,9 +114,8 @@ func CreateKey(c *gin.Context) {
 // @Tags MCP
 // @Router /api/mcp/keys/{id} [post]
 func UpdateKey(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		response.BadRequestWithError(c, "api.required.id", nil)
+	id, ok := keyIDParam(c)
+	if !ok {
 		return
 	}
 	var req models.McpKeyUpdateRequest
@@ -120,9 +136,8 @@ func UpdateKey(c *gin.Context) {
 // @Tags MCP
 // @Router /api/mcp/keys/{id}/status [post]
 func SetKeyStatus(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		response.BadRequestWithError(c, "api.required.id", nil)
+	id, ok := keyIDParam(c)
+	if !ok {
 		return
 	}
 	var req models.McpKeyStatusRequest
@@ -146,9 +161,8 @@ func SetKeyStatus(c *gin.Context) {
 // @Tags MCP
 // @Router /api/mcp/keys/{id} [delete]
 func DeleteKey(c *gin.Context) {
-	id := strings.TrimSpace(c.Param("id"))
-	if id == "" {
-		response.BadRequestWithError(c, "api.required.id", nil)
+	id, ok := keyIDParam(c)
+	if !ok {
 		return
 	}
 	deleted, err := keyService.Delete(c.Request.Context(), id)
