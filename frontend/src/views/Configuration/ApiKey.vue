@@ -102,6 +102,13 @@ const scopeLabel = (o: { value: string; label: string }) => {
   const n = scopeTools.value[o.value]
   return n ? `${o.label} · ${n} 个工具` : o.label
 }
+// 工具白名单候选：只列当前已选 scope 下的工具（选了 * 就给全部）。
+// 空选 = 不限制，按 scope 放行全部 —— 与后端 ToolAllowed 的语义一致。
+const toolsForScopes = (scopes: string[]) => {
+  const set = new Set(scopes || [])
+  const all = set.size === 0 || set.has('*')
+  return toolCatalog.value.filter((t) => all || set.has(t.scope)).map((t) => t.name)
+}
 const filteredCatalog = computed(() => {
   const q = catalogSearch.value.trim().toLowerCase()
   if (!q) return toolCatalog.value
@@ -213,12 +220,13 @@ function tableHeaderColor() {
 const createDialogVisible = ref(false)
 const keyDialogVisible = ref(false)
 const createLoading = ref(false)
-const form = ref({ name: '', scope: ['asset:read'], rateLimitPerMin: 0 })
+const form = ref({ name: '', scope: ['asset:read'], tools: [] as string[], rateLimitPerMin: 0 })
 const createdKey = ref('')
 
 const openCreateDialog = () => {
   form.value.name = ''
   form.value.scope = ['asset:read']
+  form.value.tools = []
   form.value.rateLimitPerMin = 0
   createDialogVisible.value = true
 }
@@ -235,6 +243,7 @@ const handleCreate = async () => {
     const res = await createMcpKeyApi({
       name,
       scope: form.value.scope.length ? form.value.scope : ['*'],
+      tools: form.value.tools,
       rateLimitPerMin: form.value.rateLimitPerMin || 0
     })
     createDialogVisible.value = false
@@ -253,14 +262,15 @@ const handleCreate = async () => {
 const editDialogVisible = ref(false)
 const editLoading = ref(false)
 const editingId = ref('')
-const editForm = ref({ name: '', scope: [], tools: '', rateLimitPerMin: 0, expiresAt: '' })
+// tools 改成数组：原来是一串逗号文本，用户得自己敲工具名，敲错一个就是「明明给了权限却调不动」
+const editForm = ref({ name: '', scope: [] as string[], tools: [] as string[], rateLimitPerMin: 0, expiresAt: '' })
 
 const openEditDialog = (row) => {
   editingId.value = row.id
   editForm.value = {
     name: row.name || '',
     scope: Array.isArray(row.scope) ? [...row.scope] : [],
-    tools: Array.isArray(row.tools) ? row.tools.join(', ') : '',
+    tools: Array.isArray(row.tools) ? [...row.tools] : [],
     rateLimitPerMin: Number(row.rateLimitPerMin) || 0,
     expiresAt: row.expiresAt ? String(row.expiresAt).slice(0, 10) : ''
   }
@@ -274,7 +284,7 @@ const handleSaveEdit = async () => {
     await updateMcpKeyApi(editingId.value, {
       name: editForm.value.name,
       scope: editForm.value.scope,
-      tools: String(editForm.value.tools || '').split(',').map((x) => x.trim()).filter(Boolean),
+      tools: editForm.value.tools,
       rateLimitPerMin: Number(editForm.value.rateLimitPerMin) || 0,
       expiresAt: editForm.value.expiresAt || null
     })
@@ -368,8 +378,21 @@ const closeKeyDialog = () => {
           <ElOption v-for="o in SCOPE_OPTIONS" :key="o.value" :label="scopeLabel(o)" :value="o.value" />
         </ElSelect>
       </ElFormItem>
-      <ElFormItem label="tools">
-        <ElInput v-model="editForm.tools" :placeholder="t('apiKey.toolsHint')" />
+      <ElFormItem label="工具白名单">
+        <ElSelect
+          v-model="editForm.tools"
+          multiple
+          filterable
+          allow-create
+          default-first-option
+          collapse-tags
+          collapse-tags-tooltip
+          style="width: 100%"
+          placeholder="留空 = 该 scope 下全部工具；也可输入 list_* 这类前缀"
+        >
+          <ElOption v-for="n in toolsForScopes(editForm.scope)" :key="n" :label="n" :value="n" />
+        </ElSelect>
+        <div class="hint-text">已选 {{ editForm.tools.length }} 个；空 = 不限制</div>
       </ElFormItem>
       <ElFormItem label="限速/分">
         <ElInputNumber v-model="editForm.rateLimitPerMin" :min="0" :max="100000" controls-position="right" />
@@ -426,6 +449,22 @@ const closeKeyDialog = () => {
             {{ scopeLabel(opt) }}
           </ElCheckbox>
         </ElCheckboxGroup>
+      </ElFormItem>
+      <ElFormItem label="工具白名单">
+        <ElSelect
+          v-model="form.tools"
+          multiple
+          filterable
+          allow-create
+          default-first-option
+          collapse-tags
+          collapse-tags-tooltip
+          style="width: 100%"
+          placeholder="留空 = 该 scope 下全部工具；也可输入 list_* 这类前缀"
+        >
+          <ElOption v-for="n in toolsForScopes(form.scope)" :key="n" :label="n" :value="n" />
+        </ElSelect>
+        <div class="hint-text">已选 {{ form.tools.length }} 个；空 = 不限制</div>
       </ElFormItem>
       <ElFormItem label="限速/分">
         <ElInputNumber v-model="form.rateLimitPerMin" :min="0" :max="100000" />
