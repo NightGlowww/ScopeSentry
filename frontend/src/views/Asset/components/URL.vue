@@ -473,6 +473,7 @@ const getFilter = () => {
 
 <template>
   <Csearch
+    :timeFrom="timeFrom"
     :initialSearch="searchParams"
     :getList="getList"
     :handleSearch="handleSearch"

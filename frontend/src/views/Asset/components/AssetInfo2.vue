@@ -1062,6 +1062,7 @@ const confirmSelectedIcons = () => {
 
 <template>
   <Csearch
+    :timeFrom="timeFrom"
     ref="csearchRef"
     :getList="getList"
     :handleSearch="handleSearch"

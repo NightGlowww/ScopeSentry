@@ -100,6 +100,10 @@ const timeParams = computed(() => {
   const from = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} 00:00:00`
   return { from, to: '' }
 })
+// 列表/计数/导出共用同一个起点。之前 getTotal 里写的是 timeFrom.value，
+// 而本文件只定义了 timeParams —— getTotal 一调用就 ReferenceError，
+// 「共 N 条」在时间筛选后一直是旧值/0（2026-11-28 定位）。
+const timeFrom = computed(() => timeParams.value.from)
 
 const SEARCH_KEY = 'asset:subdomain:search'
 const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
@@ -401,7 +405,7 @@ const getTotal = async (
   filter: Record<string, any>
 ) => {
   // 带时间范围：否则「共 N 条」永远是全量，和筛选后的列表对不上
-  let res = await totalDataApi(search, pageIndex, pageSize, filter, index, timeFrom.value)
+  let res = await totalDataApi(search, pageIndex, pageSize, filter, index, timeFrom.value) // timeFrom 见上方 computed
   total.value = res.data.total
 }
 
@@ -462,6 +466,7 @@ const getFilter = () => {
 
 <template>
   <Csearch
+    :timeFrom="timeFrom"
     :getList="getList"
     :handleSearch="handleSearch"
     :initialSearch="searchParams"

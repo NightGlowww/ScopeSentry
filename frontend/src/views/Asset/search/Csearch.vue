@@ -47,6 +47,9 @@ const props = defineProps<{
   openTagColorSetting?: () => void
   // 资产页专用：打开「添加资产」表单（issue #203）
   openAddAsset?: () => void
+  // 页面当前「发现时间」起点（YYYY-MM-DD HH:MM:SS），透传给导出弹窗继承，
+  // 避免「页面上选了近 7 天、导出却默认导全部」（2026-11-28）
+  timeFrom?: string
 }>()
 const localSearchKeywordsData = reactive([...props.searchKeywordsData])
 const newKeyword = {

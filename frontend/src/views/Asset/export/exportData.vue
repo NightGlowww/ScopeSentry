@@ -315,6 +315,14 @@ const filetype = ref('xlsx')
             clearable
             style="width: 100%"
           />
+          <!-- 默认值来自页面时间筛选，必须写出来：否则用户以为导的是全部，或者以为筛选没生效 -->
+          <div v-if="prefilledFromPage" class="prefill-hint">
+            {{
+              exportForm.timeRange.length
+                ? '已继承页面「发现时间」筛选；清空时间即导出全部'
+                : '时间已清空：将导出全部数据，不受页面时间筛选限制'
+            }}
+          </div>
         </ElFormItem>
         <ElFormItem :label="t('export.field')">
           <ElCheckbox
@@ -374,3 +382,13 @@ const filetype = ref('xlsx')
     </ElTabPane>
   </ElTabs>
 </template>
+
+<style scoped>
+.prefill-hint {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
+}
+</style>

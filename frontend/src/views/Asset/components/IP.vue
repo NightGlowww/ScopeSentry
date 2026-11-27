@@ -325,6 +325,7 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
 
 <template>
   <Csearch
+    :timeFrom="timeFrom"
     :initialSearch="searchParams"
     :getList="getList"
     :handleSearch="handleSearch"
