@@ -954,6 +954,7 @@ export default {
     memPeak1h: '1h 峰 {n}%',
     autoRefreshHint: '每 15 秒自动刷新 · 更新于 {t}',
     rejectRecentOnly: '最近有拒绝记录（点击查看）',
+    rejectRecentAgo: '最近一次 {ago}（点击查看）',
     recentRejectEmpty: '暂无拒绝记录',
     rejectTitle: '派发被拒（自启动起）',
     rejectPrefix: '前缀占满',
@@ -1830,6 +1831,10 @@ export default {
     cardTable: '卡片表格'
   },
   localization: {
+    agoNow: '刚刚',
+    agoMinutes: '{n} 分钟前',
+    agoHours: '{n} 小时前',
+    agoDays: '{n} 天前',
     deleteDone: '已删除 {n} 条',
     deletePartial: '已删除 {n} 条（{missing} 条已不存在）',
     cleanLogsConfirm: '确定要清理日志吗？',

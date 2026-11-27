@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
+import { agoText } from '@/utils/ago'
 import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText, ElDialog, ElSelect, ElOption, ElInputNumber, ElAlert } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -324,6 +325,13 @@ const toggleRecentRejections = async () => {
 // 服务端重启后进程内计数归零，但库里还有最近的拒绝记录——
 // 只要任一非空就要显示入口，否则「重启后看不见有人撞闸」（2026-11-20）。
 const hasRejectInfo = computed(() => rejectSummary.value.length > 0 || recentRejections.value.length > 0)
+// 进程内计数与库里的历史是两回事：重启后计数归零，但库里还躺着两天前的记录。
+// 只说「最近有拒绝记录」会让人以为正在发生，所以带上离现在多久。
+const latestRejectText = computed(() => {
+  const latest = recentRejections.value?.[0]
+  if (!latest?.at) return t('node.rejectRecentOnly')
+  return t('node.rejectRecentAgo', { ago: agoText(latest.at) })
+})
 const gateLabel = (gate: string) => {
   const map: Record<string, string> = {
     prefix_quota: t('node.rejectPrefix'),
@@ -639,7 +647,7 @@ const closepluginDialogVisible = () => {
 
       <div v-if="hasRejectInfo" class="node-health">
         <ElTag type="info" size="small" effect="plain" style="cursor: pointer" @click="toggleRecentRejections">
-          {{ t('node.rejectTitle') }}：{{ rejectSummary.length ? rejectSummary.join(' · ') : t('node.rejectRecentOnly') }}
+          {{ t('node.rejectTitle') }}：{{ rejectSummary.length ? rejectSummary.join(' · ') : latestRejectText }}
           <span style="margin-left: 4px">{{ showRecentRejections ? '▲' : '▼' }}</span>
         </ElTag>
       </div>

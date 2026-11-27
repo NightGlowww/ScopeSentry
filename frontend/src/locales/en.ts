@@ -983,6 +983,7 @@ export default {
     memHighFor: 'high for {n}m',
     memPeak1h: '1h peak {n}%',
     autoRefreshHint: 'Auto-refresh every 15s · updated {t}',
+    rejectRecentAgo: 'last {ago} (click to view)',
     rejectRecentOnly: 'recent rejections (click to view)',
     recentRejectEmpty: 'No rejections recorded',
     rejectTitle: 'Dispatch rejected (since start)',
@@ -1879,6 +1880,10 @@ export default {
     cardTable: 'Card table'
   },
   localization: {
+    agoNow: 'just now',
+    agoMinutes: '{n} min ago',
+    agoHours: '{n} h ago',
+    agoDays: '{n} d ago',
     deleteDone: 'Deleted {n} item(s)',
     deletePartial: 'Deleted {n} item(s) ({missing} already gone)',
     cleanLogsConfirm: 'Are you sure you want to clean the logs?',

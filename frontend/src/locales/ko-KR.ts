@@ -965,6 +965,7 @@ export default {
     memHighFor: '{n}분째 고압',
     memPeak1h: '1시간 최고 {n}%',
     autoRefreshHint: '15초마다 자동 새로고침 · {t} 업데이트',
+    rejectRecentAgo: '최근 {ago} (클릭하여 보기)',
     rejectRecentOnly: '최근 거부 기록(클릭하여 보기)',
     recentRejectEmpty: '거부 기록 없음',
     rejectTitle: '발송 거부(시작 이후)',
@@ -1829,6 +1830,10 @@ export default {
     cardTable: '카드 테이블'
   },
   localization: {
+    agoNow: '방금',
+    agoMinutes: '{n}분 전',
+    agoHours: '{n}시간 전',
+    agoDays: '{n}일 전',
     deleteDone: '{n}건 삭제했습니다',
     deletePartial: '{n}건 삭제했습니다 ({missing}건은 이미 없음)',
     cleanLogsConfirm: '로그를 지우시겠습니까?',
