@@ -202,6 +202,31 @@ def main():
         else:
             print('ok   %-28s %s' % (name, r['kind']))
 
+    # 口径一致：list 里的 total 必须等于 count_assets 的总数。
+    # 同一个事实在两处各算一遍，是最容易一处悄悄漂移的地方（REST 侧就丢过 total）。
+    for atype in ('asset', 'subdomain'):
+        lt = rpc('list_assets', {'asset_type': atype, 'pageIndex': 1, 'pageSize': 2})
+        ct = rpc('count_assets', {'asset_type': atype})
+        lv = cv = None
+        if lt['kind'] == 'OK':
+            try:
+                lv = (json.loads(lt['text']) or {}).get('total')
+            except Exception:
+                lv = None
+        if ct['kind'] == 'OK':
+            try:
+                cv = (json.loads(ct['text']) or {}).get('total')
+            except Exception:
+                cv = None
+        if lv is None or cv is None:
+            fails += 1
+            print('FAIL %-28s 拿不到 total（list=%s count=%s）' % (atype, lv, cv))
+        elif lv != cv:
+            fails += 1
+            print('FAIL %-28s list.total=%s != count_assets=%s' % (atype, lv, cv))
+        else:
+            print('ok   %-28s total=%s（list 与 count 一致）' % (atype, cv))
+
     # 分页夹紧：一次大 pageSize 不能把库拖出来
     big = rpc('list_assets', {'asset_type': 'asset', 'pageIndex': 1, 'pageSize': 100000})
     rows = 0

@@ -37,6 +37,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 17 | 受限 key 的可见工具数 == `/api/mcp/tools` 里该 scope 的工具数 | 写死数字的断言每加一个工具就失效（加 `list_port_dict` 时踩到） |
 | 18 | `GET /api/system/quality-report` 的 `data` 含 alerts/evidence/llm/quarantine/tasks/vulnerabilities 六块 | 少一块状态页就少一栏，且不报错——静默空白最难发现 |
 | 19 | `GET /api/mcp/logs` 的 `data.list` 是数组 | 同一批接口里 `export/records` 曾经回 `null`，表格 `.map()` 直接崩 |
+| 20 | `/api/assets/asset` 的 `data.total` 存在，且 == `/api/assets/common/total` 同筛选下的 `total` | 列表原本不回 total，前端另打一次总数接口；那次调用只在「搜索/筛选变化」时触发，时间筛选变了 total 停在旧值（2026-11-28 实测 45363 → 切「近 7 天」仍显示 45363） |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 
@@ -55,6 +56,10 @@ SS_BASE=http://<host>:8082 SS_MCP_KEY=<全 scope 的 ssk_...> SS_ASSET_ID=<任�
 3. 用 `pageSize=100000` 调一次列表，断言行数被夹到 ≤500。
 
 结论看最后一行 `MCP_SWEEP=PASS|FAIL`。
+
+
+另外加了两条**口径一致**断言（`list_assets` 的 `total` == `count_assets` 的 `total`，asset 与 subdomain 各一条）：
+同一个事实在两处各算一遍，是最容易一处悄悄漂移的地方——REST 侧就真的把 `total` 丢了（见不变量 #20）。
 
 脚本自带三次重试：本地代理偶发把连接掐断时，空响应会被重试掉，
 不会被误判成「工具坏了」（2026-11-28 实测，不加重试会连报 57 条假失败）。

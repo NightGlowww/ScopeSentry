@@ -185,5 +185,26 @@ print("null" if v is None else type(v).__name__)
 ' 2>/dev/null || echo parse-error)
 if [ "$mltype" = "list" ]; then ok "mcp/logs list 类型 = list"; else bad "mcp/logs list 类型 = $mltype（表格会崩）"; fi
 
+# 20) 资产列表自带 total，且必须和总数接口同口径（含时间范围）
+#     2026-11-28 之前列表不回 total，前端另打一次 /api/assets/common/total，
+#     而那次调用只在「搜索/筛选变化」时触发 —— 时间筛选变了 total 停在旧值。
+cmp=$(python3 - "$BASE" "$TOKEN" <<'PY'
+import json, sys, urllib.request
+base, token = sys.argv[1], sys.argv[2]
+def post(path, body):
+    req = urllib.request.Request(base + path, data=json.dumps(body).encode(),
+        headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})
+    return json.loads(urllib.request.urlopen(req, timeout=60).read().decode())
+body = {'pageIndex': 1, 'pageSize': 2, 'timeFrom': '2026-01-01 00:00:00'}
+lst = (post('/api/assets/asset', body).get('data') or {})
+ref = (post('/api/assets/common/total', dict(body, index='asset')).get('data') or {})
+a, b = lst.get('total'), ref.get('total')
+print('ok %s %s' % (a, b) if (a is not None and a == b) else 'bad %s %s' % (a, b))
+PY
+)
+case "$cmp" in
+  ok*) ok "资产列表 total 与总数接口一致（${cmp#ok }）" ;;
+  *)   bad "资产列表 total 与总数接口不一致：$cmp" ;;
+esac
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL
