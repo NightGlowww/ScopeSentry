@@ -1879,6 +1879,8 @@ export default {
     cardTable: 'Card table'
   },
   localization: {
+    deleteDone: 'Deleted {n} item(s)',
+    deletePartial: 'Deleted {n} item(s) ({missing} already gone)',
     cleanLogsConfirm: 'Are you sure you want to clean the logs?',
     cleanAllLogsConfirm: 'Are you sure you want to clean all plugin logs?',
     none: 'None',

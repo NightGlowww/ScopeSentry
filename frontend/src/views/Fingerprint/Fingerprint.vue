@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
+import { deleteResultMessage } from '@/utils/deleteResult'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, ref, reactive, onMounted } from 'vue'
@@ -120,7 +121,7 @@ const del = async (data) => {
   delLoading.value = true
   try {
     const res = await deleteFingerprintDataApi([data.id])
-    console.log('Data deleted successfully:', res)
+    ElMessage.success(deleteResultMessage(res, 1))
     delLoading.value = false
     getList()
   } catch (error) {

@@ -1,9 +1,10 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
+import { deleteResultMessage } from '@/utils/deleteResult'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, ref, reactive } from 'vue'
-import { ElButton, ElCol, ElInput, ElRow, ElText } from 'element-plus'
+import { ElButton, ElCol, ElInput, ElRow, ElText, ElMessage } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { Dialog } from '@/components/Dialog'
 import { Icon } from '@/components/Icon'
@@ -155,7 +156,7 @@ const del = async (data) => {
   delLoading.value = true
   try {
     const res = await deleteSensitiveDataApi([data.id])
-    console.log('Data deleted successfully:', res)
+    ElMessage.success(deleteResultMessage(res, 1))
     delLoading.value = false
     getList()
   } catch (error) {

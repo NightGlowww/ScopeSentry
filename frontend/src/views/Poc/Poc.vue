@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
+import { deleteResultMessage } from '@/utils/deleteResult'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { computed, ref, reactive, onUnmounted } from 'vue'
@@ -253,7 +254,7 @@ const del = async (data) => {
   delLoading.value = true
   try {
     const res = await deletePocDataApi([data.id])
-    console.log('Data deleted successfully:', res)
+    ElMessage.success(deleteResultMessage(res, 1))
     delLoading.value = false
     getList()
   } catch (error) {
@@ -270,7 +271,7 @@ const delSelect = async () => {
   delLoading.value = true
   try {
     const res = await deletePocDataApi(ids.value)
-    console.log('Data deleted successfully:', res)
+    ElMessage.success(deleteResultMessage(res, ids.value.length))
     delLoading.value = false
     getList()
   } catch (error) {

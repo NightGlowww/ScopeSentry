@@ -1830,6 +1830,8 @@ export default {
     cardTable: '卡片表格'
   },
   localization: {
+    deleteDone: '已删除 {n} 条',
+    deletePartial: '已删除 {n} 条（{missing} 条已不存在）',
     cleanLogsConfirm: '确定要清理日志吗？',
     cleanAllLogsConfirm: '确定要清理所有插件日志吗？',
     none: '无',

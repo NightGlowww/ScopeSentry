@@ -1829,6 +1829,8 @@ export default {
     cardTable: '카드 테이블'
   },
   localization: {
+    deleteDone: '{n}건 삭제했습니다',
+    deletePartial: '{n}건 삭제했습니다 ({missing}건은 이미 없음)',
     cleanLogsConfirm: '로그를 지우시겠습니까?',
     cleanAllLogsConfirm: '모든 플러그인 로그를 지우시겠습니까?',
     none: '없음',

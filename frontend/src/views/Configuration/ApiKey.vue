@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
+import { deleteResultMessage } from '@/utils/deleteResult'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, computed } from 'vue'
 import {
@@ -255,7 +256,8 @@ const handleDelete = async (row: { id: string; name: string }) => {
     cancelButtonText: t('common.cancel'),
     type: 'warning'
   })
-  await deleteMcpKeyApi(row.id)
+  const res = await deleteMcpKeyApi(row.id)
+  ElMessage.success(deleteResultMessage(res, 1))
   getList()
 }
 
