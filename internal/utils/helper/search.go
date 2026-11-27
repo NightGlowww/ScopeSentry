@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 )
@@ -600,13 +601,19 @@ func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 
 	// 发现时间范围：只对确实有时间字段的索引生效，避免给没有该字段的集合加条件导致恒空。
 	// time 存的是 "2006-01-02 15:04:05" 字符串，字典序等于时间序，直接 $gte/$lte。
-	if (req.TimeFrom != "" || req.TimeTo != "") && indexHasTimeField[req.Index] {
+	//
+	// 但必须先校验格式：任何人传 timeFrom=all / today / 7（前端的时间段标记）过来，
+	// 字典序比较 "2026-…" < "all" 会让整个条件恒假 → 返回 0 条，看起来像「数据没了」。
+	// 实测 timeFrom=all 时 /api/assets/asset 返回 0 行（2026-11-27）。
+	from := normalizeTimeBound(req.TimeFrom, false)
+	to := normalizeTimeBound(req.TimeTo, true)
+	if (from != "" || to != "") && indexHasTimeField[req.Index] {
 		rng := map[string]interface{}{}
-		if req.TimeFrom != "" {
-			rng["$gte"] = req.TimeFrom
+		if from != "" {
+			rng["$gte"] = from
 		}
-		if req.TimeTo != "" {
-			rng["$lte"] = req.TimeTo
+		if to != "" {
+			rng["$lte"] = to
 		}
 		if _, ok := result["$and"]; !ok {
 			result["$and"] = make([]map[string]interface{}, 0, 2)
@@ -673,3 +680,31 @@ func TimeSortDir(req models.SearchRequest) int {
 	}
 	return -1
 }
+
+// normalizeTimeBound 校验时间上/下界，只接受 "YYYY-MM-DD" 或 "YYYY-MM-DD HH:MM:SS"。
+// 无法解析的值一律当成「没有这个条件」，而不是拿它去做字典序比较——
+// 传 timeFrom=all / today / 7（前端的时间段标记）时，
+// "2026-…" < "all" 会让条件恒假，接口静默返回 0 条，看起来像数据丢了（2026-11-27 实测）。
+// end=true 时把纯日期补成当天 23:59:59，否则 "2026-11-27" 作为上界会漏掉当天所有记录。
+func normalizeTimeBound(v string, end bool) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return ""
+	}
+	layouts := []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05", "2006-01-02"}
+	for _, layout := range layouts {
+		t, err := time.ParseInLocation(layout, v, time.Local)
+		if err != nil {
+			continue
+		}
+		if layout == "2006-01-02" {
+			if end {
+				return t.Format("2006-01-02") + " 23:59:59"
+			}
+			return t.Format("2006-01-02") + " 00:00:00"
+		}
+		return t.Format("2006-01-02 15:04:05")
+	}
+	return ""
+}
+
