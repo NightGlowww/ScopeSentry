@@ -135,6 +135,10 @@ export default {
   },
   export: {
     fileMissing: 'File missing',
+    cleanInvalid: 'Clean invalid records ({n})',
+    cleanInvalidHint: 'Their files are gone; cleaning only removes the records',
+    cleanInvalidConfirm: 'Delete {n} records whose files are missing? This cannot be undone.',
+    cleanInvalidDone: 'Cleaned {n} invalid records',
     fileMissingHint:
       'The record exists but the file is gone from disk (container rebuild / manual cleanup). Export again, or delete this record.',
     quantityRequired: 'Enter export quantity (at least 1)',

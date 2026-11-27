@@ -135,6 +135,10 @@ export default {
   },
   export: {
     fileMissing: '文件缺失',
+    cleanInvalid: '清理无效记录（{n}）',
+    cleanInvalidHint: '这些记录的文件已不在磁盘上，清理只删记录，不影响其他数据',
+    cleanInvalidConfirm: '删除 {n} 条「文件缺失」的导出记录？文件已经不在，删除不可恢复。',
+    cleanInvalidDone: '已清理 {n} 条无效记录',
     fileMissingHint: '记录还在，但导出文件已不在磁盘上（例如容器重建/手工清理）。可重新导出，或删除这条记录',
     quantityRequired: '请填写导出数量（至少 1 条）',
     submitted: '导出任务已提交，可在下方记录列表查看进度',

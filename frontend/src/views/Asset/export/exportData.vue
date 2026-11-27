@@ -18,7 +18,7 @@ import {
   ElDatePicker,
   ElMessage
 } from 'element-plus'
-import { onMounted, onUnmounted, reactive, Ref, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, Ref, ref } from 'vue'
 import BatchExportTab from './BatchExportTab.vue'
 import {
   exportApi,
@@ -250,6 +250,28 @@ const del = async (data) => {
     getList()
   }
 }
+// 清理「记录在、文件不在」的条目：容器重建后这类记录会攒起来，一条条删太麻烦
+const cleanInvalidLoading = ref(false)
+const invalidCount = computed(
+  () => (dataList.value || []).filter((r: any) => r?.file_missing).length
+)
+const cleanInvalid = async () => {
+  const list = (dataList.value || []).filter((r: any) => r?.file_missing)
+  if (!list.length) return
+  const confirmed = await confirmDialog(t('export.cleanInvalidConfirm', { n: list.length }))
+  if (!confirmed) return
+  cleanInvalidLoading.value = true
+  try {
+    await delExportApi(list.map((r: any) => r.file_name))
+    ElMessage.success(t('export.cleanInvalidDone', { n: list.length }))
+    getList()
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    cleanInvalidLoading.value = false
+  }
+}
+
 const confirmDeleteSelect = async () => {
   const confirmed = await confirmDialog(t('common.delMessage'))
   if (confirmed) {
@@ -373,9 +395,23 @@ const filetype = ref('xlsx')
     </ElTabPane>
     <ElTabPane :label="t('export.exportRecords')" name="exportRecords">
       <ElSpace direction="vertical" alignment="flex-start" :style="{ width: '100%' }">
-        <BaseButton type="danger" :loading="delLoading" @click="confirmDeleteSelect">
-          {{ t('common.delete') }}
-        </BaseButton>
+        <div class="records-toolbar">
+          <BaseButton type="danger" :loading="delLoading" @click="confirmDeleteSelect">
+            {{ t('common.delete') }}
+          </BaseButton>
+          <!-- 文件已丢失的记录（容器重建等）一条条删太麻烦，给个一键清理 -->
+          <BaseButton
+            v-if="invalidCount > 0"
+            type="warning"
+            :loading="cleanInvalidLoading"
+            @click="cleanInvalid"
+          >
+            {{ t('export.cleanInvalid', { n: invalidCount }) }}
+          </BaseButton>
+          <span v-if="invalidCount > 0" class="records-hint">
+            {{ t('export.cleanInvalidHint') }}
+          </span>
+        </div>
       </ElSpace>
       <Table
         @register="tableRegister"
@@ -397,6 +433,17 @@ const filetype = ref('xlsx')
 </template>
 
 <style scoped>
+.records-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.records-hint {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
 .prefill-hint {
   width: 100%;
   margin-top: 4px;
