@@ -239,6 +239,20 @@ export const asyncRouterMap: AppRouteRecordRaw[] = [
           icon: 'mdi:server-security',
           noCache: true
         }
+      },
+      {
+        // 资产详情页：组件一直存在（views/Asset/detail/AssetDetail.vue），
+        // 但路由从来没注册过 —— 资产表里任何跳到 /asset-information/asset-detail 的入口
+        // 都落在「页面不存在」（2026-11-27 实测）。
+        path: 'asset-detail',
+        component: () => import('@/views/Asset/detail/AssetDetail.vue'),
+        name: 'Asset-Detail',
+        meta: {
+          title: t('asset.assetDetail'),
+          icon: 'mdi:file-document-outline',
+          hidden: true,
+          noCache: true
+        }
       }
     ]
   },
