@@ -359,10 +359,13 @@ getAllApi()
             <ElFooter heigh="50%">
               <ElRow>
                 <ElCol :span="8">
-                  <ElStatistic
-                    :title="t('dashboard.totalAssets')"
-                    :value="projectInfo.AssetCount"
-                  />
+                  <!-- 这个数字是聚合口径（资产+子域+URL 等按项目范围合计），
+                       和顶部「资产」条数不是一回事，不写清楚会被误读成数据矛盾（2026-11-27） -->
+                  <ElStatistic :title="t('dashboard.totalAssets') + '（聚合）'" :value="projectInfo.AssetCount">
+                    <template #suffix>
+                      <span style="font-size: 11px; color: var(--el-text-color-placeholder)">含子域/URL</span>
+                    </template>
+                  </ElStatistic>
                 </ElCol>
                 <ElCol :span="8">
                   <ElStatistic
@@ -388,8 +391,13 @@ getAllApi()
           <ElCol :span="5">
             <ElSkeleton :loading="vulLevelloading" animated>
               <Echart v-if="!vulLevelEmpty" :options="chartOptions" :height="353" :width="250" />
+              <!-- 0 漏洞的项目这里原来只写「暂无数据」，看起来像页面坏了。
+                   改成说清楚「没有漏洞」而不是「没取到数据」（2026-11-27） -->
               <div v-else class="empty-block" style="height: 353px">
-                <ElText type="info">{{ t('common.noData') }}</ElText>
+                <ElText type="info">该项目暂无漏洞记录</ElText>
+                <div style="margin-top: 8px; font-size: 12px; color: var(--el-text-color-placeholder)">
+                  扫描完成后会在这里按等级分布
+                </div>
               </div>
             </ElSkeleton>
           </ElCol>
@@ -403,7 +411,7 @@ getAllApi()
                 :scrollbarAlwaysOn="true"
                 :fit="true"
                 :max-height="353"
-                :empty-text="t('common.noData')"
+                :empty-text="'该项目暂无漏洞记录'"
               >
                 <ElTableColumn minWidth="50">
                   <template #default="scope">
@@ -506,6 +514,9 @@ getAllApi()
         <ElCard shadow="hover" class="mb-20px">
           <template #header>
             <ElText tag="b">{{ t('asset.title') }}</ElText>
+            <div style="font-size: 11px; color: var(--el-text-color-placeholder)">
+              按出现次数排序，取前 50
+            </div>
           </template>
           <ElRow v-if="AssetstatisticsData.Title.length === 0">
             <ElCol :span="24">
