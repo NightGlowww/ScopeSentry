@@ -2452,7 +2452,7 @@ func exportTaskWorkbook(ctx context.Context, _ *mcp.CallToolRequest, input expor
 	// 与 create_export_task 一样异步写文件：任务产出可能几十万行，别让调用方等超时。
 	go func(plan *export.TaskExportPlan, fileName, format string) {
 		bg := context.Background()
-		path := filepath.Join(config.GlobalConfig.System.ExeDir, "files", "export", fileName)
+		path := filepath.Join(config.GlobalConfig.System.ExportPath(), fileName)
 		f, ferr := os.Create(path)
 		if ferr != nil {
 			logger.Error("mcp export_task_workbook: create file: " + ferr.Error())

@@ -88,7 +88,7 @@ func (s *service) ProcessExportTask(ctx context.Context, run models.ExportRun) {
 	defer cursor.Close(ctx)
 
 	// 导出数据
-	filePath := filepath.Join(config.GlobalConfig.System.ExeDir, "files", "export", run.FileName)
+	filePath := filepath.Join(config.GlobalConfig.System.ExportPath(), run.FileName)
 	var fileSize float64
 	if run.FileType == "xlsx" {
 		fileSize, err = s.exportToXlsx(cursor, filePath, run.Field, run.Index)
@@ -157,7 +157,7 @@ func (s *service) DeleteExportFiles(ctx context.Context, fileNames []string) err
 	// 删除文件
 	for _, fileName := range fileNames {
 		if s.IsValidFileName(fileName) {
-			filePath := filepath.Join(config.GlobalConfig.System.ExeDir, "files", "export", fileName)
+			filePath := filepath.Join(config.GlobalConfig.System.ExportPath(), fileName)
 			if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
 				logger.Error(fmt.Sprintf("删除文件失败: %s, 错误: %v", fileName, err))
 				continue

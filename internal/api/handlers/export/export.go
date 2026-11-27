@@ -217,7 +217,7 @@ func DownloadExport(c *gin.Context) {
 		response.BadRequest(c, "api.invalid_filename", nil)
 		return
 	}
-	filePath := filepath.Join(config.GlobalConfig.System.ExeDir, "files", "export", fileName)
+	filePath := filepath.Join(config.GlobalConfig.System.ExportPath(), fileName)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		response.NotFound(c, "api.file_not_found", nil)
 		return

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/utils"
@@ -33,6 +34,17 @@ type SystemConfig struct {
 	IconDir       string `yaml:"-"`
 	ScreenshotDir string `yaml:"-"`
 	ImgDir        string `yaml:"-"`
+	// ExportDir 导出文件目录。默认 <ExeDir>/files/export；
+	// 容器部署时应指向挂载卷（否则容器重建即丢文件，2026-11-28 实测下载 404）。
+	ExportDir string `mapstructure:"export_dir"`
+}
+
+// ExportPath 返回导出文件目录（空配置时回退到 <ExeDir>/files/export）。
+func (s SystemConfig) ExportPath() string {
+	if strings.TrimSpace(s.ExportDir) != "" {
+		return s.ExportDir
+	}
+	return filepath.Join(s.ExeDir, "files", "export")
 }
 
 // ServerConfig 服务器配置
@@ -94,7 +106,11 @@ func init() {
 	exeDir := filepath.Dir(exePath)
 	GlobalConfig.System.ExeDir = exeDir
 
-	err = utils.EnsureDir(filepath.Join(exeDir, "files", "export"))
+	// 导出目录：允许配置到挂载卷上（容器重建/换镜像时导出文件不该消失）
+	if strings.TrimSpace(GlobalConfig.System.ExportDir) != "" {
+		GlobalConfig.System.ExportDir = strings.TrimSpace(GlobalConfig.System.ExportDir)
+	}
+	err = utils.EnsureDir(GlobalConfig.System.ExportPath())
 	if err != nil {
 		fmt.Printf("Error creating directory: %s\n", err)
 		return
