@@ -37,6 +37,9 @@ import { setupPermission } from './directives'
 import { setupEnterToSearch } from '@/utils/enterSearch'
 import { setupKeyboardActivation } from '@/utils/a11yKeyboard'
 
+// 渲染错误不再静默空白：控制台留堆栈，页面给提示
+import { setupErrorHandler } from '@/utils/errorHandler'
+
 import { createApp } from 'vue'
 
 import App from './App.vue'
@@ -60,6 +63,8 @@ const setupAll = async () => {
   setupRouter(app)
 
   setupPermission(app)
+
+  setupErrorHandler(app)
 
   app.mount('#app')
 }

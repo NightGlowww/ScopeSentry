@@ -1,7 +1,9 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, ref, watch } from 'vue'
+// computed 之前漏了引入：setup 直接抛 ReferenceError，整个搜索工具栏在产物里渲染成空注释，
+// 页面看起来「工具栏消失」但控制台只有一条被淹没的报错（2026-11-28 定位）。
+import { computed, reactive, ref, watch } from 'vue'
 import {ElCol, ElRow, ElButton, ElTable, ElTableColumn, ElText, ElDivider, ElAutocomplete, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem, ElMessageBox, ElMessage, ElTreeSelect, ElTag, ElSwitch, ElSelect, ElOption, ElInput} from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { useIcon } from '@/hooks/web/useIcon'
