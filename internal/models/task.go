@@ -52,6 +52,13 @@ type Task struct {
 	// 只作「选哪个策略」的引用，参数消费在 services/task/taskpolicy（见 docs/audit/SCAN_POLICY.md）。
 	PolicyID string `bson:"policyId,omitempty" json:"policyId,omitempty"`
 
+	// Stats 终态产出快照（对齐 ARL-Next 1.5.2「终态统计补齐」）。
+	// 任务完成那一刻统计一次并冻结：之后哪怕有清理/去重/新任务覆盖，历史任务的战果也不会变。
+	// 空 = 尚未冻结（运行中，或历史数据），此时接口回退到实时统计。
+	Stats map[string]int64 `bson:"stats,omitempty" json:"stats,omitempty"`
+	// StatsFrozenAt 冻结时间（YYYY-MM-DD HH:MM:SS）
+	StatsFrozenAt string `bson:"statsFrozenAt,omitempty" json:"statsFrozenAt,omitempty"`
+
 	// PolicyWarnings 策略套用过程中的提示（策略不存在/已停用、模板冲突、插件未命中、
 	// 速率/超时/字典等无承载字段）。落库是为了让前端能展示，而不是只留在服务端日志里。
 	PolicyWarnings []string `bson:"policyWarnings,omitempty" json:"policyWarnings,omitempty"`

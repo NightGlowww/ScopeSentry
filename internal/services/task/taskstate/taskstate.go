@@ -41,3 +41,18 @@ func Derive(currentStatus int, count, taskNum int64) (progress int, status int) 
 	}
 	return progress, status
 }
+
+// OutcomeFor 决定任务产出统计用「冻结快照」还是「实时统计」。
+//
+// 终态任务（完成/失败）一旦冻结了 stats 就永远用它：
+//   - 历史战果不会因为后续清理/去重/新任务覆盖而漂移；
+//   - 详情弹窗 5 秒一次的轮询不再打 4 次 count。
+//
+// 运行中或没有快照（历史数据）时回退到 live()。
+func OutcomeFor(status int, stats map[string]int64, live func() map[string]int64) map[string]int64 {
+	terminal := status == constants.TaskStatusFinished || status == constants.TaskStatusFailed
+	if terminal && len(stats) > 0 {
+		return stats
+	}
+	return live()
+}

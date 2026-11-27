@@ -512,8 +512,9 @@ func (s *service) GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pa
 		// 任务期间外部工具失败次数：弹窗顶部据此显示红色告警。
 		// 走接口返回而不是前端从列表行传参，避免 keep-alive 缓存导致的陈旧值。
 		"cmdFail": s.taskRepo.TaskCmdFail(ctx, taskID),
-		// 任务产出统计：任务结束点开详情能直接看到战果
-		"outcome": s.taskRepo.TaskOutcome(ctx, task.Name),
+		// 任务产出统计：终态任务用完成时冻结的快照（不会再变、也不用每次打 4 次 count）；
+		// 运行中/历史任务回退到实时统计。
+		"outcome": s.taskOutcomeFor(ctx, task),
 	}, nil
 }
 
@@ -805,12 +806,20 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 				return fmt.Errorf("failed to get end time: %w", err)
 			}
 
+			// 终态统计：完成瞬间统计一次并冻结（对齐 ARL-Next 1.5.2）。
+			// 不冻结的话，之后任何清理/去重都会让历史任务的战果跟着变，
+			// 而且详情弹窗每次轮询都要打 4 次 count（5 秒一次）。
+			stats := s.taskRepo.TaskOutcome(ctx, task.Name)
+			frozenAt := time.Now().Format("2006-01-02 15:04:05")
+
 			// 更新任务状态为完成（状态3）并设置结束时间
 			update := bson.M{
 				"$set": bson.M{
-					"endTime":  endTime,
-					"status":   constants.TaskStatusFinished,
-					"progress": progress,
+					"endTime":       endTime,
+					"status":        constants.TaskStatusFinished,
+					"progress":      progress,
+					"stats":         stats,
+					"statsFrozenAt": frozenAt,
 				},
 			}
 			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
@@ -1139,4 +1148,17 @@ func (s *service) DeleteByFilter(ctx *gin.Context, search string, status *int) (
 // CountTasksCreatedSince 统计某时间之后创建的任务数。
 func (s *service) CountTasksCreatedSince(ctx context.Context, since string) (int64, error) {
 	return s.taskRepo.CountTasksCreatedSince(ctx, since)
+}
+
+// taskOutcomeFor 终态任务优先用冻结的产出快照，其它情况回退到实时统计。
+// 为什么要冻结：完成后再统计会跟着后续清理/去重漂移，历史任务的战果就不可复现了；
+// 顺带把详情弹窗每 5 秒轮询的 4 次 count 省掉。
+func (s *service) taskOutcomeFor(ctx context.Context, task *models.Task) map[string]int64 {
+	if task == nil {
+		return map[string]int64{"subdomain": 0, "url": 0, "asset": 0, "vulnerability": 0}
+	}
+	// 判定放在 taskstate 包里（纯函数），这样这条「冻结优先」的规则能在不连库的情况下被单测覆盖。
+	return taskstate.OutcomeFor(task.Status, task.Stats, func() map[string]int64 {
+		return s.taskRepo.TaskOutcome(ctx, task.Name)
+	})
 }
