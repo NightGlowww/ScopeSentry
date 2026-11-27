@@ -89,11 +89,14 @@ let DialogTitle = t('task.addTemplate')
 const closeDialog = () => {
   dialogVisible.value = false
 }
+// 确认框要说清「删什么、几个」：原来一律用「是否删除所选中数据？」，
+// 点单行删除时既没说是哪个模板，也根本没「选中」这回事（2026-11-27）
 const confirmDeleteSelect = async () => {
+  const n = tableSelectedCount.value
   ElMessageBox({
     showCancelButton: true,
     cancelButtonText: t('common.cancel'),
-    message: t('common.delMessage'),
+    message: `删除选中的 ${n} 个扫描模板？删除后不可恢复。`,
     title: t('common.delete'),
     draggable: true
   }).then(async () => {
@@ -101,11 +104,11 @@ const confirmDeleteSelect = async () => {
   })
 }
 
-const confirmDelete = async (data) => {
+const confirmDelete = async (data: any) => {
   ElMessageBox({
     showCancelButton: true,
     cancelButtonText: t('common.cancel'),
-    message: t('common.delMessage'),
+    message: `删除扫描模板「${data?.name || data?.id || ''}」？删除后不可恢复。`,
     title: t('common.delete'),
     draggable: true
   }).then(async () => {
