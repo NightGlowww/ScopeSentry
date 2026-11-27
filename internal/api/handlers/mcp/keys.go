@@ -37,7 +37,10 @@ func keyIDParam(c *gin.Context) (string, bool) {
 // respondMCPError 统一错误出口：可判定的转 400/404，其余 500
 func respondMCPError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, apikey.ErrInvalid), errors.Is(err, apikey.ErrNotFound):
+	case errors.Is(err, apikey.ErrNotFound):
+		// 资源不存在是 404，不是 400：客户端要能区分「参数写错了」和「这条记录没了」
+		response.NotFound(c, "api.mcp.key.not_found", nil)
+	case errors.Is(err, apikey.ErrInvalid):
 		response.BadRequestWithError(c, "api.bad_request", err)
 	default:
 		logger.Error("mcp governance: request failed", zap.Error(err))
