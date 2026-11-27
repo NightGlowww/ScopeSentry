@@ -152,6 +152,18 @@ func main() {
 		}
 	}()
 
+	// 历史失败原因回填：早期记录只有中文句子（failReason），没有可翻译的 failCode，
+	// 英文界面会一直显示中文。启动时按已知句式补一次，幂等、失败不影响启动。
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		if n, err := taskSvc.NewService().BackfillFailCodes(ctx); err != nil {
+			logger.Warn("backfill fail codes failed", zap.Error(err))
+		} else if n > 0 {
+			logger.Info(fmt.Sprintf("backfilled failCode for %d failed task(s)", n))
+		}
+	}()
+
 	// POC 每日同步自愈：设置 POC_SYNC_URL 后，确保 scheduledTasks 里有 poc_sync 记录。
 	// 不设置时什么都不做（默认不联网）。
 	go func() {

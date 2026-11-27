@@ -65,6 +65,8 @@ type Service interface {
 	SweepStaleTasks(ctx context.Context, staleAfter time.Duration) (int, error)
 	// ResumeRunningTasks 启动自愈：把没人消费的「运行中」任务重新投递给节点
 	ResumeRunningTasks(ctx context.Context) (int, error)
+	// BackfillFailCodes 给历史失败任务补 failCode/failParams（幂等，只补没有 code 的记录）
+	BackfillFailCodes(ctx context.Context) (int, error)
 	ProcessTaskProgress(ctx context.Context, task models.Task) error
 	GetAllTaskNames(ctx *gin.Context) ([]models.Task, error)
 }
