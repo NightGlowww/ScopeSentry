@@ -22,6 +22,8 @@ func RegisterMcpRoutes(api *gin.RouterGroup) {
 			{Method: "DELETE", Path: "/keys/:id", Handler: mcphandler.DeleteKey, Middlewares: common.WithAuth()},
 			{Method: "GET", Path: "/logs", Handler: mcphandler.ListLogs, Middlewares: common.WithAuth()},
 			{Method: "GET", Path: "/logs/export", Handler: mcphandler.ExportLogs, Middlewares: common.WithAuth()},
+			// 工具 ↔ scope 对照表：建 key 时能看清每个 scope 解锁哪些工具
+			{Method: "GET", Path: "/tools", Handler: mcphandler.ToolsCatalog, Middlewares: common.WithAuth()},
 			{Method: "GET", Path: "/config", Handler: mcphandler.GetConfig, Middlewares: common.WithAuth()},
 			{Method: "POST", Path: "/config", Handler: mcphandler.UpdateConfig, Middlewares: common.WithAuth()},
 		},

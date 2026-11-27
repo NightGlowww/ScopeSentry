@@ -52,3 +52,22 @@ export const getMcpConfigApi = (): Promise<IResponse<McpConfig>> => {
 export const updateMcpConfigApi = (data: Partial<McpConfig>): Promise<IResponse<McpConfig>> => {
   return request.post({ url: '/api/mcp/config', data })
 }
+
+export interface McpToolEntry {
+  name: string
+  scope: string
+}
+
+export interface McpScopeEntry {
+  scope: string
+  tools: number
+  names: string[]
+}
+
+// 工具 ↔ scope 对照表：key 的 scope 选择器用它显示「这个 scope 解锁几个工具」，
+// 也让用户能反查「某个工具需要什么 scope」。
+export const getMcpToolsApi = (): Promise<
+  IResponse<{ list: McpToolEntry[]; scopes: McpScopeEntry[]; total: number }>
+> => {
+  return request.get({ url: '/api/mcp/tools' })
+}

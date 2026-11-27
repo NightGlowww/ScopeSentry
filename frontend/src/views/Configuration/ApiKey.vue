@@ -2,7 +2,7 @@
 import { ContentWrap } from '@/components/ContentWrap'
 import { deleteResultMessage } from '@/utils/deleteResult'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -19,7 +19,9 @@ import {
   ElInputNumber,
   ElSelect,
   ElOption,
-  ElDatePicker
+  ElDatePicker,
+  ElTable,
+  ElTableColumn
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { Dialog } from '@/components/Dialog'
@@ -32,6 +34,7 @@ import {
   setMcpKeyStatusApi,
   updateMcpKeyApi
 } from '@/api/apikey'
+import { getMcpToolsApi } from '@/api/mcp'
 import { useClipboard } from '@/hooks/web/useClipboard'
 import { formatTime } from '@/utils'
 
@@ -69,6 +72,41 @@ const SCOPE_OPTIONS = [
   { value: 'node:write', label: 'node:write（节点重启/删除）' },
   { value: '*', label: '*' }
 ]
+
+// 工具 ↔ scope 对照：来自后端 mcpguard.ToolScopes（唯一真相源）。
+// 只写死在界面上的「asset:read（资产/…只读）」解释不了「这个 scope 到底能调几个工具」。
+const scopeTools = ref<Record<string, number>>({})
+const toolCatalog = ref<{ name: string; scope: string }[]>([])
+const catalogVisible = ref(false)
+const catalogSearch = ref('')
+const loadToolCatalog = async () => {
+  try {
+    const res: any = await getMcpToolsApi()
+    const d = res?.data || {}
+    toolCatalog.value = d.list || []
+    const counts: Record<string, number> = {}
+    for (const it of d.scopes || []) counts[it.scope] = it.tools
+    // '*' 是超权，覆盖全部工具
+    counts['*'] = d.total || toolCatalog.value.length
+    scopeTools.value = counts
+  } catch {
+    scopeTools.value = {}
+    toolCatalog.value = []
+  }
+}
+const openToolCatalog = async () => {
+  if (!toolCatalog.value.length) await loadToolCatalog()
+  catalogVisible.value = true
+}
+const scopeLabel = (o: { value: string; label: string }) => {
+  const n = scopeTools.value[o.value]
+  return n ? `${o.label} · ${n} 个工具` : o.label
+}
+const filteredCatalog = computed(() => {
+  const q = catalogSearch.value.trim().toLowerCase()
+  if (!q) return toolCatalog.value
+  return toolCatalog.value.filter((it) => it.name.toLowerCase().includes(q) || it.scope.toLowerCase().includes(q))
+})
 
 const formatDateTime = (value?: string) => {
   if (!value) return '-'
@@ -163,6 +201,10 @@ const { tableRegister, tableState, tableMethods } = useTable({
 
 const { loading, dataList } = tableState
 const { getList } = tableMethods
+// 进页面就把工具↔scope 对照表拉下来：scope 选择器要显示「N 个工具」
+onMounted(() => {
+  loadToolCatalog()
+})
 
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
@@ -293,6 +335,9 @@ const closeKeyDialog = () => {
       <ElCol :span="4">
         <ElButton type="primary" @click="openCreateDialog">{{ t('apiKey.createTitle') }}</ElButton>
       </ElCol>
+      <ElCol :span="4">
+        <ElButton @click="openToolCatalog">工具清单（{{ toolCatalog.length || '…' }}）</ElButton>
+      </ElCol>
     </ElRow>
 
     <Table
@@ -320,7 +365,7 @@ const closeKeyDialog = () => {
       </ElFormItem>
       <ElFormItem label="Scope">
         <ElSelect v-model="editForm.scope" multiple filterable style="width: 100%">
-          <ElOption v-for="o in SCOPE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          <ElOption v-for="o in SCOPE_OPTIONS" :key="o.value" :label="scopeLabel(o)" :value="o.value" />
         </ElSelect>
       </ElFormItem>
       <ElFormItem label="tools">
@@ -337,6 +382,24 @@ const closeKeyDialog = () => {
       <div style="text-align: right">
         <ElButton @click="editDialogVisible = false">{{ t('common.cancel') }}</ElButton>
         <ElButton type="primary" :loading="editLoading" @click="handleSaveEdit">{{ t('common.save') }}</ElButton>
+      </div>
+    </template>
+  </Dialog>
+
+  <Dialog v-model="catalogVisible" title="MCP 工具与权限对照" center :maxHeight="560">
+    <div class="catalog-toolbar">
+      <ElInput v-model="catalogSearch" placeholder="按工具名或 scope 搜索" clearable />
+      <span class="catalog-hint">
+        共 {{ toolCatalog.length }} 个工具；列表来自后端 mcpguard.ToolScopes，新增工具会在这里自动出现
+      </span>
+    </div>
+    <ElTable :data="filteredCatalog" size="small" max-height="420" style="width: 100%">
+      <ElTableColumn prop="name" label="工具" min-width="240" />
+      <ElTableColumn prop="scope" label="所需 scope" width="160" />
+    </ElTable>
+    <template #footer>
+      <div style="text-align: right">
+        <ElButton @click="catalogVisible = false">{{ t('common.ok') }}</ElButton>
       </div>
     </template>
   </Dialog>
@@ -360,7 +423,7 @@ const closeKeyDialog = () => {
       <ElFormItem label="Scope">
         <ElCheckboxGroup v-model="form.scope">
           <ElCheckbox v-for="opt in SCOPE_OPTIONS" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
+            {{ scopeLabel(opt) }}
           </ElCheckbox>
         </ElCheckboxGroup>
       </ElFormItem>
