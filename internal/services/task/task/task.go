@@ -43,6 +43,8 @@ type Service interface {
 	CheckTaskNameExists(ctx *gin.Context, name string) (bool, error)
 	// IngestToProject 项目优先接入：按项目建/追加任务（供 HuntDeck 之类外部集成调用）
 	IngestToProject(ctx *gin.Context, req IngestRequest) (*IngestResult, error)
+	// AssignProject 给已有任务补录项目归属（历史任务没有 bindProject，项目页永远是空壳）
+	AssignProject(ctx *gin.Context, ids []string, projectID string) (int, error)
 	GetTaskDetail(ctx *gin.Context, taskID string) (*models.Task, error)
 	GetTasksByIDs(ctx *gin.Context, ids []string) ([]models.Task, error)
 	DeleteTasks(ctx *gin.Context, ids []string, delA bool) error

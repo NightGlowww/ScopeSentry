@@ -54,6 +54,8 @@ type Repository interface {
 	CheckTaskNameExists(ctx context.Context, name string) (bool, error)
 	DeleteMany(ctx *gin.Context, ids []primitive.ObjectID) (int64, error)
 	UpdateOne(ctx context.Context, filter bson.M, update bson.M) error
+	// UpdateMany 批量更新（项目归属补录需要一次改多条）
+	UpdateMany(ctx context.Context, filter bson.M, update bson.M) (*mongo.UpdateResult, error)
 	GetProgressFromRedis(ctx *gin.Context, key string) (map[string]string, error)
 	// 新增Redis操作方法
 	Exists(ctx context.Context, key string) (bool, error)
@@ -321,6 +323,10 @@ func (r *repository) DeleteMany(ctx *gin.Context, ids []primitive.ObjectID) (int
 		}
 	}
 	return result.DeletedCount, nil
+}
+
+func (r *repository) UpdateMany(ctx context.Context, filter bson.M, update bson.M) (*mongo.UpdateResult, error) {
+	return r.db.Collection("task").UpdateMany(ctx, filter, update)
 }
 
 func (r *repository) UpdateOne(ctx context.Context, filter bson.M, update bson.M) error {

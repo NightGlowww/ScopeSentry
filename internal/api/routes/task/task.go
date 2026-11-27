@@ -24,6 +24,13 @@ func registerTaskRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 任务归属补录：历史任务没有 bindProject，项目页需要能把这些任务挂进去
+				Method:      "POST",
+				Path:        "assignProject",
+				Handler:     taskHandler.AssignProject,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "detail",
 				Handler:     taskHandler.TaskDetail,

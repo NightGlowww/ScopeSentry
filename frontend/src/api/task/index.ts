@@ -44,6 +44,11 @@ export const ingestToProjectApi = (payload: {
   return request.post({ url: '/api/task/ingest', data: payload })
 }
 
+// 任务归属补录：把已有任务挂到项目下（projectId 传空 = 解除归属）
+export const assignTaskProjectApi = (ids: string[], projectId: string) => {
+  return request.post({ url: '/api/task/assignProject', data: { ids, projectId } })
+}
+
 export const stopTaskApi = (ids: string[]): Promise<IResponse<TaskDataResponse>> => {
   return request.post({ url: '/api/task/stop', data: { ids } })
 }

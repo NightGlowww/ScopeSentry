@@ -11,10 +11,12 @@ import {
   ElDialog,
   ElInput,
   ElMessage,
+  ElTable,
+  ElTableColumn,
   ElTag
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
-import { getTaskDataApi, getTaskDetailApi, ingestToProjectApi } from '@/api/task'
+import { getTaskDataApi, getTaskDetailApi, ingestToProjectApi, assignTaskProjectApi } from '@/api/task'
 
 // 项目详情的「任务」页签。
 //
@@ -91,6 +93,52 @@ const submitAdd = async () => {
   }
 }
 
+// 关联已有任务：bindProject 是后来才加的字段，历史任务全是空值，
+// 没有补录通道的话项目页永远只有零星几条新任务（2026-11-27）。
+const linkVisible = ref(false)
+const linkSearch = ref('')
+const linkLoading = ref(false)
+const linkRows = ref<any[]>([])
+const linkSelected = ref<string[]>([])
+
+const searchTasks = async () => {
+  linkLoading.value = true
+  try {
+    const res = await getTaskDataApi(linkSearch.value.trim(), 1, 50)
+    linkRows.value = res.data?.list || []
+    linkSelected.value = []
+  } catch (e: any) {
+    ElMessage.error(e?.message || '任务检索失败')
+  } finally {
+    linkLoading.value = false
+  }
+}
+
+const submitLink = async () => {
+  if (linkSelected.value.length === 0) {
+    ElMessage.warning('请先勾选要关联的任务')
+    return
+  }
+  try {
+    const res = await assignTaskProjectApi(linkSelected.value, projectId)
+    ElMessage.success(`已关联 ${res.data?.updated ?? linkSelected.value.length} 个任务`)
+    linkVisible.value = false
+    await load()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '关联失败')
+  }
+}
+
+const unlinkTask = async (id: string) => {
+  try {
+    await assignTaskProjectApi([id], '')
+    ElMessage.success('已移出本项目')
+    await load()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '移出失败')
+  }
+}
+
 const detail = ref<any>(null)
 const detailVisible = ref(false)
 const openDetail = async (id: string) => {
@@ -116,11 +164,16 @@ const columns: TableColumn[] = [
   {
     field: "action",
     label: "操作",
-    width: 110,
+    width: 170,
     formatter: (row: any) => (
-      <ElButton link type="primary" onClick={() => openDetail(row.id)}>
-        详情
-      </ElButton>
+      <div>
+        <ElButton link type="primary" onClick={() => openDetail(row.id)}>
+          详情
+        </ElButton>
+        <ElButton link type="danger" onClick={() => unlinkTask(row.id)}>
+          移出项目
+        </ElButton>
+      </div>
     )
   }
 ]
@@ -148,6 +201,7 @@ const columns: TableColumn[] = [
       </span>
       <ElButton link type="primary" @click="load">刷新</ElButton>
       <ElButton type="primary" size="small" @click="addVisible = true">添加目标并扫描</ElButton>
+      <ElButton size="small" @click="(linkVisible = true), searchTasks()">关联已有任务</ElButton>
     </div>
     <Table
       :columns="columns"
@@ -174,6 +228,33 @@ const columns: TableColumn[] = [
       <template #footer>
         <ElButton @click="addVisible = false">取消</ElButton>
         <ElButton type="primary" :loading="addSubmitting" @click="submitAdd">创建</ElButton>
+      </template>
+    </ElDialog>
+
+    <!-- 归属补录：把历史任务挂到当前项目（bindProject 是后加的字段，老任务全空） -->
+    <ElDialog v-model="linkVisible" title="关联已有任务到本项目" width="720px">
+      <div style="display: flex; gap: 8px; margin-bottom: 10px">
+        <ElInput v-model="linkSearch" placeholder="按任务名搜索（留空列出最近 50 条）" @keyup.enter="searchTasks" />
+        <ElButton type="primary" :loading="linkLoading" @click="searchTasks">搜索</ElButton>
+      </div>
+      <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 8px">
+        勾选后会把任务的项目归属改为当前项目；已经属于别的项目的任务会被改挂过来。
+      </div>
+      <ElTable :data="linkRows" size="small" height="360" @selection-change="(v) => (linkSelected = v.map((r) => r.id))">
+        <ElTableColumn type="selection" width="46" />
+        <ElTableColumn prop="name" label="任务名" min-width="320" show-overflow-tooltip />
+        <ElTableColumn label="状态" width="90">
+          <template #default="{ row }">
+            <ElTag size="small">{{ (statusMap[Number(row.status)] || {}).text || row.status }}</ElTag>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn label="当前项目" width="200" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.bindProject || "未归属" }}</template>
+        </ElTableColumn>
+      </ElTable>
+      <template #footer>
+        <ElButton @click="linkVisible = false">取消</ElButton>
+        <ElButton type="primary" @click="submitLink">关联所选（{{ linkSelected.length }}）</ElButton>
       </template>
     </ElDialog>
 
