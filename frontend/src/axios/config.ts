@@ -4,8 +4,26 @@ import qs from 'qs'
 import { translateApiMessage } from './translateMessage'
 import { SUCCESS_CODE } from '@/constants'
 import { useUserStoreWithOut } from '@/store/modules/user'
+import { useLocaleStoreWithOut } from '@/store/modules/locale'
+
+// 把当前界面语言带给后端：后端 response.message 走 go-i18n（zh-CN / en-US 两套），
+// 不带 Accept-Language 时永远回中文 —— 英文界面里就会冒出中文提示（2026-11-28 实测）。
+// 后端只认 zh / en 两族标签，ko 走英文回退，比中文更接近用户预期。
+const backendLanguage = (lang: string): string => {
+  if (lang === 'zh-CN') return 'zh-CN'
+  return 'en-US'
+}
 
 const defaultRequestInterceptors = (config: InternalAxiosRequestConfig) => {
+  try {
+    const lang = useLocaleStoreWithOut().getCurrentLocale?.lang
+    if (lang) {
+      const headers = config.headers as AxiosRequestHeaders
+      headers['Accept-Language'] = backendLanguage(lang)
+    }
+  } catch {
+    // store 还没初始化（登录页极早期）时忽略：后端会按默认中文处理
+  }
   if (
     config.method === 'post' &&
     (config.headers as AxiosRequestHeaders)['Content-Type'] === 'application/x-www-form-urlencoded'
