@@ -132,6 +132,10 @@ func init() {
 		fmt.Printf("Error creating directory: %s\n", err)
 		return
 	}
+	// 启动时打印实际使用的目录：容器部署下这两个路径必须落在挂载卷上，
+	// 否则「导出/备份」在换镜像后全部消失（2026-11-28 踩过）。日志里能直接核对。
+	fmt.Printf("paths: export_dir=%s backup_dir=%s\n",
+		GlobalConfig.System.ExportPath(), GlobalConfig.System.BackupPath())
 
 	// 创建上传目录
 	err = utils.EnsureDir(filepath.Join(exeDir, "uploads"))
