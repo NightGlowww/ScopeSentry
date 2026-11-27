@@ -16,6 +16,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	auditrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/audit"
+	githubrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/github"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/app"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/asset"
 	assetgroup "github.com/Autumn-27/ScopeSentry/internal/services/assets/assetgroup"
@@ -24,12 +25,15 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/dirscan"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/ip"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/mp"
+	nucleiresultsvc "github.com/Autumn-27/ScopeSentry/internal/services/assets/nucleiresult"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/page_monitoring"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/root_domain"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/sensitive"
+	statfingersvc "github.com/Autumn-27/ScopeSentry/internal/services/assets/statfinger"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/subdomain"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/url"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/vulnerability"
+	wihsvc "github.com/Autumn-27/ScopeSentry/internal/services/assets/wih"
 	"github.com/Autumn-27/ScopeSentry/internal/services/dashboard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export"
@@ -88,6 +92,12 @@ type deps struct {
 	assetGroupService assetgroup.Service
 	// ICP 主体任务（company → domain → asset 链路的入口）
 	icpService *icp.Service
+	// 资产读模型：nuclei 命中 / WIH 敏感命中 / 指纹统计（REST 有、MCP 一直没有）
+	nucleiService     nucleiresultsvc.Service
+	wihService        wihsvc.Service
+	statFingerService statfingersvc.Service
+	// GitHub 泄露结果（code_leak / cve / hacker 的命中），只读
+	githubResultRepo githubrepo.ResultRepository
 	// 服务端操作日志（只读，仓库层直接给 List）
 	auditRepo auditrepo.Repository
 }
@@ -198,8 +208,12 @@ var d = &deps{
 	exportService:        export.NewService(),
 	assetGroupService:    assetgroup.NewService(),
 	// icp 服务是进程内单例（与 HTTP handler 共用），构造只建仓库句柄，不碰库
-	icpService: icp.DefaultService(),
-	auditRepo:  auditrepo.NewRepository(),
+	icpService:        icp.DefaultService(),
+	nucleiService:     nucleiresultsvc.NewService(),
+	wihService:        wihsvc.NewService(),
+	statFingerService: statfingersvc.NewService(),
+	githubResultRepo:  githubrepo.NewResultRepository(),
+	auditRepo:         auditrepo.NewRepository(),
 }
 
 func registerTools(server *mcp.Server, allowedTools map[string]bool) {
@@ -391,6 +405,27 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "list_sensitive_rules",
 		Description: "分页查询敏感信息规则",
 	}, listSensitiveRules)
+
+	// ---- 资产读模型补充（REST 早就有，MCP 一直缺）----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_nuclei_results",
+		Description: "分页查询 nuclei 命中结果（按 severity/host/keyword/taskName/project 过滤）",
+	}, listNucleiResults)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_wih_results",
+		Description: "分页查询 WIH 敏感信息命中（按规则名 type/project/keyword 过滤）",
+	}, listWIHResults)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_stat_finger",
+		Description: "按技术名聚合的指纹统计（出现次数 / 资产数 / 最近出现 / 样例主机）",
+	}, listStatFinger)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_github_results",
+		Description: "分页查询 GitHub 泄露结果（code_leak / cve / hacker，按 status/type/taskId 过滤）",
+	}, listGithubResults)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "set_sensitive_rule_state",
@@ -2175,6 +2210,128 @@ func deletePortDictEntries(ctx context.Context, _ *mcp.CallToolRequest, input de
 		return errorResult("条目不存在: "+strings.Join(ids, ","), nil)
 	}
 	return jsonToolResult(ginH{"ok": true, "deleted": n})
+}
+
+// ---------------------------------------------------------------------------
+// 资产读模型（nuclei / WIH / 指纹统计）与 GitHub 泄露结果
+// ---------------------------------------------------------------------------
+
+type listNucleiResultsInput struct {
+	Project    string `json:"project,omitempty" jsonschema:"项目名，精确匹配"`
+	Severity   string `json:"severity,omitempty" jsonschema:"严重级别，如 high / critical"`
+	TemplateID string `json:"templateId,omitempty" jsonschema:"nuclei 模板 ID"`
+	Keyword    string `json:"keyword,omitempty" jsonschema:"按 URL/名称模糊搜索"`
+	TaskName   string `json:"taskName,omitempty" jsonschema:"按任务名过滤"`
+	Host       string `json:"host,omitempty" jsonschema:"按主机名过滤"`
+	Status     int    `json:"status,omitempty" jsonschema:"处置状态：0 全部 1 未处理 2 处理中 3 忽略 4 疑似 5 确认 6 已处理"`
+	PageIndex  int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize   int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listNucleiResults(ctx context.Context, _ *mcp.CallToolRequest, input listNucleiResultsInput) (*mcp.CallToolResult, any, error) {
+	if d.nucleiService == nil {
+		return errorResult("nuclei 结果服务未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	capPageSize(&pi, &ps)
+	res, err := d.nucleiService.List(ctx, models.NucleiResultListRequest{
+		Project:    strings.TrimSpace(input.Project),
+		Severity:   strings.TrimSpace(input.Severity),
+		TemplateID: strings.TrimSpace(input.TemplateID),
+		Keyword:    strings.TrimSpace(input.Keyword),
+		TaskName:   strings.TrimSpace(input.TaskName),
+		Host:       strings.TrimSpace(input.Host),
+		Status:     input.Status,
+		PageIndex:  pi,
+		PageSize:   ps,
+	})
+	if err != nil {
+		return errorResult("获取 nuclei 结果失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type listWIHResultsInput struct {
+	Type      string `json:"type,omitempty" jsonschema:"命中规则名（sid）"`
+	Project   string `json:"project,omitempty" jsonschema:"项目名，精确匹配"`
+	Keyword   string `json:"keyword,omitempty" jsonschema:"按 URL / 命中内容模糊搜索"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listWIHResults(ctx context.Context, _ *mcp.CallToolRequest, input listWIHResultsInput) (*mcp.CallToolResult, any, error) {
+	if d.wihService == nil {
+		return errorResult("WIH 服务未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	capPageSize(&pi, &ps)
+	res, err := d.wihService.List(ctx, models.WIHListRequest{
+		Type:      strings.TrimSpace(input.Type),
+		Project:   strings.TrimSpace(input.Project),
+		Keyword:   strings.TrimSpace(input.Keyword),
+		PageIndex: pi,
+		PageSize:  ps,
+	})
+	if err != nil {
+		return errorResult("获取 WIH 结果失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type listStatFingerInput struct {
+	Keyword   string `json:"keyword,omitempty" jsonschema:"技术名子串，不区分大小写"`
+	Project   string `json:"project,omitempty" jsonschema:"项目名，精确匹配"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listStatFinger(ctx context.Context, _ *mcp.CallToolRequest, input listStatFingerInput) (*mcp.CallToolResult, any, error) {
+	if d.statFingerService == nil {
+		return errorResult("指纹统计服务未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	capPageSize(&pi, &ps)
+	res, err := d.statFingerService.ListTechnologies(ctx, models.StatFingerListRequest{
+		Keyword:   strings.TrimSpace(input.Keyword),
+		Project:   strings.TrimSpace(input.Project),
+		PageIndex: pi,
+		PageSize:  ps,
+	})
+	if err != nil {
+		return errorResult("获取指纹统计失败", err)
+	}
+	return jsonToolResult(res)
+}
+
+type listGithubResultsInput struct {
+	TaskID    string `json:"taskId,omitempty" jsonschema:"采集任务 ID"`
+	Type      string `json:"type,omitempty" jsonschema:"结果类型：code_leak / cve / hacker"`
+	Status    string `json:"status,omitempty" jsonschema:"研判状态：new / triaged / ignored"`
+	Project   string `json:"project,omitempty" jsonschema:"项目名"`
+	Keyword   string `json:"keyword,omitempty" jsonschema:"按仓库 / 路径 / 标题模糊搜索"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listGithubResults(ctx context.Context, _ *mcp.CallToolRequest, input listGithubResultsInput) (*mcp.CallToolResult, any, error) {
+	if d.githubResultRepo == nil {
+		return errorResult("GitHub 结果仓库未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	capPageSize(&pi, &ps)
+	list, total, err := d.githubResultRepo.List(ctx, models.GithubResultListQuery{
+		TaskID:    strings.TrimSpace(input.TaskID),
+		Type:      strings.TrimSpace(input.Type),
+		Status:    strings.TrimSpace(input.Status),
+		Project:   strings.TrimSpace(input.Project),
+		Keyword:   strings.TrimSpace(input.Keyword),
+		PageIndex: pi,
+		PageSize:  ps,
+	})
+	if err != nil {
+		return errorResult("获取 GitHub 泄露结果失败", err)
+	}
+	return jsonToolResult(ginH{"list": list, "total": total, "pageIndex": pi, "pageSize": ps})
 }
 
 // ---------------------------------------------------------------------------
