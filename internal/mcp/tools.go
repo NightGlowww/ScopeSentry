@@ -941,7 +941,29 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 	if err != nil {
 		return errorResult("查询资产失败", err)
 	}
-	return jsonToolResult(data)
+	// 统一带上 total/pageIndex/pageSize：不同索引的 REST 响应有的带 total、有的不带
+	// （asset/subdomain/UrlScan/SensitiveResult 都没有），客户端拿不到总数就没法翻页，
+	// 只能反复试探到空页为止（2026-11-28 实测）。
+	out := ginH{}
+	if b, e := json.Marshal(data); e == nil {
+		_ = json.Unmarshal(b, &out)
+	}
+	if _, has := out["total"]; !has {
+		countQuery := models.SearchRequest{
+			Index:            index,
+			SearchExpression: input.SearchExpression,
+			Sid:              input.Sid,
+		}
+		if len(input.Filter) > 0 {
+			countQuery.Filter = query.Filter
+		}
+		if total, e := d.commonService.TotalData(ctx, &countQuery); e == nil {
+			out["total"] = total
+		}
+	}
+	out["pageIndex"] = input.PageIndex
+	out["pageSize"] = input.PageSize
+	return jsonToolResult(out)
 }
 
 // numericFilterKeys 这些字段在 Mongo 里是数字；JSON 里传成字符串会让等值匹配恒为空，
