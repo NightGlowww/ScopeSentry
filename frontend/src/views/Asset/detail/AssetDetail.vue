@@ -14,42 +14,35 @@ const { push, go } = useRouter()
 const { t } = useI18n()
 const { query } = useRoute()
 const schema = reactive<DescriptionsSchema[]>([
+  // 字段名要和接口一致：接口返回的是 domain / ip / url（小写），
+  // 这里原来读 host / IP / URL，三行永远是空的（2026-11-27 实测）。
   {
-    field: 'host',
+    field: 'domain',
     label: t('asset.domain'),
     slots: {
       default: (data) => {
-        const host = data.host
-        if (host == '') {
-          return h('div', '-')
-        }
-        return h('div', { style: { whiteSpace: 'pre-line' } }, host)
+        const v = data.domain || data.host
+        return h('div', { style: { whiteSpace: 'pre-line' } }, v || '-')
       }
     }
   },
   {
-    field: 'IP',
+    field: 'ip',
     label: t('asset.IP'),
     slots: {
       default: (data) => {
-        const IP = data.IP
-        if (IP == '') {
-          return h('div', '-')
-        }
-        return h('div', { style: { whiteSpace: 'pre-line' } }, IP)
+        const v = data.ip || data.IP
+        return h('div', { style: { whiteSpace: 'pre-line' } }, v || '-')
       }
     }
   },
   {
-    field: 'URL',
+    field: 'url',
     label: t('dashboard.URL'),
     slots: {
       default: (data) => {
-        const URL = data.URL
-        if (URL == '') {
-          return h('div', '-')
-        }
-        return h('div', { style: { whiteSpace: 'pre-line' } }, URL)
+        const v = data.url || data.URL
+        return h('div', { style: { whiteSpace: 'pre-line' } }, v || '-')
       }
     }
   },
