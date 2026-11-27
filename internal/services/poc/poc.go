@@ -71,7 +71,11 @@ func (s *service) GetPocList(ctx *gin.Context, req *models.PocListRequest) (*mod
 		query["level"] = bson.M{"$in": req.Filter.Level}
 	}
 
+	// 列表只要 id/name/level/tags/time：content 是整段 YAML，编辑时才用 /poc/detail 取。
+	// 不排除它的话，200 条实测 12.4MB / 8.6s，1000 条 13.8MB（2026-11-28 实测），
+	// POC 页打开要等近十秒，而界面上根本不显示正文。
 	opts := options.Find().
+		SetProjection(bson.M{"content": 0}).
 		SetSort(bson.D{{Key: "time", Value: -1}}).
 		SetSkip(int64((req.PageIndex - 1) * req.PageSize)).
 		SetLimit(int64(req.PageSize))
