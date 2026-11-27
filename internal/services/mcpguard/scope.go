@@ -64,7 +64,13 @@ var ToolScopes = map[string]string{
 	"intel_for_assets": ScopeAssetRead,
 	"count_assets":     ScopeAssetRead,
 	"get_asset_detail": ScopeAssetRead,
-	"add_asset_tag":    ScopeAssetWrite,
+	// 三个聚合视图也是资产库的只读派生（一次回答「这个目标/这家企业有什么」），
+	// 长期漏登记：持受限 scope 的 key 调它们会被默认拒绝，而 * key 又看不出问题，
+	// 直到翻生产日志才发现（2026-11-28 实测 98199 行告警）。
+	"get_asset_profile":      ScopeAssetRead,
+	"get_enterprise_profile": ScopeAssetRead,
+	"search_assets":          ScopeAssetRead,
+	"add_asset_tag":          ScopeAssetWrite,
 	"list_nodes":       ScopeNodeRead,
 	// 只读扩展：POC / 指纹 / 字典 / 看板，统一复用 asset:read，
 	// 避免为了新增只读工具再改前端 scope 选择项

@@ -540,14 +540,29 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 // warnUnregisteredTools 生产环境的漂移报警：工具注册了但 mcpguard.ToolScopes 里没有，
 // 持受限 scope 的 key 调用它会被默认拒绝。本包 init 需要数据库，纯单测覆盖不到，
 // 所以留一条运行期告警（集成测试 tools_registry_integration_test.go 会直接失败）。
+//
+// 每个进程只报一次：warnUnregisteredTools 在每次建 server 时都会走到，
+// 之前是「每个未登记工具每条请求一行 Warn」，实测一个进程刷出 98199 行，
+// 把真正有用的日志埋掉（2026-11-28 实测）。
 func warnUnregisteredTools(names []string) {
-	for _, name := range names {
-		if _, ok := mcpguard.RequiredScope(name); !ok {
-			logger.Warn("mcp: tool has no scope registered in mcpguard.ToolScopes",
-				zap.String("tool", name))
+	warnUnregisteredOnce.Do(func() {
+		missing := make([]string, 0, 4)
+		for _, name := range names {
+			if _, ok := mcpguard.RequiredScope(name); !ok {
+				missing = append(missing, name)
+			}
 		}
-	}
+		if len(missing) == 0 {
+			logger.Info("mcp: tool scopes aligned with mcpguard.ToolScopes",
+				zap.Int("tools", len(names)))
+			return
+		}
+		logger.Error("mcp: tools missing from mcpguard.ToolScopes (restricted keys will be denied)",
+			zap.Int("count", len(missing)), zap.Strings("tools", missing))
+	})
 }
+
+var warnUnregisteredOnce sync.Once
 
 // addTool 统一注册入口。
 //
@@ -1811,15 +1826,47 @@ func listNodePlugins(ctx context.Context, _ *mcp.CallToolRequest, input nodeName
 	return jsonToolResult(ginH{"node": input.Node, "plugins": res})
 }
 
-func getNodeLogs(ctx context.Context, _ *mcp.CallToolRequest, input nodeNameInput) (*mcp.CallToolResult, any, error) {
+type getNodeLogsInput struct {
+	Node   string `json:"node" jsonschema:"节点名称"`
+	TailKB int    `json:"tailKB,omitempty" jsonschema:"只取日志尾部多少 KB，默认 128，上限 1024；日志按时间追加，尾部才是现场"`
+}
+
+// mcpMaxLogTailKB 是 get_node_logs 单次返回的上限。
+// 依据：node-jp-01 的日志一次读全量实测 318KB，排障只关心尾部（2026-11-28 实测）。
+const mcpMaxLogTailKB = 1024
+
+func getNodeLogs(ctx context.Context, _ *mcp.CallToolRequest, input getNodeLogsInput) (*mcp.CallToolResult, any, error) {
 	if strings.TrimSpace(input.Node) == "" {
 		return errorResult("node 不能为空", nil)
+	}
+	tailKB := input.TailKB
+	if tailKB <= 0 {
+		tailKB = 128
+	}
+	if tailKB > mcpMaxLogTailKB {
+		tailKB = mcpMaxLogTailKB
 	}
 	res, err := d.nodeService.GetNodeLogs(ctx, input.Node)
 	if err != nil {
 		return errorResult("读取节点日志失败", err)
 	}
-	return jsonToolResult(ginH{"node": input.Node, "logs": res})
+	out := ginH{"node": input.Node, "logBytes": len(res), "tailKB": tailKB}
+	limit := tailKB * 1024
+	if len(res) > limit {
+		// 按字节切尾部再从第一个换行处对齐，避免把半行/半个字符甩给调用方
+		cut := res[len(res)-limit:]
+		if i := strings.IndexByte(cut, '\n'); i >= 0 && i+1 < len(cut) {
+			cut = cut[i+1:]
+		}
+		out["logs"] = cut
+		out["truncated"] = true
+		out["headBytes"] = len(res) - len(cut)
+		out["note"] = "只返回日志尾部；需要更早内容请调大 tailKB（上限 1024）"
+	} else {
+		out["logs"] = res
+		out["truncated"] = false
+	}
+	return jsonToolResult(out)
 }
 
 // knownNodes 返回当前节点名集合。
