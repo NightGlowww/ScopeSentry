@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -1090,9 +1091,14 @@ func addAssetTag(ctx context.Context, _ *mcp.CallToolRequest, input addAssetTagI
 	c := ginContext(ctx)
 	req := &models.TagRequest{Type: index, ID: input.ID, Tag: input.Tag}
 	if err := d.commonService.AddTag(c, req); err != nil {
+		// 资产 id 不存在时驱动层吐的是 "mongo: no documents in result"，
+		// 对调用方毫无意义（像是后端崩了）；这里换成能据以纠正参数的结论（2026-11-28 审计）。
+		if strings.Contains(err.Error(), "no documents in result") {
+			return errorResult(fmt.Sprintf("%s 不存在: %s", index, input.ID), nil)
+		}
 		return errorResult("添加标签失败", err)
 	}
-	return jsonToolResult(ginH{"success": true})
+	return jsonToolResult(ginH{"ok": true, "assetType": index, "id": input.ID, "tag": input.Tag})
 }
 
 type listNodesInput struct {
@@ -1512,10 +1518,27 @@ func stopTask(ctx context.Context, _ *mcp.CallToolRequest, input taskIDInput) (*
 	if strings.TrimSpace(input.ID) == "" {
 		return errorResult("id 不能为空", nil)
 	}
-	if err := d.taskService.StopTasks(ginContext(ctx), []string{input.ID}); err != nil {
+	c := ginContext(ctx)
+	// 先确认任务存在：之前对任意 id 都回 ok:true，调用方无法区分
+	//「确实停了」和「id 打错了」（2026-11-28 审计）。
+	detail, err := d.taskService.GetTaskDetail(c, input.ID)
+	if err != nil {
+		return errorResult("读取任务失败", err)
+	}
+	if detail == nil {
+		return errorResult("任务不存在", nil)
+	}
+	prev := detail.Status
+	if err := d.taskService.StopTasks(c, []string{input.ID}); err != nil {
 		return errorResult("暂停任务失败", err)
 	}
-	return jsonToolResult(ginH{"ok": true, "id": input.ID})
+	res := ginH{"ok": true, "id": input.ID, "prevStatus": prev}
+	if prev == 2 {
+		res["note"] = "任务此前已是暂停状态"
+	} else if prev == 3 {
+		res["note"] = "任务已结束，暂停标记只用于阻止自动重投"
+	}
+	return jsonToolResult(res)
 }
 
 type deleteTaskInput struct {
@@ -1533,10 +1556,37 @@ func deleteTask(ctx context.Context, _ *mcp.CallToolRequest, input deleteTaskInp
 	if len(ids) == 0 {
 		return errorResult("ids 不能为空", nil)
 	}
-	if err := d.taskService.DeleteTasks(ginContext(ctx), ids, input.DeleteAssets); err != nil {
+	c := ginContext(ctx)
+	// 先按 _id 查一遍真实存在的任务：之前直接回 deleted=len(ids)，
+	// id 打错或者已被删掉也照样报「删了 N 个」（2026-11-28 审计）。
+	found, err := d.taskService.GetTasksByIDs(c, ids)
+	if err != nil {
+		return errorResult("读取任务失败", err)
+	}
+	exist := make(map[string]bool, len(found))
+	for _, t := range found {
+		exist[t.ID.Hex()] = true
+	}
+	hits := make([]string, 0, len(exist))
+	missing := make([]string, 0)
+	for _, id := range ids {
+		if exist[id] {
+			hits = append(hits, id)
+		} else {
+			missing = append(missing, id)
+		}
+	}
+	if len(hits) == 0 {
+		return errorResult("任务不存在: "+strings.Join(missing, ", "), nil)
+	}
+	if err := d.taskService.DeleteTasks(c, hits, input.DeleteAssets); err != nil {
 		return errorResult("删除任务失败", err)
 	}
-	return jsonToolResult(ginH{"ok": true, "deleted": len(ids), "deleteAssets": input.DeleteAssets})
+	res := ginH{"ok": true, "deleted": len(hits), "deleteAssets": input.DeleteAssets}
+	if len(missing) > 0 {
+		res["missing"] = missing
+	}
+	return jsonToolResult(res)
 }
 
 type listScanPoliciesInput struct {
@@ -1708,9 +1758,45 @@ func getNodeLogs(ctx context.Context, _ *mcp.CallToolRequest, input nodeNameInpu
 	return jsonToolResult(ginH{"node": input.Node, "logs": res})
 }
 
+// knownNodes 返回当前节点名集合。
+// 用途：动作类工具（重启/插件重检/卸载）在「节点配错名字」时必须报错——
+// 之前它们对不存在的节点也返回 ok:true，调用方（尤其 AI agent）会以为指令已下发，
+// 实际 RefreshConfig 只往一个不存在的节点名写了条配置，什么也没发生（2026-11-28 审计）。
+func knownNodes(ctx context.Context) (map[string]bool, error) {
+	nodes, err := d.nodeService.GetNodeData(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]bool, len(nodes))
+	for _, n := range nodes {
+		set[n.Name] = true
+	}
+	return set, nil
+}
+
+// requireNode 校验节点存在，并把「现在有哪些节点」带进错误里，省掉调用方再查一次。
+func requireNode(ctx context.Context, name string) error {
+	set, err := knownNodes(ctx)
+	if err != nil {
+		return err
+	}
+	if !set[name] {
+		avail := make([]string, 0, len(set))
+		for n := range set {
+			avail = append(avail, n)
+		}
+		sort.Strings(avail)
+		return fmt.Errorf("节点不存在: %s（当前节点: %s）", name, strings.Join(avail, ", "))
+	}
+	return nil
+}
+
 func restartNode(ctx context.Context, _ *mcp.CallToolRequest, input nodeNameInput) (*mcp.CallToolResult, any, error) {
 	if strings.TrimSpace(input.Node) == "" {
 		return errorResult("node 不能为空", nil)
+	}
+	if err := requireNode(ctx, input.Node); err != nil {
+		return errorResult("重启节点失败", err)
 	}
 	if err := d.nodeService.RestartNode(ctx, input.Node); err != nil {
 		return errorResult("重启节点失败", err)
@@ -1732,10 +1818,30 @@ func deleteNodes(ctx context.Context, _ *mcp.CallToolRequest, input deleteNodesI
 	if len(names) == 0 {
 		return errorResult("names 不能为空", nil)
 	}
-	if err := d.nodeService.DeleteNodes(ctx, names); err != nil {
+	set, err := knownNodes(ctx)
+	if err != nil {
 		return errorResult("删除节点失败", err)
 	}
-	return jsonToolResult(ginH{"ok": true, "deleted": len(names)})
+	hits := make([]string, 0, len(names))
+	missing := make([]string, 0)
+	for _, n := range names {
+		if set[n] {
+			hits = append(hits, n)
+		} else {
+			missing = append(missing, n)
+		}
+	}
+	if len(hits) == 0 {
+		return errorResult("节点不存在: "+strings.Join(missing, ", "), nil)
+	}
+	if err := d.nodeService.DeleteNodes(ctx, hits); err != nil {
+		return errorResult("删除节点失败", err)
+	}
+	res := ginH{"ok": true, "deleted": len(hits)}
+	if len(missing) > 0 {
+		res["missing"] = missing
+	}
+	return jsonToolResult(res)
 }
 
 type createDictionaryInput struct {
@@ -1941,10 +2047,26 @@ func deleteExportFiles(ctx context.Context, _ *mcp.CallToolRequest, input delete
 	if len(names) == 0 {
 		return errorResult("fileNames 不能为空", nil)
 	}
+	// 先落盘检查：导出记录和文件是两套数据（文件可能已被清理/从未落盘，
+	// 记录也可能已被删），只回 len(names) 无法判断到底删了几份（2026-11-28 审计）。
+	base := config.GlobalConfig.System.ExportPath()
+	onDisk := make([]string, 0, len(names))
+	noFile := make([]string, 0)
+	for _, n := range names {
+		if _, statErr := os.Stat(filepath.Join(base, n)); statErr == nil {
+			onDisk = append(onDisk, n)
+		} else {
+			noFile = append(noFile, n)
+		}
+	}
 	if err := d.exportService.DeleteExportFiles(ctx, names); err != nil {
 		return errorResult("删除导出文件失败", err)
 	}
-	return jsonToolResult(ginH{"ok": true, "deleted": len(names)})
+	res := ginH{"ok": true, "deleted": len(names), "filesRemoved": len(onDisk)}
+	if len(noFile) > 0 {
+		res["missingFiles"] = noFile
+	}
+	return jsonToolResult(res)
 }
 
 // ---------------------------------------------------------------------------
@@ -1957,12 +2079,34 @@ type pluginNodeInput struct {
 	Module string `json:"module" jsonschema:"插件所属模块，如 AssetMapping / PortScan"`
 }
 
+// requireNodePlugin 校验「节点存在 + 该节点确实装着这个插件」。
+// 之前 recheck/reinstall/uninstall 三个工具对着任意 node/hash 组合都回 ok:true，
+// 运维脚本据此判断「已重装」会完全误判（2026-11-28 审计）。
+func requireNodePlugin(ctx context.Context, nodeName, hash string) error {
+	if err := requireNode(ctx, nodeName); err != nil {
+		return err
+	}
+	list, err := d.nodeService.GetNodePlugin(ctx, nodeName)
+	if err != nil {
+		return err
+	}
+	for _, p := range list {
+		if p.Hash == hash {
+			return nil
+		}
+	}
+	return fmt.Errorf("节点 %s 上未安装插件 hash=%s", nodeName, hash)
+}
+
 func reinstallPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNodeInput) (*mcp.CallToolResult, any, error) {
 	if d.pluginService == nil {
 		return errorResult("插件服务未初始化", nil)
 	}
 	if strings.TrimSpace(input.Node) == "" || strings.TrimSpace(input.Hash) == "" {
 		return errorResult("node 与 hash 不能为空", nil)
+	}
+	if err := requireNodePlugin(ctx, input.Node, input.Hash); err != nil {
+		return errorResult("重新安装插件失败", err)
 	}
 	if err := d.pluginService.Reinstall(ginContext(ctx), &models.PluginReinstallRequest{
 		Node: input.Node, Hash: input.Hash, Module: input.Module,
@@ -1979,6 +2123,9 @@ func recheckPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNode
 	if strings.TrimSpace(input.Node) == "" || strings.TrimSpace(input.Hash) == "" || strings.TrimSpace(input.Module) == "" {
 		return errorResult("node / hash / module 都不能为空", nil)
 	}
+	if err := requireNodePlugin(ctx, input.Node, input.Hash); err != nil {
+		return errorResult("重新检查插件失败", err)
+	}
 	if err := d.pluginService.Recheck(ginContext(ctx), &models.PluginRecheckRequest{
 		Node: input.Node, Hash: input.Hash, Module: input.Module,
 	}); err != nil {
@@ -1993,6 +2140,9 @@ func uninstallPlugin(ctx context.Context, _ *mcp.CallToolRequest, input pluginNo
 	}
 	if strings.TrimSpace(input.Node) == "" || strings.TrimSpace(input.Hash) == "" || strings.TrimSpace(input.Module) == "" {
 		return errorResult("node / hash / module 都不能为空", nil)
+	}
+	if err := requireNodePlugin(ctx, input.Node, input.Hash); err != nil {
+		return errorResult("卸载插件失败", err)
 	}
 	if err := d.pluginService.Uninstall(ginContext(ctx), &models.PluginUninstallRequest{
 		Node: input.Node, Hash: input.Hash, Module: input.Module,
