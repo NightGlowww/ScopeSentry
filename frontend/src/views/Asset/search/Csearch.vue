@@ -294,69 +294,11 @@ const projectLoading = ref(false)
 const projectValue = ref([])
 const taskValue = ref([])
 const filterChange = async () => {
+  console.log(projectValue.value)
+  console.log(taskValue.value)
   const filterData: { [key: string]: any } = { project: projectValue.value }
   filterData.task = taskValue.value
   props.handleFilterSearch(searchParams.value, filterData)
-}
-
-// ---- 当前生效的筛选（可见化） ----
-// 问题：任务/项目下拉一旦持有值，而选项列表里找不到它（任务被删、列表被分页截断），
-// ElSelect 会渲染成空白——用户看着像「什么都没选」，列表却只有 4 条（2026-11-27 反馈）。
-// 这里把所有非空筛选显式列出来，每条可单独移除，另有「清除全部」。
-const projectNameById = computed(() => {
-  const map: Record<string, string> = {}
-  const walk = (nodes: any[]) => {
-    (nodes || []).forEach((n: any) => {
-      if (n && n.value) map[n.value] = n.label || n.value
-      if (n && n.children) walk(n.children)
-    })
-  }
-  walk(props.projectList as any[])
-  return map
-})
-
-// 任务下拉的选项要包含「已选中但不在列表里」的值，否则 ElSelect 会渲染成空白，
-// 用户看着像没筛选，实际列表被这条隐形过滤卡到 4 条（2026-11-27 实测复现）。
-const taskOptions = computed(() => {
-  const base = (props.taskList || []).map((t: any) => ({ id: t.id, name: t.name }))
-  const known = new Set(base.map((t) => t.name))
-  ;(taskValue.value as string[]).forEach((v) => {
-    if (v && !known.has(v)) {
-      base.unshift({ id: 'selected:' + v, name: v })
-      known.add(v)
-    }
-  })
-  return base
-})
-
-const activeFilterChips = computed(() => {
-  const chips: { key: string; label: string }[] = []
-  ;(taskValue.value as string[]).forEach((v) => chips.push({ key: 'task:' + v, label: '任务：' + v }))
-  ;(projectValue.value as string[]).forEach((v) =>
-    chips.push({ key: 'project:' + v, label: '项目：' + (projectNameById.value[v] || v) })
-  )
-  ;(localDynamicTags.value || []).forEach((t) => chips.push({ key: 'tag:' + t, label: t }))
-  return chips
-})
-
-const removeFilterChip = (key: string) => {
-  const [kind, ...rest] = key.split(':')
-  const val = rest.join(':')
-  if (kind === 'task') taskValue.value = (taskValue.value as string[]).filter((v) => v !== val)
-  else if (kind === 'project') projectValue.value = (projectValue.value as string[]).filter((v) => v !== val)
-  else if (kind === 'tag') {
-    localDynamicTags.value = localDynamicTags.value.filter((v) => v !== val)
-    searchParams.value = localDynamicTags.value.join(' && ')
-    props.handleSearch(searchParams.value)
-  }
-}
-
-const clearAllFilters = () => {
-  taskValue.value = []
-  projectValue.value = []
-  localDynamicTags.value = []
-  searchParams.value = ''
-  props.handleSearch('')
 }
 watch(
   () => projectValue.value,
@@ -522,21 +464,6 @@ const openCreateTask = async () => {
       <ElButton type="primary" @click="openExport" :icon="exporticon" class="toolbar-btn">
         {{ t('asset.export') }}
       </ElButton>
-      <div v-if="activeFilterChips.length" class="active-filter-bar">
-        <span class="afb-label">当前筛选：</span>
-        <ElTag
-          v-for="chip in activeFilterChips"
-          :key="chip.key"
-          closable
-          size="small"
-          type="warning"
-          effect="light"
-          @close="removeFilterChip(chip.key)"
-        >
-          {{ chip.label }}
-        </ElTag>
-        <ElButton link type="primary" size="small" @click="clearAllFilters">清除全部筛选</ElButton>
-      </div>
       <div class="task-select-container">
         <ElSelect
           v-model="taskValue"
@@ -549,7 +476,7 @@ const openCreateTask = async () => {
           clearable
         >
           <ElOption
-            v-for="taskItem in taskOptions"
+            v-for="taskItem in $props.taskList"
             :key="taskItem.id"
             :label="taskItem.name"
             :value="taskItem.name"
@@ -836,21 +763,6 @@ const openCreateTask = async () => {
   min-width: fit-content;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* 当前生效筛选的可见化标签条 */
-.active-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 0;
-}
-
-.afb-label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 
 /* 任务选择器 */
