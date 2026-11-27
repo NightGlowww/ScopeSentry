@@ -20,20 +20,6 @@ type Repository interface {
 	AggregateSIDStat(ctx context.Context, pipeline mongo.Pipeline) ([]models.SensitiveSIDStat, error)
 	AggregateMatchInfo(ctx context.Context, pipeline mongo.Pipeline) ([]string, error)
 	FindWithPagination(ctx context.Context, query bson.M, opts *options.FindOptions) ([]models.Sensitive, error)
-	// DeleteMany 删除 SensitiveResult 文档，返回真实删除条数
-	DeleteMany(ctx context.Context, filter bson.M) (int64, error)
-}
-
-// DeleteMany 删除敏感信息结果。
-//
-// 之前敏感信息页面的「删除」按钮打到 /api/sensitive/delete，而那其实是**规则**删除接口
-// （两个路由组都挂在 /api/sensitive 下），所以点了「删除」提示成功、列表纹丝不动（2026-11-28 实测）。
-func (r *repository) DeleteMany(ctx context.Context, filter bson.M) (int64, error) {
-	res, err := r.collection.DeleteMany(ctx, filter)
-	if err != nil {
-		return 0, fmt.Errorf("delete sensitive result: %w", err)
-	}
-	return res.DeletedCount, nil
 }
 
 type repository struct {

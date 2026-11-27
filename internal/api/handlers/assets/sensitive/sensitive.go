@@ -16,37 +16,6 @@ func init() {
 	sensitiveService = sensitive.NewService()
 }
 
-// DeleteData 删除敏感信息结果
-// @Summary      删除敏感信息结果
-// @Description  按 _id 删除 SensitiveResult 文档；这是「敏感信息」页面删除按钮的落点
-// @Tags         Sensitive
-// @Accept       json
-// @Produce      json
-// @Router       /api/sensitive/data/delete [post]
-func DeleteData(c *gin.Context) {
-	var req struct {
-		IDs []string `json:"ids"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "api.bad_request", err)
-		return
-	}
-	if len(req.IDs) == 0 {
-		response.BadRequest(c, "api.bad_request", fmt.Errorf("ids is required"))
-		return
-	}
-	deleted, err := sensitiveService.Delete(c, req.IDs)
-	if err != nil {
-		response.InternalServerError(c, "api.error", err)
-		return
-	}
-	if deleted == 0 {
-		response.NotFound(c, "api.error", fmt.Errorf("敏感信息记录不存在"))
-		return
-	}
-	response.Success(c, map[string]any{"deleted": deleted, "requested": len(req.IDs)}, "api.success")
-}
-
 // GetSensitiveInfo godoc
 // @Summary 获取敏感信息列表
 // @Description 获取敏感信息列表，支持分页、排序和过滤
