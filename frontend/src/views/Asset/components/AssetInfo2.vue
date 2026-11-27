@@ -886,12 +886,37 @@ const { height: windowHeight } = useWindowSize()
 const tableMaxHeight = computed(() => Math.max(420, windowHeight.value - 340))
 const activeNames = ref(['1', '2', '3', '4', '5'])
 
+const activeFilterBarStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '6px 4px',
+  fontSize: '12px'
+}
+
 // 侧栏筛选：有数据时才给固定滚动高度，空数据收成一行提示，
 // 避免三个空列表把整条侧栏拉成一长条空白
 const filterListHeight = (list: unknown[] | undefined, maxRem: number) =>
   list && list.length ? `${maxRem}rem` : '2.75rem'
+// 当前生效的任务/项目筛选（下拉渲染成空白时，这是唯一能看出来「有筛选」的地方）
+const activeFilterText = ref('')
+const csearchRef = ref<any>(null)
+const clearTaskProjectFilter = () => {
+  filter.task = []
+  filter.project = []
+  persistFilter()
+  activeFilterText.value = ''
+  csearchRef.value?.resetFilters?.()
+  handleSearch(searchParams.value || '')
+}
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
+  {
+    const parts: string[] = []
+    if (Array.isArray(newFilters?.task) && newFilters.task.length) parts.push('任务：' + newFilters.task.join('、'))
+    if (Array.isArray(newFilters?.project) && newFilters.project.length) parts.push('项目：' + newFilters.project.length + ' 个')
+    activeFilterText.value = parts.join(' · ')
+  }
   persistFilter()
   searchParams.value = data
   sessionStorage.setItem(SEARCH_KEY, data || '')
@@ -1045,6 +1070,7 @@ const confirmSelectedIcons = () => {
 
 <template>
   <Csearch
+    ref="csearchRef"
     :getList="getList"
     :handleSearch="handleSearch"
     :initialSearch="searchParams"
@@ -1074,6 +1100,13 @@ const confirmSelectedIcons = () => {
     :projectList="$props.projectList"
     @saved="getList"
   />
+  <!-- 当前生效的任务/项目筛选：下拉一旦持有值却渲染成空白，用户就以为没筛选，
+       实际列表被这条隐形条件卡到只剩几行（2026-11-27 反馈） -->
+  <div v-if="activeFilterText" class="active-filter-bar">
+    <span class="afb-label">当前筛选：</span>
+    <ElTag type="warning" effect="light" size="small">{{ activeFilterText }}</ElTag>
+    <ElButton link type="primary" size="small" @click="clearTaskProjectFilter">清除筛选</ElButton>
+  </div>
   <TimeRangeFilter
     v-if="activeSegment == 'tableSegment'"
     v-model="timeRange"

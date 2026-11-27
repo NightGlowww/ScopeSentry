@@ -294,12 +294,11 @@ const projectLoading = ref(false)
 const projectValue = ref([])
 const taskValue = ref([])
 const filterChange = async () => {
-  console.log(projectValue.value)
-  console.log(taskValue.value)
   const filterData: { [key: string]: any } = { project: projectValue.value }
   filterData.task = taskValue.value
   props.handleFilterSearch(searchParams.value, filterData)
 }
+
 watch(
   () => projectValue.value,
   (newValue) => {
@@ -314,6 +313,16 @@ watch(
   }
 )
 const localDynamicTags = ref<string[]>(props.dynamicTags ? [...props.dynamicTags] : [])
+
+// 供父组件清空筛选：下拉里的值不跟着清，用户会看到「明明清除了却还显示筛选」。
+// 只做状态重置，不改模板结构（2026-11-27 一次改模板结构把整条工具栏弄没了，已回滚）。
+const resetFilters = () => {
+  taskValue.value = []
+  projectValue.value = []
+  localDynamicTags.value = []
+  searchParams.value = ''
+}
+defineExpose({ resetFilters })
 const tagClickFilterSearch = () => {
   const dictionary: { [key: string]: string[] } = {}
   console.log(localDynamicTags.value)
