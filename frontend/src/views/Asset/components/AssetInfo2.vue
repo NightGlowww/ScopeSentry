@@ -1092,12 +1092,12 @@ const confirmSelectedIcons = () => {
     :projectList="$props.projectList"
     @saved="getList"
   />
-  <!-- 当前生效的任务/项目筛选：下拉一旦持有值却渲染成空白，用户就以为没筛选，
-       实际列表被这条隐形条件卡到只剩几行（2026-11-27 反馈） -->
+  <!-- 这里原来又加了一条「当前筛选」，和搜索框下方的 task=xxx 标签重复显示同一个条件，
+       用户看到两个筛选提示（2026-11-27 反馈）。条件已经由那排标签展示并可单独 ×，
+       所以这里只保留清除入口，不再重复展示。 -->
   <div v-if="activeFilterText" class="active-filter-bar">
-    <span class="afb-label">当前筛选：</span>
-    <ElTag type="warning" effect="light" size="small">{{ activeFilterText }}</ElTag>
-    <ElButton link type="primary" size="small" @click="clearTaskProjectFilter">清除筛选</ElButton>
+    <span class="afb-label">已按任务/项目筛选，结果可能不是全部：</span>
+    <ElButton link type="primary" size="small" @click="clearTaskProjectFilter">清除任务/项目筛选</ElButton>
   </div>
   <TimeRangeFilter
     v-if="activeSegment == 'tableSegment'"

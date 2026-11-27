@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElTabs, ElTabPane, ElTag, ElButton, ElDialog, ElMessage, ElMessageBox } from 'element-plus'
+import { ElTabs, ElTabPane, ElTag, ElButton, ElDialog, ElMessage, ElMessageBox, ElPopover } from 'element-plus'
 import { useRouter } from 'vue-router'
 import AddProject from '../components/AddProject.vue'
 import { deleteProjectApi } from '@/api/project'
@@ -10,6 +10,7 @@ import Subdomain from './components/Subdomain.vue'
 import Port from './components/Port.vue'
 import Service from './components/Service.vue'
 import Tasks from './components/Tasks.vue'
+import Vulns from './components/Vulns.vue'
 import { getProjectInfoApi, getProjectAssetCountApi } from '@/api/ProjectAggregation'
 const { t } = useI18n()
 // 页面 id 从 URL query 取（ProjectList.vue: push('/project-management/project-detail?id=xxx')），
@@ -74,11 +75,23 @@ onMounted(refresh)
           </ElTag>
           <ElTag v-else size="small" type="info" effect="plain">手动</ElTag>
         </div>
+        <!-- 扫描范围最多有几十个域名，直接 join 会糊成一大块文字把头部撑高，
+             还把「编辑/删除」挤到下面去。改成：前 3 个 + 「+N」，全部内容放进浮层（2026-11-27 反馈）。 -->
         <div class="head-scope">
-          扫描范围：
-          <span v-if="(info.root_domains || []).length">
-            {{ (info.root_domains || []).join(' / ') }}
-          </span>
+          <span>扫描范围（{{ (info.root_domains || []).length }}）：</span>
+          <template v-if="(info.root_domains || []).length">
+            <ElTag v-for="d in (info.root_domains || []).slice(0, 3)" :key="d" size="small" effect="plain">
+              {{ d }}
+            </ElTag>
+            <ElPopover v-if="(info.root_domains || []).length > 3" placement="bottom-start" :width="520" trigger="click">
+              <template #reference>
+                <ElButton link type="primary" size="small">+{{ (info.root_domains || []).length - 3 }}</ElButton>
+              </template>
+              <div class="scope-pop">
+                <div v-for="d in info.root_domains" :key="d">{{ d }}</div>
+              </div>
+            </ElPopover>
+          </template>
           <span v-else class="muted">未设置根域名</span>
         </div>
         <div class="head-actions">
@@ -108,6 +121,8 @@ onMounted(refresh)
       <ElTabPane :label="t('subdomain.subdomainName')"><Subdomain /></ElTabPane>
       <ElTabPane :label="t('asset.port')"> <Port /></ElTabPane>
       <ElTabPane :label="t('asset.service')"><Service /></ElTabPane>
+      <!-- 漏洞页签：项目页要能直接回答「这个项目有哪些洞」（2026-11-27 反馈） -->
+      <ElTabPane :label="t('asset.vulnerability')"><Vulns /></ElTabPane>
       <!-- 任务页签：项目不能只是资产聚合，它得能回答「这个项目跑过哪些任务、结果如何」 -->
       <ElTabPane :label="t('task.projectTasks')"><Tasks /></ElTabPane>
     </ElTabs>
@@ -129,7 +144,22 @@ onMounted(refresh)
 }
 .head-title { display: flex; align-items: center; gap: 8px; }
 .pname { font-size: 18px; font-weight: 700; }
-.head-scope { margin-top: 6px; font-size: 12px; color: var(--el-text-color-secondary); }
+.head-scope {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+.scope-pop {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .muted { color: var(--el-text-color-placeholder); }
 .head-actions { display: flex; gap: 8px; }
 .head-stats { display: flex; gap: 24px; }

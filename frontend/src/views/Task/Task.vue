@@ -104,6 +104,15 @@ const taskDuration = (row: any): string => {
   return fmtDur(Math.round((e - s) / 1000))
 }
 
+// 表头点击排序：ElTable 的 sortable="custom" 只发事件，真正的排序在服务端做
+// （任务列表分页，前端排当前页会骗人）。字段白名单在 service.taskSort 里。
+const sortState = ref('')
+const onSortChange = ({ prop, order }: { prop: string; order: string | null }) => {
+  sortState.value = order ? `${prop}:${order === 'ascending' ? 'asc' : 'desc'}` : ''
+  currentPage.value = 1
+  getList()
+}
+
 const taskColums = reactive<TableColumn[]>([
   {
     field: 'selection',
@@ -114,6 +123,7 @@ const taskColums = reactive<TableColumn[]>([
     field: 'name',
     label: t('task.taskName'),
     minWidth: 150,
+    sortable: 'custom',
     showOverflowTooltip: true
   },
   {
@@ -131,6 +141,7 @@ const taskColums = reactive<TableColumn[]>([
     field: 'taskNum',
     label: t('task.taskCount'),
     width: 90,
+    sortable: 'custom',
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(
         ElTag,
@@ -145,6 +156,7 @@ const taskColums = reactive<TableColumn[]>([
     field: 'progress',
     label: t('task.taskProgress'),
     minWidth: 200,
+    sortable: 'custom',
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       const bar = h(ElProgress, {
         percentage: cellValue,
@@ -254,6 +266,7 @@ const taskColums = reactive<TableColumn[]>([
     field: 'status',
     label: t('common.state'),
     width: 110,
+    sortable: 'custom',
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 0 待开始，1 运行中，2 暂停，3 运行完成，4 失败
       let tagType, tagText
@@ -312,12 +325,14 @@ const taskColums = reactive<TableColumn[]>([
   {
     field: 'creatTime',
     width: 152,
+    sortable: 'custom',
     label: t('task.createTime')
   },
   {
     field: 'endTime',
     label: t('task.endTime'),
     width: 170,
+    sortable: 'custom',
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
       // 完成时间下面补一行总耗时：列表里就能横向比较不同任务的快慢。
       // 暂停/未开始的任务没有结束时间，算「到现在」会一直涨且没有意义，所以不显示。
@@ -614,7 +629,9 @@ const { tableRegister, tableState, tableMethods } = useTable({
       currentPage.value,
       pageSize.value,
       statusFilter.value >= 0 ? statusFilter.value : undefined,
-      nodeFilter.value || undefined
+      nodeFilter.value || undefined,
+      undefined,
+      sortState.value || undefined
     )
     // 首次加载完也要评估是否该起自动刷新：
     // 之前只在 getList() 包装里调 syncAutoList()，而表格首屏走的是这里，
@@ -1179,6 +1196,7 @@ const setMaxHeight = () => {
         }"
         v-model:pageSize="pageSize"
         v-model:currentPage="currentPage"
+        @sort-change="onSortChange"
         :columns="taskColums"
         :data="dataList"
         stripe

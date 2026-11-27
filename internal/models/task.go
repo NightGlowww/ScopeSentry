@@ -149,6 +149,9 @@ type ListRequest struct {
 	// 注意区分 task.project（资产归属，数组）和 bindProject（任务归属，字符串）——
 	// 项目页看的是后者：这条任务是为哪个项目跑的。
 	BindProject string `json:"bindProject" binding:"omitempty" example:"507f1f77bcf86cd799439011"`
+	// Sort 表头点击排序："<字段>:<asc|desc>"。字段白名单在 service 里校验，
+	// 只允许 name/status/progress/creatTime/endTime/taskNum —— 不能让前端传任意字段进 $sort。
+	Sort string `json:"sort" binding:"omitempty" example:"creatTime:desc"`
 }
 
 // ScheduledTask 计划任务模型

@@ -35,7 +35,7 @@ import (
 
 // Service 定义任务服务接口
 type Service interface {
-	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string) ([]models.Task, int64, error)
+	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string, sortSpec string) ([]models.Task, int64, error)
 	// DeleteByFilter 按筛选批量删除，返回条数
 	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
 	// CountTasksCreatedSince 统计某时间之后创建的任务数（防刷）
@@ -91,7 +91,7 @@ func NewService() Service {
 }
 
 // List 获取任务列表
-func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string) ([]models.Task, int64, error) {
+func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string, sortSpec string) ([]models.Task, int64, error) {
 	filter := bson.M{}
 	if strings.TrimSpace(bindProject) != "" {
 		filter["bindProject"] = strings.TrimSpace(bindProject)
@@ -133,7 +133,7 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		SetProjection(projection).
 		SetSkip(int64((pageIndex - 1) * pageSize)).
 		SetLimit(int64(pageSize)).
-		SetSort(bson.D{{Key: "creatTime", Value: -1}})
+		SetSort(taskSort(sortSpec))
 
 	tasks, err := s.taskRepo.Find(ctx.Request.Context(), filter, opts)
 	if err != nil {
@@ -170,6 +170,35 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 	}
 
 	return tasks, total, nil
+}
+
+// taskSort 把 "<字段>:<asc|desc>" 解析成 Mongo 排序。
+// 字段走白名单：$sort 的键由前端传入时不校验就等于把查询暴露给任意字段（也会踩到没索引的字段）。
+func taskSort(spec string) bson.D {
+	allowed := map[string]string{
+		"name":      "name",
+		"status":    "status",
+		"progress":  "progress",
+		"creatTime": "creatTime",
+		"endTime":   "endTime",
+		"taskNum":   "taskNum",
+	}
+	def := bson.D{{Key: "creatTime", Value: -1}}
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return def
+	}
+	parts := strings.SplitN(spec, ":", 2)
+	field, ok := allowed[parts[0]]
+	if !ok {
+		return def
+	}
+	dir := -1
+	if len(parts) == 2 && strings.EqualFold(parts[1], "asc") {
+		dir = 1
+	}
+	// 次键用 _id 保证分页稳定：同值排序时翻页会重复/漏行
+	return bson.D{{Key: field, Value: dir}, {Key: "_id", Value: -1}}
 }
 
 // CheckTaskNameExists 检查任务名是否存在
