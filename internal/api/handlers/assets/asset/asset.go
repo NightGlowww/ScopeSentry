@@ -258,6 +258,19 @@ func DeleteAsset(c *gin.Context) {
 // @Router /api/assets/{id}/screenshot [get]
 func GetScreenshot(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		// 前端走 POST /api/assets/screenshot {id}
+		var req struct {
+			ID string `json:"id"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil {
+			id = req.ID
+		}
+	}
+	if id == "" {
+		response.BadRequest(c, "api.bad_request", fmt.Errorf("id is required"))
+		return
+	}
 	screenshot, err := assetService.GetScreenshot(c, id)
 	if err != nil {
 		response.InternalServerError(c, "api.asset.screenshot.failed", err)

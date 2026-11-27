@@ -41,6 +41,15 @@ func registerAssetRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 资产截图：前端一直调的是 POST /api/assets/screenshot {id}，
+				// 而 handler 只按 GET /api/assets/{id}/screenshot 写过、且从未注册 ——
+				// 等于这个功能一直是 404（2026-11-28 实测）。这里按前端的契约注册。
+				Method:      "POST",
+				Path:        "/screenshot",
+				Handler:     asset.GetScreenshot,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "/changelog",
 				Handler:     asset.GetChangeLog,
