@@ -389,7 +389,8 @@ const crudSchemas = reactive<CrudSchema[]>([
         </>
       )
     },
-    minWidth: 100
+    // 三个按钮（详情 / POC / LLM）在 100px 里放不下，会被裁成「详情 …」（与资产表同一问题）
+    minWidth: 260
   }
 ])
 let index = 'vulnerability'
