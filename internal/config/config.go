@@ -44,6 +44,9 @@ type SystemConfig struct {
 	ImageDir string `mapstructure:"image_dir"`
 	// UploadDir 上传目录。默认 <ExeDir>/uploads。
 	UploadDir string `mapstructure:"upload_dir"`
+	// BackupKeep 保留多少个最新备份包（0 = 不清理）。
+	// 备份写进挂载卷后没有上限的话，卷迟早被占满（单个包可能就是几百 MB）。
+	BackupKeep int `mapstructure:"backup_keep"`
 }
 
 // ImagePath 返回图片缓存目录（空配置时回退 <ExeDir>/images）。
@@ -226,6 +229,8 @@ func setDefaults() {
 	// 系统配置
 	viper.SetDefault("system.timezone", "Asia/Shanghai")
 	viper.SetDefault("system.debug", false)
+	// 默认保留 10 份备份：够回滚，又不会把磁盘写满
+	viper.SetDefault("system.backup_keep", 10)
 
 	viper.SetDefault("jwt.secret", random.GenerateString(32))
 	viper.SetDefault("jwt.expire", time.Duration(24)*time.Hour)

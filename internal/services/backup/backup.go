@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -124,7 +125,12 @@ func (s *service) Create(ctx context.Context, note string) (info *models.BackupI
 		}
 		s.jobs.finish(err)
 	}()
-	return s.createBackup(ctx, strings.TrimSpace(note), "create")
+	info, err = s.createBackup(ctx, strings.TrimSpace(note), "create")
+	if err == nil {
+		// 保留策略：备份成功后清掉超出 system.backup_keep 的旧包
+		s.pruneOldBackups()
+	}
+	return info, err
 }
 
 // List 备份目录列表
@@ -882,4 +888,46 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// PrunePlan 返回应当删除的备份包名：按创建时间倒序保留最新的 keep 个。
+//
+// keep<=0 表示不清理（返回空）。纯函数，方便单测——删备份是不可逆操作，
+// 「保留哪几个」这件事必须有测试钉住，不能靠现场手滑验证。
+func PrunePlan(infos []models.BackupInfo, keep int) []string {
+	if keep <= 0 || len(infos) <= keep {
+		return nil
+	}
+	sorted := append([]models.BackupInfo(nil), infos...)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].CreatedAt != sorted[j].CreatedAt {
+			return sorted[i].CreatedAt > sorted[j].CreatedAt
+		}
+		return sorted[i].Name > sorted[j].Name
+	})
+	out := make([]string, 0, len(sorted)-keep)
+	for _, info := range sorted[keep:] {
+		out = append(out, info.Name)
+	}
+	return out
+}
+
+// pruneOldBackups 按 system.backup_keep 清理旧备份包（创建成功后调用）。
+// 失败只记日志：清理失败不该让「备份已成功」这件事变成报错。
+func (s *service) pruneOldBackups() {
+	keep := config.GlobalConfig.System.BackupKeep
+	if keep <= 0 {
+		return
+	}
+	list, err := s.store.List()
+	if err != nil {
+		return
+	}
+	for _, name := range PrunePlan(list, keep) {
+		if derr := s.store.Delete(name); derr != nil {
+			logger.Error("backup prune: delete " + name + ": " + derr.Error())
+			continue
+		}
+		logger.Info("backup prune: removed old backup " + name)
+	}
 }
