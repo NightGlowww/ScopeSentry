@@ -71,7 +71,7 @@ var ToolScopes = map[string]string{
 	"get_enterprise_profile": ScopeAssetRead,
 	"search_assets":          ScopeAssetRead,
 	"add_asset_tag":          ScopeAssetWrite,
-	"list_nodes":       ScopeNodeRead,
+	"list_nodes":             ScopeNodeRead,
 	// 只读扩展：POC / 指纹 / 字典 / 看板，统一复用 asset:read，
 	// 避免为了新增只读工具再改前端 scope 选择项
 	"list_pocs":               ScopeAssetRead,
@@ -79,6 +79,7 @@ var ToolScopes = map[string]string{
 	"list_fingerprints":       ScopeAssetRead,
 	"list_dictionaries":       ScopeAssetRead,
 	"preview_dictionary":      ScopeAssetRead,
+	"list_port_dict":          ScopeAssetRead,
 	"search_dictionary_lines": ScopeAssetRead,
 	"get_dashboard_stats":     ScopeAssetRead,
 	"get_console_info":        ScopeAssetRead,
@@ -101,6 +102,8 @@ var ToolScopes = map[string]string{
 	"append_dictionary_lines":   ScopeAssetWrite,
 	"delete_dictionary":         ScopeAssetWrite,
 	"delete_dictionary_entries": ScopeAssetWrite,
+	"set_port_dict_entry":       ScopeAssetWrite,
+	"delete_port_dict_entries":  ScopeAssetWrite,
 	"list_export_records":       ScopeAssetRead,
 	"get_export_fields":         ScopeAssetRead,
 	"create_export_task":        ScopeAssetWrite,

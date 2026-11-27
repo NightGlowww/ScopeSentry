@@ -55,28 +55,31 @@ import (
 )
 
 type deps struct {
-	projectService       project.Service
-	taskService          task.Service
-	taskCommonService    taskCommon.Service
-	templateService      template.Service
-	assetService         asset.Service
-	rootDomainService    root_domain.Service
-	subdomainService     subdomain.Service
-	appService           app.Service
-	mpService            mp.Service
-	urlService           url.Service
-	sensitiveService     sensitive.Service
-	dirscanService       dirscan.Service
-	crawlerService       crawler.Service
-	vulnService          vulnerability.Service
-	ipService            ip.Service
-	pageMonService       page_monitoring.Service
-	commonService        assetCommon.Service
-	nodeService          node.Service
-	pluginService        plugin.Service
-	pocService           poc.Service
-	fingerprintService   fingerprint.Service
-	dictService          dictionary.ManageService
+	projectService     project.Service
+	taskService        task.Service
+	taskCommonService  taskCommon.Service
+	templateService    template.Service
+	assetService       asset.Service
+	rootDomainService  root_domain.Service
+	subdomainService   subdomain.Service
+	appService         app.Service
+	mpService          mp.Service
+	urlService         url.Service
+	sensitiveService   sensitive.Service
+	dirscanService     dirscan.Service
+	crawlerService     crawler.Service
+	vulnService        vulnerability.Service
+	ipService          ip.Service
+	pageMonService     page_monitoring.Service
+	commonService      assetCommon.Service
+	nodeService        node.Service
+	pluginService      plugin.Service
+	pocService         poc.Service
+	fingerprintService fingerprint.Service
+	dictService        dictionary.ManageService
+	// 端口字典（{dict.port.*} 模板占位符的数据源）与 5 类行式字典是两套存储，
+	// ARL-Next 侧同样独立；MCP 一直没有覆盖它（2026-11-28 全工具扫描实测）
+	portDictService      dictionary.PortService
 	dashboardService     dashboard.Service
 	policyService        *policy.Service
 	sensitiveRuleService sensitive_rule.Service
@@ -188,6 +191,7 @@ var d = &deps{
 	pocService:           poc.NewService(),
 	fingerprintService:   fingerprint.NewService(),
 	dictService:          dictionary.NewManageService(),
+	portDictService:      dictionary.NewPortService(),
 	dashboardService:     dashboard.NewService(),
 	policyService:        policy.NewService(),
 	sensitiveRuleService: sensitive_rule.NewService(),
@@ -433,6 +437,22 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "delete_dictionary_entries",
 		Description: "删除字典中的指定行",
 	}, deleteDictionaryEntries)
+
+	// ---- 端口字典（{dict.port.*} 的数据源，与行式字典分开存储）----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_port_dict",
+		Description: "分页查询端口字典（扫描模板 {dict.port.<name>} 占位符的数据源）",
+	}, listPortDict)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "set_port_dict_entry",
+		Description: "新增或修改一条端口字典：不给 id 是新增（name 唯一），给 id 是改那一条",
+	}, setPortDictEntry)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_port_dict_entries",
+		Description: "按 id 批量删除端口字典条目（不可逆，需 confirm=true）",
+	}, deletePortDictEntries)
 
 	// ---- 数据导出 ----
 	addTool(server, allowedTools, &names, &mcp.Tool{
@@ -2069,6 +2089,92 @@ func deleteDictionaryEntries(ctx context.Context, _ *mcp.CallToolRequest, input 
 		return errorResult("删除字典行失败", err)
 	}
 	return jsonToolResult(res)
+}
+
+// ---------------------------------------------------------------------------
+// 端口字典（{dict.port.*} 的数据源）
+// ---------------------------------------------------------------------------
+
+type listPortDictInput struct {
+	Search    string `json:"search,omitempty" jsonschema:"按名称/值模糊搜索"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+func listPortDict(ctx context.Context, _ *mcp.CallToolRequest, input listPortDictInput) (*mcp.CallToolResult, any, error) {
+	if d.portDictService == nil {
+		return errorResult("端口字典服务未初始化", nil)
+	}
+	pi, ps := input.PageIndex, input.PageSize
+	capPageSize(&pi, &ps)
+	list, total, err := d.portDictService.Get(ctx, strings.TrimSpace(input.Search), pi, ps)
+	if err != nil {
+		return errorResult("获取端口字典失败", err)
+	}
+	return jsonToolResult(ginH{"list": list, "total": total, "pageIndex": pi, "pageSize": ps})
+}
+
+type setPortDictEntryInput struct {
+	ID    string `json:"id,omitempty" jsonschema:"已有条目的 id；留空表示新增"`
+	Name  string `json:"name" jsonschema:"字典键（模板里写 {dict.port.<name>}）"`
+	Value string `json:"value" jsonschema:"端口列表值，例如 80,443"`
+}
+
+func setPortDictEntry(ctx context.Context, _ *mcp.CallToolRequest, input setPortDictEntryInput) (*mcp.CallToolResult, any, error) {
+	if d.portDictService == nil {
+		return errorResult("端口字典服务未初始化", nil)
+	}
+	name := strings.TrimSpace(input.Name)
+	value := strings.TrimSpace(input.Value)
+	if name == "" {
+		return errorResult("name 不能为空", nil)
+	}
+	if value == "" {
+		return errorResult("value 不能为空", nil)
+	}
+	id := strings.TrimSpace(input.ID)
+	if id == "" {
+		if err := d.portDictService.Add(ctx, name, value); err != nil {
+			return errorResult("新增端口字典失败", err)
+		}
+		return jsonToolResult(ginH{"ok": true, "action": "created", "name": name})
+	}
+	if err := d.portDictService.Update(ctx, id, name, value); err != nil {
+		return errorResult("修改端口字典失败", err)
+	}
+	return jsonToolResult(ginH{"ok": true, "action": "updated", "id": id, "name": name})
+}
+
+type deletePortDictEntriesInput struct {
+	IDs     []string `json:"ids" jsonschema:"要删除的条目 id 列表"`
+	Confirm bool     `json:"confirm,omitempty" jsonschema:"必须显式传 true：删除不可逆"`
+}
+
+func deletePortDictEntries(ctx context.Context, _ *mcp.CallToolRequest, input deletePortDictEntriesInput) (*mcp.CallToolResult, any, error) {
+	if d.portDictService == nil {
+		return errorResult("端口字典服务未初始化", nil)
+	}
+	ids := make([]string, 0, len(input.IDs))
+	for _, id := range input.IDs {
+		if v := strings.TrimSpace(id); v != "" {
+			ids = append(ids, v)
+		}
+	}
+	if len(ids) == 0 {
+		return errorResult("ids 不能为空", nil)
+	}
+	// 与 delete_asset_groups 同一口径：不可逆操作必须显式确认
+	if !input.Confirm {
+		return errorResult(`拒绝执行: confirm is required: delete_port_dict_entries 是不可逆操作，确认执行请在参数里显式传 "confirm": true`, nil)
+	}
+	n, err := d.portDictService.Delete(ctx, ids)
+	if err != nil {
+		return errorResult("删除端口字典失败", err)
+	}
+	if n == 0 {
+		return errorResult("条目不存在: "+strings.Join(ids, ","), nil)
+	}
+	return jsonToolResult(ginH{"ok": true, "deleted": n})
 }
 
 // ---------------------------------------------------------------------------
