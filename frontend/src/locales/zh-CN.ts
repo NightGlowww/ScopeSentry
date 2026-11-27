@@ -1062,6 +1062,7 @@ export default {
     cmdFailHint: '本次工具失败 {n} 次，产出可能不完整',
     exportTask: '导出任务结果（CSV 包）',
     exportTaskXlsx: '导出任务结果（Excel 多表）',
+    exportXlsxRangeHint: '时间范围可选：留空导出该任务的全部产出，指定后只导这段时间内的记录',
     exportDone: '已开始下载任务导出包',
     nodeOfflineWarn: '节点离线，任务可能无法推进',
     queuedHint: '排队中（等待节点空闲）',

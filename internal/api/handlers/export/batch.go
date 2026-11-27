@@ -12,6 +12,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export"
+	"github.com/Autumn-27/ScopeSentry/internal/services/export/exportfilter"
 	"github.com/gin-gonic/gin"
 )
 
@@ -84,7 +85,16 @@ func TaskExport(c *gin.Context) {
 		return
 	}
 
-	plan, err := batchExportService.PrepareTask(c.Request.Context(), taskID)
+	// startTime / endTime 可选，格式 "YYYY-MM-DD HH:MM:SS"，可只给一边：
+	// 「只导这次任务某几天产出的」以前做不到，只能导全量再自己筛。
+	startTime := strings.TrimSpace(c.Query("startTime"))
+	endTime := strings.TrimSpace(c.Query("endTime"))
+	if _, err := exportfilter.ApplyTimeRange(nil, startTime, endTime); err != nil {
+		response.BadRequestWithError(c, "api.bad_request", err)
+		return
+	}
+
+	plan, err := batchExportService.PrepareTask(c.Request.Context(), taskID, startTime, endTime)
 	if err != nil {
 		writeExportError(c, err)
 		return

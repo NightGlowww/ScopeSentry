@@ -1091,6 +1091,8 @@ export default {
     cmdFailHint: '{n} tool failure(s) during this task; results may be incomplete',
     exportTask: 'Export results (CSV bundle)',
     exportTaskXlsx: 'Export results (multi-sheet Excel)',
+    exportXlsxRangeHint:
+      'Optional time range: leave empty to export everything the task produced, or limit to this window',
     exportDone: 'Task export package download started',
     nodeOfflineWarn: 'Node offline, tasks may not progress',
     queuedHint: 'Queued (waiting for a free node)',

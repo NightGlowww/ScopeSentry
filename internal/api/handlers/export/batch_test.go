@@ -38,7 +38,7 @@ func (f *fakeBatchService) Prepare(context.Context, models.BatchExportRequest) (
 	return f.plan, nil
 }
 
-func (f *fakeBatchService) PrepareTask(context.Context, string) (*svcExport.TaskExportPlan, error) {
+func (f *fakeBatchService) PrepareTask(context.Context, string, string, string) (*svcExport.TaskExportPlan, error) {
 	if f.taskErr != nil {
 		return nil, f.taskErr
 	}

@@ -27,7 +27,8 @@ import {
   ElTooltip,
   ElAlert,
   ElSelect,
-  ElOption
+  ElOption,
+  ElDatePicker
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -382,9 +383,10 @@ const taskColums = reactive<TableColumn[]>([
             exportTask(row, 'zip')
             break
           // 多工作表 Excel：任务存档时人要看的是「一个文件几张表」，
-          // zip + 5 个 CSV 还得自己拼（对齐 ARL-Next 1.5.2）
+          // zip + 5 个 CSV 还得自己拼（对齐 ARL-Next 1.5.2）。
+          // 先弹时间范围：默认全量，可只导这次任务某几天产出的。
           case 'export_xlsx':
-            exportTask(row, 'xlsx')
+            openXlsxExport(row)
             break
           case 'progress':
             getProgressInfo(row.id)
@@ -473,11 +475,16 @@ let getProgressInfoID = ''
 // 按任务导出：后端流式返回 zip（每个集合一个 CSV）。
 // 任务跑完想存档时，不用再去导出页手选类型和筛选。
 const exportingId = ref('')
-const exportTask = async (row: any, format: 'zip' | 'xlsx' = 'zip') => {
+const exportTask = async (
+  row: any,
+  format: 'zip' | 'xlsx' = 'zip',
+  startTime = '',
+  endTime = ''
+) => {
   if (!row?.id) return
   exportingId.value = row.id
   try {
-    const blob = await exportTaskApi(row.id, format)
+    const blob = await exportTaskApi(row.id, format, startTime, endTime)
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -492,6 +499,23 @@ const exportTask = async (row: any, format: 'zip' | 'xlsx' = 'zip') => {
   } finally {
     exportingId.value = ''
   }
+}
+
+// Excel 多表导出：先选时间范围（默认空 = 不限，按任务全量）
+const xlsxDialogVisible = ref(false)
+const xlsxRange = ref<string[]>([])
+const xlsxRow = ref<any>(null)
+const openXlsxExport = (row: any) => {
+  xlsxRow.value = row
+  xlsxRange.value = []
+  xlsxDialogVisible.value = true
+}
+const doXlsxExport = async () => {
+  const row = xlsxRow.value
+  if (!row) return
+  const [start = '', end = ''] = xlsxRange.value || []
+  xlsxDialogVisible.value = false
+  await exportTask(row, 'xlsx', start, end)
 }
 
 // 该任务期间的工具失败次数（用于弹窗顶部告警）
@@ -1261,6 +1285,30 @@ const setMaxHeight = () => {
     />
   </Dialog>
   <Dialog
+    v-model="xlsxDialogVisible"
+    :title="t('task.exportTaskXlsx')"
+    center
+    style="border-radius: 15px; box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3)"
+    width="520px"
+  >
+    <div class="xlsx-export-body">
+      <div class="xlsx-export-tip">{{ t('task.exportXlsxRangeHint') }}</div>
+      <ElDatePicker
+        v-model="xlsxRange"
+        type="datetimerange"
+        value-format="YYYY-MM-DD HH:mm:ss"
+        :start-placeholder="t('export.timeRangeStart')"
+        :end-placeholder="t('export.timeRangeEnd')"
+        clearable
+        style="width: 100%"
+      />
+    </div>
+    <template #footer>
+      <ElButton @click="xlsxDialogVisible = false">{{ t('common.cancel') }}</ElButton>
+      <ElButton type="primary" @click="doXlsxExport">{{ t('asset.export') }}</ElButton>
+    </template>
+  </Dialog>
+  <Dialog
     v-model="progressDialogVisible"
     :title="t('task.taskProgress')"
     center
@@ -1369,5 +1417,17 @@ const setMaxHeight = () => {
 }
 .locale-search-row .el-text {
   white-space: nowrap;
+}
+
+/* Excel 多表导出：时间范围提示 */
+.xlsx-export-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.xlsx-export-tip {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
 }
 </style>

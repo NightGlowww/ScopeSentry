@@ -87,11 +87,21 @@ export const batchExportCsvApi = async (data: BatchExportPayload): Promise<Blob>
 // 按任务导出：
 //   format=zip（默认）→ 一个集合一个 CSV，打进 zip
 //   format=xlsx       → 一个工作簿，每个集合一张工作表（对齐 ARL-Next 1.5.2）
-export const exportTaskApi = (taskId: string, format: 'zip' | 'xlsx' = 'zip'): Promise<Blob> => {
+export const exportTaskApi = (
+  taskId: string,
+  format: 'zip' | 'xlsx' = 'zip',
+  startTime = '',
+  endTime = ''
+): Promise<Blob> => {
+  const qs = new URLSearchParams()
+  if (format === 'xlsx') qs.set('format', 'xlsx')
+  if (startTime) qs.set('startTime', startTime)
+  if (endTime) qs.set('endTime', endTime)
+  const query = qs.toString()
   return new Promise((resolve, reject) => {
     request
       .get({
-        url: '/api/export/task/' + taskId + (format === 'xlsx' ? '?format=xlsx' : ''),
+        url: '/api/export/task/' + taskId + (query ? '?' + query : ''),
         responseType: 'blob',
         timeout: 300000
       })

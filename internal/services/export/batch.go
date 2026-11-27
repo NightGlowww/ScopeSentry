@@ -72,7 +72,9 @@ type BatchService interface {
 	// Prepare 校验请求并统计命中行数；超限直接返回 ErrTooManyRows（此时还没写任何字节）。
 	Prepare(ctx context.Context, req models.BatchExportRequest) (*ExportPlan, error)
 	// PrepareTask 按任务导出：先确认任务存在，再按 TaskExportTypes 各准备一个文件。
-	PrepareTask(ctx context.Context, taskID string) (*TaskExportPlan, error)
+	// PrepareTask 按任务导出。startTime / endTime 可只给一边，格式 "YYYY-MM-DD HH:MM:SS"；
+	// 空串表示不按时间过滤（按任务名全量）。
+	PrepareTask(ctx context.Context, taskID, startTime, endTime string) (*TaskExportPlan, error)
 	// Preview 前 N 行 + 命中总数。
 	Preview(ctx context.Context, req models.BatchExportRequest) (*models.ExportPreviewResult, error)
 	// Explain 导出查询的 explain（queryPlanner），用来取证「导出走索引」。
@@ -112,8 +114,11 @@ type ExportPlan struct {
 type TaskExportPlan struct {
 	TaskID   string
 	TaskName string
-	RowCount int64
-	Files    []*ExportPlan
+	// StartTime / EndTime 本次导出实际使用的时间范围（空 = 不限）
+	StartTime string
+	EndTime   string
+	RowCount  int64
+	Files     []*ExportPlan
 }
 
 // Prepare 见接口说明。
@@ -159,7 +164,7 @@ func (s *batchService) Explain(ctx context.Context, req models.BatchExportReques
 }
 
 // PrepareTask 见接口说明。
-func (s *batchService) PrepareTask(ctx context.Context, taskID string) (*TaskExportPlan, error) {
+func (s *batchService) PrepareTask(ctx context.Context, taskID, startTime, endTime string) (*TaskExportPlan, error) {
 	taskID = strings.TrimSpace(taskID)
 	if taskID == "" {
 		return nil, fmt.Errorf("%w: taskId is required", ErrInvalidRequest)
@@ -181,8 +186,10 @@ func (s *batchService) PrepareTask(ctx context.Context, taskID string) (*TaskExp
 	var total int64
 	for _, exportType := range TaskExportTypes {
 		plan, err := s.plan(ctx, models.BatchExportRequest{
-			Type:     exportType,
-			TaskName: task.Name,
+			Type:      exportType,
+			TaskName:  task.Name,
+			StartTime: startTime,
+			EndTime:   endTime,
 		}, false)
 		if err != nil {
 			return nil, err
@@ -195,10 +202,12 @@ func (s *batchService) PrepareTask(ctx context.Context, taskID string) (*TaskExp
 			ErrTooManyRows, taskID, total, maxExportRows)
 	}
 	return &TaskExportPlan{
-		TaskID:   taskID,
-		TaskName: task.Name,
-		RowCount: total,
-		Files:    files,
+		TaskID:    taskID,
+		TaskName:  task.Name,
+		StartTime: startTime,
+		EndTime:   endTime,
+		RowCount:  total,
+		Files:     files,
 	}, nil
 }
 

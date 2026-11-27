@@ -517,7 +517,7 @@ func TestTaskExportZip(t *testing.T) {
 	}
 
 	svc := newTestBatchService()
-	plan, err := svc.PrepareTask(ctx, taskID)
+	plan, err := svc.PrepareTask(ctx, taskID, "", "")
 	if err != nil {
 		t.Fatalf("PrepareTask: %v", err)
 	}
@@ -573,7 +573,7 @@ func TestTaskExportZip(t *testing.T) {
 	}
 
 	// 任务不存在 -> ErrTaskNotFound（handler 映射 404）
-	if _, err := svc.PrepareTask(ctx, "taskid-does-not-exist"); !errors.Is(err, ErrTaskNotFound) {
+	if _, err := svc.PrepareTask(ctx, "taskid-does-not-exist", "", ""); !errors.Is(err, ErrTaskNotFound) {
 		t.Fatalf("missing task err = %v, want ErrTaskNotFound", err)
 	}
 }
