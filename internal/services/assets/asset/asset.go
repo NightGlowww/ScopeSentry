@@ -21,6 +21,10 @@ import (
 // Service 定义资产服务接口
 type Service interface {
 	GetAssets(ctx *gin.Context, query models.SearchRequest) ([]models.Asset, error)
+	// CountAssets 用与 GetAssets 完全相同的筛选条件统计总数。
+	// 之前资产列表只回 list，前端为了拿 total 要再打一次 /api/assets/common/total：
+	// 一是多一次往返，二是时间筛选变化时那次调用不会重跑，total 会停在旧值。
+	CountAssets(ctx *gin.Context, query models.SearchRequest) (int64, error)
 	GetAssetByIDs(ctx *gin.Context, ids []string) ([]models.Asset, error)
 	GetAssetByID(ctx *gin.Context, id string) (*models.Asset, error)
 	CreateAsset(ctx *gin.Context, asset *models.Asset) error
@@ -273,6 +277,15 @@ func (s *service) GetAssets(ctx *gin.Context, query models.SearchRequest) ([]mod
 		SetSort(sort)
 
 	return s.assetRepo.FindWithOptions(ctx.Request.Context(), filter, opts)
+}
+
+// CountAssets 统计与列表同一筛选条件下的总数（分页参数不参与筛选）
+func (s *service) CountAssets(ctx *gin.Context, query models.SearchRequest) (int64, error) {
+	searchQuery, err := s.BuildSearchQuery(query)
+	if err != nil {
+		return 0, err
+	}
+	return s.assetRepo.CountDocuments(ctx.Request.Context(), bson.M(searchQuery))
 }
 
 // GetAssetByID 根据ID获取资产

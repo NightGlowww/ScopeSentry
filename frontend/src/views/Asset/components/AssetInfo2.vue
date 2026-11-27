@@ -808,7 +808,6 @@ const { tableRegister, tableState, tableMethods } = useTable({
 
     if (searchParamsChanged || filterChanged) {
       currentPage.value = 1
-      getTotal(searchParams.value, currentPage.value, pageSize.value, filter)
       getAssetstatistics()
       lastSearchParams.value = searchParams.value
       lastFilter = { ...filter }
@@ -821,6 +820,14 @@ const { tableRegister, tableState, tableMethods } = useTable({
       timeFrom.value,
       timeSort.value
     )
+    // 列表现在自带 total（和筛选条件同口径），不用再单独打一次 /api/assets/common/total：
+    // 少一次往返，也修掉「时间筛选变了但 total 不刷新」的旧口径问题。
+    // 拿不到 total（后端版本旧 / 统计失败）时才回落到那个接口，行为和以前一致。
+    if (typeof res.data?.total === 'number') {
+      total.value = res.data.total
+    } else if (searchParamsChanged || filterChanged) {
+      getTotal(searchParams.value, currentPage.value, pageSize.value, filter)
+    }
     return {
       list: res.data.list,
       flag: true
@@ -917,7 +924,6 @@ const handleFilterSearch = (data: any, newFilters: any) => {
 const dynamicTags = ref<string[]>([])
 const changeTags = (type, value) => {
   const key = `${type}=${value}`
-  console.log(key)
   dynamicTags.value = [...dynamicTags.value, key]
 }
 const handleClose = (tag: string) => {

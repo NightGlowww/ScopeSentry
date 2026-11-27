@@ -43,9 +43,13 @@ func GetAssets(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, gin.H{
-		"list": assets,
-	}, "api.asset.list.success")
+	payload := gin.H{"list": assets}
+	// 顺手把 total 带上：和其它集合（subdomain/vulnerability…）保持同一形状。
+	// 统计失败不影响列表——前端拿不到 total 时会回落到 /api/assets/common/total。
+	if total, cerr := assetService.CountAssets(c, query); cerr == nil {
+		payload["total"] = total
+	}
+	response.Success(c, payload, "api.asset.list.success")
 }
 
 // GetAssetByID godoc
