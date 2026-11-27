@@ -55,6 +55,9 @@ type ScanPolicyDicts struct {
 	Dir       *string `bson:"dir,omitempty" json:"dir,omitempty"`
 	Subdomain *string `bson:"subdomain,omitempty" json:"subdomain,omitempty"`
 	Brute     *string `bson:"brute,omitempty" json:"brute,omitempty"`
+	// Port 端口字典名（对齐 ARL-Next 1.5.2：端口选择收敛到系统字典，
+	// 模板参数里用 {dict.port.<名称>} 引用，改字典即改下次扫描的端口范围）
+	Port *string `bson:"port,omitempty" json:"port,omitempty"`
 }
 
 // ScanPolicyConfig 策略参数（也是 apply 的合并单元 / test 的校验单元）

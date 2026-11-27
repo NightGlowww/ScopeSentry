@@ -102,7 +102,7 @@ const templateName = (templateId?: string) => {
 
 const dictSummary = (row: ScanPolicy) => {
   const dicts = row.config?.dicts ?? {}
-  const parts = [dicts.dir, dicts.subdomain, dicts.brute]
+  const parts = [dicts.dir, dicts.subdomain, dicts.brute, dicts.port]
     .map((item) => (item ?? '').trim())
     .filter(Boolean)
   return parts.length ? parts.join(' · ') : '-'
@@ -245,6 +245,7 @@ const form = reactive({
   dictDir: '',
   dictSubdomain: '',
   dictBrute: '',
+  dictPort: '',
   optionsText: ''
 })
 
@@ -263,6 +264,7 @@ const resetForm = () => {
   form.dictDir = ''
   form.dictSubdomain = ''
   form.dictBrute = ''
+  form.dictPort = ''
   form.optionsText = ''
 }
 
@@ -279,6 +281,7 @@ const fillForm = (row: ScanPolicy) => {
   form.dictDir = config.dicts?.dir ?? ''
   form.dictSubdomain = config.dicts?.subdomain ?? ''
   form.dictBrute = config.dicts?.brute ?? ''
+  form.dictPort = config.dicts?.port ?? ''
   form.optionsText = formatOptionsText(config.options)
   validation.value = null
 }
@@ -322,11 +325,13 @@ const buildConfig = (): ScanPolicyConfig => {
   const dir = form.dictDir.trim()
   const subdomain = form.dictSubdomain.trim()
   const brute = form.dictBrute.trim()
-  if (dir || subdomain || brute) {
+  const port = form.dictPort.trim()
+  if (dir || subdomain || brute || port) {
     const dicts: ScanPolicyDicts = {}
     if (dir) dicts.dir = dir
     if (subdomain) dicts.subdomain = subdomain
     if (brute) dicts.brute = brute
+    if (port) dicts.port = port
     config.dicts = dicts
   }
   const parsed = parseOptionsText(form.optionsText)
@@ -660,14 +665,17 @@ onMounted(() => {
       </div>
       <ElFormItem :label="t('policy.dicts')">
         <ElRow :gutter="8" class="full-width">
-          <ElCol :span="8">
+          <ElCol :span="6">
             <ElInput v-model="form.dictDir" :placeholder="t('policy.dictDir')" />
           </ElCol>
-          <ElCol :span="8">
+          <ElCol :span="6">
             <ElInput v-model="form.dictSubdomain" :placeholder="t('policy.dictSubdomain')" />
           </ElCol>
-          <ElCol :span="8">
+          <ElCol :span="6">
             <ElInput v-model="form.dictBrute" :placeholder="t('policy.dictBrute')" />
+          </ElCol>
+          <ElCol :span="6">
+            <ElInput v-model="form.dictPort" :placeholder="t('policy.dictPort')" />
           </ElCol>
         </ElRow>
         <div class="form-hint">{{ t('policy.dictsHint') }}</div>

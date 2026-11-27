@@ -715,6 +715,8 @@ export default {
     dictDir: '目录字典',
     dictSubdomain: '子域名字典',
     dictBrute: '爆破字典',
+    // 端口字典：模板参数里用 {dict.port.<名称>} 引用，改字典即改下次扫描端口范围（对齐 ARL-Next 1.5.2）
+    dictPort: '端口字典（如 port_custom）',
     dictsHint: '留空表示不覆盖模板默认字典；填了才会覆盖',
     options: '附加参数',
     optionsPlaceholder: '一行一个 key=value，例如：rate=50',

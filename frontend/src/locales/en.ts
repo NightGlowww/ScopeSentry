@@ -733,6 +733,7 @@ export default {
     dictDir: 'Directory dictionary',
     dictSubdomain: 'Subdomain dictionary',
     dictBrute: 'Brute force dictionary',
+    dictPort: 'Port dictionary (e.g. port_custom)',
     dictsHint:
       'Empty means the template dictionaries are not overridden; only filled entries override',
     options: 'Extra options',

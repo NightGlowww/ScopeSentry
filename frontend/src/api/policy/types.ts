@@ -8,6 +8,8 @@ export interface ScanPolicyDicts {
   dir?: string | null
   subdomain?: string | null
   brute?: string | null
+  // 端口字典名：模板参数里用 {dict.port.<名称>} 引用（对齐 ARL-Next 1.5.2）
+  port?: string | null
 }
 
 export interface ScanPolicyConfig {

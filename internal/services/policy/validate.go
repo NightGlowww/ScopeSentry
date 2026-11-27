@@ -40,7 +40,8 @@ func NormalizeConfig(cfg models.ScanPolicyConfig) models.ScanPolicyConfig {
 		out.Dicts.Dir = normalizeDictRef(out.Dicts.Dir)
 		out.Dicts.Subdomain = normalizeDictRef(out.Dicts.Subdomain)
 		out.Dicts.Brute = normalizeDictRef(out.Dicts.Brute)
-		if out.Dicts.Dir == nil && out.Dicts.Subdomain == nil && out.Dicts.Brute == nil {
+		out.Dicts.Port = normalizeDictRef(out.Dicts.Port)
+		if out.Dicts.Dir == nil && out.Dicts.Subdomain == nil && out.Dicts.Brute == nil && out.Dicts.Port == nil {
 			out.Dicts = nil
 		}
 	}

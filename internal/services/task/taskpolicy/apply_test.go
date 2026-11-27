@@ -1,6 +1,7 @@
 package taskpolicy
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -208,7 +209,9 @@ func TestApplyToTemplateDoesNotMutatePolicyConfig(t *testing.T) {
 	}
 }
 
-// 没有承载位置的四个旋钮必须显式告警，且顺序稳定（threadNum → rateLimit → timeoutSeconds → dicts → options）。
+// 没有承载位置的三个旋钮必须显式告警，且顺序稳定（threadNum → rateLimit → timeoutSeconds → options）。
+// dicts 不再属于这一类：它已经能通过模板参数的 {dict.<类别>.<名称>} 占位符生效（见 applyDictsToTemplate），
+// 是否命中占位符要拿到模板才知道，由那一侧给结论。
 func TestUnsupportedWarningsCoversAllKnobs(t *testing.T) {
 	cfg := models.ScanPolicyConfig{
 		ThreadNum:      intPtr(20),
@@ -218,10 +221,10 @@ func TestUnsupportedWarningsCoversAllKnobs(t *testing.T) {
 		Options:        map[string]string{"rate": "50"},
 	}
 	warnings := UnsupportedWarnings(cfg)
-	if len(warnings) != 5 {
-		t.Fatalf("warnings = %d, want 5: %+v", len(warnings), warnings)
+	if len(warnings) != 4 {
+		t.Fatalf("warnings = %d, want 4: %+v", len(warnings), warnings)
 	}
-	wantFields := []string{"threadNum", "rateLimit", "timeoutSeconds", "dicts", "options"}
+	wantFields := []string{"threadNum", "rateLimit", "timeoutSeconds", "options"}
 	for i, want := range wantFields {
 		if warnings[i].Field != want {
 			t.Fatalf("warnings[%d].Field = %s, want %s", i, warnings[i].Field, want)
@@ -230,11 +233,8 @@ func TestUnsupportedWarningsCoversAllKnobs(t *testing.T) {
 	if warnings[0].Code != CodeExecLimitsUnsupported || warnings[1].Code != CodeExecLimitsUnsupported || warnings[2].Code != CodeExecLimitsUnsupported {
 		t.Fatalf("并发/速率/超时 code 应为 %s: %+v", CodeExecLimitsUnsupported, warnings)
 	}
-	if warnings[3].Code != CodeDictsUnsupported {
-		t.Fatalf("dicts code = %s, want %s", warnings[3].Code, CodeDictsUnsupported)
-	}
-	if warnings[4].Code != CodeOptionsUnsupported {
-		t.Fatalf("options code = %s, want %s", warnings[4].Code, CodeOptionsUnsupported)
+	if warnings[3].Code != CodeOptionsUnsupported {
+		t.Fatalf("options code = %s, want %s", warnings[3].Code, CodeOptionsUnsupported)
 	}
 }
 
@@ -243,5 +243,55 @@ func TestUnsupportedWarningsSkipsBlankDicts(t *testing.T) {
 	cfg := models.ScanPolicyConfig{Dicts: &models.ScanPolicyDicts{Dir: strPtr("  ")}}
 	if warnings := UnsupportedWarnings(cfg); len(warnings) != 0 {
 		t.Fatalf("warnings = %+v, want empty", warnings)
+	}
+}
+
+// 字典重定向（ARL-Next 1.5.2 对齐）：策略里的字典名写进模板参数的 {dict.<类别>.<名称>} 占位符。
+// 只重定向模板里已存在的同类占位符，不臆造插件 CLI 旗标。
+func TestApplyToTemplateRedirectsDictPlaceholders(t *testing.T) {
+	tpl := newTemplate()
+	tpl.PortScan = []string{"ps-1"}
+	tpl.Parameters.PortScan = map[string]string{"ps-1": "-p {dict.port.default} -sV --timeout 3"}
+	tpl.DirScan = []string{"dir-1"}
+	tpl.Parameters.DirScan = map[string]string{"dir-1": "-w {dict.dir.default} -t 30"}
+
+	cfg := models.ScanPolicyConfig{Dicts: &models.ScanPolicyDicts{
+		Port: strPtr("port-custom-2026"),
+		Dir:  strPtr("dir-deep"),
+	}}
+	applied, warnings := ApplyToTemplate(tpl, cfg)
+
+	if got := tpl.Parameters.PortScan["ps-1"]; got != "-p {dict.port.port-custom-2026} -sV --timeout 3" {
+		t.Fatalf("port param = %q", got)
+	}
+	if got := tpl.Parameters.DirScan["dir-1"]; got != "-w {dict.dir.dir-deep} -t 30" {
+		t.Fatalf("dir param = %q", got)
+	}
+	if !hasApplied(applied, "dicts.port") || !hasApplied(applied, "dicts.dir") {
+		t.Fatalf("applied = %v, want dicts.port + dicts.dir", applied)
+	}
+	if hasWarning(warnings, CodeDictsUnsupported) {
+		t.Fatalf("unexpected warning: %v", warnings)
+	}
+}
+
+// 模板里没有该类别占位符时不臆造参数，只给一条「未命中」说明。
+func TestApplyToTemplateDictWithoutPlaceholderWarns(t *testing.T) {
+	tpl := newTemplate()
+	cfg := models.ScanPolicyConfig{Dicts: &models.ScanPolicyDicts{Brute: strPtr("brute-big")}}
+	applied, warnings := ApplyToTemplate(tpl, cfg)
+
+	if len(applied) != 0 {
+		t.Fatalf("applied = %v, want empty", applied)
+	}
+	if !hasWarning(warnings, CodeDictsUnsupported) {
+		t.Fatalf("warnings = %v, want %s", warnings, CodeDictsUnsupported)
+	}
+	for _, phase := range phasesOf(tpl) {
+		for hash, raw := range phase.Params {
+			if strings.Contains(raw, "brute-big") {
+				t.Fatalf("must not fabricate param %s/%s = %q", phase.Name, hash, raw)
+			}
+		}
 	}
 }

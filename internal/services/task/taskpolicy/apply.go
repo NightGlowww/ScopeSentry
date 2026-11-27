@@ -25,6 +25,7 @@ package taskpolicy
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -121,9 +122,12 @@ func ApplyToTemplate(tpl *models.ScanTemplate, cfg models.ScanPolicyConfig) ([]s
 	if tpl == nil {
 		return nil, nil
 	}
+	// 字典重定向先做：它与插件裁剪互相独立——只改字典的策略也要生效。
+	dictApplied, dictWarnings := applyDictsToTemplate(tpl, cfg)
+
 	allow := normalizePluginRefs(cfg.Plugins)
 	if len(allow) == 0 {
-		return nil, nil
+		return dictApplied, dictWarnings
 	}
 	allowSet := make(map[string]struct{}, len(allow))
 	for _, ref := range allow {
@@ -161,14 +165,101 @@ func ApplyToTemplate(tpl *models.ScanTemplate, cfg models.ScanPolicyConfig) ([]s
 	}
 
 	if len(restricted) == 0 {
-		return nil, []models.PolicyWarning{{
+		warnings := append([]models.PolicyWarning{{
 			Field:   "plugins",
 			Code:    CodePluginsNotApplied,
 			Message: fmt.Sprintf("策略里的 %d 个插件在该模板的分阶段清单里一个都没命中，插件清单保持不变", len(allow)),
-		}}
+		}}, dictWarnings...)
+		return dictApplied, warnings
 	}
 	// 命中即算生效；removed=0 表示清单本来就是策略要的样子（幂等，不重复告警）。
-	return []string{"plugins"}, nil
+	return append([]string{"plugins"}, dictApplied...), dictWarnings
+}
+
+// dictKinds 策略可重定向的字典类别（顺序固定，便于稳定产出提示）
+var dictKinds = []string{"dir", "subdomain", "brute", "port"}
+
+// dictPlaceholderRe 匹配模板参数里的字典占位符 {dict.<类别>.<名称>}。
+// 节点侧按这个占位符在扫描时读字典内容，所以只改「名称」就能换字典，
+// 不需要为每个插件猜端口/字典的 CLI 旗标（那会臆造参数）。
+var dictPlaceholderRe = regexp.MustCompile(`\{dict\.([a-zA-Z]+)\.([^}]*)\}`)
+
+// applyDictsToTemplate 把策略里指定的字典名写进模板参数占位符。
+//
+// 语义：只重定向模板里**已经存在**的同类占位符，例如模板里原本是
+// {dict.port.default}，策略 ports=<自定义字典> 就变成 {dict.port.<自定义字典>}。
+// 模板里没有该类占位符时不臆造参数，只产出一条说明性 warning。
+func applyDictsToTemplate(tpl *models.ScanTemplate, cfg models.ScanPolicyConfig) ([]string, []models.PolicyWarning) {
+	if tpl == nil || cfg.Dicts == nil {
+		return nil, nil
+	}
+	want := map[string]string{}
+	add := func(kind string, v *string) {
+		if v == nil {
+			return
+		}
+		name := strings.TrimSpace(*v)
+		if name == "" {
+			return
+		}
+		want[kind] = name
+	}
+	add("dir", cfg.Dicts.Dir)
+	add("subdomain", cfg.Dicts.Subdomain)
+	add("brute", cfg.Dicts.Brute)
+	add("port", cfg.Dicts.Port)
+	if len(want) == 0 {
+		return nil, nil
+	}
+
+	hit := map[string]bool{}
+	for _, phase := range phasesOf(tpl) {
+		if phase.Params == nil {
+			continue
+		}
+		for hash, raw := range phase.Params {
+			if !strings.Contains(raw, "{dict.") {
+				continue
+			}
+			replaced := dictPlaceholderRe.ReplaceAllStringFunc(raw, func(m string) string {
+				sub := dictPlaceholderRe.FindStringSubmatch(m)
+				if len(sub) != 3 {
+					return m
+				}
+				kind := sub[1]
+				name, ok := want[kind]
+				if !ok {
+					return m
+				}
+				hit[kind] = true
+				return "{dict." + kind + "." + name + "}"
+			})
+			if replaced != raw {
+				phase.Params[hash] = replaced
+			}
+		}
+	}
+
+	applied := make([]string, 0, len(hit))
+	warnings := make([]models.PolicyWarning, 0, len(want))
+	for _, kind := range dictKinds {
+		name, ok := want[kind]
+		if !ok {
+			continue
+		}
+		if hit[kind] {
+			applied = append(applied, "dicts."+kind)
+			continue
+		}
+		warnings = append(warnings, models.PolicyWarning{
+			Field: "dicts." + kind,
+			Code:  CodeDictsUnsupported,
+			Message: fmt.Sprintf(
+				"策略指定的 %s 字典「%s」没有生效：该模板参数里没有 {dict.%s.<名称>} 占位符。在模板参数里用占位符引用字典后，改策略即可切换字典",
+				kind, name, kind),
+		})
+	}
+	return applied, warnings
 }
 
 // UnsupportedWarnings 说明「策略里有、但扫描载荷接不住」的字段。
@@ -198,13 +289,8 @@ func UnsupportedWarnings(cfg models.ScanPolicyConfig) []models.PolicyWarning {
 			Message: fmt.Sprintf("扫描模板没有全局超时字段，超时 %d 秒不会写进本次任务", *cfg.TimeoutSeconds),
 		})
 	}
-	if refs := setDictRefs(cfg.Dicts); len(refs) > 0 {
-		warnings = append(warnings, models.PolicyWarning{
-			Field:   "dicts",
-			Code:    CodeDictsUnsupported,
-			Message: fmt.Sprintf("模板参数里的字典以 {dict.<类别>.<名称>} 占位符引用，策略字典（%s）没有可写位置，仅作记录", strings.Join(refs, ", ")),
-		})
-	}
+	// dicts 不再在这里告警：它已经能在模板参数里生效（见 applyDictsToTemplate），
+	// 是否命中占位符要拿到模板才知道，由那一侧给出「生效/未命中」的结论。
 	if len(cfg.Options) > 0 {
 		warnings = append(warnings, models.PolicyWarning{
 			Field:   "options",

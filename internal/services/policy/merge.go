@@ -74,7 +74,8 @@ func MergeConfig(policyCfg, base models.ScanPolicyConfig) models.PolicyMergeResu
 
 	// 4) 字典引用（逐项覆盖）；三项都未设置时不改变 merged 的形状
 	hasDictOverride := policyCfg.Dicts != nil &&
-		(policyCfg.Dicts.Dir != nil || policyCfg.Dicts.Subdomain != nil || policyCfg.Dicts.Brute != nil)
+		(policyCfg.Dicts.Dir != nil || policyCfg.Dicts.Subdomain != nil ||
+			policyCfg.Dicts.Brute != nil || policyCfg.Dicts.Port != nil)
 	if hasDictOverride {
 		if merged.Dicts == nil {
 			merged.Dicts = &models.ScanPolicyDicts{}
@@ -97,6 +98,7 @@ func MergeConfig(policyCfg, base models.ScanPolicyConfig) models.PolicyMergeResu
 		applyDict("dicts.dir", &policyCfg.Dicts.Dir, &merged.Dicts.Dir)
 		applyDict("dicts.subdomain", &policyCfg.Dicts.Subdomain, &merged.Dicts.Subdomain)
 		applyDict("dicts.brute", &policyCfg.Dicts.Brute, &merged.Dicts.Brute)
+		applyDict("dicts.port", &policyCfg.Dicts.Port, &merged.Dicts.Port)
 	}
 
 	// 5) options：按 key 合并（key 排序保证 warning 顺序稳定）
@@ -195,6 +197,7 @@ func cloneConfig(c models.ScanPolicyConfig) models.ScanPolicyConfig {
 		d.Dir = cloneStringPtr(c.Dicts.Dir)
 		d.Subdomain = cloneStringPtr(c.Dicts.Subdomain)
 		d.Brute = cloneStringPtr(c.Dicts.Brute)
+		d.Port = cloneStringPtr(c.Dicts.Port)
 		out.Dicts = &d
 	}
 	if c.Options != nil {
