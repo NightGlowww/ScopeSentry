@@ -301,8 +301,13 @@ func reconcilePhantomRunning(ctx context.Context, task *mongo.Collection) []stri
 		if last.IsZero() || now.Sub(last) < phantomAfter {
 			continue
 		}
-		reason := fmt.Sprintf("任务标记为运行中，但没有任何节点在跑、也不在队列里，且 %s 没有进度写入；判定为失败，可 retest 重跑", now.Sub(last).Round(time.Minute))
-		phantomSet := bson.M{"status": 4, "failReason": reason, "endTime": ts(now)}
+		elapsed := now.Sub(last).Round(time.Minute).String()
+		reason := fmt.Sprintf("任务标记为运行中，但没有任何节点在跑、也不在队列里，且 %s 没有进度写入；判定为失败，可 retest 重跑", elapsed)
+		phantomSet := bson.M{
+			"status": 4, "failReason": reason, "endTime": ts(now),
+			"failCode":   "phantomNoProgress",
+			"failParams": bson.M{"since": elapsed},
+		}
 		phantomSet = taskstats.Merge(phantomSet, taskstats.Freeze(ctx, str(r["name"])))
 		_, _ = task.UpdateOne(ctx, bson.M{"_id": r["_id"], "status": 1}, bson.M{"$set": phantomSet})
 		logger.Warn("watchdog: " + id + " " + reason)
@@ -396,7 +401,15 @@ func reconcileZombieNodes(ctx context.Context, task *mongo.Collection, queued in
 			name, upd, StaleAfter)
 		if oid, e := primitive.ObjectIDFromHex(cur); e == nil {
 			// 这里只有任务 id：用 FreezeByID 读名字再冻结（终态路径必须一致）
-			zombieSet := bson.M{"status": 4, "failReason": reason, "endTime": ts(now)}
+			zombieSet := bson.M{
+				"status": 4, "failReason": reason, "endTime": ts(now),
+				"failCode": "nodeHeartbeatStale",
+				"failParams": bson.M{
+					"node":  name,
+					"at":    upd,
+					"after": StaleAfter.String(),
+				},
+			}
 			zombieSet = taskstats.Merge(zombieSet, taskstats.FreezeByID(ctx, oid))
 			_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{"$set": zombieSet})
 		}

@@ -21,8 +21,6 @@ import {
   ElIcon,
   ElRadioGroup,
   ElRadioButton,
-
-
   ElTreeSelect,
   ElTooltip,
   ElAlert,
@@ -52,6 +50,7 @@ import { getProjectAllApi } from '@/api/project'
 import { getNodeDataApi } from '@/api/node'
 import { exportTaskApi } from '@/api/export'
 import { moduleStageLabel } from '@/utils/scanModules'
+import { failReasonText } from '@/utils/failReason'
 
 import { deleteTaskByFilterApi } from '@/api/task'
 const { push } = useRouter()
@@ -186,7 +185,7 @@ const taskColums = reactive<TableColumn[]>([
       // 以前 cmdFail>0 时直接 return，模块/目标/时长全被吞掉，
       // 恰恰在出问题时最需要知道它跑到哪一步（2026-11-20）。
       // 失败任务：把巡检写入的原因显示出来，否则只有「失败」两个字没法排查
-      const failReason = (row.failReason as string) || ''
+      const failReason = failReasonText(row, t)
       if (row.status === 4 && failReason) {
         return h('div', { class: 'progress-cell' }, [
           bar,
@@ -246,19 +245,24 @@ const taskColums = reactive<TableColumn[]>([
       return h('div', { class: 'progress-cell' }, [
         bar,
         failLine,
-        h('div', { class: slow ? 'progress-sub progress-sub--slow' : 'progress-sub' }, moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed),
+        h(
+          'div',
+          { class: slow ? 'progress-sub progress-sub--slow' : 'progress-sub' },
+          moduleStageLabel(mod) + ' @ ' + (row.currentTarget || '-') + elapsed
+        ),
         // 预计剩余：按「已用时间 ÷ 已完成比例」线性外推。
         // 百分比本身回答不了「还要多久」，这是最常见的追问（2026-11-21）。
-        etaText
-          ? h('div', { class: 'progress-sub progress-sub--dim' }, etaText)
-          : null,
+        etaText ? h('div', { class: 'progress-sub progress-sub--dim' }, etaText) : null,
         // 目标进度：光看百分比不知道「一共多少个目标、现在第几个」
         (row.taskNum as number) > 0
           ? h(
               'div',
               { class: 'progress-sub progress-sub--dim' },
               t('task.targetProgress', {
-                done: Math.min(Math.round(((row.progress as number) || 0) * (row.taskNum as number) / 100), row.taskNum as number),
+                done: Math.min(
+                  Math.round((((row.progress as number) || 0) * (row.taskNum as number)) / 100),
+                  row.taskNum as number
+                ),
                 total: row.taskNum as number
               })
             )
@@ -337,15 +341,14 @@ const taskColums = reactive<TableColumn[]>([
         t('task.outputUrl', { n: url }),
         t('task.outputVuln', { n: vul })
       ].join(' · ')
-      return h(
-        ElTooltip,
-        { effect: 'dark', placement: 'top', content: detail },
-        () =>
-          h('span', { class: 'output-cell' }, [
-            h('span', { class: 'output-total' }, String(total)),
-            // 有漏洞时给一个红点：列表里第一眼要能看出「这个任务挖到东西了」
-            vul > 0 ? h('span', { class: 'output-dot', title: t('task.outputVuln', { n: vul }) }) : null
-          ])
+      return h(ElTooltip, { effect: 'dark', placement: 'top', content: detail }, () =>
+        h('span', { class: 'output-cell' }, [
+          h('span', { class: 'output-total' }, String(total)),
+          // 有漏洞时给一个红点：列表里第一眼要能看出「这个任务挖到东西了」
+          vul > 0
+            ? h('span', { class: 'output-dot', title: t('task.outputVuln', { n: vul }) })
+            : null
+        ])
       )
     }
   },
@@ -356,10 +359,8 @@ const taskColums = reactive<TableColumn[]>([
     formatter: (_: Recordable, __: TableColumn, cellValue: string[]) => {
       const list = Array.isArray(cellValue) ? cellValue : []
       if (!list.length) return h('span', '-')
-      return h(
-        ElTooltip,
-        { effect: 'dark', placement: 'top', content: list.join(' / ') },
-        () => h(ElTag, { type: 'warning', size: 'small' }, () => list.length + ' 条')
+      return h(ElTooltip, { effect: 'dark', placement: 'top', content: list.join(' / ') }, () =>
+        h(ElTag, { type: 'warning', size: 'small' }, () => list.length + ' 条')
       )
     }
   },
@@ -500,7 +501,6 @@ const taskColums = reactive<TableColumn[]>([
           >
             {t('common.view')}
           </BaseButton>
-
         </>
       )
     }
@@ -584,7 +584,9 @@ const taskFilterSummary = computed(() => {
       3: t('task.statusFinished'),
       4: t('task.statusFailed')
     }
-    parts.push(t('task.filterByStatus', { s: map[statusFilter.value] || String(statusFilter.value) }))
+    parts.push(
+      t('task.filterByStatus', { s: map[statusFilter.value] || String(statusFilter.value) })
+    )
   }
   return parts.join(' · ')
 })
@@ -612,13 +614,15 @@ const confirmDeleteByFilter = async () => {
   const scope = [
     search.value.trim() ? t('task.deleteFilterSearch', { q: search.value.trim() }) : '',
     statusFilter.value >= 0 ? t('task.deleteFilterStatus') : ''
-  ].filter(Boolean).join(t('task.deleteFilterAnd'))
+  ]
+    .filter(Boolean)
+    .join(t('task.deleteFilterAnd'))
   try {
-    await ElMessageBox.confirm(
-      t('task.deleteFilterConfirm', { scope }),
-      t('common.delWarning'),
-      { confirmButtonText: 'OK', cancelButtonText: t('common.cancel'), type: 'warning' }
-    )
+    await ElMessageBox.confirm(t('task.deleteFilterConfirm', { scope }), t('common.delWarning'), {
+      confirmButtonText: 'OK',
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    })
   } catch {
     return
   }
@@ -677,9 +681,15 @@ const startTask = async (ids) => {
       ElMessage.success(t('task.startSubmitted'))
     } else if (started > 0) {
       const reasons = Object.values(res?.data?.failures || {}) as string[]
-      ElMessage.warning(t('task.startPartial', { ok: started, fail: failed, reason: reasons[0] || '' }))
+      ElMessage.warning(
+        t('task.startPartial', { ok: started, fail: failed, reason: reasons[0] || '' })
+      )
     } else {
-      ElMessage.error(t('task.startAllFailed', { reason: String(Object.values(res?.data?.failures || {})[0] || '') }))
+      ElMessage.error(
+        t('task.startAllFailed', {
+          reason: String(Object.values(res?.data?.failures || {})[0] || '')
+        })
+      )
     }
     getList()
   } catch (e: any) {
@@ -729,7 +739,9 @@ const nodeTotal = ref(0)
 // 暂停的节点不算离线：state=2 是「主动停用」，不参与调度是预期行为，
 // 以前把暂停也计成离线，于是永远挂一条「节点离线」警告（2026-11-25 实测 1/4）。
 const nodePaused = ref(0)
-const nodeOffline = computed(() => Math.max(0, nodeTotal.value - nodeOnline.value - nodePaused.value))
+const nodeOffline = computed(() =>
+  Math.max(0, nodeTotal.value - nodeOnline.value - nodePaused.value)
+)
 const loadNodeHealth = async () => {
   try {
     // 直接用节点列表接口（与节点管理页同源、已验证可用），按 state 统计在线数
@@ -1012,13 +1024,13 @@ const confirmSyncToProjectSelect = async () => {
       console.log('创建新项目:', newProjectName.value, newProjectTag.value)
     }
     ids.value = selectedRows.value.map((row: any) => row.id)
-  if (!ids.value.length) {
-    // 选择状态为空时不要发请求：后端会返回 “ids is required”，
-    // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
-    delLoading.value = false
-    ElMessage.warning(t('common.disabledNeedTask'))
-    return
-  }
+    if (!ids.value.length) {
+      // 选择状态为空时不要发请求：后端会返回 “ids is required”，
+      // 用户只能看到一条莫名其妙的红色报错（2026-11-19 实测）。
+      delLoading.value = false
+      ElMessage.warning(t('common.disabledNeedTask'))
+      return
+    }
     await syancProjectApi(
       ids.value,
       option.value,
@@ -1237,7 +1249,14 @@ const setMaxHeight = () => {
         :closable="false"
         show-icon
         style="margin-bottom: 10px"
-        :title="t('task.nodeOfflineWarn') + ': ' + nodeOffline + '/' + nodeTotal + (nodePaused ? '（' + nodePaused + ' 台已暂停）' : '')"
+        :title="
+          t('task.nodeOfflineWarn') +
+          ': ' +
+          nodeOffline +
+          '/' +
+          nodeTotal +
+          (nodePaused ? '（' + nodePaused + ' 台已暂停）' : '')
+        "
       />
       <ElAlert
         v-if="queuedTotal > 0"

@@ -988,6 +988,11 @@ export default {
     memPeak1h: '1h 峰 {n}%',
     autoRefreshHint: '每 15 秒自动刷新 · 更新于 {t}',
     rejectRecentOnly: '最近有拒绝记录（点击查看）',
+    healthOffline: '{n}/{total} 台节点离线',
+    healthAllOnline: '全部 {total} 台节点在线',
+    healthFails: '最近 10 分钟工具失败 {n} 次',
+    healthNoFails: '最近 10 分钟无工具失败',
+    rejectSep: '：',
     rejectRecentAgo: '最近一次 {ago}（点击查看）',
     recentRejectEmpty: '暂无拒绝记录',
     rejectTitle: '派发被拒（自启动起）',
@@ -1056,6 +1061,14 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    failCode: {
+      phantomNoProgress:
+        '任务标记为运行中，但没有任何节点在跑、也不在队列里，且 {since} 没有进度写入；判定为失败，可重新测试重跑',
+      nodeHeartbeatStale:
+        '节点 {node} 心跳停在 {at}（超过 {after} 未更新，远大于正常重启所需的 ~7 分钟），已自动释放队列；该任务判定为失败，可重新测试重跑',
+      staleNoProgress:
+        '超过 {after} 无进展，且不在任何节点队列里（最后活动 {last}），已自动重投 {autoResume} 次仍未跑起来；多半是节点重启/更新打断了执行'
+    },
     projectTasks: '任务',
     moreActions: '更多操作：开始/停止、导出、进度、重新测试、删除',
     etaMinutes: '约剩 {m} 分钟',

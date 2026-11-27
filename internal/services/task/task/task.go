@@ -1053,6 +1053,13 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 			"status":     constants.TaskStatusFailed,
 			"endTime":    helper.GetNowTimeString(),
 			"failReason": reason,
+			// 同一个句子的机器可读形态：英文界面靠它按当前语言渲染
+			"failCode": "staleNoProgress",
+			"failParams": bson.M{
+				"after":      staleAfter.String(),
+				"last":       ref.Format("2006-01-02 15:04:05"),
+				"autoResume": fmt.Sprintf("%d", task.AutoResumeCount),
+			},
 		}
 		deadSet = taskstats.Merge(deadSet, taskstats.Freeze(ctx, task.Name))
 		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": deadSet}); err != nil {

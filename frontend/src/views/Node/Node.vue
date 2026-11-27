@@ -1,7 +1,24 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
 import { agoText } from '@/utils/ago'
-import { ElScrollbar, ElTag, ElTooltip, ElCheckbox, ElInput, ElMessage, ElMessageBox, ElButton, ElCol, ElRow, ElText, ElDialog, ElSelect, ElOption, ElInputNumber, ElAlert } from 'element-plus'
+import {
+  ElScrollbar,
+  ElTag,
+  ElTooltip,
+  ElCheckbox,
+  ElInput,
+  ElMessage,
+  ElMessageBox,
+  ElButton,
+  ElCol,
+  ElRow,
+  ElText,
+  ElDialog,
+  ElSelect,
+  ElOption,
+  ElInputNumber,
+  ElAlert
+} from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { ref, reactive, h, computed } from 'vue'
@@ -14,7 +31,15 @@ import { Dialog } from '@/components/Dialog'
 import { BaseButton } from '@/components/Button'
 import Configuration from './components/Configuration.vue'
 import plugin from './components/plugin.vue'
-import { getNodeDataApi, deleteNodeApi, getNodeLogApi, restartNodeApi, clearNodeQueueApi, rebalanceNodeQueueApi, getMemPeaksApi } from '@/api/node'
+import {
+  getNodeDataApi,
+  deleteNodeApi,
+  getNodeLogApi,
+  restartNodeApi,
+  clearNodeQueueApi,
+  rebalanceNodeQueueApi,
+  getMemPeaksApi
+} from '@/api/node'
 import { getDispatchRejectStatsApi, getDispatchRecentApi } from '@/api/task'
 import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
 import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
@@ -26,7 +51,8 @@ const offlineReason = (row: any, state: string): string => {
   if (!isFinite(t0) || t0 <= 0) return ''
   const sec = Math.round((Date.now() - t0) / 1000)
   if (sec < 0) return ''
-  const ago = sec < 60 ? sec + 's' : sec < 3600 ? Math.round(sec / 60) + 'm' : Math.round(sec / 3600) + 'h'
+  const ago =
+    sec < 60 ? sec + 's' : sec < 3600 ? Math.round(sec / 60) + 'm' : Math.round(sec / 3600) + 'h'
   const running = Number(row?.running) || 0
   if (state === '1') return t('node.heartbeatAgo', { ago })
   if (running > 0) return t('node.offlineBusy', { ago })
@@ -134,18 +160,14 @@ const nodeColums = reactive<TableColumn[]>([
       const highMin = Number((memPeaks.value as any)[String(row.name)]?.highMinutes || 0)
       const highTag =
         highMin >= 15
-          ? h(
-              ElTag,
-              { size: 'small', effect: 'dark', type: 'danger' },
-              () => t('node.memHighFor', { n: highMin })
+          ? h(ElTag, { size: 'small', effect: 'dark', type: 'danger' }, () =>
+              t('node.memHighFor', { n: highMin })
             )
           : null
       const peakTag =
         peak > 0
-          ? h(
-              ElTag,
-              { size: 'small', effect: 'plain', type: peak >= 90 ? 'danger' : 'info' },
-              () => t('node.memPeak1h', { n: peak.toFixed(1) })
+          ? h(ElTag, { size: 'small', effect: 'plain', type: peak >= 90 ? 'danger' : 'info' }, () =>
+              t('node.memPeak1h', { n: peak.toFixed(1) })
             )
           : null
       const ctrTag = h(
@@ -160,11 +182,12 @@ const nodeColums = reactive<TableColumn[]>([
       )
       const soft = Number((row as any).memSoftLimitMB || 0)
       const title = soft > 0 ? t('node.memSoftLimit', { n: soft }) : ''
-      return h(
-        'div',
-        { class: 'node-mem-cell', title },
-        [tag, h('div', { class: 'node-mem-sub' }, [ctrTag]), peakTag, highTag]
-      )
+      return h('div', { class: 'node-mem-cell', title }, [
+        tag,
+        h('div', { class: 'node-mem-sub' }, [ctrTag]),
+        peakTag,
+        highTag
+      ])
     }
   },
   {
@@ -190,7 +213,10 @@ const nodeColums = reactive<TableColumn[]>([
       // 只给一个红标签看不出区别，所以补一行「最后心跳」与推断。
       const hint = row?.stale ? t('node.heartbeatDelayed') : offlineReason(row, cellValue)
       if (!hint) return tag
-      return h('div', { class: 'node-state-cell' }, [tag, h('div', { class: 'node-state-hint' }, hint)])
+      return h('div', { class: 'node-state-cell' }, [
+        tag,
+        h('div', { class: 'node-state-hint' }, hint)
+      ])
     }
   },
   {
@@ -219,7 +245,7 @@ const nodeColums = reactive<TableColumn[]>([
       }
       return h(ElTooltip, { content: tip, placement: 'top' }, () =>
         h('div', { style: 'display:flex;gap:4px;align-items:center' }, [
-        h(ElTag, { type: v > 0 ? 'warning' : 'info' }, () => String(v)),
+          h(ElTag, { type: v > 0 ? 'warning' : 'info' }, () => String(v)),
           recent > 0
             ? h(ElTag, { type: 'danger', size: 'small' }, () => '+' + String(recent))
             : null
@@ -280,7 +306,9 @@ const offlineNodes = computed(() =>
 const healedTargets = computed(() => {
   const online = (dataList.value || []).filter((n: any) => String(n.state) === '1')
   if (!online.length) return ''
-  return [...online].sort((a: any, b: any) => (Number(a.queueLen) || 0) - (Number(b.queueLen) || 0))[0].name
+  return [...online].sort(
+    (a: any, b: any) => (Number(a.queueLen) || 0) - (Number(b.queueLen) || 0)
+  )[0].name
 })
 // 节点健康一眼可见：只看「在线/离线」会漏掉「在线但工具一直在失败」。
 // 用 10 分钟窗口——节点本来就按这个粒度上报 cmdFail10m。
@@ -324,7 +352,9 @@ const toggleRecentRejections = async () => {
 }
 // 服务端重启后进程内计数归零，但库里还有最近的拒绝记录——
 // 只要任一非空就要显示入口，否则「重启后看不见有人撞闸」（2026-11-20）。
-const hasRejectInfo = computed(() => rejectSummary.value.length > 0 || recentRejections.value.length > 0)
+const hasRejectInfo = computed(
+  () => rejectSummary.value.length > 0 || recentRejections.value.length > 0
+)
 // 进程内计数与库里的历史是两回事：重启后计数归零，但库里还躺着两天前的记录。
 // 只说「最近有拒绝记录」会让人以为正在发生，所以带上离现在多久。
 const latestRejectText = computed(() => {
@@ -416,7 +446,11 @@ const submitRebalance = async () => {
     return
   }
   try {
-    const res: any = await rebalanceNodeQueueApi(rebalanceFrom.value, rebalanceTo.value, rebalanceLimit.value)
+    const res: any = await rebalanceNodeQueueApi(
+      rebalanceFrom.value,
+      rebalanceTo.value,
+      rebalanceLimit.value
+    )
     ElMessage.success(t('node.rebalanceDone', { n: res?.data?.moved ?? 0 }))
     rebalanceVisible.value = false
     getList()
@@ -428,11 +462,11 @@ const submitRebalance = async () => {
 // 清空节点待领取队列：任务洪泛时不用再登服务器 redis-cli
 const clearQueue = async (name: string) => {
   try {
-    await ElMessageBox.confirm(
-      t('node.clearQueueConfirm', { name }),
-      t('common.delWarning'),
-      { confirmButtonText: 'OK', cancelButtonText: t('common.cancel'), type: 'warning' }
-    )
+    await ElMessageBox.confirm(t('node.clearQueueConfirm', { name }), t('common.delWarning'), {
+      confirmButtonText: 'OK',
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    })
   } catch {
     return
   }
@@ -646,13 +680,22 @@ const closepluginDialogVisible = () => {
       </div>
 
       <div v-if="hasRejectInfo" class="node-health">
-        <ElTag type="info" size="small" effect="plain" style="cursor: pointer" @click="toggleRecentRejections">
-          {{ t('node.rejectTitle') }}：{{ rejectSummary.length ? rejectSummary.join(' · ') : latestRejectText }}
+        <ElTag
+          type="info"
+          size="small"
+          effect="plain"
+          style="cursor: pointer"
+          @click="toggleRecentRejections"
+        >
+          {{ t('node.rejectTitle') }}{{ t('node.rejectSep')
+          }}{{ rejectSummary.length ? rejectSummary.join(' · ') : latestRejectText }}
           <span style="margin-left: 4px">{{ showRecentRejections ? '▲' : '▼' }}</span>
         </ElTag>
       </div>
       <div v-if="showRecentRejections" class="recent-reject">
-        <div v-if="!recentRejections.length" class="recent-reject__empty">{{ t('node.recentRejectEmpty') }}</div>
+        <div v-if="!recentRejections.length" class="recent-reject__empty">{{
+          t('node.recentRejectEmpty')
+        }}</div>
         <div v-for="r in recentRejections" :key="r._id" class="recent-reject__row">
           <span class="recent-reject__time">{{ String(r.at).slice(11, 19) }}</span>
           <ElTag size="small" type="warning" effect="plain">{{ gateLabel(r.gate) }}</ElTag>
@@ -670,16 +713,16 @@ const closepluginDialogVisible = () => {
 
       <div v-if="healthSummary" class="node-health">
         <ElTag v-if="healthSummary.offline > 0" type="danger" size="small" effect="plain">
-          {{ healthSummary.offline }}/{{ healthSummary.total }} 台节点离线
+          {{ t('node.healthOffline', { n: healthSummary.offline, total: healthSummary.total }) }}
         </ElTag>
         <ElTag v-else type="success" size="small" effect="plain">
-          全部 {{ healthSummary.total }} 台节点在线
+          {{ t('node.healthAllOnline', { total: healthSummary.total }) }}
         </ElTag>
         <ElTag v-if="healthSummary.fails > 0" type="warning" size="small" effect="plain">
-          最近 10 分钟工具失败 {{ healthSummary.fails }} 次
+          {{ t('node.healthFails', { n: healthSummary.fails }) }}
         </ElTag>
         <ElTag v-else type="success" size="small" effect="plain">
-          最近 10 分钟无工具失败
+          {{ t('node.healthNoFails') }}
         </ElTag>
       </div>
 
@@ -691,7 +734,13 @@ const closepluginDialogVisible = () => {
         style="margin-bottom: 10px"
       >
         <template #title>
-          {{ t('node.healBanner', { name: offlineNodes[0].name, n: offlineNodes[0].queueLen || 0, to: healedTargets || '-' }) }}
+          {{
+            t('node.healBanner', {
+              name: offlineNodes[0].name,
+              n: offlineNodes[0].queueLen || 0,
+              to: healedTargets || '-'
+            })
+          }}
         </template>
         <BaseButton type="warning" size="small" style="margin-top: 6px" @click="healOne">
           {{ t('node.healAction') }}
@@ -707,7 +756,7 @@ const closepluginDialogVisible = () => {
         :loading="loading"
         :resizable="true"
         @selection-change="handleTableSelectionChange"
-      @register="tableRegister"
+        @register="tableRegister"
         :headerCellStyle="tableHeaderColor"
         :style="{
           fontFamily:
@@ -893,11 +942,21 @@ const closepluginDialogVisible = () => {
   align-items: center;
   padding: 2px 0;
 }
-.recent-reject__time { color: var(--el-text-color-secondary); }
-.recent-reject__node { color: var(--el-text-color-secondary); }
-.recent-reject__task { font-family: monospace; }
-.recent-reject__detail { color: var(--el-text-color-secondary); }
-.recent-reject__empty { color: var(--el-text-color-secondary); }
+.recent-reject__time {
+  color: var(--el-text-color-secondary);
+}
+.recent-reject__node {
+  color: var(--el-text-color-secondary);
+}
+.recent-reject__task {
+  font-family: monospace;
+}
+.recent-reject__detail {
+  color: var(--el-text-color-secondary);
+}
+.recent-reject__empty {
+  color: var(--el-text-color-secondary);
+}
 
 .node-mem-cell {
   line-height: 1.2;

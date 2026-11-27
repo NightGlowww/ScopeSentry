@@ -16,6 +16,7 @@ import {
   ElTag
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
+import { failReasonText } from '@/utils/failReason'
 import {
   getTaskDataApi,
   getTaskDetailApi,
@@ -314,7 +315,7 @@ const columns: TableColumn[] = [
           }}</pre>
         </ElDescriptionsItem>
         <ElDescriptionsItem v-if="detail.failReason" :label="t('failReason')">
-          {{ detail.failReason }}
+          {{ failReasonText(detail, t) }}
         </ElDescriptionsItem>
       </ElDescriptions>
     </ElDialog>

@@ -1018,6 +1018,11 @@ export default {
     memHighFor: 'high for {n}m',
     memPeak1h: '1h peak {n}%',
     autoRefreshHint: 'Auto-refresh every 15s · updated {t}',
+    healthOffline: '{n}/{total} nodes offline',
+    healthAllOnline: 'All {total} nodes online',
+    healthFails: '{n} tool failures in the last 10 minutes',
+    healthNoFails: 'No tool failures in the last 10 minutes',
+    rejectSep: ': ',
     rejectRecentAgo: 'last {ago} (click to view)',
     rejectRecentOnly: 'recent rejections (click to view)',
     recentRejectEmpty: 'No rejections recorded',
@@ -1089,6 +1094,14 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    failCode: {
+      phantomNoProgress:
+        'Marked as running, but no node is working on it and it is not queued either, with no progress written for {since}; judged failed — retest to run it again',
+      nodeHeartbeatStale:
+        'Node {node} stopped reporting at {at} ({after} without an update, far beyond the ~7 minutes a normal restart needs); the queue was released automatically and the task is judged failed — retest to run it again',
+      staleNoProgress:
+        'No progress for {after} and not in any node queue (last activity {last}); auto-resumed {autoResume} times without starting — usually a node restart or upgrade interrupted it'
+    },
     projectTasks: 'Tasks',
     moreActions: 'More actions: start/stop, export, progress, retest, delete',
     etaMinutes: '~{m} min left',

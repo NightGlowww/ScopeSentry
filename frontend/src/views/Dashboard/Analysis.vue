@@ -1,8 +1,22 @@
 <script setup lang="ts">
 import PanelGroup from './components/PanelGroup.vue'
-import { ElRow, ElCol, ElCard, ElProgress, ElText, ElTooltip, ElButton, ElForm, ElFormItem, ElInput, ElTag, ElPopconfirm } from 'element-plus'
+import {
+  ElRow,
+  ElCol,
+  ElCard,
+  ElProgress,
+  ElText,
+  ElTooltip,
+  ElButton,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElTag,
+  ElPopconfirm
+} from 'element-plus'
 
 import { Table, TableColumn } from '@/components/Table'
+import { failReasonText } from '@/utils/failReason'
 
 import { Dialog } from '@/components/Dialog'
 import { ref, reactive, h, onBeforeUnmount, Ref, computed } from 'vue'
@@ -11,8 +25,8 @@ import { getTaskDataApi } from '@/api/task'
 import { useI18n } from '@/hooks/web/useI18n'
 import { UPDATEsYSTEMApi, getVersionDataApi } from '@/api/dashboard/analysis'
 import { checkKeyApi } from '@/api/plugins'
-import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
-import { useSingleTabLeader } from "@/hooks/web/useSingleTabLeader"
+import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
+import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 
 const { t } = useI18n()
 
@@ -35,7 +49,9 @@ const nodeSummary = computed(() => {
   if (!list.length) return null
   const online = list.filter((n) => String(n.state) === '1').length
   const high = list.filter((n) => Number(n.containerMem) >= 90).length
-  const warm = list.filter((n) => Number(n.containerMem) >= 70 && Number(n.containerMem) < 90).length
+  const warm = list.filter(
+    (n) => Number(n.containerMem) >= 70 && Number(n.containerMem) < 90
+  ).length
   return { total: list.length, online, high, warm }
 })
 
@@ -172,7 +188,7 @@ const taskColums = reactive<TableColumn[]>([
           ? row?.queuePos
             ? t('task.queuedAt', { n: row.queuePos })
             : t('task.queuedHint')
-          : String(row?.failReason || '')
+          : failReasonText(row, t)
       return h(ElTooltip, { effect: 'dark', placement: 'left', content: tip, disabled: !tip }, () =>
         h(ElTag, { type: item.type, size: 'small' }, () => item.text)
       )
@@ -379,8 +395,6 @@ useVisibleInterval(() => {
   getAllApi()
 }, 10000)
 
-
-
 const pluginKey = ref('')
 const updateSystem = async () => {
   const key = localStorage.getItem(`plugin_key`) as string
@@ -426,21 +440,42 @@ async function handleSubmit() {
       <ElTag size="small" effect="plain" :type="healthTone(loadRatio, 0.9, 1.5)">
         {{ t('dashboard.load') }} {{ serverHealth.host?.load1 }} / {{ serverHealth.host?.cpus }} 核
       </ElTag>
-      <ElTag size="small" effect="plain" :type="healthTone(100 - (serverHealth.host?.memAvailablePercent || 100), 80, 92)">
-        {{ t('dashboard.memAvailable') }} {{ (serverHealth.host?.memAvailablePercent || 0).toFixed(0) }}%
+      <ElTag
+        size="small"
+        effect="plain"
+        :type="healthTone(100 - (serverHealth.host?.memAvailablePercent || 100), 80, 92)"
+      >
+        {{ t('dashboard.memAvailable') }}
+        {{ (serverHealth.host?.memAvailablePercent || 0).toFixed(0) }}%
       </ElTag>
-      <ElTag size="small" effect="plain" :type="healthTone(100 - (serverHealth.host?.diskFreePercent || 100), 80, 92)">
+      <ElTag
+        size="small"
+        effect="plain"
+        :type="healthTone(100 - (serverHealth.host?.diskFreePercent || 100), 80, 92)"
+      >
         {{ t('dashboard.diskFree') }} {{ (serverHealth.host?.diskFreePercent || 0).toFixed(0) }}%
       </ElTag>
       <!-- 依赖状态：宿主健康但 Mongo/Redis 挂了，服务端一样不能用 -->
-      <ElTag size="small" effect="plain" :type="serverHealth.checks?.mongo?.ok ? 'success' : 'danger'">
+      <ElTag
+        size="small"
+        effect="plain"
+        :type="serverHealth.checks?.mongo?.ok ? 'success' : 'danger'"
+      >
         MongoDB {{ serverHealth.checks?.mongo?.ok ? t('dashboard.depOk') : t('dashboard.depDown') }}
       </ElTag>
-      <ElTag size="small" effect="plain" :type="serverHealth.checks?.redis?.ok ? 'success' : 'danger'">
+      <ElTag
+        size="small"
+        effect="plain"
+        :type="serverHealth.checks?.redis?.ok ? 'success' : 'danger'"
+      >
         Redis {{ serverHealth.checks?.redis?.ok ? t('dashboard.depOk') : t('dashboard.depDown') }}
       </ElTag>
       <template v-if="nodeSummary">
-        <ElTag size="small" effect="plain" :type="nodeSummary.online === nodeSummary.total ? 'success' : 'danger'">
+        <ElTag
+          size="small"
+          effect="plain"
+          :type="nodeSummary.online === nodeSummary.total ? 'success' : 'danger'"
+        >
           {{ t('dashboard.nodesOnline', { a: nodeSummary.online, b: nodeSummary.total }) }}
         </ElTag>
         <ElTag v-if="nodeSummary.high" size="small" effect="dark" type="danger">

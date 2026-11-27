@@ -1011,6 +1011,11 @@ export default {
     memHighFor: '{n}분째 고압',
     memPeak1h: '1시간 최고 {n}%',
     autoRefreshHint: '15초마다 자동 새로고침 · {t} 업데이트',
+    healthOffline: '{n}/{total}개 노드 오프라인',
+    healthAllOnline: '전체 {total}개 노드 온라인',
+    healthFails: '최근 10분 도구 실패 {n}회',
+    healthNoFails: '최근 10분 도구 실패 없음',
+    rejectSep: ': ',
     rejectRecentAgo: '최근 {ago} (클릭하여 보기)',
     rejectRecentOnly: '최근 거부 기록(클릭하여 보기)',
     recentRejectEmpty: '거부 기록 없음',
@@ -1082,6 +1087,14 @@ export default {
       '이 노드를 기다리는 작업 {n}개: 노드는 한 번에 하나만 실행하므로 앞 작업이 끝나야 시작됩니다'
   },
   task: {
+    failCode: {
+      phantomNoProgress:
+        '실행 중으로 표시되어 있지만 어떤 노드도 실행 중이 아니고 대기열에도 없으며 {since} 동안 진행 기록이 없습니다. 실패로 판정했습니다 — 재테스트로 다시 실행하세요',
+      nodeHeartbeatStale:
+        '노드 {node}의 하트비트가 {at}에 멈췄습니다({after} 동안 갱신 없음, 정상 재시작에 필요한 약 7분을 크게 초과). 대기열을 자동으로 해제하고 작업을 실패로 판정했습니다 — 재테스트로 다시 실행하세요',
+      staleNoProgress:
+        '{after} 동안 진행이 없고 어떤 노드 대기열에도 없습니다(마지막 활동 {last}). 자동 재투입을 {autoResume}회 했지만 시작되지 않았습니다 — 대부분 노드 재시작/업데이트로 중단된 경우입니다'
+    },
     etaMinutes: '약 {m}분 남음',
     etaHours: '약 {h}시간 {m}분 남음',
     node: '노드',

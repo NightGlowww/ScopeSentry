@@ -76,6 +76,11 @@ type Task struct {
 	QueuePos int `bson:"-" json:"queuePos,omitempty"`
 	// FailReason 失败原因：巡检判定失败时写入，界面直接显示（否则只看到「失败」两个字）
 	FailReason string `bson:"failReason,omitempty" json:"failReason,omitempty"`
+	// FailCode / FailParams 是同一句话的机器可读形态。
+	// 原因：failReason 是 Go 侧拼出来的中文句子，英文界面里直接显示就是一行中文。
+	// 有了 code + params，前端就能按当前语言渲染，句子还能保持和后端一致的措辞。
+	FailCode   string            `bson:"failCode,omitempty" json:"failCode,omitempty"`
+	FailParams map[string]string `bson:"failParams,omitempty" json:"failParams,omitempty"`
 	// StartedAt 本次启动/恢复的时间：用来算「已用时间」，暂停期间不该计入（2026-11-21）
 	StartedAt string `bson:"startedAt,omitempty" json:"startedAt,omitempty"`
 	// AutoResumeCount 因「节点重启/发布打断」被自动重投的次数。
