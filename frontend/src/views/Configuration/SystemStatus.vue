@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { ElAlert, ElButton, ElCard, ElCol, ElRow, ElTag, ElDescriptions, ElDescriptionsItem } from 'element-plus'
+import {
+  ElAlert,
+  ElButton,
+  ElCard,
+  ElCol,
+  ElRow,
+  ElTable,
+  ElTableColumn,
+  ElTag,
+  ElDescriptions,
+  ElDescriptionsItem
+} from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { getConsoleInfoApi, type ConsoleInfo } from '@/api/dashboard'
 import request from '@/axios'
@@ -165,16 +176,16 @@ onMounted(() => {
           合计 {{ mb(storage.total) }}；备份大小与耗时基本由最大那个集合决定
         </span>
       </template>
-      <el-table v-if="storage?.collections?.length" :data="storage.collections" size="small">
-        <el-table-column prop="name" label="集合" min-width="180" />
-        <el-table-column label="占用" width="120">
+      <ElTable v-if="storage?.collections?.length" :data="storage.collections" size="small">
+        <ElTableColumn prop="name" label="集合" min-width="180" />
+        <ElTableColumn label="占用" width="120">
           <template #default="{ row }">{{ mb(row.bytes) }}</template>
-        </el-table-column>
-        <el-table-column label="占比" width="90">
+        </ElTableColumn>
+        <ElTableColumn label="占比" width="90">
           <template #default="{ row }">{{ topShare(row) }}</template>
-        </el-table-column>
-        <el-table-column prop="docs" label="文档数" width="120" />
-      </el-table>
+        </ElTableColumn>
+        <ElTableColumn prop="docs" label="文档数" width="120" />
+      </ElTable>
       <div v-else class="hint">暂无数据（需要登录后自动加载）</div>
     </ElCard>
   </ContentWrap>
