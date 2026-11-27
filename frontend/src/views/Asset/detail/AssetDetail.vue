@@ -52,7 +52,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const statusValue = data.port
-        if (statusValue == '') {
+        if (!statusValue) {
           return h('div', '-')
         }
         return h('div', [h(ElTag, statusValue)])
@@ -65,7 +65,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const statusValue = data.service
-        if (statusValue == '') {
+        if (!statusValue) {
           return h('div', '-')
         }
         return h('div', [h(ElTag, { type: 'info', effect: 'light', round: true }, statusValue)])
@@ -78,7 +78,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const title = data.title
-        if (title == '') {
+        if (!title) {
           return h('div', '-')
         }
         return h('div', title)
@@ -91,7 +91,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const statusValue = data.status
-        if (statusValue == '') {
+        if (!statusValue) {
           return h('div', '-')
         }
         const getColor = (value) => {
@@ -120,7 +120,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const FaviconHash = data.FaviconHash
-        if (FaviconHash == '') {
+        if (!FaviconHash) {
           return h('div', '-')
         }
         return h('div', { style: { whiteSpace: 'pre-line' } }, FaviconHash)
@@ -133,7 +133,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const jarm = data.jarm
-        if (jarm == '') {
+        if (!jarm) {
           return h('div', '-')
         }
         return h('div', { style: { whiteSpace: 'pre-line' } }, jarm)
@@ -146,7 +146,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const time = data.time
-        if (time == '') {
+        if (!time) {
           return h('div', '-')
         }
         return h('div', { style: { whiteSpace: 'pre-line' } }, time)
@@ -193,7 +193,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const statusValue = data.project
-        if (statusValue == '') {
+        if (!statusValue) {
           return h('div', '-')
         }
         return h('div', [h(ElTag, statusValue)])
@@ -207,7 +207,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const TLSData = data.TLSData
-        if (TLSData == '') {
+        if (!TLSData) {
           return h('div', '-')
         }
         return h(
@@ -227,7 +227,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const hashValue = data.hash
-        if (hashValue == '') {
+        if (!hashValue) {
           return h('div', '-')
         }
         return h('div', { style: { whiteSpace: 'pre-line' } }, hashValue)
@@ -241,7 +241,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const banner = data.banner
-        if (banner == '') {
+        if (!banner) {
           return h('div', '-')
         }
         return h('div', { style: { whiteSpace: 'pre-line' } }, banner)
@@ -255,7 +255,7 @@ const schema = reactive<DescriptionsSchema[]>([
     slots: {
       default: (data) => {
         const ResponseBody = data.ResponseBody
-        if (ResponseBody == '') {
+        if (!ResponseBody) {
           return h('div', '-')
         }
         return h(
