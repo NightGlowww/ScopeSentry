@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/Autumn-27/ScopeSentry/internal/config"
 	"github.com/Autumn-27/ScopeSentry/internal/constants"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -355,6 +358,13 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	}, deleteDictionaryEntries)
 
 	// ---- 数据导出 ----
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name: "export_task_workbook",
+		Description: "按任务导出产出：xlsx（默认，一个工作簿里子域名/资产/URL/漏洞/敏感信息各一张表）" +
+			"或 zip（每集合一个 CSV）。可只导给定时段（startTime/endTime）。" +
+			"文件落在导出目录并登记到 list_export_records，客户端用 REST 下载接口取。",
+	}, exportTaskWorkbook)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_export_records",
 		Description: "列出历史导出记录（文件名、类型、状态、大小）",
@@ -2392,4 +2402,87 @@ func getSystemInfo(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mc
 	}
 	res.HostWarnings = hoststat.Warnings(h)
 	return jsonToolResult(res)
+}
+
+type exportTaskWorkbookInput struct {
+	TaskID    string `json:"taskId" jsonschema:"任务 ID（list_tasks 返回的 id）"`
+	Format    string `json:"format,omitempty" jsonschema:"xlsx（默认，一个工作簿多张表）或 zip（每集合一个 CSV）"`
+	StartTime string `json:"startTime,omitempty" jsonschema:"只导这段发现时间的记录，格式 YYYY-MM-DD HH:MM:SS，可只给一边"`
+	EndTime   string `json:"endTime,omitempty" jsonschema:"同上，结束时间"`
+}
+
+// exportTaskWorkbook 按任务导出（对应 REST 的 /api/export/task/{id}）。
+//
+// 为什么单独一个工具：create_export_task 只能导单个 index，
+// 而「一个任务产出了什么」需要子域+资产+URL+漏洞+敏感一起给，
+// 一次调用出一个多工作表 xlsx 比让调用方拼五次更接近真实用法。
+func exportTaskWorkbook(ctx context.Context, _ *mcp.CallToolRequest, input exportTaskWorkbookInput) (*mcp.CallToolResult, any, error) {
+	if d.exportService == nil {
+		return errorResult("导出服务未初始化", nil)
+	}
+	taskID := strings.TrimSpace(input.TaskID)
+	if taskID == "" {
+		return errorResult("taskId 不能为空", nil)
+	}
+	format := strings.ToLower(strings.TrimSpace(input.Format))
+	if format == "" {
+		format = "xlsx"
+	}
+	if format != "xlsx" && format != "zip" {
+		return errorResult("format 只支持 xlsx/zip", nil)
+	}
+
+	plan, err := export.NewBatchService().PrepareTask(ctx, taskID, input.StartTime, input.EndTime)
+	if err != nil {
+		return errorResult("准备任务导出失败", err)
+	}
+
+	fileName := uuid.NewString() + "." + format
+	if err := d.exportService.CreateExportTask(ctx, &models.ExportTask{
+		FileName:   fileName,
+		CreateTime: helper.GetNowTimeString(),
+		Quantity:   int(plan.RowCount),
+		DataType:   "task:" + taskID,
+		FileType:   format,
+		State:      0,
+	}); err != nil {
+		return errorResult("创建导出任务失败", err)
+	}
+
+	// 与 create_export_task 一样异步写文件：任务产出可能几十万行，别让调用方等超时。
+	go func(plan *export.TaskExportPlan, fileName, format string) {
+		bg := context.Background()
+		path := filepath.Join(config.GlobalConfig.System.ExeDir, "files", "export", fileName)
+		f, ferr := os.Create(path)
+		if ferr != nil {
+			logger.Error("mcp export_task_workbook: create file: " + ferr.Error())
+			return
+		}
+		var written int64
+		if format == "xlsx" {
+			written, ferr = plan.StreamXLSX(bg, f)
+		} else {
+			written, ferr = plan.Stream(bg, f)
+		}
+		_ = f.Close()
+		if ferr != nil {
+			logger.Error("mcp export_task_workbook: stream: " + ferr.Error())
+			return
+		}
+		info, serr := os.Stat(path)
+		if serr != nil {
+			logger.Error("mcp export_task_workbook: stat: " + serr.Error())
+			return
+		}
+		if err := d.exportService.FinishExportTask(bg, fileName, float64(info.Size())/1024/1024); err != nil {
+			logger.Error("mcp export_task_workbook: finish: " + err.Error())
+		}
+		logger.Info(fmt.Sprintf("mcp export_task_workbook: %s done rows=%d bytes=%d", fileName, written, info.Size()))
+	}(plan, fileName, format)
+
+	return jsonToolResult(ginH{
+		"ok": true, "fileName": fileName, "format": format,
+		"taskName": plan.TaskName, "rows": plan.RowCount,
+		"startTime": plan.StartTime, "endTime": plan.EndTime,
+	})
 }

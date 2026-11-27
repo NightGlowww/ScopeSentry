@@ -98,6 +98,7 @@ var ToolScopes = map[string]string{
 	"list_export_records":       ScopeAssetRead,
 	"get_export_fields":         ScopeAssetRead,
 	"create_export_task":        ScopeAssetWrite,
+	"export_task_workbook":      ScopeAssetWrite,
 	"delete_export_files":       ScopeAssetWrite,
 	// 插件安装 / 重检 / 卸载
 	"reinstall_plugin": ScopePluginWrite,

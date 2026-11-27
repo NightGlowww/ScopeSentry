@@ -26,6 +26,10 @@ type Service interface {
 	CreateExportTask(ctx context.Context, task *models.ExportTask) error
 	ProcessExportTask(ctx context.Context, run models.ExportRun)
 	GetExportFields(ctx context.Context, index string) ([]string, error)
+	// FinishExportTask 把导出记录标成完成并写入文件大小（MB）。
+	// 给「自己写文件」的调用方用（如 MCP 的任务工作簿导出），
+	// 复用 repository.UpdateExportTaskStatus，状态口径与后台导出完全一致。
+	FinishExportTask(ctx context.Context, fileName string, sizeMB float64) error
 	GetExportRecords(ctx context.Context) ([]models.ExportTask, error)
 	DeleteExportFiles(ctx context.Context, fileNames []string) error
 	IsValidFileName(fileName string) bool
@@ -118,6 +122,11 @@ func (s *service) GetExportFields(ctx context.Context, index string) ([]string, 
 		return []string{}, fmt.Errorf("not found: %s", index)
 	}
 	return fields, nil
+}
+
+// FinishExportTask 见接口说明。
+func (s *service) FinishExportTask(ctx context.Context, fileName string, sizeMB float64) error {
+	return s.repository.UpdateExportTaskStatus(ctx, fileName, 1, sizeMB)
 }
 
 // GetExportRecords 获取导出记录
