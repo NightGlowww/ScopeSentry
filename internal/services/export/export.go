@@ -154,6 +154,11 @@ func (s *service) GetExportRecords(ctx context.Context) ([]models.ExportTask, er
 	if err != nil {
 		return nil, err
 	}
+	// 空集返回 [] 而不是 null：前端直接 res.data.list 赋给表格，
+	// null 会让「导出记录」面板在没有任何记录时拿不到数组（2026-11-28 实测）。
+	if records == nil {
+		records = []models.ExportTask{}
+	}
 	// 现算「文件是否还在」：记录是一次写库、文件可能早已不在（换镜像/手工清理）。
 	// 记录数量级很小（几十条），逐条 Stat 的成本可以忽略。
 	for i := range records {

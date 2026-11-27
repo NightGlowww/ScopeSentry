@@ -174,8 +174,9 @@ const exportColums = reactive<TableColumn[]>([
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const res = await getExportRecordApi()
+    // 后端在空集时曾回 null；这里再兜一层，别把 null 塞给表格
     return {
-      list: res.data.list
+      list: res?.data?.list ?? []
     }
   },
   immediate: false
