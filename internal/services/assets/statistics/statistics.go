@@ -148,43 +148,37 @@ func (s *service) GetPortStatistics(ctx *gin.Context, query *models.SearchReques
 }
 
 func (s *service) GetTitleStatistics(ctx *gin.Context, req *models.TitleStatisticsRequest) (*models.TitleStatisticsResponse, error) {
-	//req.Filter["type"] = []string{"https", "http"}
-	//
-	//pipeline := []bson.M{
-	//	{
-	//		"$match": req.Filter,
-	//	},
-	//	{
-	//		"$facet": bson.M{
-	//			"by_title": []bson.M{
-	//				{"$group": bson.M{"_id": "$title", "num_tutorial": bson.M{"$sum": 1}}},
-	//				{"$match": bson.M{"_id": bson.M{"$ne": ""}}},
-	//			},
-	//		},
-	//	},
-	//}
-	//
-	//result, err := s.repo.Aggregate(ctx, "asset", pipeline)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//response := &models.TitleStatisticsResponse{
-	//	Title: make([]models.TitleItem, 0),
-	//}
-	//
-	//for _, r := range result {
-	//	byTitle := r["by_title"].([]interface{})
-	//	for _, t := range byTitle {
-	//		title := t.(bson.M)
-	//		response.Title = append(response.Title, models.TitleItem{
-	//			Value:  title["_id"].(string),
-	//			Number: title["num_tutorial"].(int64),
-	//		})
-	//	}
-	//}
-
-	return nil, nil
+	// 原来整个函数体是注释掉的，直接 return nil, nil ——
+	// 前端「标题」面板因此永远空着（2026-11-27 实测：接口 200 但 data=null）。
+	match := bson.M{
+		"title": bson.M{"$nin": []interface{}{nil, ""}},
+	}
+	for k, v := range req.Filter {
+		match[k] = v
+	}
+	pipeline := []bson.M{
+		{"$match": match},
+		{"$group": bson.M{"_id": "$title", "number": bson.M{"$sum": 1}}},
+		{"$sort": bson.M{"number": -1}},
+		{"$limit": 50},
+	}
+	cursor, err := s.repo.Aggregate(ctx, "asset", pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		Value  string `bson:"_id"`
+		Number int64  `bson:"number"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	items := make([]models.TitleItem, 0, len(rows))
+	for _, r := range rows {
+		items = append(items, models.TitleItem{Value: r.Value, Number: r.Number})
+	}
+	return &models.TitleStatisticsResponse{Title: items}, nil
 }
 
 func (s *service) GetTypeStatistics(ctx *gin.Context, query *models.SearchRequest) (*models.TypeStatisticsResponse, error) {
