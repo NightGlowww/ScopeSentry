@@ -115,3 +115,25 @@ python3 scripts/ci/i18n_guard.py --demo     # 连未挂路由的 views/Component
 - 标签与值的分隔符原来是写死的全角冒号，英文界面也照输出；改为 `common.labelSep`（中文 `：` / 英文与韩文 `: `）。
 
 结论看最后一行 `I18N_GUARD=PASS|FAIL`。
+
+## 后端 data:null 与前端 res.data.* 的契约（frontend_payload_contract.py）
+
+这类 bug 不报编译错、不报接口错：后端 `response.Success(c, nil, ...)`，前端却写 `res.data.message`，
+运行时 `Cannot read properties of null` —— 用户看到的是「点了没反应」。2026-11-28 修改密码就是这么坏的
+（改成功了、弹窗关了、一句提示都没有）。
+
+```bash
+python3 scripts/ci/frontend_payload_contract.py
+```
+
+判定链（纯静态，不需要起服务）：
+
+1. 扫 Go handler，找出**函数体内**（不跨 `func` 边界）真的调用 `response.Success(c, nil, ...)` 的函数，按「目录 + 函数名」记；
+2. 解析路由文件，用 `group Path + 子 Path` 拼完整 URL，handler 别名经 import 反查成目录，避免 `backup.Status` 与 `plugin.Status` 撞名；
+3. 扫 `frontend/src/api/*.ts`，把 `export const fn = ... url: '/api/...'` 映射成 `fn → url`，用**完整 URL 等值**匹配（子 Path 形如 `status`/`run` 会让后缀匹配误命中）；
+4. 扫前端调用点：`= await fn(...)` 之后 5 行内出现 `<var>.data.<字段>` 即违规，注释行先剥掉。
+
+当前结果：**51 个 data:null 接口 / 20 个前端 api 函数 / 0 处违规 → `PAYLOAD_CONTRACT=PASS`**。
+脚本做过正向对照：临时放一个 `res.data.message` 的探针文件，能精确报到 `user/ChangePassword`，删掉后回到 PASS。
+
+新增写接口时：如果它只回 `nil`，就别让前端去读 `data`；直接读顶层 `message` 或用本地文案。
