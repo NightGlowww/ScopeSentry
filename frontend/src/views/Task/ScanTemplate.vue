@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, h } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -9,8 +9,8 @@ import {
   ElRow,
   ElText,
   ElMessageBox,
-
-  ElDrawer
+  ElDrawer,
+  ElTooltip
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -34,9 +34,19 @@ const taskColums = reactive<TableColumn[]>([
     field: 'name',
     label: t('task.templateName')
   },
+  // 模板 ID 是 24 位 ObjectID：整列展示只占宽度，缩成 8 位 + 悬停看全值（2026-11-27）
   {
     field: 'id',
-    label: 'ID'
+    label: 'ID',
+    minWidth: 120,
+    formatter: (row: any) => {
+      const id = String(row?.id || '')
+      if (!id) return '-'
+      const short = id.length > 10 ? id.slice(0, 8) + '…' : id
+      return h(ElTooltip, { content: id, placement: 'top', effect: 'light' }, () =>
+        h('span', { style: 'font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--el-text-color-secondary)' }, short)
+      )
+    }
   },
   {
     field: 'action',
