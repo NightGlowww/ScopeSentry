@@ -12,9 +12,20 @@ interface RenderErrorRecord {
   stack?: string
 }
 
+// 未处理的 Promise 拒绝：事件处理器里 await 失败但没 try/catch 时，
+// 用户界面完全无反应（点了没动静），控制台也只有一行。这里记到内存里便于排查，
+// 但**不弹提示** —— axios 拦截器已经把网络/业务错误提示过了，再弹一次是双重噪音。
+interface UnhandledRecord {
+  at: number
+  message: string
+  stack?: string
+  route: string
+}
+
 declare global {
   interface Window {
     __SS_RENDER_ERRORS?: RenderErrorRecord[]
+    __SS_UNHANDLED?: UnhandledRecord[]
   }
 }
 
@@ -29,6 +40,24 @@ const componentName = (instance: any): string => {
 
 export const setupErrorHandler = (app: App) => {
   window.__SS_RENDER_ERRORS = window.__SS_RENDER_ERRORS || []
+  window.__SS_UNHANDLED = window.__SS_UNHANDLED || []
+  const seenUnhandled = new Set<string>()
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event?.reason
+    const message = reason?.message || String(reason ?? 'unknown rejection')
+    // axios 的错误对象已经由拦截器提示过，这里只记录不重复提示
+    const key = message
+    if (!seenUnhandled.has(key)) {
+      seenUnhandled.add(key)
+      window.__SS_UNHANDLED!.push({
+        at: Date.now(),
+        message,
+        stack: reason?.stack,
+        route: location.hash
+      })
+    }
+    console.error('[unhandled-rejection] ' + message, reason)
+  })
   app.config.errorHandler = (err: unknown, instance: any, info: string) => {
     const e = err as Error
     const component = componentName(instance)
