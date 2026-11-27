@@ -13,7 +13,8 @@ import {
   ElRow,
   ElSelect,
   ElTag,
-  ElText
+  ElText,
+  ElTooltip
 } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
@@ -163,7 +164,21 @@ const columns = reactive<TableColumn[]>([
       </ElTag>
     )
   },
-  { field: 'templateId', label: t('nucleiResult.templateId'), minWidth: 200 },
+  // 模板 ID 是 24 位 ObjectID，整列展示只占宽度不提供信息：
+  // 显示前 8 位 + 悬停看完整值（2026-11-27）
+  {
+    field: 'templateId',
+    label: t('nucleiResult.templateId'),
+    minWidth: 120,
+    formatter: (row: any) => {
+      const id = String(row?.templateId || '')
+      if (!id) return '-'
+      const short = id.length > 10 ? id.slice(0, 8) + '…' : id
+      return h(ElTooltip, { content: id, placement: 'top', effect: 'light' }, () =>
+        h('span', { class: 'mono-id' }, short)
+      )
+    }
+  },
   { field: 'name', label: t('nucleiResult.templateName'), minWidth: 180 },
   { field: 'url', label: t('nucleiResult.url'), minWidth: 260 },
   { field: 'project', label: t('nucleiResult.project'), minWidth: 140 },
@@ -579,6 +594,12 @@ const rowStyle = () => ({ cursor: 'pointer' })
 </template>
 
 <style scoped>
+.mono-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
 .filter-row {
   display: flex;
   flex-wrap: nowrap;

@@ -700,10 +700,6 @@ const goHostVulns = (row: any) => {
   router.push({ path: '/asset-information/nuclei-result', query: { host: String(host) } })
 }
 
-const getScreenshot = async (id) => {
-  const response = await getAssetScreenshotApi(id)
-  return response.data.screenshot
-}
 const filterChange = async (newFilters: any) => {
   Object.assign(filter, newFilters)
   persistFilter()
