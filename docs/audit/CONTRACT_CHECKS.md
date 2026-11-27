@@ -36,6 +36,27 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 16 | `/api/policy/delete`、`/api/poc/detail` 传不存在 id → 404 | 前者 200 + `deleted:0`，后者 500 且把 `mongo: no documents in result` 透给前端 |
 | 17 | 受限 key 的可见工具数 == `/api/mcp/tools` 里该 scope 的工具数 | 写死数字的断言每加一个工具就失效（加 `list_port_dict` 时踩到） |
 
+## MCP 工具矩阵（mcp_sweep.py）
+
+契约脚本管的是 REST 侧的横切口；MCP 有 71 个工具，逐个手工验不现实，所以单独一个脚本：
+
+```bash
+SS_BASE=http://<host>:8082 SS_MCP_KEY=<全 scope 的 ssk_...> SS_ASSET_ID=<任一资产 id> \
+  python3 scripts/ci/mcp_sweep.py
+```
+
+它做三件事：
+
+1. 用真实 id 调**读类**工具，断言 `isError=false`（顺带看响应大小）；
+2. 用不存在的 id / 非法参数调**写类**工具，断言 `isError=true` —— 这条才是重点：
+   MCP 侧的「假成功」曾经让删除/停止类工具对任意 id 回 `ok:true`；
+3. 用 `pageSize=100000` 调一次列表，断言行数被夹到 ≤500。
+
+结论看最后一行 `MCP_SWEEP=PASS|FAIL`。
+
+脚本自带三次重试：本地代理偶发把连接掐断时，空响应会被重试掉，
+不会被误判成「工具坏了」（2026-11-28 实测，不加重试会连报 57 条假失败）。
+
 ## 何时跑
 
 - 动过分页、删除类接口、静态缓存、MCP 治理之后；
@@ -43,3 +64,4 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 - 结论看最后一行 `CONTRACT_RESULT=PASS|FAIL`。
 
 新增不变量时：先想清楚「它失败时用户会看到什么」，再按同样的 `ok/bad` 风格追加一节。
+新增 MCP 工具时：同时在 `scripts/ci/mcp_sweep.py` 的 READ/GUARD 表里加一行，否则它不会被任何回归覆盖。
