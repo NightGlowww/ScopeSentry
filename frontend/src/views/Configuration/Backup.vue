@@ -1,6 +1,6 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
 import {
   ElButton,
@@ -125,6 +125,24 @@ const { tableRegister, tableState, tableMethods } = useTable({
   }
 })
 const { loading, dataList } = tableState
+
+// 备份列表汇总：份数 / 合计体积 / 最近一份的时间与大小
+const backupSummary = computed(() => {
+  const list = (dataList.value || []) as any[]
+  if (!list.length) return { count: 0, text: '' }
+  const total = list.reduce((sum, b) => sum + Number(b.size || 0), 0)
+  const latest = list[0]
+  const fmt = (bytes: number) => {
+    const gb = bytes / 1024 / 1024 / 1024
+    return gb >= 1 ? gb.toFixed(2) + ' GB' : (bytes / 1024 / 1024).toFixed(1) + ' MB'
+  }
+  return {
+    count: list.length,
+    text:
+      '共 ' + list.length + ' 份备份，合计 ' + fmt(total) +
+      '；最近一份 ' + (latest?.createdAt || '-') + '，' + fmt(Number(latest?.size || 0))
+  }
+})
 const { getList } = tableMethods
 
 const uploading = ref(false)
@@ -245,6 +263,10 @@ onBeforeUnmount(stopPolling)
       <ElAlert v-else type="success" :closable="false" show-icon title="当前没有进行中的备份/恢复任务" />
     </ElCard>
 
+    <!-- 备份单份可能几 GB：份数与合计占用要摆在列表上方，方便判断卷够不够 -->
+    <div v-if="backupSummary.count" class="backup-summary">
+      <span>{{ backupSummary.text }}</span>
+    </div>
     <Table
       :columns="columns"
       :data="dataList"
@@ -263,5 +285,11 @@ onBeforeUnmount(stopPolling)
 }
 .mb-12px {
   margin-bottom: 12px;
+}
+.backup-summary {
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
 }
 </style>
