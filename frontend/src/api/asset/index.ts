@@ -90,7 +90,9 @@ export const getAssetStatisticsTitleApi = (
   search: string,
   filter: Record<string, any>
 ): Promise<IResponse<AssetStatistics>> => {
-  return request.post({ url: '/api/asset/statistics/title', data: { search, filter } })
+  // 后端路由是 /api/assets/...（复数）；这里原来写成单数 /api/asset/...，
+  // 请求永远 404，项目概况的「标题」面板因此一直是空的（2026-11-27）
+  return request.post({ url: '/api/assets/statistics/title', data: { search, filter } })
 }
 
 export const getAssetDetailApi = (id: string): Promise<IResponse<AssetDetail>> => {
