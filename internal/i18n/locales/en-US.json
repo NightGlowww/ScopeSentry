@@ -52,6 +52,8 @@
     "api.required.id": "id cannot be empty",
     "api.required.task_id": "taskId cannot be empty",
     "api.required.enabled": "enabled cannot be empty",
+    "api.required.name": "name cannot be empty",
+    "api.project.name_exists": "a project with this name already exists",
     "api.github.invalid_action": "action must be one of list / add / remove",
     "api.github.name_or_query_required": "name and query cannot both be empty",
     "api.github.query_or_keywords_required": "provide at least one of query or keywords",

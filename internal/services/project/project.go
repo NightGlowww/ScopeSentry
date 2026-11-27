@@ -26,6 +26,8 @@ import (
 var (
 	ErrProjectNotFound  = errors.New("project not found")
 	ErrProjectNameTaken = errors.New("project name already exists")
+	// ErrProjectNameRequired 名称为空。空名字会建出没有标题的项目卡，必须在写库前挡住。
+	ErrProjectNameRequired = errors.New("project name is required")
 )
 
 type Service interface {
@@ -325,6 +327,10 @@ func (s *service) ApplyProjectScope(ctx *gin.Context, p *models.Project) (string
 }
 
 func (s *service) AddProject(ctx *gin.Context, p *models.Project) error {
+	p.Name = strings.TrimSpace(p.Name)
+	if p.Name == "" {
+		return ErrProjectNameRequired
+	}
 	// 名称唯一
 	exists, err := s.projectRepo.ExistsByName(ctx, p.Name)
 	if err != nil {
@@ -378,6 +384,10 @@ func (s *service) AddProject(ctx *gin.Context, p *models.Project) error {
 }
 
 func (s *service) UpdateProject(ctx *gin.Context, p *models.UpdateProject) error {
+	p.Name = strings.TrimSpace(p.Name)
+	if p.Name == "" {
+		return ErrProjectNameRequired
+	}
 	p.Tp = "project"
 	p.Target = strings.TrimSpace(p.Target)
 	targetList, err := helper.GetTargetList(p.Target, p.Ignore)

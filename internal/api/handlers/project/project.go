@@ -1,6 +1,9 @@
 package project
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
@@ -99,8 +102,24 @@ func AddProject(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
+	// 名称是项目的唯一标识：空名字会建出一张没有标题的卡片（页面上就是一块空白），
+	// 而 models.Project 没有 binding 校验 —— 以前 POST {} 能直接建成功（2026-11-28 实测）。
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		response.BadRequest(c, "api.required.name", nil)
+		return
+	}
 	err := projectService.AddProject(c, &req)
 	if err != nil {
+		// 重名是用户输入问题，不是服务端故障：以前一律 500「api.error」。
+		if errors.Is(err, project.ErrProjectNameRequired) {
+			response.BadRequest(c, "api.required.name", nil)
+			return
+		}
+		if errors.Is(err, project.ErrProjectNameTaken) {
+			response.BadRequest(c, "api.project.name_exists", nil)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -114,8 +133,22 @@ func UpdatePorject(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
+	// 改名同样不能清空：空名字在列表里就是一张没有标题的卡片。
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		response.BadRequest(c, "api.required.name", nil)
+		return
+	}
 	err := projectService.UpdateProject(c, &req)
 	if err != nil {
+		if errors.Is(err, project.ErrProjectNameRequired) {
+			response.BadRequest(c, "api.required.name", nil)
+			return
+		}
+		if errors.Is(err, project.ErrProjectNameTaken) {
+			response.BadRequest(c, "api.project.name_exists", nil)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

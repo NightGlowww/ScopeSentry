@@ -52,6 +52,8 @@
     "api.required.id": "id 不能为空",
     "api.required.task_id": "taskId 不能为空",
     "api.required.enabled": "enabled 不能为空",
+    "api.required.name": "名称不能为空",
+    "api.project.name_exists": "同名项目已存在",
     "api.github.invalid_action": "action 只能是 list / add / remove",
     "api.github.name_or_query_required": "name 与 query 不能同时为空",
     "api.github.query_or_keywords_required": "query 或 keywords 至少填一个",
