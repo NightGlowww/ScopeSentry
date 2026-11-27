@@ -1,6 +1,6 @@
 <script lang="tsx">
 import { ElBreadcrumb, ElBreadcrumbItem } from 'element-plus'
-import { ref, watch, computed, unref, defineComponent, TransitionGroup } from 'vue'
+import { ref, watch, computed, unref, defineComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -81,9 +81,13 @@ export default defineComponent({
 
     return () => (
       <ElBreadcrumb separator="/" class={`${prefixCls} flex items-center h-full ml-[10px]`}>
-        <TransitionGroup appear enter-active-class="animate__animated animate__fadeInRight">
-          {renderBreadcrumb()}
-        </TransitionGroup>
+        {/*
+          这里原本套了 TransitionGroup + animate__fadeInRight。变长列表里离场节点会卡住：
+          DOM 里残留上一页的叶子，只剩下 v-leave-active 这个类而没有任何动画结束事件，
+          于是「配置/备份恢复 → 配置/MCP 调用日志」会显示三段（2026-11-28 实测，5 秒后仍在）。
+          面包屑是导航指示器，不需要入场动画，直接平铺。
+        */}
+        {renderBreadcrumb()}
       </ElBreadcrumb>
     )
   }
