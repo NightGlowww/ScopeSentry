@@ -332,5 +332,90 @@ PY
 else
   skip "导出记录链路需要 SS_EXPORT_ROUNDTRIP=1；默认跳过（会创建并删除一条导出记录）"
 fi
+
+# 24) MCP 治理三件套：写错字段名不能静默发全权 key；工具级白名单要真的拦；key 级限速要真的 429。
+#     这三条都是「看起来配了、实际没生效」的高危面。脚本自己建 key，finally 里撤销。
+gov=$(python3 - "$BASE" "$TOKEN" <<'PY'
+import json, sys, urllib.request, urllib.error
+base, token = sys.argv[1], sys.argv[2]
+def call(method, path, body=None, key=None):
+    data = json.dumps(body).encode() if body is not None else None
+    h = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token}
+    if key:
+        h = {'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', 'X-API-Key': key}
+    req = urllib.request.Request(base + path, data=data, method=method, headers=h)
+    try:
+        r = urllib.request.urlopen(req, timeout=60)
+        return r.getcode(), r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+def mkkey(name, **kw):
+    body = {'name': name}; body.update(kw)
+    c, raw = call('POST', '/api/mcp/keys', body)
+    try: d = json.loads(raw)
+    except Exception: d = {}
+    return c, d
+def rpc(key, tool, args):
+    body = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': tool, 'arguments': args}}
+    c, raw = call('POST', '/mcp', body, key=key)
+    txt = raw.decode('utf-8', 'replace').strip()
+    # 服务端可能回 SSE（event: message / data: {...}），取最后一条 data 行再解析
+    if 'data: ' in txt:
+        txt = [l[6:] for l in txt.splitlines() if l.startswith('data: ')][-1]
+    try: d = json.loads(txt)
+    except Exception: d = {}
+    return c, d
+out = []
+created = []
+try:
+    # 1. 未知字段必须 400（以前会静默发一个 scope=["*"] 的全权 key）
+    c, d = mkkey('r24-badfield', allowed_tools=['list_assets'])
+    if c == 400 and 'unknown field' in json.dumps(d):
+        out.append('OK 建 key 时未知字段 → 400，不再静默发全权 key')
+    else:
+        out.append('BAD 未知字段没被拒：HTTP %s %s' % (c, json.dumps(d, ensure_ascii=False)[:90]))
+        if (d.get('data') or {}).get('id'): created.append(d['data']['id'])
+    # 2. 工具白名单：delete_task 必须被拦
+    c, d = mkkey('r24-allow', tools=['list_assets'])
+    kd = d.get('data') or {}
+    if kd.get('id'): created.append(kd['id'])
+    key = kd.get('key')
+    if key:
+        c1, d1 = rpc(key, 'list_assets', {'asset_type': 'asset', 'pageIndex': 1, 'pageSize': 1})
+        c2, d2 = rpc(key, 'delete_task', {'ids': ['000000000000000000000000']})
+        denied = 'tool not allowed' in json.dumps(d2)
+        allowed = 'result' in d1
+        out.append('OK 工具白名单：授权工具可用、越权工具被拒（%s）' % 'tool not allowed'
+                   if allowed and denied else
+                   'BAD 工具白名单没生效：allow=%s deny=%s' % (allowed, denied))
+    else:
+        out.append('BAD 受限 key 创建失败，无法验证白名单：%s' % json.dumps(d, ensure_ascii=False)[:90])
+    # 3. key 级限速：limit=1，第二次必须 429
+    c, d = mkkey('r24-rate', tools=['list_nodes'], rateLimitPerMin=1)
+    kd = d.get('data') or {}
+    if kd.get('id'): created.append(kd['id'])
+    rk = kd.get('key')
+    if rk:
+        rpc(rk, 'list_nodes', {})
+        c3, d3 = rpc(rk, 'list_nodes', {})
+        body = json.dumps(d3)
+        out.append('OK key 级限速：第二次调用 → 429（-32029）' if c3 == 429 and '-32029' in body
+                   else 'BAD 限速没生效：HTTP %s %s' % (c3, body[:90]))
+    else:
+        out.append('BAD 限速 key 创建失败')
+finally:
+    for kid in created:
+        call('DELETE', '/api/mcp/keys/' + kid)
+print(chr(10).join(out))
+PY
+)
+while IFS= read -r line; do
+  case "$line" in
+    OK\ *) ok "${line#OK }" ;;
+    BAD\ *) bad "${line#BAD }" ;;
+    "") ;;
+    *) bad "MCP 治理检查输出异常：$line" ;;
+  esac
+done <<< "$gov"
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
 exit $FAIL

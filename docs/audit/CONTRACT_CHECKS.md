@@ -41,6 +41,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> bash scripts/ci/verify_contract.sh
 | 21 | 备份恢复三重把门：缺 `confirm` / `confirm` 大小写不符 → 400；`confirm=RESTORE` 但归档不存在 → 404；名字含 `../` → 400；且无效请求后备份份数不变；`download` 404 的 `data` 不含服务器绝对路径 | 恢复会覆盖线上库，是唯一「点错就回不去」的接口。而 `download` 曾经把 `stat /data/scopesentry-backups/...` 原样透给客户端，等于顺手暴露部署目录（2026-11-28 实测） |
 | 22 | `POST /api/export/preview`（type=domain）的 `collection` 是 `subdomain`、字段非空、总数 > 0；`/api/export/batch` 传非法字段或非法 type → 400 且把可用字段/类型列出来 | 导出链路此前从未被验证过（records 一直是空的）。批量导出是先 `writeDownloadHeaders` 再流式写，入参校验一旦晚一步，用户就只能拿到半截 CSV 而状态码已改不了（2026-11-28 实测：214765 行 / 16.2MB，表头带 BOM，`Content-Disposition` 正常） |
 | 23 | （需 `SS_EXPORT_ROUNDTRIP=1`）导出记录链路：创建 → 列表可见 → 下载是有效 xlsx（zip + worksheet）→ 删除 → 清单归零 | 这条链路和流式 batch 是两套代码，`records` 一直是空的意味着从没跑过。默认跳过是因为它会真的落一个文件 |
+| 24 | MCP 治理三件套：① 建 key 传未知字段（如 `allowed_tools`）→ 400；② 白名单 key 调未授权工具 → `tool not allowed`，授权工具正常；③ `rateLimitPerMin=1` 的 key 第二次调用 → 429（-32029） | 这三条都是「看起来配了、实际没生效」的高危面。① 尤其危险：Go 默认忽略未知字段，写错字段名会拿到 scope=["*"] 的全权 key（2026-11-28 实测）；脚本自建 key 并在 finally 撤销 |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 
