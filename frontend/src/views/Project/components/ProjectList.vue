@@ -191,8 +191,10 @@ const action = (id: string) => {
     >
       <template #content="row">
         <ElDropdown trigger="contextmenu" @command="handleCommand">
-          <div class="flex cursor-pointer">
-            <ElCheckbox :value="row.id" class="pr-16px" v-if="multipleSelection" />
+          <!-- 卡片一直是 cursor-pointer 却没有 @click：左键点下去什么都不发生，
+               只有右键才出菜单，用户视角就是「项目管理点不进去、没有功能」（2026-11-27 反馈） -->
+          <div class="flex cursor-pointer" @click="action(row.id)">
+            <ElCheckbox :value="row.id" class="pr-16px" v-if="multipleSelection" @click.stop />
             <div class="pr-16px">
               <template v-if="row.logo != ''">
                 <ElAvatar :src="row.logo" class="avatar" fit="cover" />
@@ -227,6 +229,9 @@ const action = (id: string) => {
               }}</ElDropdownItem>
               <ElDropdownItem :icon="data" :command="{ type: 'aggregation', id: row.id }">{{
                 t('project.aggregation')
+              }}</ElDropdownItem>
+              <ElDropdownItem :command="{ type: 'open', id: row.id }">{{
+                t('common.view')
               }}</ElDropdownItem>
             </ElDropdownMenu>
           </template>
