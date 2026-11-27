@@ -261,9 +261,18 @@ const confirmCleanLog = async (hash: string, module: string) => {
     title: t('common.cleanLog'),
     message: t('localization.cleanLogsConfirm'),
     draggable: true
-  }).then(async () => {
-    await cleanPluginLogApi(module, hash)
   })
+    .then(async () => {
+      await cleanPluginLogApi(module, hash)
+      ElMessage.success(t('common.cleanLog') + ' ' + t('common.success'))
+      // 抽屉正好开着这个插件时同步清掉，否则用户看到的是被清掉的旧日志
+      if (logHash.value === hash) {
+        logContent.value = ''
+      }
+    })
+    .catch(() => {
+      // 取消确认也会 reject，不提示
+    })
 }
 
 const confirmCleanAllLog = async () => {
@@ -273,10 +282,15 @@ const confirmCleanAllLog = async () => {
     title: t('common.cleanAllLog'),
     message: t('localization.cleanAllLogsConfirm'),
     draggable: true
-  }).then(async () => {
-    await cleanAllPluginLogApi()
   })
+    .then(async () => {
+      await cleanAllPluginLogApi()
+      ElMessage.success(t('common.cleanAllLog') + ' ' + t('common.success'))
+      logContent.value = ''
+    })
+    .catch(() => {})
 }
+
 const delLoading = ref(false)
 // 未勾选任何插件时，批量删除应禁用（系统插件不可选，此时按钮保持禁用）
 const tableSelectedCount = ref(0)

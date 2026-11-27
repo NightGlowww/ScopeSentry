@@ -1021,11 +1021,6 @@ const confirmSyncToProjectSelect = async () => {
           : null
       ])
   }).then(async () => {
-    if (option.value === 'existing') {
-      console.log('同步到已有项目ID:', selectedProjectId.value)
-    } else {
-      console.log('创建新项目:', newProjectName.value, newProjectTag.value)
-    }
     ids.value = selectedRows.value.map((row: any) => row.id)
     if (!ids.value.length) {
       // 选择状态为空时不要发请求：后端会返回 “ids is required”，
@@ -1041,6 +1036,9 @@ const confirmSyncToProjectSelect = async () => {
       newProjectTag.value,
       newProjectName.value
     )
+    // 同步成功原来完全没反馈，也不刷新：任务列表里的归属要手刷才变
+    ElMessage.success(t('common.success'))
+    getList()
   })
 }
 

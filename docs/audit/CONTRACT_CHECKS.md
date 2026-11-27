@@ -45,6 +45,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bas
 | 25 | 项目名称为空（`{}` / `""` / 纯空白）→ 400，且项目列表里不存在空标题卡片 | `AddProject` 直接绑定 `models.Project` 没有必填校验，`POST {}` 会真的建出一张没有标题的卡片；重名原本也只回 500「api.error」。注意自动化里**只测空名字**，重名用例会真的建项目 |
 | 26 | 端口字典 `add` 传空 `name` 或空 `value`（含纯空白）→ 400，且字典行数不变 | `PortService.Add` 只校验了 `value`，空 `name` 照样插入 —— 端口字典会通过 `{dict.port.*}` 进入扫描参数，无名行会一路带到节点（2026-11-28 扫描「绑持久化模型无 binding 校验」的接口时发现） |
 | 27 | （需 `MCP_KEY`/`SS_MCP_KEY`）MCP `get_task` / `get_project` / `get_poc` 返回的 `name` 必须与 REST 列表/详情一致 | 只断言 `isError=false` 是不够的：工具可以「成功返回一份旧数据」。同源比对才证明读模型没自带一份缓存（2026-11-28 实测三者一致） |
+| 28 | 变更操作有反馈、失败路径收 loading（`feedback_guard.py`，静态） | 「点了没反应」和「按钮永久转圈」都不会报错，只会在用户手上变成不可用的界面（2026-11-28 实测：页面监控保存无提示、新增 URL 失败后保存键死锁） |
 
 ## MCP 工具矩阵（mcp_sweep.py）
 
@@ -165,3 +166,27 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> python3 scripts/ci/column_field_check.
 
 已知限制：一个文件挂多张表时列 schema 与接口无法可靠配对（子表多走详情接口），脚本**明确跳过并计数**（当前 61 个），
 不硬配、不产噪声。要覆盖这部分得按 `<Table>` ↔ `useTable` 逐表建映射，留作后续。
+
+## 变更操作必须给反馈、失败必须收 loading（feedback_guard.py）
+
+这一栏来自一次实测：计划任务的页面监控配置点「保存」后，弹窗不关、列表数字不变、没有任何提示，
+用户无法判断到底存没存；而同一个文件里的「新增监控 URL」更糟 —— 成功后不刷新列表，接口一失败
+`addPageMonitSaveLoading` 永远停在 `true`，保存按钮变成一个按不动的死按钮。
+
+```bash
+python3 scripts/ci/feedback_guard.py          # 本地静态扫
+python3 scripts/ci/feedback_guard.py --strict # SILENT 也算失败
+```
+
+两级判定：
+
+- **STUCK（必须为 0）**：函数把 `xxxLoading.value = true` 打开，之后 `await` 一个调用，再把 false 写在成功路径上。
+  没有 `finally`、也没有失败分支里的重置 → 判卡死。纯计时/纯本地（set 和 reset 之间没有 `await`）不算。
+- **SILENT（WARN）**：变更型接口（delete/update/add/save/toggle/restore/run/sync…）调用后既没 `ElMessage`，
+  也没刷新/关闭弹窗。读接口（`get*/list*/fetch*/query*/load*`）一律不算，避免把查询当写入。
+
+当前结果：**STUCK 0、SILENT 3**（ThreatTab 增删目标用接口返回值直接替换列表、AddTask 策略应用是读操作），
+三项都在白名单合理范围内，`FEEDBACK_GUARD=PASS`。
+
+本轮修掉的：PageMonit 新增 URL、计划任务页面监控配置保存、通知开关保存、新建/编辑计划任务、
+系统更新提交、资产/敏感信息/端口字典编辑弹窗、项目信息与统计加载、项目搜索、项目卡片删除后刷新。

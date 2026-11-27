@@ -301,9 +301,15 @@ const confirmCleanLog = async (hash: string, module: string) => {
     title: t('common.cleanLog'),
     message: t('localization.cleanLogsConfirm'),
     draggable: true
-  }).then(async () => {
-    await cleanPluginLogApi(module, hash, 'server')
   })
+    .then(async () => {
+      await cleanPluginLogApi(module, hash, 'server')
+      ElMessage.success(t('common.cleanLog') + ' ' + t('common.success'))
+      if (logHash.value === hash) {
+        logContent.value = ''
+      }
+    })
+    .catch(() => {})
 }
 
 const confirmRunPluginOnce = async (hash: string) => {
