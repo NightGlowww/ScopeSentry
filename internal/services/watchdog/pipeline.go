@@ -30,6 +30,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstats"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -37,6 +38,12 @@ import (
 )
 
 func ts(t time.Time) string { return t.Format("2006-01-02 15:04:05") }
+
+// str 把 bson 解出来的 interface{} 转成字符串（任务名为空时 Freeze 会拒绝统计）。
+func str(v interface{}) string {
+	s, _ := v.(string)
+	return s
+}
 
 // StaleAfter 心跳停更多久算「节点不新鲜」。
 //
@@ -230,9 +237,10 @@ func expireStaleQueued(ctx context.Context, task *mongo.Collection) []string {
 		}
 		reason := fmt.Sprintf("排队超过 %s 仍未开始（创建于 %v），已过期并移出队列；需要的话 retest 即可重新排队",
 			queueMaxAge(), r["creatTime"])
-		_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 0}, bson.M{
-			"$set": bson.M{"status": 4, "failReason": reason, "endTime": ts(time.Now())},
-		})
+		// 终态就要冻结产出快照：否则列表「产出」列对这条任务永远是「—」
+		expiredSet := bson.M{"status": 4, "failReason": reason, "endTime": ts(time.Now())}
+		expiredSet = taskstats.Merge(expiredSet, taskstats.Freeze(ctx, str(r["name"])))
+		_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 0}, bson.M{"$set": expiredSet})
 		logger.Warn("watchdog: 过期排队任务 " + id + " — " + reason)
 		out = append(out, id)
 	}
@@ -294,9 +302,9 @@ func reconcilePhantomRunning(ctx context.Context, task *mongo.Collection) []stri
 			continue
 		}
 		reason := fmt.Sprintf("任务标记为运行中，但没有任何节点在跑、也不在队列里，且 %s 没有进度写入；判定为失败，可 retest 重跑", now.Sub(last).Round(time.Minute))
-		_, _ = task.UpdateOne(ctx, bson.M{"_id": r["_id"], "status": 1}, bson.M{
-			"$set": bson.M{"status": 4, "failReason": reason, "endTime": ts(now)},
-		})
+		phantomSet := bson.M{"status": 4, "failReason": reason, "endTime": ts(now)}
+		phantomSet = taskstats.Merge(phantomSet, taskstats.Freeze(ctx, str(r["name"])))
+		_, _ = task.UpdateOne(ctx, bson.M{"_id": r["_id"], "status": 1}, bson.M{"$set": phantomSet})
 		logger.Warn("watchdog: " + id + " " + reason)
 		out = append(out, id)
 	}
@@ -387,9 +395,10 @@ func reconcileZombieNodes(ctx context.Context, task *mongo.Collection, queued in
 		reason := fmt.Sprintf("节点 %s 心跳停在 %s（超过 %s 未更新，远大于正常重启所需的 ~7 分钟），已自动释放队列；该任务判定为失败，可 retest 重跑",
 			name, upd, StaleAfter)
 		if oid, e := primitive.ObjectIDFromHex(cur); e == nil {
-			_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{
-				"$set": bson.M{"status": 4, "failReason": reason, "endTime": ts(now)},
-			})
+			// 这里只有任务 id：用 FreezeByID 读名字再冻结（终态路径必须一致）
+			zombieSet := bson.M{"status": 4, "failReason": reason, "endTime": ts(now)}
+			zombieSet = taskstats.Merge(zombieSet, taskstats.FreezeByID(ctx, oid))
+			_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{"$set": zombieSet})
 		}
 		logger.Warn("watchdog: " + reason)
 		out = append(out, name+"("+cur+")")

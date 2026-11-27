@@ -22,6 +22,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	redisc "github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstats"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -304,10 +305,13 @@ func finalizeStaleTasks(ctx context.Context, keep map[primitive.ObjectID]struct{
 		if !ShouldFinalizeStale(lastEnd, now, staleFinalizeGrace) {
 			continue
 		}
-		res, uerr := col.UpdateOne(ctx, bson.M{"_id": row.ID, "status": 0}, bson.M{"$set": bson.M{
+		// 收尾也是终态：冻结产出快照，列表「产出」列才不会永远显示「—」
+		finalSet := bson.M{
 			"status":     4,
 			"failReason": StaleFinalizeReason(row.Progress, lastEnd),
-		}})
+		}
+		finalSet = taskstats.Merge(finalSet, taskstats.Freeze(ctx, row.Name))
+		res, uerr := col.UpdateOne(ctx, bson.M{"_id": row.ID, "status": 0}, bson.M{"$set": finalSet})
 		if uerr != nil {
 			logger.Error("taskreconcile: finalize stale failed: " + uerr.Error())
 			continue

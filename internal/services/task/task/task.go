@@ -26,6 +26,7 @@ import (
 	commonTask "github.com/Autumn-27/ScopeSentry/internal/services/task/common"
 	schedulerSvc "github.com/Autumn-27/ScopeSentry/internal/services/task/scheduler"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstate"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstats"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -811,21 +812,17 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			}
 
 			// 终态统计：完成瞬间统计一次并冻结（对齐 ARL-Next 1.5.2）。
-			// 不冻结的话，之后任何清理/去重都会让历史任务的战果跟着变，
-			// 而且详情弹窗每次轮询都要打 4 次 count（5 秒一次）。
-			stats := s.taskRepo.TaskOutcome(ctx, task.Name)
-			frozenAt := time.Now().Format("2006-01-02 15:04:05")
+			// 冻结实现收敛在 taskstats 包里，与巡检判死 / 对账收尾共用，
+			// 否则总有一条终态路径没有快照，列表上就会看到「终态任务显示 —」。
+			set := bson.M{
+				"endTime":  endTime,
+				"status":   constants.TaskStatusFinished,
+				"progress": progress,
+			}
+			set = taskstats.Merge(set, taskstats.Freeze(ctx, task.Name))
 
 			// 更新任务状态为完成（状态3）并设置结束时间
-			update := bson.M{
-				"$set": bson.M{
-					"endTime":       endTime,
-					"status":        constants.TaskStatusFinished,
-					"progress":      progress,
-					"stats":         stats,
-					"statsFrozenAt": frozenAt,
-				},
-			}
+			update := bson.M{"$set": set}
 			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
 				return fmt.Errorf("failed to update task status: %w", err)
 			}
@@ -1052,11 +1049,14 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 		}
 
 		reason = fmt.Sprintf("%s；已自动重投 %d 次仍未跑起来", reason, task.AutoResumeCount)
-		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": bson.M{
+		// 判死同样是终态：冻结一次产出快照，否则这条任务在列表里永远是「—」
+		deadSet := bson.M{
 			"status":     constants.TaskStatusFailed,
 			"endTime":    helper.GetNowTimeString(),
 			"failReason": reason,
-		}}); err != nil {
+		}
+		deadSet = taskstats.Merge(deadSet, taskstats.Freeze(ctx, task.Name))
+		if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, bson.M{"$set": deadSet}); err != nil {
 			logger.Error(fmt.Sprintf("sweep task %s failed: %v", id, err))
 			continue
 		}
