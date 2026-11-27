@@ -8,6 +8,9 @@ import { ElRadioGroup, ElRadioButton, ElTooltip } from 'element-plus'
 const props = defineProps<{
   modelValue: string
   sort?: string
+  // hideSort：该列表接口不支持排序时隐藏排序按钮。
+  // 留着不生效的按钮比没有更糟——用户点了以为排序了（2026-11-28）
+  hideSort?: boolean
 }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
@@ -52,7 +55,7 @@ defineExpose({ from })
       <ElRadioButton label="7">{{ t('asset.time7d') }}</ElRadioButton>
       <ElRadioButton label="30">{{ t('asset.time30d') }}</ElRadioButton>
     </ElRadioGroup>
-    <ElTooltip :content="t('asset.sortHint')" placement="top">
+    <ElTooltip v-if="!hideSort" :content="t('asset.sortHint')" placement="top">
       <ElRadioGroup :model-value="sortDir" size="small" class="sort-group" @change="setSort">
         <ElRadioButton label="desc">{{ t('asset.sortNewest') }}</ElRadioButton>
         <ElRadioButton label="asc">{{ t('asset.sortOldest') }}</ElRadioButton>

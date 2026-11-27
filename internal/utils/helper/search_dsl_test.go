@@ -90,3 +90,33 @@ func TestSearchToMongoDBNumericComparison(t *testing.T) {
 		t.Fatalf("title=<script>:\n got %s\nwant %s", b, want)
 	}
 }
+
+// 时间字段的范围比较走字符串（同格式字典序即时间序）。
+// 这么做的意义：前端把「发现时间 >= X」写进搜索条件就能筛，
+// 不用给每个列表接口单独加 timeFrom 参数（ARL-Next bc22a10 的 12 维口径）。
+func TestSearchToMongoDBTimeComparison(t *testing.T) {
+	kw := map[string]string{"time": "time"}
+
+	got, err := SearchToMongoDB(`time>="2026-11-21 00:00:00"`, kw)
+	if err != nil {
+		t.Fatalf("time>=: %v", err)
+	}
+	b, _ := json.Marshal(got)
+	if want := `[{"time":{"$gte":"2026-11-21 00:00:00"}}]`; string(b) != want {
+		t.Fatalf("time>=\n got %s\nwant %s", b, want)
+	}
+
+	got, err = SearchToMongoDB(`time<="2026-11-27"`, kw)
+	if err != nil {
+		t.Fatalf("time<=: %v", err)
+	}
+	b, _ = json.Marshal(got)
+	if want := `[{"time":{"$lte":"2026-11-27"}}]`; string(b) != want {
+		t.Fatalf("time<=\n got %s\nwant %s", b, want)
+	}
+
+	// 非时间格式必须报错：把 abc 当时间比较会静默查不到数据
+	if _, err := SearchToMongoDB(`time>="abc"`, kw); err == nil {
+		t.Fatal("invalid time value should fail")
+	}
+}

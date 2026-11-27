@@ -18,6 +18,8 @@ import {
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
 import { addTagApi, deleteTagApi, getAppApi } from '@/api/asset'
+import TimeRangeFilter from './TimeRangeFilter.vue'
+import { mergeTimeSearch } from '@/utils/timeSearch'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
 import { tagColorType } from '@/utils/tagColor'
@@ -278,7 +280,7 @@ const { allSchemas } = useCrudSchemas(crudSchemas)
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = tableState
-    const res = await getAppApi(searchParams.value, currentPage.value, pageSize.value, filter)
+    const res = await getAppApi(mergeTimeSearch(searchParams.value, timeRange.value), currentPage.value, pageSize.value, filter)
     return {
       list: res.data.list,
       total: res.data.total
@@ -288,6 +290,18 @@ const { tableRegister, tableState, tableMethods } = useTable({
 })
 const { loading, dataList, total, currentPage, pageSize } = tableState
 const { getList, getElTableExpose } = tableMethods
+
+// 发现时间筛选（对齐 ARL-Next bc22a10）：走搜索条件，接口不用改。
+// hide-sort：这些接口不支持排序，不展示点了没反应的按钮。
+const timeRange = ref<string>('all')
+const onTimeFilterChange = (v?: string) => {
+  if (v) timeRange.value = v
+  if (currentPage.value !== 1) {
+    currentPage.value = 1
+    return
+  }
+  getList()
+}
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
@@ -368,6 +382,7 @@ const getFilter = () => {
     :searchResultCount="total"
     :getFilter="getFilter"
   />
+  <TimeRangeFilter v-model="timeRange" :hide-sort="true" @change="onTimeFilterChange" />
   <ElRow>
     <ElCol>
       <ElCard style="height: min-content">

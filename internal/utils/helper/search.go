@@ -398,6 +398,18 @@ func SearchToMongoDB(expressionRaw string, keyword map[string]string) ([]map[str
 			// 之前 >= / <= / > / < 没有任何分支：port>=1000 落入 "=" 分支后 key 变成 "port>"，
 			// 关键字表查不到，条件被静默丢掉 —— 结果返回全量 45363 条，看起来像「筛了但没用」。
 			if mongoKey, ok := keyword[cmpKey]; ok {
+				// 时间字段走字符串比较：库里存的就是 "2006-01-02 15:04:05" 这种可排序格式，
+				// 这样「发现时间 >= X」在前端可以写成搜索条件，不用给每个列表接口加参数
+				// （ARL-Next bc22a10 的「12 维发现时间筛选」正是这个口径）。
+				if isTimeField(mongoKey) {
+					if !looksLikeTime(cmpVal) {
+						return nil, fmt.Errorf("%s %s %q：时间比较值格式应为 YYYY-MM-DD HH:MM:SS", cmpKey, cmpOp, cmpVal)
+					}
+					stack = append(stack, map[string]interface{}{
+						mongoKey: map[string]interface{}{cmpToMongo[cmpOp]: cmpVal},
+					})
+					continue
+				}
 				num, numErr := strconv.Atoi(cmpVal)
 				if numErr != nil {
 					return nil, fmt.Errorf("%s %s %q：比较值必须是数字", cmpKey, cmpOp, cmpVal)
@@ -775,4 +787,26 @@ func normalizeTimeBound(v string, end bool) string {
 		return t.Format("2006-01-02 15:04:05")
 	}
 	return ""
+}
+
+// timeFields：库里以 "2006-01-02 15:04:05" 字符串保存的时间字段。
+// 同格式下字典序即时间序，所以直接做字符串范围比较即可。
+var timeFields = map[string]bool{
+	"time":         true,
+	"lastScanTime": true,
+	"creatTime":    true,
+	"endTime":      true,
+	"updateTime":   true,
+}
+
+func isTimeField(mongoKey string) bool { return timeFields[mongoKey] }
+
+// looksLikeTime 只放行 "YYYY-MM-DD HH:MM:SS"（也接受纯日期，补成当天 0 点由调用方负责）。
+// 不做宽松解析：把 "abc" 当成时间比较会静默查不到数据。
+func looksLikeTime(v string) bool {
+	if _, err := time.Parse("2006-01-02 15:04:05", v); err == nil {
+		return true
+	}
+	_, err := time.Parse("2006-01-02", v)
+	return err == nil
 }

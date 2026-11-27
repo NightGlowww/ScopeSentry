@@ -1,0 +1,1 @@
+const t=(t,e)=>{const r=(t=>{const e=Number(t);if(!e)return"";const r=new Date(Date.now()-24*(e-1)*3600*1e3),n=t=>String(t).padStart(2,"0");return`${r.getFullYear()}-${n(r.getMonth()+1)}-${n(r.getDate())} 00:00:00`})(e);if(!r)return t||"";const n=(t||"").trim();return n?`(${n}) && time>="${r}"`:`time>="${r}"`};export{t as m};
