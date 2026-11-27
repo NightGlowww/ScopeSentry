@@ -75,10 +75,12 @@ type service struct {
 	jobs     *jobTracker
 }
 
-// DefaultBackupDir 备份目录跟着部署挂载走：<exeDir>/files/backups
-// （single-host-deployment.yml 把 ./data/files 挂到 /opt/ScopeSentry/files）。
+// DefaultBackupDir 备份目录：优先取 system.backup_dir 配置，否则 <exeDir>/files/backups。
+//
+// 必须可配置：实测部署里容器只挂了 /data 一个卷，默认路径落在可写层，
+// 换镜像/重建容器后「备份」全丢——备份包放在会被清空的地方等于没备份。
 func DefaultBackupDir() string {
-	return filepath.Join(config.GlobalConfig.System.ExeDir, "files", backupsDirName)
+	return config.GlobalConfig.System.BackupPath()
 }
 
 // NewService 生产用构造器

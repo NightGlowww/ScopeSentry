@@ -37,6 +37,9 @@ type SystemConfig struct {
 	// ExportDir 导出文件目录。默认 <ExeDir>/files/export；
 	// 容器部署时应指向挂载卷（否则容器重建即丢文件，2026-11-28 实测下载 404）。
 	ExportDir string `mapstructure:"export_dir"`
+	// BackupDir 备份包目录。默认 <ExeDir>/files/backups；同样应指向挂载卷，
+	// 否则「备份」只存在于容器可写层，换镜像即丢（与导出同一类问题）。
+	BackupDir string `mapstructure:"backup_dir"`
 }
 
 // ExportPath 返回导出文件目录（空配置时回退到 <ExeDir>/files/export）。
@@ -45,6 +48,14 @@ func (s SystemConfig) ExportPath() string {
 		return s.ExportDir
 	}
 	return filepath.Join(s.ExeDir, "files", "export")
+}
+
+// BackupPath 返回备份包目录（空配置时回退到 <ExeDir>/files/backups）。
+func (s SystemConfig) BackupPath() string {
+	if strings.TrimSpace(s.BackupDir) != "" {
+		return s.BackupDir
+	}
+	return filepath.Join(s.ExeDir, "files", "backups")
 }
 
 // ServerConfig 服务器配置
@@ -111,6 +122,12 @@ func init() {
 		GlobalConfig.System.ExportDir = strings.TrimSpace(GlobalConfig.System.ExportDir)
 	}
 	err = utils.EnsureDir(GlobalConfig.System.ExportPath())
+	if err != nil {
+		fmt.Printf("Error creating export directory: %s\n", err)
+		return
+	}
+	// 备份目录同理：配置到挂载卷上，容器重建后备份包还在
+	err = utils.EnsureDir(GlobalConfig.System.BackupPath())
 	if err != nil {
 		fmt.Printf("Error creating directory: %s\n", err)
 		return

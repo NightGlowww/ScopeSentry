@@ -18,3 +18,16 @@ func TestExportPath(t *testing.T) {
 		t.Fatalf("blank should fall back, got %q", got)
 	}
 }
+
+// 备份目录与导出一致：没配置回退老路径，配置了严格用它（容器部署必须能指到挂载卷）。
+func TestBackupPath(t *testing.T) {
+	if got := (SystemConfig{ExeDir: "/opt/app"}).BackupPath(); got != filepath.Join("/opt/app", "files", "backups") {
+		t.Fatalf("fallback = %q", got)
+	}
+	if got := (SystemConfig{ExeDir: "/opt/app", BackupDir: "/data/backups"}).BackupPath(); got != "/data/backups" {
+		t.Fatalf("configured = %q", got)
+	}
+	if got := (SystemConfig{ExeDir: "/opt/app", BackupDir: "  "}).BackupPath(); got != filepath.Join("/opt/app", "files", "backups") {
+		t.Fatalf("blank should fall back, got %q", got)
+	}
+}
