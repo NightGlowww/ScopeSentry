@@ -143,7 +143,7 @@ func StopTask(c *gin.Context) {
 	}
 	ids := req.All()
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	updated, err := svc().Stop(c.Request.Context(), ids)
@@ -166,7 +166,7 @@ func RestartTask(c *gin.Context) {
 	}
 	taskID := req.Single()
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	task, err := svc().Restart(c.Request.Context(), taskID)
@@ -189,7 +189,7 @@ func ResumeTask(c *gin.Context) {
 	}
 	taskID := req.Single()
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	task, err := svc().Resume(c.Request.Context(), taskID)
@@ -212,7 +212,7 @@ func DeleteTask(c *gin.Context) {
 	}
 	ids := req.All()
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	tasks, results, logs, err := svc().Delete(c.Request.Context(), ids)
@@ -240,7 +240,7 @@ func TaskLog(c *gin.Context) {
 	}
 	taskID := strings.TrimSpace(req.TaskID)
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	lines, err := svc().Logs(c.Request.Context(), taskID, req.Limit)
@@ -313,7 +313,7 @@ func ListAssets(c *gin.Context) {
 	}
 	taskID := strings.TrimSpace(req.TaskID)
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	list, total, err := svc().ListResults(c.Request.Context(), models.IcpAssetQuery{
@@ -346,7 +346,7 @@ func Sync(c *gin.Context) {
 	}
 	taskID := strings.TrimSpace(req.TaskID)
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	summary, err := svc().Sync(c.Request.Context(), taskID, req.GroupID)
@@ -369,7 +369,7 @@ func BackfillDetails(c *gin.Context) {
 	}
 	taskID := strings.TrimSpace(req.TaskID)
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	summary, err := svc().Backfill(c.Request.Context(), taskID)
@@ -387,7 +387,7 @@ func BackfillDetails(c *gin.Context) {
 func Export(c *gin.Context) {
 	taskID := strings.TrimSpace(c.Query("taskId"))
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("taskId 不能为空"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 	// 先确认任务存在，保证未知 taskId 返回 404 而不是空 CSV

@@ -145,7 +145,7 @@ func DeletePortDict(c *gin.Context) {
 	}
 	if deleted == 0 {
 		// 不存在的 id 以前回 "Port dict deleted successfully"（2026-11-28 实测）
-		response.NotFound(c, "api.error", fmt.Errorf("端口字典条目不存在"))
+		response.NotFound(c, "api.dict.port.not_found", nil)
 		return
 	}
 	response.Success(c, gin.H{"code": 200, "deleted": deleted, "requested": len(req.IDs)}, "api.success")

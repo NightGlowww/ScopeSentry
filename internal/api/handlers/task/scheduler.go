@@ -161,7 +161,7 @@ func DeleteScheduledTask(c *gin.Context) {
 	}
 	if deleted == 0 {
 		// 不存在的计划任务以前也回成功（2026-11-28 实测）
-		response.NotFound(c, "api.error", fmt.Errorf("计划任务不存在"))
+		response.NotFound(c, "api.task.scheduled.not_found", nil)
 		return
 	}
 

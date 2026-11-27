@@ -154,7 +154,7 @@ func Delete(c *gin.Context) {
 	}
 	ids := req.All()
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	deleted, err := svc().Delete(c.Request.Context(), ids)
@@ -182,7 +182,7 @@ func Detail(c *gin.Context) {
 	}
 	id := req.Single()
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 	detail, err := svc().Detail(c.Request.Context(), id)

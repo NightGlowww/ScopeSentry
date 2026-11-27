@@ -90,11 +90,11 @@ func CreateTask(c *gin.Context) {
 		name = firstNonEmpty(query, models.JoinKeywords(keywords))
 	}
 	if name == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("name 与 query 不能同时为空"))
+		response.BadRequestWithError(c, "api.github.name_or_query_required", nil)
 		return
 	}
 	if query == "" && len(keywords) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("query 或 keywords 至少填一个"))
+		response.BadRequestWithError(c, "api.github.query_or_keywords_required", nil)
 		return
 	}
 	taskType := strings.TrimSpace(req.Type)
@@ -103,11 +103,11 @@ func CreateTask(c *gin.Context) {
 	case "":
 		taskType = models.GithubTypeCodeLeak
 	default:
-		response.BadRequestWithError(c, "api.bad_request", errors.New("type 只能是 code_leak / cve / hacker"))
+		response.BadRequestWithError(c, "api.github.invalid_type", nil)
 		return
 	}
 	if req.IntervalMinutes < 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("intervalMinutes 不能为负"))
+		response.BadRequestWithError(c, "api.github.interval_minutes_negative", nil)
 		return
 	}
 
@@ -145,7 +145,7 @@ func StopTasks(c *gin.Context) {
 	}
 	ids := normalizeIDs(req.AllIDs())
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	matched, modified, err := svc().StopTasks(c.Request.Context(), ids)
@@ -180,7 +180,7 @@ func DeleteTasks(c *gin.Context) {
 	}
 	ids := normalizeIDs(req.AllIDs())
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	tasks, results, err := svc().DeleteTasks(c.Request.Context(), ids)

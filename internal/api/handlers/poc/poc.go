@@ -154,7 +154,7 @@ func DeletePoc(c *gin.Context) {
 	}
 	if deleted == 0 {
 		// 这些 id 一个都不存在：以前照样回「成功」，界面弹「已删除」但列表没变
-		response.NotFound(c, "api.error", fmt.Errorf("POC 不存在"))
+		response.NotFound(c, "api.poc.not_found", nil)
 		return
 	}
 

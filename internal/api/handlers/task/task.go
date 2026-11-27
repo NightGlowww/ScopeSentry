@@ -214,7 +214,7 @@ func DeleteTask(c *gin.Context) {
 		return
 	}
 	if len(exist) == 0 {
-		response.NotFound(c, "api.error", fmt.Errorf("任务不存在"))
+		response.NotFound(c, "api.task.not_found", nil)
 		return
 	}
 	existSet := make(map[string]bool, len(exist))
@@ -310,7 +310,7 @@ func StopTask(c *gin.Context) {
 		return
 	}
 	if len(exist) == 0 {
-		response.NotFound(c, "api.error", fmt.Errorf("任务不存在"))
+		response.NotFound(c, "api.task.not_found", nil)
 		return
 	}
 	hits := make([]string, 0, len(exist))

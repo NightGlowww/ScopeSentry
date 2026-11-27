@@ -1,8 +1,8 @@
 package task
 
 import (
-	"github.com/gin-gonic/gin"
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
+	"github.com/gin-gonic/gin"
 )
 
 type assignProjectRequest struct {

@@ -79,7 +79,7 @@ func RunSchedulers(c *gin.Context) {
 	}
 	ids := normalizeIDs(req.AllIDs())
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	summaries := make([]interface{}, 0, len(ids))
@@ -115,7 +115,7 @@ func StopSchedulers(c *gin.Context) {
 	}
 	ids := normalizeIDs(req.AllIDs())
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	matched, modified, err := svc().StopTasks(c.Request.Context(), ids)
@@ -147,7 +147,7 @@ func RecoverSchedulers(c *gin.Context) {
 	}
 	ids := normalizeIDs(req.AllIDs())
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	recovered, err := svc().RecoverTasks(c.Request.Context(), ids)
@@ -179,7 +179,7 @@ func UpdateScheduler(c *gin.Context) {
 	}
 	id := strings.TrimSpace(req.TaskID())
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 	patch := githubrepo.SchedulePatch{}

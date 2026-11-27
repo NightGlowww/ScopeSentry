@@ -205,7 +205,7 @@ func List(c *gin.Context) {
 func Get(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request.id", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 
@@ -265,7 +265,7 @@ func Create(c *gin.Context) {
 func Update(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request.id", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 	var req models.UserUpdate
@@ -297,7 +297,7 @@ func Update(c *gin.Context) {
 func Delete(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request.id", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 

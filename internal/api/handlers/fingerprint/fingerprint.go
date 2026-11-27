@@ -8,8 +8,6 @@
 package fingerprint
 
 import (
-	"fmt"
-
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	service "github.com/Autumn-27/ScopeSentry/internal/services/fingerprint"
@@ -220,7 +218,7 @@ func Delete(c *gin.Context) {
 	}
 	if deleted == 0 {
 		// service 早就回了真实条数，handler 一直丢掉它（2026-11-28 实测）
-		response.NotFound(c, "api.error", fmt.Errorf("指纹不存在"))
+		response.NotFound(c, "api.fingerprint.not_found", nil)
 		return
 	}
 	response.Success(c, map[string]any{"deleted": deleted, "requested": len(req.IDs)}, "api.success")

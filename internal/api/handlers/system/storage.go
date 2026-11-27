@@ -58,7 +58,8 @@ func StorageStats(ctx context.Context, limit int) (*StorageReport, error) {
 			Size  int64 `bson:"size"`
 			Count int64 `bson:"count"`
 		}
-		err := mongodb.DB.RunCommand(ctx, bson.D{{"collStats", name}}).Decode(&st)
+		// 键值对显式写全：bson.D 用未命名结构体字面量时 go vet 会报 unkeyed fields
+		err := mongodb.DB.RunCommand(ctx, bson.D{{Key: "collStats", Value: name}}).Decode(&st)
 		if err != nil {
 			continue
 		}

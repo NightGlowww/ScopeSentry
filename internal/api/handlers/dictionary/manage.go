@@ -142,7 +142,7 @@ func Delete(c *gin.Context) {
 		return
 	}
 	if deleted == 0 {
-		response.NotFound(c, "api.error", fmt.Errorf("字典不存在"))
+		response.NotFound(c, "api.dict.not_found", nil)
 		return
 	}
 	response.Success(c, gin.H{"code": 200, "deleted": deleted, "requested": len(req.IDs)}, "api.success")

@@ -81,7 +81,7 @@ func BatchExport(c *gin.Context) {
 func TaskExport(c *gin.Context) {
 	taskID := strings.TrimSpace(c.Param("taskId"))
 	if taskID == "" {
-		response.BadRequestWithError(c, "api.bad_request", fmt.Errorf("taskId is required"))
+		response.BadRequestWithError(c, "api.required.task_id", nil)
 		return
 	}
 

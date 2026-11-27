@@ -1,8 +1,6 @@
 package plugin
 
 import (
-	"fmt"
-
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
@@ -153,7 +151,7 @@ func Delete(c *gin.Context) {
 		}
 	}
 	if matched == 0 {
-		response.NotFound(c, "api.error", fmt.Errorf("插件不存在"))
+		response.NotFound(c, "api.plugin.not_found", nil)
 		return
 	}
 	if err := pluginService.Delete(c, &req); err != nil {

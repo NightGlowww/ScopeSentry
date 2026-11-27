@@ -1,8 +1,6 @@
 package project
 
 import (
-	"fmt"
-
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
@@ -140,7 +138,7 @@ func DeleteProject(c *gin.Context) {
 		}
 	}
 	if len(existing) == 0 {
-		response.NotFound(c, "api.error", fmt.Errorf("项目不存在"))
+		response.NotFound(c, "api.project.not_found", nil)
 		return
 	}
 	if err := projectService.DeleteProjects(c, existing, req.DeleateAssets); err != nil {

@@ -1,7 +1,6 @@
 package github
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 
@@ -109,7 +108,7 @@ func manageTargets(c *gin.Context, kind string) {
 	case "add", "remove":
 		targets := normalizeTargets(kind, req.AllTargets())
 		if len(targets) == 0 {
-			response.BadRequestWithError(c, "api.bad_request", errors.New("targets 不能为空"))
+			response.BadRequestWithError(c, "api.github.targets_required", nil)
 			return
 		}
 		if action == "add" {
@@ -126,7 +125,7 @@ func manageTargets(c *gin.Context, kind string) {
 			"items": src.Targets, "total": len(src.Targets), "kind": kind, "action": action,
 		}, "api.success")
 	default:
-		response.BadRequestWithError(c, "api.bad_request", errors.New("action 只能是 list / add / remove"))
+		response.BadRequestWithError(c, "api.github.invalid_action", nil)
 	}
 }
 
@@ -237,7 +236,7 @@ func manageSourceConfig(c *gin.Context, kind string) {
 	}
 	if req.IntervalHours != nil {
 		if *req.IntervalHours <= 0 {
-			response.BadRequestWithError(c, "api.bad_request", errors.New("intervalHours 必须大于 0"))
+			response.BadRequestWithError(c, "api.github.interval_hours_invalid", nil)
 			return
 		}
 		src.IntervalHours = *req.IntervalHours

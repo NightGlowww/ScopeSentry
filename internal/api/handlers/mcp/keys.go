@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -100,7 +99,7 @@ func CreateKey(c *gin.Context) {
 func UpdateKey(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 	var req models.McpKeyUpdateRequest
@@ -123,7 +122,7 @@ func UpdateKey(c *gin.Context) {
 func SetKeyStatus(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 	var req models.McpKeyStatusRequest
@@ -132,7 +131,7 @@ func SetKeyStatus(c *gin.Context) {
 		return
 	}
 	if req.Enabled == nil {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("enabled 不能为空"))
+		response.BadRequestWithError(c, "api.required.enabled", nil)
 		return
 	}
 	if err := keyService.SetEnabled(c.Request.Context(), id, *req.Enabled); err != nil {
@@ -149,7 +148,7 @@ func SetKeyStatus(c *gin.Context) {
 func DeleteKey(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("id 不能为空"))
+		response.BadRequestWithError(c, "api.required.id", nil)
 		return
 	}
 	deleted, err := keyService.Delete(c.Request.Context(), id)
@@ -159,7 +158,7 @@ func DeleteKey(c *gin.Context) {
 	}
 	if deleted == 0 {
 		// 以前对任意 id 都回 deleted:true，撤销一个写错的 key 名时会以为已撤销（2026-11-28 实测）
-		response.NotFound(c, "api.error", fmt.Errorf("key 不存在"))
+		response.NotFound(c, "api.mcp.key.not_found", nil)
 		return
 	}
 	response.Success(c, gin.H{"id": id, "deleted": true}, "api.success")

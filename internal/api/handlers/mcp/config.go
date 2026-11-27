@@ -43,7 +43,7 @@ func UpdateConfig(c *gin.Context) {
 	if req.AllowedTools != nil {
 		for _, name := range *req.AllowedTools {
 			if strings.TrimSpace(name) == "" {
-				response.BadRequestWithError(c, "api.bad_request", errors.New("allowedTools 含空值"))
+				response.BadRequestWithError(c, "api.mcp.allowed_tools_blank", nil)
 				return
 			}
 		}

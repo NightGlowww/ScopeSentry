@@ -177,7 +177,7 @@ func TriageResults(c *gin.Context) {
 	}
 	ids := normalizeIDs(req.IDs)
 	if len(ids) == 0 {
-		response.BadRequestWithError(c, "api.bad_request", errors.New("ids 不能为空"))
+		response.BadRequestWithError(c, "api.required.ids", nil)
 		return
 	}
 	operator, _ := c.Get("username")
@@ -241,7 +241,7 @@ func IgnoredRepos(c *gin.Context) {
 		}
 		response.Success(c, gin.H{"repo": req.Repo, "removed": removed}, "api.success")
 	default:
-		response.BadRequestWithError(c, "api.bad_request", errors.New("action 只能是 list / add / remove"))
+		response.BadRequestWithError(c, "api.github.invalid_action", nil)
 	}
 }
 
