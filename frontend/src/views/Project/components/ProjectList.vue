@@ -182,7 +182,9 @@ const action = (id: string) => {
       :loading="loading"
       custom-content
       :card-wrap-style="{
-        width: '210px',
+        // 210px 装不下「名称 + 总资产 + 任务数 + 最近扫描 + 状态标签」：
+        // 名称会折行、标签被挤到单独一行（2026-11-27 截图复现）
+        width: '260px',
         marginBottom: '20px',
         marginRight: '20px'
       }"
@@ -199,7 +201,7 @@ const action = (id: string) => {
                 <ElAvatar class="avatar avatar-placeholder"> {{ row.name.charAt(0) }} </ElAvatar>
               </template>
             </div>
-            <div>
+            <div class="card-text">
               <div class="name">{{ row.name }}</div>
               <div class="assets-info">{{ t('project.totalAssets') }} : {{ row.AssetCount }}</div>
               <!-- 任务维度：只给「资产数」看不出这个项目最近有没有在干活（2026-11-27 反馈） -->
@@ -275,16 +277,33 @@ const action = (id: string) => {
   font-size: 32px;
   font-weight: 600;
 }
+/* 文本块要能收缩：flex 子项默认 min-width:auto，长项目名会把整行撑出去 */
+.card-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .name {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
   font-weight: 700;
   font-size: 16px;
+  /* artex-own-infra 这种长名字在 210px 里会折成两行，改成省略号 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .assets-info {
   color: #b1b3b8;
   font-size: 11px;
-  position: relative;
-  top: -6px;
+  line-height: 1.6;
+}
+
+/* 最近扫描：时间与状态标签必须同一行，否则标签会掉到下一行显得像两条信息 */
+.last-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 </style>
