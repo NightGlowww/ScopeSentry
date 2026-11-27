@@ -40,6 +40,8 @@ const props = defineProps<{
   activeSegment?: 'tableSegment' | 'cardSegment' // 可选属性
   setActiveSegment?: (segment: 'tableSegment' | 'cardSegment', flag: boolean) => void // 可选方法
   getFilter: () => { [key: string]: any }
+  // 页面「发现时间」的起点，透传给导出弹窗做默认时间范围
+  timeFrom?: string
   iconData?: { value: string; number: number; icon_hash: string }[]
   // 资产页专用：打开「标签颜色」设置（issue #217）
   openTagColorSetting?: () => void
@@ -709,7 +711,12 @@ const openCreateTask = async () => {
     width="70%"
     style="border-radius: 15px; box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.3)"
   >
-    <exportData :index="$props.index" :searchParams="searchParams" :getFilter="$props.getFilter" />
+    <exportData
+      :index="$props.index"
+      :searchParams="searchParams"
+      :getFilter="$props.getFilter"
+      :initialFrom="$props.timeFrom"
+    />
   </Dialog>
   <Dialog
     v-model="taskDialogVisible"

@@ -36,15 +36,27 @@ const props = defineProps<{
   index: string
   searchParams: string
   getFilter: () => { [key: string]: any }
+  // 页面当前的「发现时间」起点（YYYY-MM-DD HH:MM:SS）。
+  // 不传的话导出默认不按时间过滤，用户会以为导出的是屏幕上那批（2026-11-27）。
+  initialFrom?: string
 }>()
+
+const nowStr = () => {
+  const d = new Date()
+  const p = (x: number) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
 const exportForm = reactive({
   type: 'all',
   // 默认 1000：后端 ExportRequest.Quantity 是 required，0 会被判参数非法，
   // 之前默认 0 导致点「Create」直接报 "Invalid request parameters"（2026-11-20）。
   quantity: 1000,
   // issue #261：可选的导出时间范围，Element 的 datetimerange 给的是 [start, end]
-  timeRange: [] as string[]
+  // 有页面时间筛选时继承它，做到「默认导出的就是屏幕上看到的范围」
+  timeRange: (props.initialFrom ? [props.initialFrom, nowStr()] : []) as string[]
 })
+const prefilledFromPage = !!props.initialFrom
 const create = async () => {
   // 导出是异步任务：提交后要明确告诉用户「已提交，去列表等」，并刷新记录列表。
   // 之前只切 loading，成功失败都没有任何提示（2026-11-20）。
