@@ -8,6 +8,7 @@
 package backup
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -44,7 +45,10 @@ func Create(c *gin.Context) {
 			return
 		}
 	}
-	info, err := service.Create(c.Request.Context(), req.Note)
+	// 备份是分钟级操作，不能用请求上下文：客户端一超时/断开会把 ctx 取消，
+	// 备份中途就废了（实测 "iterate SensitiveBody: context canceled"）。
+	// 用 WithoutCancel 保留 value 语义但不随请求取消。
+	info, err := service.Create(context.WithoutCancel(c.Request.Context()), req.Note)
 	if err != nil {
 		handleError(c, err)
 		return
@@ -141,7 +145,8 @@ func Restore(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", backupSvc.ErrConfirmRequired)
 		return
 	}
-	result, err := service.Restore(c.Request.Context(), req.Name)
+	// 恢复同样是分钟级：客户端超时不该把恢复拦腰截断
+	result, err := service.Restore(context.WithoutCancel(c.Request.Context()), req.Name)
 	if err != nil {
 		handleError(c, err)
 		return
