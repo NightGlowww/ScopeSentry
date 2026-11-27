@@ -35,6 +35,14 @@ func registerStatisticsRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// handler 和 service 早就写好了，只是路由没注册：
+				// 项目概况页的「标题」面板因此永远显示空（2026-11-27 实测）
+				Method:      "POST",
+				Path:        "/title",
+				Handler:     statistics.GetAssetTitleStatistics,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "/icon",
 				Handler:     statistics.GetAssetIconStatistics,
