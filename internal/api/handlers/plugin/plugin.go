@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
@@ -133,12 +135,33 @@ func Delete(c *gin.Context) {
 		return
 	}
 
+	// 先核对插件是否真的在列表里：删除对任意 hash 都回成功，
+	// 界面上删一个写错的 hash 也会提示「已删除」（2026-11-28 实测）。
+	known, err := pluginService.List(c, &models.PluginListRequest{PageIndex: 1, PageSize: 5000, Type: "all"})
+	if err != nil {
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	exist := make(map[string]bool, len(known.List))
+	for _, p := range known.List {
+		exist[p.Hash] = true
+	}
+	matched := 0
+	for _, item := range req.Data {
+		if exist[item.Hash] {
+			matched++
+		}
+	}
+	if matched == 0 {
+		response.NotFound(c, "api.error", fmt.Errorf("插件不存在"))
+		return
+	}
 	if err := pluginService.Delete(c, &req); err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
 
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]any{"deleted": matched, "requested": len(req.Data)}, "api.success")
 }
 
 // GetLogs 获取插件日志

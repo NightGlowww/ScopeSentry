@@ -16,7 +16,8 @@ type PortRepository interface {
 	Find(ctx context.Context, search string, pageIndex, pageSize int) ([]models.PortDoc, error)
 	Insert(ctx context.Context, name, value string) error
 	Update(ctx context.Context, id, name, value string) error
-	Delete(ctx context.Context, ids []string) error
+	// Delete 返回真实删除条数
+	Delete(ctx context.Context, ids []string) (int64, error)
 }
 
 type portRepository struct {
@@ -69,15 +70,18 @@ func (r *portRepository) Update(ctx context.Context, id, name, value string) err
 	return err
 }
 
-func (r *portRepository) Delete(ctx context.Context, ids []string) error {
+func (r *portRepository) Delete(ctx context.Context, ids []string) (int64, error) {
 	objIDs := make([]primitive.ObjectID, 0, len(ids))
 	for _, id := range ids {
 		oid, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		objIDs = append(objIDs, oid)
 	}
-	_, err := r.collection.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": objIDs}})
-	return err
+	res, err := r.collection.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": objIDs}})
+	if err != nil {
+		return 0, err
+	}
+	return res.DeletedCount, nil
 }

@@ -13,7 +13,8 @@ type PortService interface {
 	Get(ctx context.Context, search string, pageIndex, pageSize int) ([]models.PortDoc, int64, error)
 	Add(ctx context.Context, name, value string) error
 	Update(ctx context.Context, id, name, value string) error
-	Delete(ctx context.Context, ids []string) error
+	// Delete 返回真实删除条数
+	Delete(ctx context.Context, ids []string) (int64, error)
 }
 
 type portService struct {
@@ -59,10 +60,11 @@ func (s *portService) Update(ctx context.Context, id, name, value string) error 
 	return nil
 }
 
-func (s *portService) Delete(ctx context.Context, ids []string) error {
-	if err := s.repo.Delete(ctx, ids); err != nil {
-		return err
+func (s *portService) Delete(ctx context.Context, ids []string) (int64, error) {
+	deleted, err := s.repo.Delete(ctx, ids)
+	if err != nil {
+		return 0, err
 	}
 	_ = s.nodeService.RefreshConfig(ctx, models.Message{Name: "all", Type: "port"})
-	return nil
+	return deleted, nil
 }

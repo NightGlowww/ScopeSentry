@@ -133,10 +133,16 @@ func DeletePortDict(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", fmt.Errorf("ids cannot be empty"))
 		return
 	}
-	if err := portService.Delete(c, req.IDs); err != nil {
+	deleted, err := portService.Delete(c, req.IDs)
+	if err != nil {
 		logger.Error(err.Error())
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, gin.H{"code": 200, "message": "Port dict deleted successfully"}, "api.success")
+	if deleted == 0 {
+		// 不存在的 id 以前回 "Port dict deleted successfully"（2026-11-28 实测）
+		response.NotFound(c, "api.error", fmt.Errorf("端口字典条目不存在"))
+		return
+	}
+	response.Success(c, gin.H{"code": 200, "deleted": deleted, "requested": len(req.IDs)}, "api.success")
 }
