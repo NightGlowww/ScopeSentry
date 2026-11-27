@@ -142,6 +142,9 @@ export default {
     cleanInvalidDone: '已清理 {n} 条无效记录',
     fileMissingHint:
       '记录还在，但导出文件已不在磁盘上（例如容器重建/手工清理）。可重新导出，或删除这条记录',
+    batchTab: '批量导出',
+    inheritTimeHint: '已继承页面「发现时间」筛选；清空时间即导出全部',
+    clearedTimeHint: '时间已清空：将导出全部数据，不受页面时间筛选限制',
     batchProjectPlaceholder: '项目（可选）',
     batchTaskPlaceholder: '任务名（可选）',
     batchStartPlaceholder: '开始时间',

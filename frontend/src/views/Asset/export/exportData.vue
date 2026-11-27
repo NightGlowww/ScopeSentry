@@ -355,8 +355,8 @@ const filetype = ref('xlsx')
           <div v-if="prefilledFromPage" class="prefill-hint">
             {{
               exportForm.timeRange.length
-                ? '已继承页面「发现时间」筛选；清空时间即导出全部'
-                : '时间已清空：将导出全部数据，不受页面时间筛选限制'
+                ? t('export.inheritTimeHint')
+                : t('export.clearedTimeHint')
             }}
           </div>
         </ElFormItem>
@@ -427,7 +427,7 @@ const filetype = ref('xlsx')
         }"
       />
     </ElTabPane>
-    <ElTabPane label="批量导出" name="batchExport">
+    <ElTabPane :label="t('export.batchTab')" name="batchExport">
       <BatchExportTab />
     </ElTabPane>
   </ElTabs>

@@ -166,6 +166,10 @@ export default {
     cleanInvalidDone: '유효하지 않은 기록 {n}건을 정리했습니다',
     fileMissingHint:
       '기록은 남아 있지만 내보낸 파일이 디스크에 없습니다(컨테이너 재생성/수동 정리 등). 다시 내보내거나 이 기록을 삭제하세요',
+    batchTab: '일괄 내보내기',
+    inheritTimeHint:
+      '페이지의 발견 시간 필터를 그대로 이어받았습니다. 시간을 비우면 전체를 내보냅니다',
+    clearedTimeHint: '시간을 비웠습니다. 페이지 필터와 무관하게 전체 데이터를 내보냅니다',
     batchProjectPlaceholder: '프로젝트(선택)',
     batchTaskPlaceholder: '작업 이름(선택)',
     batchStartPlaceholder: '시작 시간',

@@ -142,6 +142,9 @@ export default {
     cleanInvalidDone: 'Cleaned {n} invalid records',
     fileMissingHint:
       'The record exists but the file is gone from disk (container rebuild / manual cleanup). Export again, or delete this record.',
+    batchTab: 'Batch export',
+    inheritTimeHint: 'Inherited the page-time filter; clear the time to export everything',
+    clearedTimeHint: 'Time cleared: everything will be exported regardless of the page filter',
     batchProjectPlaceholder: 'Project (optional)',
     batchTaskPlaceholder: 'Task name (optional)',
     batchStartPlaceholder: 'Start time',
