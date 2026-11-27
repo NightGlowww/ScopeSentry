@@ -19,6 +19,8 @@ const (
 	defaultBudget   = 8 * time.Second
 	defaultMaxTechs = 12
 	maxSingleFetch  = 10 * time.Second
+	// 一次情报最多拉多少资产进内存：正则扫 body 是主要耗时，45k 全量要十几秒。
+	maxAssets = 1200
 )
 
 // Options 对应 MCP 入参。
@@ -64,6 +66,9 @@ type Stats struct {
 	AssetsScanned  int `json:"assets_scanned"`
 	WithVersion    int `json:"with_version"`
 	WithoutVersion int `json:"without_version"`
+	// AssetsConsidered 是真正拉进内存在判定的资产数（时间倒序取样）。
+	// 全库 45k 时逐个正则扫 body 要十几秒，采样 + 明示取样量比拖死工具诚实。
+	AssetsConsidered int `json:"assets_considered"`
 	// 下面几项说明「这次结果覆盖了多少」，避免把截断/失败读成「没有 CVE」。
 	TechsTotal       int  `json:"techs_total"`
 	TechsQueried     int  `json:"techs_queried"`
@@ -248,6 +253,7 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 	// 统计口径：按「宿主」而不是「技术名 × 宿主」。
 	// 一台机器同时命中 Nginx 和 Tengine 时，逐技术名累加会把它算成两台，
 	// 下游拿这个数去推断覆盖率就错了。
+	report.Stats.AssetsConsidered = len(assets)
 	report.Stats.TechsSkipped = report.Stats.TechsTotal - report.Stats.TechsQueried
 	report.Stats.ElapsedMS = int(time.Since(started).Milliseconds())
 	report.Stats.AssetsScanned = len(hostWithVersion)
@@ -536,8 +542,10 @@ func loadAssets(ctx context.Context, opt Options) ([]assetDoc, error) {
 	// 同 versionprobe：`$ne: []` 会把 null 也算作「有技术」，这里只认真有元素的。
 	filter["technologies.0"] = bson.M{"$exists": true}
 
+	// 按最近扫描时间取样：情报要回答「我现在暴露了什么」，
+	// 老资产既没有代表性，还要为它们的 body 付正则开销。
 	cur, err := mongodb.DB.Collection("asset").Find(ctx, filter,
-		options.Find().SetLimit(5000).SetProjection(bson.M{
+		options.Find().SetLimit(maxAssets).SetSort(bson.M{"lastScanTime": -1}).SetProjection(bson.M{
 			"host": 1, "technologies": 1, "rawheaders": 1, "body": 1,
 			"webServer": 1, "title": 1, "url": 1, "port": 1, "techVersions": 1,
 		}))
