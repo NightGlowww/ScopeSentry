@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { ElAlert, ElButton, ElCard, ElCol, ElRow, ElTag, ElDescriptions, ElDescriptionsItem } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { getConsoleInfoApi, type ConsoleInfo } from '@/api/dashboard'
+import request from '@/axios'
 import { useVisibleInterval } from "@/hooks/web/useVisibleInterval"
 import { useSingleTabLeader } from "@/hooks/web/useSingleTabLeader"
 
@@ -24,6 +25,30 @@ const load = async () => {
   }
 }
 
+// 存储占用：解释「库为什么这么大、备份为什么这么久」。
+// 2026-11-28 实测 SensitiveBody 18.3GB / 1.9 万条，其余集合加起来不到 1GB。
+type StorageCol = { name: string; bytes: number; docs: number }
+const storage = ref<{ total: number; collections: StorageCol[]; collectedAt: string } | null>(null)
+const loadStorage = async () => {
+  try {
+    const res: any = await request.get({ url: '/api/system/storage' })
+    storage.value = res?.data || null
+  } catch {
+    storage.value = null
+  }
+}
+const mb = (bytes: number) => {
+  const v = Number(bytes) || 0
+  if (v >= 1024 ** 3) return (v / 1024 ** 3).toFixed(2) + ' GB'
+  if (v >= 1024 ** 2) return (v / 1024 ** 2).toFixed(1) + ' MB'
+  return (v / 1024).toFixed(0) + ' KB'
+}
+const topShare = (col: any) => {
+  const total = Number(storage.value?.total) || 0
+  if (!total) return ''
+  return ((Number(col.bytes) / total) * 100).toFixed(1) + '%'
+}
+
 const depTag = (dep?: { connected: boolean; latencyMs: number; error?: string }) => {
   if (!dep) return { type: 'info' as const, text: '-' }
   if (!dep.connected) return { type: 'danger' as const, text: '断连 ' + (dep.error || '') }
@@ -32,6 +57,7 @@ const depTag = (dep?: { connected: boolean; latencyMs: number; error?: string })
 
 onMounted(() => {
   load()
+  loadStorage()
   const { isLeader: statusLeader } = useSingleTabLeader('system-status')
   useVisibleInterval(() => {
     if (!statusLeader.value) return
@@ -131,12 +157,35 @@ onMounted(() => {
         <ElDescriptionsItem label="采集时间">{{ info?.collectedAt || '-' }}</ElDescriptionsItem>
       </ElDescriptions>
     </ElCard>
+
+    <ElCard shadow="never" class="mt-12px">
+      <template #header>
+        <span>存储占用</span>
+        <span v-if="storage" class="hint" style="margin-left: 8px">
+          合计 {{ mb(storage.total) }}；备份大小与耗时基本由最大那个集合决定
+        </span>
+      </template>
+      <el-table v-if="storage?.collections?.length" :data="storage.collections" size="small">
+        <el-table-column prop="name" label="集合" min-width="180" />
+        <el-table-column label="占用" width="120">
+          <template #default="{ row }">{{ mb(row.bytes) }}</template>
+        </el-table-column>
+        <el-table-column label="占比" width="90">
+          <template #default="{ row }">{{ topShare(row) }}</template>
+        </el-table-column>
+        <el-table-column prop="docs" label="文档数" width="120" />
+      </el-table>
+      <div v-else class="hint">暂无数据（需要登录后自动加载）</div>
+    </ElCard>
   </ContentWrap>
 </template>
 
 <style scoped>
 .mb-12px {
   margin-bottom: 12px;
+}
+.mt-12px {
+  margin-top: 12px;
 }
 .stat-label {
   color: var(--el-text-color-secondary);

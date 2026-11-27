@@ -26,6 +26,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 各集合占用：解释「库为什么这么大 / 备份为什么这么久」
+				Method:      "GET",
+				Path:        "storage",
+				Handler:     system.Storage,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 多源情报订阅状态（CISA KEV / Wiz / PortSwigger / 先知 / MSRC / P0）。
 				Method:      "GET",
 				Path:        "intel-feeds",
