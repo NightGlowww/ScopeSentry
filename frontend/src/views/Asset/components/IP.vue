@@ -371,13 +371,21 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
     </ElCol>
     <ElCol ::span="24">
       <ElCard>
-        <ElPagination
-          v-model:pageSize="pageSize"
-          v-model:currentPage="currentPage"
-          :page-sizes="[10, 20, 50, 100, 200, 500, 1000]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-        />
+        <!-- 这一页分页数的是「IP」，不是表格行：一个 IP 的多端口/多服务会合并成多行，
+             所以「每页 3 个 IP」可能显示 50 行。不写清楚会被当成翻页坏了（2026-11-28）。 -->
+        <div class="ip-page-bar">
+          <span class="ip-page-hint">
+            按 IP 分页 · 共 {{ total }} 个 IP（端口/服务按 IP 合并展示，行数会多于每页 IP 数）
+          </span>
+          <ElPagination
+            v-model:pageSize="pageSize"
+            v-model:currentPage="currentPage"
+            :page-sizes="[10, 20, 50, 100, 200, 500, 1000]"
+            layout="sizes, prev, pager, next, jumper"
+            :total="total"
+            class="ip-pagination"
+          />
+        </div>
       </ElCard>
     </ElCol>
   </ElRow>
@@ -391,3 +399,19 @@ const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
   white-space: pre-line;
 }
 </style>
+
+<style lang="less" scoped>
+.ip-page-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ip-page-hint {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--el-text-color-secondary);
+}
+</style>
+

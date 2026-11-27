@@ -33,16 +33,28 @@ func isStaticPath(path string) bool {
 
 // StaticCache 给内嵌前端资源加缓存头：
 // 带 hash 的 /assets/* 可以长缓存，index.html 必须每次协商。
+// wantsHTML 判断这次请求是不是「浏览器要一个页面」。
+// 只对 HTML 导航加 no-store，接口 JSON 与静态资源不受影响。
+func wantsHTML(c *gin.Context) bool {
+	return strings.Contains(c.GetHeader("Accept"), "text/html")
+}
+
 func StaticCache() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		switch {
 		case strings.HasPrefix(path, "/assets/"):
 			c.Header("Cache-Control", "public, max-age=31536000, immutable")
-		case path == "/" || strings.HasSuffix(path, ".html"):
-			c.Header("Cache-Control", "no-cache")
 		case isStaticPath(path):
 			c.Header("Cache-Control", "public, max-age=3600")
+		case wantsHTML(c) && !strings.HasPrefix(path, "/api") && !strings.HasPrefix(path, "/mcp"):
+			// SPA 的入口 HTML：/、/xxx.html，以及「深链直接返回首页」的那一类路径
+			// （/configuration/mcp-audit 这种）。之前深链没有任何 Cache-Control，
+			// 浏览器按启发式把旧 index.html 缓存住；发版后它引用的 chunk 名已不存在 →
+			// 动态 import 失败 → 整页白屏（2026-11-28）。HTML 一律不落缓存。
+			c.Header("Cache-Control", "no-store, must-revalidate")
+			c.Header("Pragma", "no-cache")
+			c.Header("Expires", "0")
 		}
 		c.Next()
 	}

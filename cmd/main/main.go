@@ -254,6 +254,9 @@ func main() {
 			c.String(http.StatusInternalServerError, "Failed to read index.html")
 			return
 		}
+		c.Header("Cache-Control", "no-store, must-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 	})
 
@@ -288,6 +291,11 @@ func main() {
 			c.String(http.StatusInternalServerError, "Failed to read index.html")
 			return
 		}
+		// 深链兜底返回的也是 SPA 入口 HTML：绝不能让浏览器缓存，
+		// 否则发版后仍按旧 chunk 名取文件 → 动态 import 失败 → 白屏（2026-11-28）。
+		c.Header("Cache-Control", "no-store, must-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 	})
 
