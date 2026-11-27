@@ -691,6 +691,14 @@ const showStaleBuildPanel = () => {
 router.onError((err: unknown) => {
   const msg = String((err as Error)?.message || err || '')
   if (!isChunkLoadError(msg)) return
+  // 先把这个分块用 cache:'reload' 拉一遍。
+  // 2026-11-28 实测：服务端对 /assets/* 无条件发 immutable，发版窗口里的一次 404
+  // 会被浏览器缓存一年，普通 reload 拿到的仍是那条 404（fetch 默认 404、
+  // 带 reload 才 200），于是同一页面永远白屏。这里把坏条目就地刷新掉。
+  const failed = /https?:\/\/[^\s'"]+?\.js/.exec(msg)?.[0]
+  if (failed) {
+    fetch(failed, { cache: 'reload' }).catch(() => undefined)
+  }
   const KEY = 'chunk-reload-at'
   const last = Number(sessionStorage.getItem(KEY) || 0)
   if (Date.now() - last < 30000) {

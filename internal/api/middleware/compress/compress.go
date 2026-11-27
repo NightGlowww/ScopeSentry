@@ -39,14 +39,64 @@ func wantsHTML(c *gin.Context) bool {
 	return strings.Contains(c.GetHeader("Accept"), "text/html")
 }
 
+// cacheOnSuccessWriter 把缓存头推迟到真正写状态码时再决定。
+//
+// 之前的实现无论 200 还是 404 都给 /assets/* 加 immutable。2026-11-28 实测：
+// 发版窗口里浏览器拿到一次 404（chunk 名已随新构建变化），这条 404 被按
+// immutable 缓存了一年 —— 之后每次重载都直接用缓存里的 404，/node-management
+// 与 /dashboard 永久白屏；同一个 URL 用 fetch(url) 仍是 404，只有
+// fetch(url,{cache:'reload'}) 才 200，正是缓存条目被污染的典型表现。
+type cacheOnSuccessWriter struct {
+	gin.ResponseWriter
+	cacheControl string
+	wrote        bool
+}
+
+func (w *cacheOnSuccessWriter) WriteHeader(code int) {
+	if w.wrote {
+		w.ResponseWriter.WriteHeader(code)
+		return
+	}
+	w.wrote = true
+	if code == http.StatusOK {
+		w.Header().Set("Cache-Control", w.cacheControl)
+	} else {
+		// 失败响应一律不落缓存，否则一次抖动就变成客户端的长期故障
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Del("Expires")
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *cacheOnSuccessWriter) WriteHeaderNow() {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	w.ResponseWriter.WriteHeaderNow()
+}
+
+func (w *cacheOnSuccessWriter) Write(b []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
+}
+
 func StaticCache() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		switch {
 		case strings.HasPrefix(path, "/assets/"):
-			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			c.Writer = &cacheOnSuccessWriter{
+				ResponseWriter: c.Writer,
+				cacheControl:   "public, max-age=31536000, immutable",
+			}
 		case isStaticPath(path):
-			c.Header("Cache-Control", "public, max-age=3600")
+			c.Writer = &cacheOnSuccessWriter{
+				ResponseWriter: c.Writer,
+				cacheControl:   "public, max-age=3600",
+			}
 		case wantsHTML(c) && !strings.HasPrefix(path, "/api") && !strings.HasPrefix(path, "/mcp"):
 			// SPA 的入口 HTML：/、/xxx.html，以及「深链直接返回首页」的那一类路径
 			// （/configuration/mcp-audit 这种）。之前深链没有任何 Cache-Control，
