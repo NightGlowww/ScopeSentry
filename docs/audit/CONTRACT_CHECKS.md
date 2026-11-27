@@ -48,12 +48,21 @@ SS_BASE=http://<host>:8082 SS_MCP_KEY=<全 scope 的 ssk_...> SS_ASSET_ID=<任�
   python3 scripts/ci/mcp_sweep.py
 ```
 
-它做三件事：
+它做四件事（当前 40 条读 + 37 条守卫，71 个工具全覆盖）：
 
-1. 用真实 id 调**读类**工具，断言 `isError=false`（顺带看响应大小）；
+1. 用真实参数调**读类**工具，断言 `isError=false`（顺带看响应大小）；
 2. 用不存在的 id / 非法参数调**写类**工具，断言 `isError=true` —— 这条才是重点：
    MCP 侧的「假成功」曾经让删除/停止类工具对任意 id 回 `ok:true`；
-3. 用 `pageSize=100000` 调一次列表，断言行数被夹到 ≤500。
+3. 用 `pageSize=100000` 调一次列表，断言行数被夹到 ≤500；
+4. 口径一致：`list_assets.total` == `count_assets.total`。
+
+**9 个 `create_*` 怎么覆盖而不建出东西**：传一个 schema 里不存在的字段（`{"__invalid__": true}`），
+断言拿到的是 JSON-RPC 的 `invalid params: unexpected additional properties`。
+校验发生在 SDK 的入参绑定阶段，handler 根本没执行 —— 所以既能证明「写类工具在落库前先过 schema」，
+又保证不会真的建出任务/项目/字典（2026-11-28 实测：调用前后 task 仍 235、asset group 仍 0）。
+
+覆盖度可以用 `python3 scripts/ci/mcp_sweep.py --coverage` 自查：它把 `/api/mcp/tools` 的工具清单
+和脚本里的 READ/GUARD 名字做差集，新增工具没跟进会直接列出来。
 
 结论看最后一行 `MCP_SWEEP=PASS|FAIL`。
 

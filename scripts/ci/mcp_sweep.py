@@ -60,12 +60,31 @@ def rpc(name, args):
         last = r
         time.sleep(1.2 * (attempt + 1))
     return last
-    if d.get('error'):
-        # JSON-RPC 层错误（schema 校验失败等）
-        return {'kind': 'RPCERR', 'text': json.dumps(d['error'])[:220]}
-    res = d.get('result') or {}
-    txt = ''.join(c.get('text', '') for c in (res.get('content') or []) if c.get('type') == 'text')
-    return {'kind': 'ERR' if res.get('isError') else 'OK', 'text': txt}
+
+
+def call_method(method, params=None):
+    """非 tools/call 的 JSON-RPC 调用（tools/list 等）。"""
+    _rid[0] += 1
+    payload = json.dumps({'jsonrpc': '2.0', 'id': _rid[0], 'method': method,
+                          'params': params or {}})
+    for attempt in range(3):
+        p = subprocess.run(['curl', '-sS', '-m', '90', '-X', 'POST', BASE + '/mcp',
+                            '-H', 'Content-Type: application/json',
+                            '-H', 'Accept: application/json, text/event-stream',
+                            '-H', 'X-API-Key: ' + KEY, '--data-binary', payload],
+                           capture_output=True, text=True)
+        raw = p.stdout
+        line = ''
+        for ln in raw.splitlines():
+            if ln.startswith('data: '):
+                line = ln[6:]
+        if not line:
+            line = raw.strip()
+        try:
+            return json.loads(line)
+        except Exception:
+            time.sleep(1.2 * (attempt + 1))
+    return {}
 
 def jcall(name, args):
     r = rpc(name, args)
@@ -104,6 +123,27 @@ def rows_ok(expect_json=True):
     return True
 
 
+def coverage(read_list, guard_list):
+    """把 tools/list 的工具清单和脚本里的 READ/GUARD 名字做差集。
+    新增工具没跟进覆盖时，这里会直接点出来——否则「71 个工具全覆盖」只能靠记忆。"""
+    d = call_method('tools/list')
+    tools = (d.get('result') or {}).get('tools') or []
+    names = sorted(t.get('name') for t in tools if t.get('name'))
+    if not names:
+        print('tools/list 没返回工具清单，检查 SS_MCP_KEY')
+        return 2
+    covered = {n for n, _ in read_list} | {n for n, _ in guard_list}
+    missing = [n for n in names if n not in covered]
+    print('工具总数 %d，已覆盖 %d，未覆盖 %d' % (len(names), len(names) - len(missing), len(missing)))
+    for n in missing:
+        print('  未覆盖:', n)
+    if missing:
+        print('MCP_COVERAGE=FAIL')
+        return 1
+    print('MCP_COVERAGE=PASS')
+    return 0
+
+
 def main():
     ids = probe_ids()
     print('ids:', json.dumps({k: v for k, v in ids.items() if v}, ensure_ascii=False))
@@ -140,6 +180,10 @@ def main():
         ('list_wih_results', {'pageIndex': 1, 'pageSize': 2}),
         ('preview_dictionary', {'kind': 'dir', 'name': ids.get('dict') or 'x', 'limit': 1}),
         ('search_assets', {'query': 'a', 'limit': 1}),
+        # 画像/节点：此前没被任何回归覆盖。
+        ('list_nodes', {}),
+        ('get_asset_profile', {'target': 'example.com'}),
+        ('get_enterprise_profile', {'domain': 'example.com'}),
     ]
     if ids.get('task'):
         READ += [('get_task', {'id': ids['task']}), ('get_task_progress', {'id': ids['task'], 'pageIndex': 1, 'pageSize': 2})]
@@ -181,7 +225,24 @@ def main():
         ('get_asset_detail', {'asset_type': 'asset', 'id': NOPE}),
         ('count_assets', {'asset_type': 'nope'}),
         ('list_assets', {'asset_type': 'nope'}),
+        # 字典/插件：字典不存在要报错（不能静默返回空），插件不存在要报错（不能假成功）。
+        ('search_dictionary_lines', {'kind': 'port', 'name': '__nope__', 'keyword': '80'}),
+        ('reinstall_plugin', {'node': '__nope__', 'hash': '__nope__', 'module': 'AssetMapping'}),
+        # 9 个 create_*：只验证「畸形入参在 schema 层就被拒，handler 根本没跑」。
+        # 这样既能覆盖写类工具的入参校验，又保证不会真的建出任何东西（2026-11-28）。
+        ('create_asset_group', {'__invalid__': True}),
+        ('create_asset_scope', {'__invalid__': True}),
+        ('create_dictionary', {'__invalid__': True}),
+        ('create_export_task', {'__invalid__': True}),
+        ('create_icp_task', {'__invalid__': True}),
+        ('create_project', {'__invalid__': True}),
+        ('create_scan_policy', {'__invalid__': True}),
+        ('create_scan_task', {'__invalid__': True}),
+        ('create_scan_template', {'__invalid__': True}),
     ]
+
+    if '--coverage' in sys.argv:
+        return coverage(READ, GUARD)
 
     fails = 0
     for name, args in READ:
@@ -249,4 +310,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
