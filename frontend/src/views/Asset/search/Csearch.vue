@@ -315,6 +315,20 @@ const projectNameById = computed(() => {
   return map
 })
 
+// 任务下拉的选项要包含「已选中但不在列表里」的值，否则 ElSelect 会渲染成空白，
+// 用户看着像没筛选，实际列表被这条隐形过滤卡到 4 条（2026-11-27 实测复现）。
+const taskOptions = computed(() => {
+  const base = (props.taskList || []).map((t: any) => ({ id: t.id, name: t.name }))
+  const known = new Set(base.map((t) => t.name))
+  ;(taskValue.value as string[]).forEach((v) => {
+    if (v && !known.has(v)) {
+      base.unshift({ id: 'selected:' + v, name: v })
+      known.add(v)
+    }
+  })
+  return base
+})
+
 const activeFilterChips = computed(() => {
   const chips: { key: string; label: string }[] = []
   ;(taskValue.value as string[]).forEach((v) => chips.push({ key: 'task:' + v, label: '任务：' + v }))
@@ -535,7 +549,7 @@ const openCreateTask = async () => {
           clearable
         >
           <ElOption
-            v-for="taskItem in $props.taskList"
+            v-for="taskItem in taskOptions"
             :key="taskItem.id"
             :label="taskItem.name"
             :value="taskItem.name"
