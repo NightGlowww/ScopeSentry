@@ -31,7 +31,12 @@ const columns = reactive<TableColumn[]>([
     field: 'intervalMinutes',
     label: t('formInterval'),
     width: 110,
-    formatter: (_r, __: TableColumn, v?: number) => (v ? String(v) : '-')
+    // 调度间隔存在 task.config.intervalMinutes 里，顶层没有这个字段：
+    // 直接读 row.intervalMinutes 永远拿到 undefined，整列一直显示 '-'（2026-11-28 实测）。
+    formatter: (row: { config?: { intervalMinutes?: number } }) => {
+      const minutes = row?.config?.intervalMinutes
+      return minutes ? String(minutes) : '-'
+    }
   },
   {
     field: 'state',

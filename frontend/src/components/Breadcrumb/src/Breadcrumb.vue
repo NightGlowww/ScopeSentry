@@ -2,9 +2,6 @@
 import { ElBreadcrumb, ElBreadcrumbItem } from 'element-plus'
 import { ref, watch, computed, unref, defineComponent, TransitionGroup } from 'vue'
 import { useRouter } from 'vue-router'
-import { usePermissionStore } from '@/store/modules/permission'
-import { filterBreadcrumb } from './helper'
-import { filter, treeToList } from '@/utils/tree'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { useI18n } from '@/hooks/web/useI18n'
 import { Icon } from '@/components/Icon'
@@ -29,26 +26,29 @@ export default defineComponent({
 
     const levelList = ref<AppRouteRecordRaw[]>([])
 
-    const permissionStore = usePermissionStore()
-
-    const menuRouters = computed(() => {
-      const routers = permissionStore.getRouters
-      return filterBreadcrumb(routers)
-    })
-
+    // 面包屑直接取路由的匹配链。
+    // 旧实现是在菜单树里 filter(path === 当前叶子) 再 treeToList 拍平：客户端跳转时
+    // 上一页的叶子会留在列表里（从「备份恢复」跳到「MCP 调用日志」会显示
+    // 配置 / 备份恢复 / MCP 调用日志；整页刷新才正常）——2026-11-28 实测。
     const getBreadcrumb = () => {
-      const currentPath = currentRoute.value.matched.slice(-1)[0].path
-      levelList.value = filter<AppRouteRecordRaw>(unref(menuRouters), (node: AppRouteRecordRaw) => {
-        return node.path === currentPath
-      })
+      levelList.value = currentRoute.value.matched
+        .filter((record) => !!record.meta?.title)
+        .map(
+          (record) =>
+            ({
+              path: record.path,
+              name: record.name,
+              meta: record.meta,
+              redirect: (record as unknown as AppRouteRecordRaw).redirect
+            }) as AppRouteRecordRaw
+        )
     }
 
     const renderBreadcrumb = () => {
       // 路由链里有一些只用于布局/重定向、没有 title 的节点，
       // 不过滤会在面包屑里留下"配置 / / / 系统日志"这种空条目和多余分隔符
-      const breadcrumbList = treeToList<AppRouteRecordRaw[]>(unref(levelList)).filter(
-        (v) => !!v?.meta?.title
-      )
+      // getBreadcrumb 已经把匹配链拍平成一维，这里只补一道空标题兜底
+      const breadcrumbList = unref(levelList).filter((v) => !!v?.meta?.title)
       return breadcrumbList.map((v) => {
         const disabled = !v.redirect || v.redirect === 'noredirect'
         const meta = v.meta
