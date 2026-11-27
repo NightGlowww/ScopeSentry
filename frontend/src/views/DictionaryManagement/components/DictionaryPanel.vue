@@ -195,6 +195,14 @@ const refreshCurrent = async () => {
   }
 }
 
+// 字典体积展示：补单位；有行数但不足 0.01MB 时不要显示成 0
+const sizeLabel = (item: any): string => {
+  const n = Number(item?.size)
+  if (!isFinite(n)) return item?.size || '-'
+  if (n === 0) return Number(item?.lineCount) > 0 ? '< 0.01 MB' : '0 MB'
+  return n.toFixed(2) + ' MB'
+}
+
 // ---- 追加行 ----
 const appendDialog = reactive({ visible: false, text: '' })
 
@@ -367,7 +375,9 @@ onMounted(loadList)
             <ElText size="small" type="info">
               {{ t('dictManager.lineCount', { count: item.lineCount }) }}
             </ElText>
-            <ElText size="small" type="info">{{ item.size }}</ElText>
+            <!-- 后端 size 是以 MB 为单位的两位小数（entry_store.go: fmt.Sprintf("%.2f", bytes/1024/1024)），
+                 直接渲染成 0.57 没有单位；没有内容的字典还会显示 0.00，看着像「空字典」（2026-11-27） -->
+            <ElText size="small" type="info">{{ sizeLabel(item) }}</ElText>
           </div>
         </div>
         <div v-if="!listLoading && !dictionaries.length" class="dict-panel__empty">
