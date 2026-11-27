@@ -76,9 +76,35 @@ if [ -n "$probe_key" ]; then
     | sed -n 's/^data: //p;' | tail -1 \
     | python3 -c 'import json,sys;d=json.load(sys.stdin);print(len((d.get("result") or {}).get("tools") or []))' 2>/dev/null || echo 0)
   if [ "${visible:-0}" = "22" ]; then ok "asset:read key tools/list 可见 22 个工具"; else bad "asset:read key tools/list 可见 ${visible:-0} 个（应为 22）"; fi
+  # 资产总数两处一致：MCP count_assets 与仪表盘 stats（同一事实源被各算一遍，最容易一处悄悄归零）
+  mcp_assets=$(curl -sS -m 30 -X POST "$BASE/mcp" -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' -H "X-API-Key: $probe_key" \
+    -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"count_assets","arguments":{"asset_type":"asset"}}}' \
+    | sed -n 's/^data: //p;' | tail -1 \
+    | python3 -c 'import json,sys;d=json.load(sys.stdin);print(json.loads(d["result"]["content"][0]["text"])["total"])' 2>/dev/null || echo x)
+  dash_assets=$(curl -sS -m 30 -X POST "$BASE/api/dashboard/stats" -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $TOKEN" -d '{}' \
+    | python3 -c 'import json,sys;print((json.load(sys.stdin).get("data") or {}).get("asset"))' 2>/dev/null || echo x)
+  if [ "$mcp_assets" = "$dash_assets" ] && [ "$mcp_assets" != "x" ] && [ "$mcp_assets" != "None" ]; then
+    ok "资产总数一致：count_assets=$mcp_assets 仪表盘=$dash_assets"
+  else
+    bad "资产总数不一致：count_assets=$mcp_assets 仪表盘=$dash_assets"
+  fi
   curl -sS -m 20 -X DELETE "$BASE/api/mcp/keys/$probe_id" -H "Authorization: Bearer $TOKEN" >/dev/null || true
 else
   bad "无法创建探针 key（检查 SS_TOKEN 权限）"
+fi
+
+# 9) 节点数三处必须一致（同一事实源被不同端点各算一遍，最容易一处悄悄归零）
+nodes_json=$(curl -sS -m 20 "$BASE/api/node" -H "Authorization: Bearer $TOKEN")
+console_json=$(curl -sS -m 20 "$BASE/api/console/info" -H "Authorization: Bearer $TOKEN")
+read api_n api_online con_n con_online <<EOF
+$(printf '%s' "$nodes_json" | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"];l=d.get("list") if isinstance(d,dict) else d;l=l or [];print(len(l), sum(1 for x in l if str(x.get("state"))=="1"))' 2>/dev/null || echo "x x") $(printf '%s' "$console_json" | python3 -c 'import json,sys;d=json.load(sys.stdin)["data"];print(d.get("nodeCount"), d.get("nodeOnline"))' 2>/dev/null || echo "x x")
+EOF
+if [ "$api_n" = "$con_n" ] && [ "$api_online" = "$con_online" ] && [ "$api_n" != "x" ]; then
+  ok "节点口径一致：/api/node=$api_n（在线 $api_online） console/info=$con_n（在线 $con_online）"
+else
+  bad "节点口径不一致：/api/node=$api_n/$api_online console/info=$con_n/$con_online"
 fi
 
 if [ "$FAIL" = "0" ]; then echo "== 契约全过 =="; echo "CONTRACT_RESULT=PASS"; else echo "== 契约失败 =="; echo "CONTRACT_RESULT=FAIL"; fi
