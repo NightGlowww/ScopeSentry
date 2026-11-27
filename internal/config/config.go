@@ -173,9 +173,14 @@ func init() {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-		} else {
-			fmt.Printf("error reading config file: %v\n", err)
+		// 找不到配置文件时以前是完全静默的：容器里配置写错位置/权限不对，
+		// 表现为「配置改了不生效」，排查只能靠猜（2026-11-28 踩过）。
+		// 这里把搜索目录、候选文件是否存在、原始错误都打出来。
+		candidate := filepath.Join(exeDir, "config.yaml")
+		_, statErr := os.Stat(candidate)
+		fmt.Printf("config: exeDir=%s candidate=%s exists=%v readErr=%v\n",
+			exeDir, candidate, statErr == nil, err)
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return
 		}
 	}
