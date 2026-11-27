@@ -6,11 +6,19 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+// 外部服务预算：NVD 是「有则更好、没有也不能拖死工具」的依赖。
+const (
+	defaultBudget   = 8 * time.Second
+	defaultMaxTechs = 12
+	maxSingleFetch  = 10 * time.Second
 )
 
 // Options 对应 MCP 入参。
@@ -20,6 +28,12 @@ type Options struct {
 	Techs     []string
 	SinceDays int
 	Limit     int
+	// Budget 是整次情报构建的墙钟预算。NVD 是外部服务，不通时每个技术名要等满 HTTP 超时，
+	// 不设预算的话全库调用会一直挂到 MCP 客户端超时（2026-11-28 实测 intel_for_assets 直接 REQUEST_TIMEOUT）。
+	Budget time.Duration
+	// MaxTechs 限制单次最多查几个技术名（按宿主数从多到少）。全库有上百个指纹，
+	// 逐个查既慢又没意义——报告里会如实说明截断了多少。
+	MaxTechs int
 }
 
 // Affected 是「某资产上某技术 × 某 CVE」的判定结果。
@@ -50,6 +64,13 @@ type Stats struct {
 	AssetsScanned  int `json:"assets_scanned"`
 	WithVersion    int `json:"with_version"`
 	WithoutVersion int `json:"without_version"`
+	// 下面几项说明「这次结果覆盖了多少」，避免把截断/失败读成「没有 CVE」。
+	TechsTotal       int  `json:"techs_total"`
+	TechsQueried     int  `json:"techs_queried"`
+	TechsSkipped     int  `json:"techs_skipped"`
+	DeadlineHit      bool `json:"deadline_hit"`
+	UpstreamFailures int  `json:"upstream_failures"`
+	ElapsedMS        int  `json:"elapsed_ms"`
 }
 
 // Report 是工具出参。
@@ -85,6 +106,13 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 	if opt.Limit > 100 {
 		opt.Limit = 100
 	}
+	if opt.Budget <= 0 {
+		opt.Budget = defaultBudget
+	}
+	if opt.MaxTechs <= 0 {
+		opt.MaxTechs = defaultMaxTechs
+	}
+	started := time.Now()
 
 	assets, err := loadAssets(ctx, opt)
 	if err != nil {
@@ -113,13 +141,35 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 		}
 	}
 
-	names := make([]string, 0, len(obs))
+	allNames := make([]string, 0, len(obs))
 	for k := range obs {
-		names = append(names, k)
+		allNames = append(allNames, k)
 	}
-	sort.Strings(names)
+	// 全库指纹上百个，逐个打 NVD 既慢又超出报告价值：按宿主数从多到少取前 N 个，
+	// 截断多少写进 stats.techs_skipped，不让调用方把「没查」读成「没有 CVE」。
+	sort.Slice(allNames, func(i, j int) bool {
+		if len(obs[allNames[i]]) != len(obs[allNames[j]]) {
+			return len(obs[allNames[i]]) > len(obs[allNames[j]])
+		}
+		return allNames[i] < allNames[j]
+	})
+	report.Stats.TechsTotal = len(allNames)
+	names := allNames
+	if len(names) > opt.MaxTechs {
+		names = names[:opt.MaxTechs]
+	}
+	names = append([]string(nil), names...)
+
+	deadline := started.Add(opt.Budget)
+	upstreamFails := 0
 
 	for _, key := range names {
+		// NVD 不通时每个技术名都要等满超时，必须给整次调用设墙钟上限：
+		// 宁可返回「已查 N 个、剩下因超时跳过」，也不要让 MCP 客户端等到 REQUEST_TIMEOUT。
+		if time.Now().After(deadline) {
+			report.Stats.DeadlineHit = true
+			break
+		}
 		hosts := obs[key]
 		// 逐技术名累加会把「一台机器命中两个技术名」算成两台，
 		// 下游拿这个数推断覆盖率就错了。这里只记「哪些宿主拿到过版本」，最后按宿主去重。
@@ -136,13 +186,31 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 		if len(searchName) > 0 {
 			cveQuery = searchName[0]
 		}
-		records, _, err := FetchCVE(ctx, cveQuery, opt.SinceDays, opt.Limit)
+		remain := time.Until(deadline)
+		if remain <= 0 {
+			report.Stats.DeadlineHit = true
+			break
+		}
+		if remain > maxSingleFetch {
+			remain = maxSingleFetch
+		}
+		callCtx, cancel := context.WithTimeout(ctx, remain)
+		records, _, err := FetchCVE(callCtx, cveQuery, opt.SinceDays, opt.Limit)
+		cancel()
+		report.Stats.TechsQueried++
 		if err != nil {
 			// 单个技术名取不到不该让整个工具失败，但必须留痕——静默 continue 会让人
 			// 以为「没有 CVE」，实际是请求失败（2026-11-25 踩过：NVD 404 被当成错误）。
 			logger.Error(fmt.Sprintf("intel: fetch cve for %q failed: %v", cveQuery, err))
+			report.Stats.UpstreamFailures++
+			upstreamFails++
+			// 连续两个技术名都失败 = 上游不可达，继续查只是把预算一条条耗在超时上。
+			if upstreamFails >= 2 {
+				break
+			}
 			continue
 		}
+		upstreamFails = 0
 		for _, rec := range records {
 			if len(report.Items) >= opt.Limit {
 				break
@@ -180,6 +248,8 @@ func BuildReport(ctx context.Context, opt Options) (*Report, error) {
 	// 统计口径：按「宿主」而不是「技术名 × 宿主」。
 	// 一台机器同时命中 Nginx 和 Tengine 时，逐技术名累加会把它算成两台，
 	// 下游拿这个数去推断覆盖率就错了。
+	report.Stats.TechsSkipped = report.Stats.TechsTotal - report.Stats.TechsQueried
+	report.Stats.ElapsedMS = int(time.Since(started).Milliseconds())
 	report.Stats.AssetsScanned = len(hostWithVersion)
 	for _, ok := range hostWithVersion {
 		if ok {

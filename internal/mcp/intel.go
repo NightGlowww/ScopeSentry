@@ -11,7 +11,9 @@ const intelForAssetsDesc = "漏洞情报（CVE Enrichment）：按项目/主机/
 	"注意：本工具产出的是情报，不是漏洞——拿不到版本时 applicability 一律为 unknown，绝不降级成 likely。" +
 	"返回归一化结构（不透传 NVD 原始 JSON），含 stats.with_version / without_version，用于判断情报可用性。" +
 	"参数：project（项目 ObjectID 或名称，可选）；hosts（主机列表，可选）；techs（技术名列表，可选）；" +
-	"since_days（只看这段时间内发布的 CVE，默认 90）；limit（条数上限，默认 20，上限 100）。"
+	"since_days（只看这段时间内发布的 CVE，默认 90）；limit（条数上限，默认 20，上限 100）。" +
+	"有外部预算：默认只查宿主最多的 12 个技术名、整次 8s 截止。stats 里的 techs_total/techs_queried/" +
+	"techs_skipped/deadline_hit/upstream_failures 说明这次覆盖了多少——它们非零时不要把空 items 读成「没有 CVE」。"
 
 type intelForAssetsInput struct {
 	Project   string   `json:"project,omitempty" jsonschema:"ScopeSentry 项目 ObjectID 或名称；给了就只查该项目资产"`
