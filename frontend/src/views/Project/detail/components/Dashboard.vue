@@ -2,7 +2,27 @@
 import { useI18n } from '@/hooks/web/useI18n'
 import { reactive, Ref, ref } from 'vue'
 import { Echart } from '@/components/Echart'
-import {ElRow, ElCol, ElCard, ElStatistic, ElContainer, ElFooter, ElDescriptions, ElDescriptionsItem, ElTag, ElDivider, ElSkeleton, ElTable, ElTableColumn, ElText, ElSpace, ElAlert, ElIcon, ElMain, ElScrollbar} from 'element-plus'
+import {
+  ElRow,
+  ElCol,
+  ElCard,
+  ElStatistic,
+  ElContainer,
+  ElFooter,
+  ElDescriptions,
+  ElDescriptionsItem,
+  ElTag,
+  ElDivider,
+  ElSkeleton,
+  ElTable,
+  ElTableColumn,
+  ElText,
+  ElSpace,
+  ElAlert,
+  ElIcon,
+  ElMain,
+  ElScrollbar
+} from 'element-plus'
 import { useRoute } from 'vue-router'
 import { useIcon } from '@/hooks/web/useIcon'
 import {
@@ -361,9 +381,14 @@ getAllApi()
                 <ElCol :span="8">
                   <!-- 这个数字是聚合口径（资产+子域+URL 等按项目范围合计），
                        和顶部「资产」条数不是一回事，不写清楚会被误读成数据矛盾（2026-11-27） -->
-                  <ElStatistic :title="t('dashboard.totalAssets') + '（聚合）'" :value="projectInfo.AssetCount">
+                  <ElStatistic
+                    :title="t('dashboard.totalAssets') + t('projectDetail.totalAggregateSuffix')"
+                    :value="projectInfo.AssetCount"
+                  >
                     <template #suffix>
-                      <span style="font-size: 11px; color: var(--el-text-color-placeholder)">含子域/URL</span>
+                      <span style="font-size: 11px; color: var(--el-text-color-placeholder)">{{
+                        t('projectDetail.totalAggregateHint')
+                      }}</span>
                     </template>
                   </ElStatistic>
                 </ElCol>
@@ -394,9 +419,11 @@ getAllApi()
               <!-- 0 漏洞的项目这里原来只写「暂无数据」，看起来像页面坏了。
                    改成说清楚「没有漏洞」而不是「没取到数据」（2026-11-27） -->
               <div v-else class="empty-block" style="height: 353px">
-                <ElText type="info">该项目暂无漏洞记录</ElText>
-                <div style="margin-top: 8px; font-size: 12px; color: var(--el-text-color-placeholder)">
-                  扫描完成后会在这里按等级分布
+                <ElText type="info">{{ t('projectDetail.noVulnYet') }}</ElText>
+                <div
+                  style="margin-top: 8px; font-size: 12px; color: var(--el-text-color-placeholder)"
+                >
+                  {{ t('projectDetail.noVulnHint') }}
                 </div>
               </div>
             </ElSkeleton>
@@ -411,7 +438,7 @@ getAllApi()
                 :scrollbarAlwaysOn="true"
                 :fit="true"
                 :max-height="353"
-                :empty-text="'该项目暂无漏洞记录'"
+                :empty-text="t('projectDetail.noVulnYet')"
               >
                 <ElTableColumn minWidth="50">
                   <template #default="scope">
@@ -515,7 +542,7 @@ getAllApi()
           <template #header>
             <ElText tag="b">{{ t('asset.title') }}</ElText>
             <div style="font-size: 11px; color: var(--el-text-color-placeholder)">
-              按出现次数排序，取前 50
+              {{ t('projectDetail.assetTopHint', { n: 50 }) }}
             </div>
           </template>
           <ElRow v-if="AssetstatisticsData.Title.length === 0">

@@ -165,7 +165,35 @@ export default {
       '"파일 없음" 내보내기 기록 {n}건을 삭제할까요? 파일이 이미 없으며 삭제는 되돌릴 수 없습니다.',
     cleanInvalidDone: '유효하지 않은 기록 {n}건을 정리했습니다',
     fileMissingHint:
-      '기록은 남아 있지만 내보낸 파일이 디스크에 없습니다(컨테이너 재생성/수동 정리 등). 다시 내보내거나 이 기록을 삭제하세요'
+      '기록은 남아 있지만 내보낸 파일이 디스크에 없습니다(컨테이너 재생성/수동 정리 등). 다시 내보내거나 이 기록을 삭제하세요',
+    batchProjectPlaceholder: '프로젝트(선택)',
+    batchTaskPlaceholder: '작업 이름(선택)',
+    batchStartPlaceholder: '시작 시간',
+    batchEndPlaceholder: '종료 시간',
+    batchPreview: '미리보기',
+    batchExportCsv: 'CSV 내보내기',
+    batchFields: '내보낼 필드',
+    batchFieldsPlaceholder: '기본값은 앞 12개 필드이며 직접 조정할 수 있습니다',
+    batchPreviewSummary: '유형 {type} → 컬렉션 {collection}: {total}건 일치, 앞 {limit}건 미리보기',
+    batchPreviewFailed: '미리보기 실패: {msg}',
+    batchExportFailed: '내보내기 실패: {msg}',
+    batchDownloadStarted: '다운로드를 시작했습니다',
+    batchUnknownError: '알 수 없는 오류',
+    batchTypeSite: '사이트 (site)',
+    batchTypeDomain: '도메인 (domain)',
+    batchTypeIp: 'IP (ip)',
+    batchTypeUrl: 'URL (url)',
+    batchTypeIpPort: 'IP 포트 (ip_port)',
+    batchTypeCip: '기업 ICP (cip)',
+    batchTypeWih: 'WIH (wih)',
+    batchTypeAssetIp: '자산 IP (asset_ip)',
+    batchTypeAssetDomain: '자산 도메인 (asset_domain)',
+    batchTypeAssetSite: '자산 사이트 (asset_site)',
+    batchTypeAssetWih: '자산 WIH (asset_wih)',
+    batchTypeVulnerability: '취약점',
+    batchTypeSensitive: '민감 정보',
+    batchTypeFileleak: '파일 유출 (fileleak)',
+    batchTypeNpocService: 'NPoc 서비스 (npoc_service)'
   },
   searchHelp: {
     notice: '검색어를 큰따옴표로 감싸세요.',
@@ -2200,6 +2228,11 @@ export default {
     noData: '아직 데이터가 없습니다(로그인하면 자동으로 불러옵니다)'
   },
   projectDetail: {
+    totalAggregateSuffix: ' (집계)',
+    totalAggregateHint: '서브도메인/URL 포함',
+    noVulnYet: '이 프로젝트에 아직 취약점 기록이 없습니다',
+    noVulnHint: '스캔이 끝나면 여기에 심각도 분포가 표시됩니다',
+    assetTopHint: '발생 횟수 순 상위 {n}개',
     deleteConfirm:
       '프로젝트 "{name}"을(를) 삭제하시겠습니까? 프로젝트의 작업은 삭제되지 않지만 소속이 해제됩니다.',
     deleteTitle: '프로젝트 삭제',
