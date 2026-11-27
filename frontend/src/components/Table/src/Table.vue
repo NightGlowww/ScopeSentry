@@ -18,6 +18,7 @@ import type { TableProps, TableColumn, Pagination, TableSetProps } from './types
 import { set, get } from 'lodash-es'
 import { CSSProperties } from 'vue'
 import { getSlot } from '@/utils/tsxHelper'
+import { clampPage } from '@/utils/pagination'
 import TableActions from './components/TableActions.vue'
 import { isImgPath } from '@/utils/is'
 import { createVideoViewer } from '@/components/VideoPlayer'
@@ -520,6 +521,20 @@ export default defineComponent({
       const v = raw && typeof raw === 'object' && 'value' in raw ? raw.value : raw
       return Number(v ?? 0)
     })
+
+    // 越界分页回退：删掉末页最后一条、或把筛选条件收紧之后，总数变少但页码还停在原处，
+    // 分页器会显示「第 999 页 / 共 3 页」而表格空白——用户读到的是「没有数据」。
+    // 这里把页码夹回 [1, maxPage]，父组件通过 v-model:currentPage / update:currentPage 重取。
+    // （对齐 ARL-Next 0b8276b5「越界分页回退」）
+    watch(
+      () => [unref(paginationTotal), unref(pageSizeRef)] as const,
+      () => {
+        const next = clampPage(currentPageRef.value, unref(paginationTotal), unref(pageSizeRef))
+        if (next !== null && next !== currentPageRef.value) {
+          currentPageRef.value = next
+        }
+      }
+    )
 
     return () => {
       const tableSlots = {}
