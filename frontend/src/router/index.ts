@@ -642,6 +642,21 @@ const router = createRouter({
   scrollBehavior: () => ({ left: 0, top: 0 })
 })
 
+// 部署会替换 assets 里的分块文件；浏览器若还持有旧的 index.html，
+// 点进懒加载页面时会去取已经不存在的 chunk → 404 → 整个页面白屏（2026-11-27 实测：
+// /node-management 打开后 #app 是空的，失败资源是 useVisibleInterval-*.js）。
+// 这里在路由层兜住：chunk 加载失败就自动整页刷新一次（30 秒内只做一次，避免死循环）。
+router.onError((err: unknown) => {
+  const msg = String((err as Error)?.message || err || '')
+  const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|dynamically imported module/i.test(msg)
+  if (!isChunkError) return
+  const KEY = 'chunk-reload-at'
+  const last = Number(sessionStorage.getItem(KEY) || 0)
+  if (Date.now() - last < 30000) return
+  sessionStorage.setItem(KEY, String(Date.now()))
+  location.reload()
+})
+
 export const resetRouter = (): void => {
   router.getRoutes().forEach((route) => {
     const { name } = route
