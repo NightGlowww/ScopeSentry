@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,6 +27,9 @@ import (
 
 // ErrConfirmRequired 未提供确认串
 var ErrConfirmRequired = errors.New("confirm 不匹配：真正执行需要传 confirm=SLIM")
+
+// ErrBadCollection 集合不在白名单
+var ErrBadCollection = errors.New("collection not allowed")
 
 // SlimOptions 瘦身参数
 type SlimOptions struct {
@@ -57,6 +61,24 @@ const (
 	maxLimit         = 2000
 )
 
+// truncateUTF8 按字节上限截断，并回退到完整 UTF-8 字符边界。
+//
+// 直接 s[:n] 可能把一个多字节字符切成两半，产生非法 UTF-8：BSON 不接受到处乱码，
+// 前端渲染也会出问题。这里最多回退 3 个字节（UTF-8 单字符最长 4 字节）。
+func truncateUTF8(s string, limit int) string {
+	if limit <= 0 || len(s) <= limit {
+		return s
+	}
+	cut := limit
+	for cut > 0 && cut > limit-4 {
+		if utf8.RuneStart(s[cut]) {
+			return s[:cut]
+		}
+		cut--
+	}
+	return s[:cut]
+}
+
 // SlimBodies 按字节截断大字段（只读 + 定点更新，不动其它字段）。
 func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	if mongodb.DB == nil {
@@ -68,7 +90,7 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	}
 	// 只允许明确的几个集合：这是个不可逆操作，不能拿任意集合试
 	if coll != "SensitiveBody" && coll != "HttpBody" {
-		return nil, fmt.Errorf("不支持瘦身集合 %q（仅 SensitiveBody / HttpBody）", coll)
+		return nil, fmt.Errorf("%w: %q（仅 SensitiveBody / HttpBody）", ErrBadCollection, coll)
 	}
 	keep := opt.KeepBytes
 	if keep <= 0 {
@@ -121,12 +143,10 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 		if opt.DryRun {
 			continue
 		}
-		// 按字节截断：多字节字符可能被切断，但响应体是 HTML/JSON 文本，
-		// 截断后写入 bodyTruncated 标记，读侧会提示原文长度，不会假装完整。
-		trimmed := d.Body
-		if len(trimmed) > keep {
-			trimmed = trimmed[:keep]
-		}
+		// 按字节截断，但必须切在 UTF-8 字符边界上：
+		// BSON 字符串要求合法 UTF-8，从中间切开会产生非法序列（实测截断后 body 只剩 64296 字符，
+		// 就是因为末字符被切了一半）。truncateUTF8 会回退到完整字符处。
+		trimmed := truncateUTF8(d.Body, keep)
 		writes = append(writes, bson.M{"id": d.ID, "body": trimmed, "len": int64(len(d.Body))})
 	}
 	if err := cur.Err(); err != nil {

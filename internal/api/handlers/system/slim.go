@@ -40,7 +40,9 @@ func SlimStorage(c *gin.Context) {
 		Confirm:    req.Confirm,
 	})
 	if err != nil {
-		if errors.Is(err, maintenance.ErrConfirmRequired) {
+		// 参数类错误（确认串不对、集合不在白名单）都是调用方问题，回 400；
+		// 只有真正执行失败才算 500。
+		if errors.Is(err, maintenance.ErrConfirmRequired) || errors.Is(err, maintenance.ErrBadCollection) {
 			response.BadRequest(c, "api.bad_request", err)
 			return
 		}
