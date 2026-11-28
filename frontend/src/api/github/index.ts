@@ -68,6 +68,23 @@ export const listGithubResultsApi = (data: {
 }): Promise<IResponse<{ list: GithubResult[]; total: number }>> =>
   request.post({ url: '/api/github/result/list', data })
 
+// 结果总览：后端已经按 type/status 聚合好（byType/byStatus），前端不用二次聚合。
+// 之前这个接口没人调，结果页只能看到「当前这一页有什么」，看不到「整体还有多少没处置」。
+export const getResultOverviewApi = (data: {
+  taskId?: string
+  type?: string
+  status?: string
+  project?: string
+  keyword?: string
+}): Promise<
+  IResponse<{
+    items: { type: string; status: string; count: number }[]
+    total: number
+    byType: Record<string, number>
+    byStatus: Record<string, number>
+  }>
+> => request.post({ url: '/api/github/result/overview', data })
+
 export const triageGithubResultsApi = (data: {
   ids: string[]
   status: string
@@ -91,6 +108,18 @@ export const stopSchedulersApi = (ids: string[]): Promise<IResponse<unknown>> =>
 
 export const recoverSchedulersApi = (ids: string[]): Promise<IResponse<unknown>> =>
   request.post({ url: '/api/github/scheduler/recover', data: { ids } })
+
+// 改周期配置：后端每个字段都是指针，只传要改的那个（patch 语义）。
+// 界面此前只能停/跑/删 —— 周期设错了只能删了重建，历史统计跟着一起没。
+export const updateSchedulerApi = (data: {
+  id: string
+  name?: string
+  query?: string
+  keywords?: string[]
+  intervalMinutes?: number
+  maxPages?: number
+  tokenRef?: string
+}): Promise<IResponse<GithubTask>> => request.post({ url: '/api/github/scheduler/update', data })
 
 // ---- 威胁情报 ----
 export type ThreatKind = 'cve' | 'hackers' | 'tools'

@@ -67,6 +67,8 @@ fi
 
 # 接口覆盖预算：未覆盖写操作不得超过基线（新增写路由必须带用例，不能悄悄加）
 gate closure_budget python3 scripts/ci/rest_closure.py --budget 0
+# 界面 ↔ 接口：写路由必须有前端入口或已登记原因（反方向的「死接口」）
+gate ui_closure   python3 scripts/ci/ui_api_closure.py
 
 # MCP 工具面：声明的必填参数必须真的被 handler 读取；写工具必须在某处被点名验过
 gate mcp_param python3 scripts/ci/mcp_param_audit.py

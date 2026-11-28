@@ -1,7 +1,20 @@
 <script setup lang="tsx">
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElButton, ElCol, ElRow, ElInput, ElSelect, ElOption, ElTag, ElMessage } from 'element-plus'
+import {
+  ElButton,
+  ElCol,
+  ElRow,
+  ElInput,
+  ElInputNumber,
+  ElSelect,
+  ElOption,
+  ElTag,
+  ElMessage,
+  ElDialog,
+  ElForm,
+  ElFormItem
+} from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
 import { BaseButton } from '@/components/Button'
@@ -9,7 +22,8 @@ import {
   listSchedulersApi,
   runSchedulersApi,
   stopSchedulersApi,
-  recoverSchedulersApi
+  recoverSchedulersApi,
+  updateSchedulerApi
 } from '@/api/github'
 import { formatTime } from '@/utils'
 
@@ -64,10 +78,14 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('colAction'),
-    width: 260,
+    // 四个按钮 + 6px 间距实测 268px 起会裁掉最后一个（2026-11-29 加编辑后重算）
+    width: 340,
     formatter: (row) => (
       <div class="flex items-center" style={'gap:6px'}>
-        <BaseButton type="primary" onClick={() => act(row, 'run')}>
+        <BaseButton type="primary" onClick={() => openEdit(row as SchedulerRow)}>
+          {t('btnEdit')}
+        </BaseButton>
+        <BaseButton type="info" onClick={() => act(row, 'run')}>
           {t('btnRunNow')}
         </BaseButton>
         <BaseButton type="warning" onClick={() => act(row, 'stop')}>
@@ -96,6 +114,75 @@ const { tableRegister, tableState, tableMethods } = useTable({
 const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
 const { getList } = tableMethods
+
+// ---- 编辑周期 ----
+// 界面此前只能停/跑/删：周期设错（比如把 1440 写成 144）只能删了重建，历史统计跟着一起没。
+// 后端 patch 语义（每个字段都是指针），所以只提交真正改过的字段，空着的不动它。
+type SchedulerRow = {
+  id: string
+  name: string
+  query: string
+  keywords?: string[]
+  config?: { intervalMinutes?: number; maxPages?: number; tokenRef?: string }
+}
+
+const editVisible = ref(false)
+const editSaving = ref(false)
+const editOriginal = ref<SchedulerRow | null>(null)
+const editForm = reactive({
+  id: '',
+  name: '',
+  query: '',
+  keywords: '',
+  intervalMinutes: undefined as number | undefined,
+  maxPages: undefined as number | undefined
+})
+
+const openEdit = (row: SchedulerRow) => {
+  editOriginal.value = row
+  editForm.id = row.id
+  editForm.name = row.name || ''
+  editForm.query = row.query || ''
+  editForm.keywords = (row.keywords || []).join(', ')
+  editForm.intervalMinutes = row.config?.intervalMinutes
+  editForm.maxPages = row.config?.maxPages
+  editVisible.value = true
+}
+
+const parseKeywords = (text: string): string[] =>
+  text
+    .split(/[,，\n]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+
+const submitEdit = async () => {
+  const origin = editOriginal.value
+  if (!origin) return
+  const payload: Record<string, unknown> = { id: editForm.id }
+  const keywords = parseKeywords(editForm.keywords)
+  const originKeywords = (origin.keywords || []).join(',')
+  if (editForm.name.trim() !== (origin.name || '').trim()) payload.name = editForm.name.trim()
+  if (editForm.query.trim() !== (origin.query || '').trim()) payload.query = editForm.query.trim()
+  if (keywords.join(',') !== originKeywords) payload.keywords = keywords
+  if (editForm.intervalMinutes !== origin.config?.intervalMinutes) payload.intervalMinutes = editForm.intervalMinutes
+  if (editForm.maxPages !== origin.config?.maxPages) payload.maxPages = editForm.maxPages
+  // 只发 id 等于什么都没改：不打无意义的请求，也不假装保存成功
+  if (Object.keys(payload).length === 1) {
+    ElMessage.warning(t('editEmpty'))
+    return
+  }
+  editSaving.value = true
+  try {
+    await updateSchedulerApi(payload as { id: string })
+    ElMessage.success(t('updateSuccess'))
+    editVisible.value = false
+    getList()
+  } catch (e: any) {
+    if (!e?.response) ElMessage.error(e?.message || t('opFailed'))
+  } finally {
+    editSaving.value = false
+  }
+}
 
 const act = async (row: { id: string; name: string }, kind: 'run' | 'stop' | 'recover') => {
   try {
@@ -150,10 +237,41 @@ const act = async (row: { id: string; name: string }, kind: 'run' | 'stop' | 're
     :pagination="{ total, pageSizes: [20, 50, 100] }"
     @register="tableRegister"
   />
+
+  <ElDialog v-model="editVisible" :title="t('editTitle')" width="560px" append-to-body>
+    <ElForm label-width="120px">
+      <ElFormItem :label="t('colName')">
+        <ElInput v-model="editForm.name" :placeholder="t('phName')" maxlength="64" />
+      </ElFormItem>
+      <ElFormItem :label="t('formQuery')">
+        <ElInput v-model="editForm.query" :placeholder="t('phQuery')" />
+      </ElFormItem>
+      <ElFormItem :label="t('formKeywords')">
+        <ElInput v-model="editForm.keywords" :placeholder="t('keywordsHint')" />
+      </ElFormItem>
+      <ElFormItem :label="t('formInterval')">
+        <ElInputNumber v-model="editForm.intervalMinutes" :min="0" :step="60" controls-position="right" />
+      </ElFormItem>
+      <ElFormItem :label="t('formMaxPages')">
+        <ElInputNumber v-model="editForm.maxPages" :min="0" :step="1" controls-position="right" />
+      </ElFormItem>
+    </ElForm>
+    <div class="edit-hint">{{ t('editHint') }}</div>
+    <template #footer>
+      <ElButton @click="editVisible = false">{{ t('btnCancel') }}</ElButton>
+      <ElButton type="primary" :loading="editSaving" @click="submitEdit">{{ t('btnSave') }}</ElButton>
+    </template>
+  </ElDialog>
 </template>
 
 <style scoped>
 .mb-10px {
   margin-bottom: 10px;
+}
+.edit-hint {
+  margin-top: 4px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

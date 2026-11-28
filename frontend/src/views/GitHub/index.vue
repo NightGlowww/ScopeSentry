@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -29,6 +29,7 @@ import {
   stopGithubTasksApi,
   deleteGithubTasksApi,
   listGithubResultsApi,
+  getResultOverviewApi,
   triageGithubResultsApi
 } from '@/api/github'
 import SchedulerTab from './SchedulerTab.vue'
@@ -51,6 +52,9 @@ const typeOptions = [
   { value: 'cve', label: 'CVE' },
   { value: 'hacker', label: t('typeHacker') }
 ]
+
+// 总览条与表格共用同一套类型标签：两处写法不一致时，同一个 code_leak 会出现两种叫法。
+const typeLabel = (v?: string) => typeOptions.find((opt) => opt.value === v)?.label || v || ''
 
 const taskFilters = reactive({ keyword: '', type: '', state: '' as string | number })
 const resultFilters = reactive({ keyword: '', type: '', status: '', project: '' })
@@ -309,10 +313,44 @@ const {
 resultPageSize.value = 20
 const { getList: getResultList } = resultMethods
 
+// 结果总览：和列表用同一套筛选，保证「上面显示的数字」与「下面列出的行」口径一致。
+// 只读聚合，失败静默（总览没了不该让列表也报错）。
+const resultOverview = ref<{ total: number; byType: Record<string, number>; byStatus: Record<string, number> }>({
+  total: 0,
+  byType: {},
+  byStatus: {}
+})
+const loadResultOverview = async () => {
+  try {
+    const res = await getResultOverviewApi({
+      keyword: resultFilters.keyword || undefined,
+      type: resultFilters.type || undefined,
+      status: resultFilters.status || undefined,
+      project: resultFilters.project || undefined
+    })
+    resultOverview.value = {
+      total: res.data.total || 0,
+      byType: res.data.byType || {},
+      byStatus: res.data.byStatus || {}
+    }
+  } catch {
+    resultOverview.value = { total: 0, byType: {}, byStatus: {} }
+  }
+}
+// 总览与列表同源：查询、研判、翻页之后都要重算
+const refreshResults = async () => {
+  await getResultList()
+  void loadResultOverview()
+}
+onMounted(() => {
+  void loadResultOverview()
+})
+
 const handleTriage = async (row: { id: string }, status: string) => {
   await triageGithubResultsApi({ ids: [row.id], status })
   ElMessage.success(t('updateSuccess'))
-  getResultList()
+  // 研判后总览里的 new/triaged 计数必须跟着动，否则「还有多少没处置」一直是旧数
+  refreshResults()
 }
 </script>
 
@@ -372,6 +410,47 @@ const handleTriage = async (row: { id: string }, status: string) => {
       </ElTabPane>
 
       <ElTabPane :label="t('tabResults')" name="result">
+        <!-- 总览条：整库口径，不随分页变化。之前结果页只能看到「这一页有什么」，
+             看不到「还有多少条没处置」—— 而处置节奏正是要看这个数。 -->
+        <div v-if="resultOverview.total > 0" class="ov-bar">
+          <span class="ov-title">{{ t('overviewTitle') }}</span>
+          <ElTag size="small" type="info" effect="plain">
+            {{ t('overviewTotal', { n: resultOverview.total }) }}
+          </ElTag>
+          <ElTag
+            v-if="resultOverview.byStatus.new"
+            size="small"
+            type="warning"
+            effect="plain"
+          >
+            new {{ resultOverview.byStatus.new }}
+          </ElTag>
+          <ElTag
+            v-if="resultOverview.byStatus.triaged"
+            size="small"
+            type="success"
+            effect="plain"
+          >
+            triaged {{ resultOverview.byStatus.triaged }}
+          </ElTag>
+          <ElTag
+            v-if="resultOverview.byStatus.ignored"
+            size="small"
+            type="info"
+            effect="plain"
+          >
+            ignored {{ resultOverview.byStatus.ignored }}
+          </ElTag>
+          <span class="ov-sep" />
+          <ElTag
+            v-for="(n, kind) in resultOverview.byType"
+            :key="kind"
+            size="small"
+            effect="plain"
+          >
+            {{ typeLabel(String(kind)) }} {{ n }}
+          </ElTag>
+        </div>
         <ElRow :gutter="12" class="mb-10px">
           <ElCol :span="5">
             <ElInput
@@ -411,7 +490,7 @@ const handleTriage = async (row: { id: string }, status: string) => {
             <ElInput v-model="resultFilters.project" :placeholder="t('phProject')" clearable />
           </ElCol>
           <ElCol :span="4">
-            <ElButton type="primary" @click="getResultList">{{ t('btnQuery') }}</ElButton>
+            <ElButton type="primary" @click="refreshResults">{{ t('btnQuery') }}</ElButton>
           </ElCol>
         </ElRow>
 
@@ -492,6 +571,23 @@ const handleTriage = async (row: { id: string }, status: string) => {
 </template>
 
 <style scoped>
+.ov-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.ov-title {
+  color: var(--el-text-color-secondary);
+}
+.ov-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--el-border-color);
+  margin: 0 2px;
+}
 .mb-10px {
   margin-bottom: 10px;
 }
