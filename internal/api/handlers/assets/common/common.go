@@ -8,6 +8,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/common"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var commonService common.Service
@@ -97,6 +99,25 @@ func DeleteBySearch(c *gin.Context) {
 // @Param request body common.TagRequest true "标签请求参数"
 // @Success 200 {object} response.Response
 // @Router /api/assets/common/add_tag [post]
+// mapMutationError 通用写操作（打标签/删标签/改状态）的错误映射。
+//
+// 之前三个 handler 各写一份 switch，还靠 strings.Contains(err.Error(), "no documents in result")
+// 判断「文档不存在」—— 驱动换文案就失效；UpdateStatus 更是漏了这条，传不存在的 id 会回 200。
+// 现在统一走 errors.Is(err, mongo.ErrNoDocuments)，repo 层也已把「匹配 0 条」转成这个错误。
+func mapMutationError(c *gin.Context, err error, kind, id string) {
+	switch {
+	case err == nil:
+		return
+	case errors.Is(err, common.ErrInvalidRequest), errors.Is(err, common.ErrInvalidID):
+		response.NotFound(c, "api.not_found", err)
+	case errors.Is(err, mongo.ErrNoDocuments), strings.Contains(err.Error(), "no documents in result"):
+		response.NotFound(c, "api.not_found", fmt.Errorf("%s 不存在: %s", kind, id))
+	default:
+		logger.Error(fmt.Sprintf("common mutation error (%s/%s): %v", kind, id, err))
+		response.InternalServerError(c, "api.error", err)
+	}
+}
+
 func AddTag(c *gin.Context) {
 	var req models.TagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -105,17 +126,7 @@ func AddTag(c *gin.Context) {
 	}
 
 	if err := commonService.AddTag(c, &req); err != nil {
-		switch err {
-		case common.ErrInvalidRequest, common.ErrInvalidID:
-			response.NotFound(c, "api.not_found", err)
-		default:
-			if strings.Contains(err.Error(), "no documents in result") {
-				response.NotFound(c, "api.not_found", fmt.Errorf("%s 不存在: %s", req.Type, req.ID))
-				return
-			}
-			logger.Error(fmt.Sprintf("add_tag error: %v", err))
-			response.InternalServerError(c, "api.error", err)
-		}
+		mapMutationError(c, err, req.Type, req.ID)
 		return
 	}
 
@@ -139,18 +150,7 @@ func DeleteTag(c *gin.Context) {
 	}
 
 	if err := commonService.DeleteTag(c, &req); err != nil {
-		switch err {
-		case common.ErrInvalidRequest, common.ErrInvalidID:
-			response.NotFound(c, "api.not_found", err)
-		default:
-			// 资产 id 不存在时驱动层吐的是 "mongo: no documents in result"，
-			// 回 500 会让人以为服务挂了，其实是参数问题（2026-11-28 实测 delete_tag）。
-			if strings.Contains(err.Error(), "no documents in result") {
-				response.NotFound(c, "api.not_found", fmt.Errorf("%s 不存在: %s", req.Type, req.ID))
-				return
-			}
-			response.InternalServerError(c, "api.error", err)
-		}
+		mapMutationError(c, err, req.Type, req.ID)
 		return
 	}
 
@@ -174,12 +174,7 @@ func UpdateStatus(c *gin.Context) {
 	}
 
 	if err := commonService.UpdateStatus(c, &req); err != nil {
-		switch err {
-		case common.ErrInvalidRequest, common.ErrInvalidID:
-			response.NotFound(c, "api.not_found", err)
-		default:
-			response.InternalServerError(c, "api.error", err)
-		}
+		mapMutationError(c, err, req.Type, req.ID)
 		return
 	}
 

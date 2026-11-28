@@ -290,7 +290,7 @@ bash scripts/ci/integration.sh     # 需要真实 Mongo + Redis，末行 INTEGRA
 | 项 | 结果 |
 | --- | --- |
 | 路由总数 | **314**（其中 `/api` 下 313） |
-| 集成用例 | **23 个全绿**（`--- PASS` 计数 23，整包 `ok`） |
+| 集成用例 | **24 个全绿**（--- PASS 计数 24，整包 ok） |
 | 修复的用例 | `TestIcpRoutesGuardsAndFlow`：建任务后后台 goroutine 立刻进 running，此时 `restart` 返回 400 `icp task is running` 是**正确行为**；用例改成先 stop 再 restart，消除时序假失败 |
 
 覆盖到的面：登录与鉴权白名单、路由清单、用户管理（含最后一个超管保护）、策略 CRUD/apply/test、
@@ -298,3 +298,21 @@ MCP 治理端到端、导出、ICP 全流程、GitHub 流转、FOFA、资产组�
 以及一批「新接口守卫」（未认证、坏 ObjectID、超长文案、空筛选的全量删除保护等）。
 
 每次跑用独立数据库（`ss_it_<时间戳>`），不污染任何既有库。
+
+## REST 接口引用索引（rest_closure.py）
+
+    python3 scripts/ci/rest_closure.py --write     # 生成 docs/audit/REST_CLOSURE.md
+
+MCP 有闭环账本，REST 这边一直没有「哪条接口被谁验过」的索引。这条按路由快照（docs/audit/routes.snapshot.tsv，
+314 条，从 SS_ROUTE_DUMP=1 的清单守卫导出）比对测试/契约脚本里出现过的路径字面量，输出按模块的未点名数量，
+以及写操作里完全没被点名的清单。
+
+当前数字：314 条路由，被点名 157（50%）；读 73/115、写 47/113、无法判读 37/86；写操作未点名 66 条。
+
+**它是索引，不是覆盖率裁决**：路径可能是拼出来的（只做字面量 + 前缀匹配），而且这个项目大量用 POST 查列表，
+读写分类是名字启发式。真值只会比这个高。
+
+这一轮靠它挑出 /api/assets/common/* 整族没人验，补了 TestCommonAssetOpsGuards（14 个子用例），并因此发现
+一个真 bug：update_status 传不存在的 id 会回 **200 成功**（repo 的 UpdateOne 吞掉了 MatchedCount=0）。
+修复是把「匹配 0 条」在 repo 层转成 mongo.ErrNoDocuments，三个通用写操作统一走 errors.Is 映射到 404，
+顺带替掉了原来靠 strings.Contains(err, "no documents in result") 判存在性的写法。

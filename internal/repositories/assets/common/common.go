@@ -76,8 +76,17 @@ func (r *repository) FindOne(ctx context.Context, collection string, filter bson
 
 // UpdateOne 更新单个文档
 func (r *repository) UpdateOne(ctx context.Context, collection string, filter bson.M, update bson.M) error {
-	_, err := r.db.Collection(collection).UpdateOne(ctx, filter, update)
-	return err
+	res, err := r.db.Collection(collection).UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	// 匹配 0 条不是「成功」：驱动的 UpdateOne 对「没有文档命中」不报错，
+	// 直接把 nil 往上抛，调用方就会回 200 + 什么也没改（假成功）。统一成 ErrNoDocuments，
+	// 由上层映射成 404（2026-11-28 集成测试发现：改状态传不存在的 id 会回 200）。
+	if res.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
 }
 
 // CountDocuments 统计文档数量
