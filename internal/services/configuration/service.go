@@ -8,7 +8,9 @@
 package configuration
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/Autumn-27/ScopeSentry/internal/config"
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -22,6 +24,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+// ErrNotificationNotFound 更新一条不存在的通知（否则 UpdateOne 匹配不到也回 nil）
+var ErrNotificationNotFound = errors.New("notification: not found")
 
 type Service struct {
 	repo         common.Repository
@@ -177,6 +182,11 @@ func (s *Service) UpdateNotification(ctx *gin.Context, data models.UpdateNotific
 	if err != nil {
 		return fmt.Errorf("invalid ObjectID: %v", err)
 	}
+	// 先确认文档存在：UpdateOne 匹配不到时返回 nil，
+	// 于是「改一条不存在的通知」也回 200，界面上看起来保存成功（2026-11-29 实测）。
+	if _, err := s.repo.FindOne(ctx.Request.Context(), collNotification, bson.M{"_id": objID}, bson.M{"_id": 1}); err != nil {
+		return fmt.Errorf("%w: %s", ErrNotificationNotFound, data.ID)
+	}
 	if err := s.repo.UpdateOne(ctx.Request.Context(), collNotification, bson.M{"_id": objID}, bson.M{"$set": data}); err != nil {
 		return err
 	}
@@ -227,7 +237,10 @@ func (s *Service) UpdateNotificationConfig(ctx *gin.Context, data map[string]int
 	if data == nil {
 		return nil
 	}
-	if err := s.repo.UpdateOne(ctx.Request.Context(), collConfig, bson.M{"name": "notification"}, bson.M{"$set": data}); err != nil {
+	// 必须 upsert：新装环境（或被清理过）里没有 name=notification 这条文档，
+	// UpdateOne 匹配不到就静默什么都不做——接口回 200、GET 回来还是空，
+	// 配置永远存不下来，且没有任何报错（2026-11-29 集成用例实测）。
+	if err := s.repo.Upsert(ctx.Request.Context(), collConfig, bson.M{"name": "notification"}, data); err != nil {
 		return err
 	}
 	_ = s.nodeService.RefreshConfig(ctx, models.Message{Name: "all", Type: "notification"})

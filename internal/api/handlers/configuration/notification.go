@@ -8,6 +8,8 @@
 package configuration
 
 import (
+	"errors"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/configuration"
@@ -71,6 +73,11 @@ func UpdateNotificationData(c *gin.Context) {
 		return
 	}
 	if err := notificationService.UpdateNotification(c, body); err != nil {
+		// 改一条不存在的通知要明确 404，不能回 200（用户会以为保存成功）
+		if errors.Is(err, configuration.ErrNotificationNotFound) {
+			response.NotFound(c, "api.notification.not_found", nil)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
