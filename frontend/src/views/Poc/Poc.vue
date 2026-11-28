@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import { confirmDialog } from '@/utils/confirm'
+import { setPocStateApi } from '@/api/poc'
 import { deleteResultMessage } from '@/utils/deleteResult'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -108,6 +109,17 @@ const nodeColums = reactive<TableColumn[]>([
     ]
   },
   {
+    field: 'disabled',
+    label: t('poc.state'),
+    // 96 是量出来的：'Disabled' 标签约 90px，窄了会裁成省略号
+    width: 96,
+    formatter: (_: Recordable, __: TableColumn, disabled: boolean) => (
+      <ElTag type={disabled ? 'info' : 'success'} effect="light">
+        {disabled ? t('poc.disabled') : t('poc.enabled')}
+      </ElTag>
+    )
+  },
+  {
     field: 'tags',
     label: t('localization.tag'),
     fit: 'true',
@@ -182,6 +194,12 @@ const nodeColums = reactive<TableColumn[]>([
         <>
           <BaseButton type="primary" onClick={() => edit(row)}>
             {t('common.edit')}
+          </BaseButton>
+          <BaseButton
+            type={row.disabled ? 'success' : 'warning'}
+            onClick={() => toggleState(row)}
+          >
+            {row.disabled ? t('poc.enable') : t('poc.disable')}
           </BaseButton>
           <BaseButton type="danger" onClick={() => del(row)}>
             {t('common.delete')}
@@ -260,6 +278,51 @@ const del = async (data) => {
     getList()
   }
 }
+// 停用/启用模板。停用会影响扫描载荷（引用它的扫描模板不再下发这个模板），
+// 所以停用要二次确认；启用是恢复，直接执行。
+const toggleState = async (row: Recordable) => {
+  const next = !row.disabled
+  if (next) {
+    try {
+      await confirmDialog(t('poc.disableConfirm', { name: row.name }), t('common.reminder'))
+    } catch {
+      return
+    }
+  }
+  try {
+    await setPocStateApi([row.id], next)
+    ElMessage.success(t('poc.stateOk', { name: row.name, state: next ? t('poc.disabled') : t('poc.enabled') }))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    getList()
+  }
+}
+
+// 批量停用选中的模板：与单行同一条后端接口，失败也要说清楚
+const disableSelected = async () => {
+  const elTableExpose = await getElTableExpose()
+  const selectedRows = elTableExpose?.getSelectionRows() || []
+  const sel = selectedRows.filter((r: Recordable) => !r.disabled).map((r: Recordable) => r.id)
+  if (sel.length === 0) {
+    ElMessage.warning(t('poc.disableBatch', { n: 0 }))
+    return
+  }
+  try {
+    await confirmDialog(t('poc.disableConfirm', { name: sel.length + ' ×' }), t('common.reminder'))
+  } catch {
+    return
+  }
+  try {
+    await setPocStateApi(sel, true)
+    ElMessage.success(t('common.success'))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    getList()
+  }
+}
+
 const ids = ref<string[]>([])
 const delSelect = async () => {
   const elTableExpose = await getElTableExpose()
@@ -412,6 +475,9 @@ const filterChange = async (newFilters: any) => {
         @click="confirmDelete"
       >
         {{ t('common.delete') }}
+      </BaseButton>
+      <BaseButton type="warning" :disabled="selectedCount === 0" @click="disableSelected">
+        {{ t('poc.disableBatch', { n: selectedCount }) }}
       </BaseButton>
       <ElButton :loading="syncLoading" :icon="Refresh" @click="handleSync">
         {{ t('poc.syncNow') }}

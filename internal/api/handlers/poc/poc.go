@@ -301,3 +301,35 @@ func ImportPocStatus(c *gin.Context) {
 	snap := poc.GlobalImportProgress.Snapshot()
 	response.Success(c, snap, "api.success")
 }
+// SetPocState 批量停用/启用模板
+// @Summary 批量停用/启用 POC 模板
+// @Description 停用后，扫描模板的 VulList 里显式引用到的这批模板会被剔除（不再下发给节点）
+// @Tags POC管理
+// @Accept json
+// @Produce json
+// @Router /api/poc/state [post]
+func SetPocState(c *gin.Context) {
+	var req models.PocStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	if len(req.IDs) == 0 {
+		response.BadRequest(c, "api.required.ids", nil)
+		return
+	}
+	matched, err := pocService.SetPocState(c, req.IDs, req.Disabled)
+	if err != nil {
+		if errors.Is(err, poc.ErrInvalidTemplate) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	if matched == 0 {
+		response.NotFound(c, "api.poc.not_found", nil)
+		return
+	}
+	response.Success(c, map[string]any{"updated": matched, "requested": len(req.IDs), "disabled": req.Disabled}, "api.success")
+}

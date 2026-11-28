@@ -16,12 +16,21 @@ type Poc struct {
 	// ContentHash 归一化内容的 sha256，用来判断同 id 模板是否真的变了。
 	// 历史文档没有该字段，读取时按需补齐（见 services/poc）。
 	ContentHash string `bson:"content_hash,omitempty" json:"-"`
+	// Disabled 停用标记。历史文档没有这个字段 → 读出来是 false，语义正好是「启用」，
+	// 所以用 disabled 而不是 enabled：默认值不能把全库模板一次性停掉。
+	Disabled bool `bson:"disabled,omitempty" json:"disabled"`
 }
 
 // PocIndexEntry 导入/更新时的轻量索引：只带 _id 与内容指纹，避免把全量模板内容读进内存。
 type PocIndexEntry struct {
 	ID          primitive.ObjectID
 	ContentHash string
+}
+
+// PocStateRequest 批量停用/启用模板
+type PocStateRequest struct {
+	IDs      []string `json:"ids" binding:"required,min=1,dive,required"`
+	Disabled bool     `json:"disabled"`
 }
 
 // PocListRequest 表示获取POC列表的请求参数

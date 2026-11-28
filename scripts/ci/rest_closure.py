@@ -48,7 +48,7 @@ READ_HINTS = ('/list', '/detail', '/data', '/stats', '/statistics', '/info', '/c
               '/structure', '/templates', '/fingers', '/dictionaries', '/lines', '/plugins')
 WRITE_HINTS = ('/add', '/edit', '/update', '/save', '/set', '/create', '/delete', '/import',
                '/restart', '/stop', '/resume', '/pause', '/bind', '/clear', '/reorder', '/apply',
-               '/run', '/trigger', '/upload', '/sync', '/assign', '/dissolve', '/transfer',
+               '/run', '/trigger', '/upload', '/sync', '/assign', '/dissolve', '/transfer', '/state',
                '/tag', '/toggle', '/status', '/backfill', '/seed', '/slim', '/restore')
 
 def load_routes():

@@ -24,6 +24,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/scanprofile"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskpolicy"
+	pocrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/poc"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/diskguard"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/memguard"
@@ -54,6 +55,8 @@ type service struct {
 	portsService      dictionary.PortService
 	// policyTasks 扫描策略消费端（docs/audit/SCAN_POLICY.md）：未选策略时整条链路不触达
 	policyTasks *taskpolicy.Service
+	// pocRepo 只用来查「哪些模板被停用了」（扫描载荷组装时必须剔除）
+	pocRepo pocrepo.Repository
 }
 
 // NewService 创建任务服务实例
@@ -69,6 +72,7 @@ func NewService() Service {
 		dictionaryService: dictionary.NewManageService(),
 		portsService:      dictionary.NewPortService(),
 		policyTasks:       taskpolicy.NewService(),
+		pocRepo:           pocrepo.NewRepository(),
 	}
 }
 
@@ -347,11 +351,48 @@ func (s *service) GetScanTemplate(ctx context.Context, task *models.Task) (*mode
 			vulTmp := ""
 			if helper.StringInSlice("All Poc", scanTemplate.VulList) {
 				vulTmp = "*"
+				// 「All Poc」是让扫描端自己遍历模板目录，我们这边的停用标记影响不到它。
+				// 不静默：留一条日志，免得有人以为停用了就不跑。
+				logger.Info(fmt.Sprintf("task %s 使用 All Poc：模板停用标记对本次扫描不生效（扫描端遍历全部模板）", task.Name))
 			} else {
-				for _, vul := range scanTemplate.VulList {
-					vulTmp += vul + ".yaml" + ","
+				enabled := scanTemplate.VulList
+				if s.pocRepo != nil {
+					disabled, derr := s.pocRepo.DisabledTemplateIDs(ctx, scanTemplate.VulList)
+					if derr != nil {
+						// 查不到停用状态不该让任务失败：按原清单下发，但把异常记下来
+						logger.Error(fmt.Sprintf("task %s 读取模板停用状态失败，按原清单下发：%v", task.Name, derr))
+					} else if len(disabled) > 0 {
+						enabled = make([]string, 0, len(scanTemplate.VulList))
+						for _, vul := range scanTemplate.VulList {
+							if disabled[vul] {
+								continue
+							}
+							enabled = append(enabled, vul)
+						}
+						logger.Info(fmt.Sprintf("task %s 剔除 %d 个停用模板（原 %d）", task.Name, len(disabled), len(scanTemplate.VulList)))
+					}
 				}
-				vulTmp = strings.TrimRight(vulTmp, ",")
+				if len(enabled) == 0 {
+					// 全被停用：把 nuclei 从漏洞扫描阶段摘掉。
+					// 不能「什么都不加」——那等于让插件按默认跑全部模板，与停用意图正相反。
+					kept := make([]string, 0, len(scanTemplate.VulnerabilityScan))
+					for _, h := range scanTemplate.VulnerabilityScan {
+						if h != "ed93b8af6b72fe54a60efdb932cf6fbc" {
+							kept = append(kept, h)
+						}
+					}
+					scanTemplate.VulnerabilityScan = kept
+					logger.Warn(fmt.Sprintf("task %s 的 VulList 全部模板已停用，本次跳过 nuclei 漏洞扫描", task.Name))
+				} else {
+					for _, vul := range enabled {
+						vulTmp += vul + ".yaml" + ","
+					}
+					vulTmp = strings.TrimRight(vulTmp, ",")
+				}
+			}
+			if vulTmp == "" {
+				// 已在上面摘掉插件；这里直接跳过后面的 -t 追加
+				goto afterVulList
 			}
 			if _, exists := scanTemplate.Parameters.VulnerabilityScan["ed93b8af6b72fe54a60efdb932cf6fbc"]; exists {
 				scanTemplate.Parameters.VulnerabilityScan["ed93b8af6b72fe54a60efdb932cf6fbc"] = scanTemplate.Parameters.VulnerabilityScan["ed93b8af6b72fe54a60efdb932cf6fbc"] + " -t " + vulTmp
@@ -360,6 +401,7 @@ func (s *service) GetScanTemplate(ctx context.Context, task *models.Task) (*mode
 			}
 		}
 	}
+afterVulList:
 	scanTemplate.Parameters, err = s.ParameterParser(ctx, scanTemplate.Parameters)
 	if err != nil {
 		return &models.ScanTemplate{}, err

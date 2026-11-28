@@ -53,6 +53,10 @@ type Service interface {
 	SyncFromURL(ctx context.Context, url string) (*models.PocImportResponse, error)
 	UpsertPoc(ctx context.Context, content string) (pocID string, action string, err error)
 	TemplateIdExists(ctx context.Context, templateId string) (bool, error)
+	// SetPocState 批量停用/启用模板；返回实际命中条数（0 表示 id 都不存在）
+	SetPocState(ctx *gin.Context, ids []string, disabled bool) (int64, error)
+	// DisabledTemplateSet 给出这些 template id 里被停用的集合（扫描载荷组装用）
+	DisabledTemplateSet(ctx context.Context, templateIDs []string) (map[string]bool, error)
 }
 
 type service struct {
@@ -510,6 +514,34 @@ func pocContentHash(raw string) string {
 }
 
 // TemplateIdExists 高性能检查TemplateId是否存在
+// SetPocState 批量停用/启用。停用后：显式 VulList 里引用到的模板会被扫描载荷剔除
+// （见 task/common.GetScanTemplate），所以「停用」不是只改界面上的一个标签。
+func (s *service) SetPocState(ctx *gin.Context, ids []string, disabled bool) (int64, error) {
+	objIDs := make([]primitive.ObjectID, 0, len(ids))
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return 0, fmt.Errorf("%w: %s", ErrInvalidTemplate, id)
+		}
+		objIDs = append(objIDs, oid)
+	}
+	if len(objIDs) == 0 {
+		return 0, nil
+	}
+	return s.repo.SetDisabled(ctx, objIDs, disabled)
+}
+
+// DisabledTemplateSet 查询停用集合。
+func (s *service) DisabledTemplateSet(ctx context.Context, templateIDs []string) (map[string]bool, error) {
+	return s.repo.DisabledTemplateIDs(ctx, templateIDs)
+}
+
 func (s *service) TemplateIdExists(ctx context.Context, templateId string) (bool, error) {
 	return s.repo.TemplateIdExists(ctx, templateId)
 }

@@ -48,9 +48,9 @@
 | ip.py | 5 | 3 | ✅ 覆盖 |  |
 | mcp.py | 16 | 7 | 🟡 部分 | 上游把这些做成 REST（asset_profile/search_assets/create_scan_task…）；我们做成 MCP 工具（get_asset_profile/search_assets/create_scan_task…），REST 只留治理面 |
 | npoc_service.py | 3 | 2 | ✅ 覆盖 |  |
-| nuclei.py | 19 | 9 | 🟡 部分 | 我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；缺 toggle/blacklist/社区同步/模板测试 |
+| nuclei.py | 19 | 10 | 🟡 部分 | 我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；缺 toggle/blacklist/社区同步/模板测试 |
 | nuclei_result.py | 2 | 5 | ✅ 覆盖 |  |
-| poc.py | 6 | 9 | ✅ 覆盖 |  |
+| poc.py | 6 | 10 | ✅ 覆盖 |  |
 | policy.py | 4 | 7 | ✅ 覆盖 |  |
 | scheduler.py | 12 | 10 | ✅ 覆盖 |  |
 | service.py | 3 | 1 | 🟡 部分 | 同上（读模型叫 /assets/service） |
@@ -366,7 +366,7 @@
 
 上游：/blacklist/, /blacklist/<string:template_id>/, /blacklist/delete/, /community/, /community/source/, /community/sync/, /community/sync_offline/, /community/sync_status/, /stats/, /template/, /template/batch_toggle/, /template/create/, /template/delete/, /template/detail/, /template/export/, /template/import/, /template/test/, /template/toggle/, /template/update/
 
-我们：/api/poc, /api/poc/add, /api/poc/data/all, /api/poc/data/import, /api/poc/data/import/status, /api/poc/data/sync, /api/poc/delete, /api/poc/detail, /api/poc/update
+我们：/api/poc, /api/poc/add, /api/poc/data/all, /api/poc/data/import, /api/poc/data/import/status, /api/poc/data/sync, /api/poc/delete, /api/poc/detail, /api/poc/state, /api/poc/update
 
 候选缺口（叶名对不上，需人工判断）：/blacklist/, /blacklist/<string:template_id>/, /community/, /community/source/, /stats/, /template/, /template/batch_toggle/, /template/create/, /template/export/, /template/test/, /template/toggle/
 
@@ -382,7 +382,7 @@
 
 上游：/, /create/, /delete/, /import/, /source/, /sync/
 
-我们：/api/poc, /api/poc/add, /api/poc/data/all, /api/poc/data/import, /api/poc/data/import/status, /api/poc/data/sync, /api/poc/delete, /api/poc/detail, /api/poc/update
+我们：/api/poc, /api/poc/add, /api/poc/data/all, /api/poc/data/import, /api/poc/data/import/status, /api/poc/data/sync, /api/poc/delete, /api/poc/detail, /api/poc/state, /api/poc/update
 
 候选缺口（叶名对不上，需人工判断）：/create/, /source/
 

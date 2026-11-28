@@ -32,6 +32,10 @@ type Repository interface {
 	// GetTemplateIndex 返回 template id -> {_id, content_hash} 的索引，
 	// 导入时用它判断「同 id 是否真的变了」，不必把全量模板内容读进内存。
 	GetTemplateIndex(ctx context.Context) (map[string]models.PocIndexEntry, error)
+	// SetDisabled 批量停用/启用模板，返回实际命中的条数（0 表示 id 都不存在）
+	SetDisabled(ctx context.Context, ids []primitive.ObjectID, disabled bool) (int64, error)
+	// DisabledTemplateIDs 在给定 template id 里挑出被停用的（扫描载荷组装用）
+	DisabledTemplateIDs(ctx context.Context, templateIDs []string) (map[string]bool, error)
 }
 
 type repository struct {
@@ -43,6 +47,47 @@ func NewRepository() Repository {
 	return &repository{
 		collection: mongodb.CollectionOrNil("PocList"),
 	}
+}
+
+// SetDisabled 批量停用/启用模板。
+func (r *repository) SetDisabled(ctx context.Context, ids []primitive.ObjectID, disabled bool) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	res, err := r.collection.UpdateMany(ctx,
+		bson.M{"_id": bson.M{"$in": ids}},
+		bson.M{"$set": bson.M{"disabled": disabled}})
+	if err != nil {
+		return 0, fmt.Errorf("poc: set disabled: %w", err)
+	}
+	return res.MatchedCount, nil
+}
+
+// DisabledTemplateIDs 返回给定 template id 里处于停用状态的那些。
+// 只查 template id + disabled 两个字段：扫描载荷组装时每个任务都会调一次，
+// 不能把模板正文（单条可达数百 KB）读进来。
+func (r *repository) DisabledTemplateIDs(ctx context.Context, templateIDs []string) (map[string]bool, error) {
+	out := make(map[string]bool)
+	if len(templateIDs) == 0 {
+		return out, nil
+	}
+	filter := bson.M{"id": bson.M{"$in": templateIDs}, "disabled": true}
+	opts := options.Find().SetProjection(bson.M{"id": 1, "_id": 0})
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("poc: find disabled ids: %w", err)
+	}
+	defer cursor.Close(ctx)
+	var rows []struct {
+		TemplateID string `bson:"id"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, fmt.Errorf("poc: decode disabled ids: %w", err)
+	}
+	for _, row := range rows {
+		out[row.TemplateID] = true
+	}
+	return out, nil
 }
 
 func (r *repository) FindWithPagination(ctx context.Context, query bson.M, opts *options.FindOptions) ([]models.Poc, error) {

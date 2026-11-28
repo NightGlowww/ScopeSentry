@@ -248,6 +248,7 @@ POST	/api/poc/data/import
 POST	/api/poc/data/sync
 POST	/api/poc/delete
 POST	/api/poc/detail
+POST	/api/poc/state
 POST	/api/poc/update
 POST	/api/policy/apply
 POST	/api/policy/create

@@ -57,6 +57,14 @@ export const deletePocDataApi = (ids: string[]): Promise<IResponse<pocRespData>>
   return request.post({ url: '/api/poc/delete', data: { ids } })
 }
 
+// 批量停用/启用模板：停用后引用它的扫描模板不再把这个模板下发给节点
+export const setPocStateApi = (
+  ids: string[],
+  disabled: boolean
+): Promise<IResponse<pocRespData>> => {
+  return request.post({ url: '/api/poc/state', data: { ids, disabled } })
+}
+
 
 // POC 导入进度（前端轮询）
 export const getImportStatusApi = (): Promise<IResponse<any>> =>

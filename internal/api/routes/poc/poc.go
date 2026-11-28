@@ -39,6 +39,13 @@ func RegisterPocRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 批量停用/启用模板：停用后扫描载荷不再引用这批模板
+				Method:      "POST",
+				Path:        "/state",
+				Handler:     poc.SetPocState,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "/delete",
 				Handler:     poc.DeletePoc,
