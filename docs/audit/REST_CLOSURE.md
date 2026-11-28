@@ -12,10 +12,10 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 188（60%） |
+| 被测试/契约脚本点名 | 193（61%） |
 | 读操作 点名/总数 | 76 / 115 |
-| 写操作 点名/总数 | 74 / 113 |
-| 无法判读 点名/总数 | 38 / 86 |
+| 写操作 点名/总数 | 78 / 113 |
+| 无法判读 点名/总数 | 39 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
 
@@ -24,14 +24,14 @@
 | 模块 | 未点名 | 总数 |
 | --- | --- |
 | assets | 27 | 81 |
-| task | 23 | 30 |
+| task | 20 | 30 |
 | plugin | 16 | 17 |
 | system | 9 | 10 |
 | configuration | 7 | 14 |
 | node | 7 | 10 |
-| poc | 7 | 9 |
 | fingerprint | 5 | 6 |
 | github | 5 | 26 |
+| poc | 5 | 9 |
 | backup | 4 | 7 |
 | mcp | 3 | 10 |
 | sensitive | 3 | 5 |
@@ -75,10 +75,8 @@
 | POST | `/api/plugin/run` |
 | POST | `/api/plugin/save` |
 | POST | `/api/plugin/status` |
-| POST | `/api/poc/add` |
 | POST | `/api/poc/data/import` |
 | POST | `/api/poc/data/sync` |
-| POST | `/api/poc/update` |
 | POST | `/api/sensitive/add` |
 | POST | `/api/sensitive/update` |
 | POST | `/api/system/intel-feeds/run` |
@@ -86,11 +84,9 @@
 | POST | `/api/system/storage/slim` |
 | POST | `/api/task/assignProject` |
 | POST | `/api/task/deleteByFilter` |
-| POST | `/api/task/scheduled/add` |
 | POST | `/api/task/scheduled/pagemonit/add` |
 | POST | `/api/task/scheduled/pagemonit/delete` |
 | POST | `/api/task/scheduled/pagemonit/update` |
-| POST | `/api/task/scheduled/update` |
 | POST | `/api/task/stop` |
 | POST | `/api/task/sync` |
 | POST | `/api/task/target/resume` |
