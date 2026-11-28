@@ -12,9 +12,9 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 186（59%） |
-| 读操作 点名/总数 | 75 / 115 |
-| 写操作 点名/总数 | 73 / 113 |
+| 被测试/契约脚本点名 | 188（60%） |
+| 读操作 点名/总数 | 76 / 115 |
+| 写操作 点名/总数 | 74 / 113 |
 | 无法判读 点名/总数 | 38 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
@@ -26,8 +26,8 @@
 | assets | 27 | 81 |
 | task | 23 | 30 |
 | plugin | 16 | 17 |
-| configuration | 9 | 14 |
 | system | 9 | 10 |
+| configuration | 7 | 14 |
 | node | 7 | 10 |
 | poc | 7 | 9 |
 | fingerprint | 5 | 6 |
@@ -63,7 +63,6 @@
 | POST | `/api/configuration/notification/update` |
 | POST | `/api/configuration/rad/save` |
 | POST | `/api/configuration/subfinder/save` |
-| POST | `/api/configuration/system/save` |
 | POST | `/api/dictionary/port/delete` |
 | POST | `/api/fingerprint/add` |
 | POST | `/api/fingerprint/update` |
