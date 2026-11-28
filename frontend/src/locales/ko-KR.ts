@@ -623,7 +623,7 @@ export default {
   },
   cip: {
     noSourceHint:
-      'ICP 정보는 RootDomain.icp/company 기반 읽기 모델이며 기록 주체가 없어 항상 비어 있습니다.',
+      'ICP 정보는 두 곳에서 옵니다: 루트 도메인의 icp/company 필드(스캐너 기록)와 ICP 작업의 조회 결과입니다. 둘 다 비어 있으면 이 페이지도 비어 있습니다 — ICP 작업을 한 번 실행하면 기관이 나타납니다.',
     company: '기관명',
     companyUnknown: '알 수 없는 기관',
     companyPlaceholder: '기관명 정확히 입력',
@@ -643,7 +643,7 @@ export default {
     detailNoDomain:
       '이 기관 행에는 샘플 도메인이 없어 도메인 목록을 조회할 수 없습니다. 먼저 루트 도메인 스캔을 실행해 ICP 정보를 저장하세요.',
     empty:
-      '기관 데이터는 루트 도메인의 ICP 정보에서 집계됩니다. ICP 조회를 켜고 스캔 작업을 실행하거나, ICP 번호가 있는 루트 도메인을 자산 그룹 범위로 가져오세요.',
+      'ICP 작업(기관 또는 도메인 조회)을 실행하거나 스캐너가 루트 도메인에 ICP 정보를 기록하도록 하세요. 둘 중 하나에 데이터가 있으면 기관이 표시됩니다.',
     detailTitle: '기관 상세'
   },
   icpTask: {

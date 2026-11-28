@@ -627,7 +627,7 @@ export default {
   },
   cip: {
     noSourceHint:
-      'ICP data is a read model over RootDomain.icp/company and has no writer yet, so this page stays empty.',
+      'ICP data comes from two places: the icp/company fields on root domains (written by the scanner) and the results of ICP tasks. When both are empty this page stays empty — run an ICP task once and the entities appear here.',
     company: 'Entity',
     companyUnknown: 'Unknown entity',
     companyPlaceholder: 'Exact entity name',
@@ -647,7 +647,7 @@ export default {
     detailNoDomain:
       'This entity row has no sample domain, so the domain list cannot be queried. Run a root-domain scan first so the ICP record is stored.',
     empty:
-      'Entities are aggregated from root-domain ICP records. Run a scan task with ICP lookup, or import root domains carrying ICP numbers into an asset group scope.',
+      'Run an ICP task (entity or domain lookup), or let the scanner store ICP fields on root domains; entities appear as soon as either source has data.',
     detailTitle: 'Entity details'
   },
   icpTask: {

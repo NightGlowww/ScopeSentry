@@ -615,7 +615,7 @@ export default {
   },
   cip: {
     noSourceHint:
-      '备案信息读模型依赖 RootDomain 的 icp/company 字段，当前没有写入方，页面会始终为空。',
+      '备案信息来自两处：根域名上的 icp/company 字段（扫描端写入），以及「ICP 任务」的查询结果。两边都没有数据时本页为空——去 ICP 任务建一个反查任务跑一次，这里就会出现主体。',
     company: '主体名称',
     companyUnknown: '未知主体',
     companyPlaceholder: '按主体名精确过滤',
@@ -634,7 +634,7 @@ export default {
     domainsEmpty: '该主体下还没有可展示的根域名',
     detailNoDomain: '这条主体记录没有样例域名，无法反查域名列表；先跑一次根域名扫描让备案信息落库',
     empty:
-      '主体数据由根域名的备案信息聚合而来：先跑一次带 ICP 查询的扫描任务，或在资产组地契里导入带备案号的根域名',
+      '跑一次 ICP 任务（主体/域名反查），或让扫描端把备案信息写进根域名；任一来源有数据，这里就会出现主体。',
     detailTitle: '主体详情'
   },
   icpTask: {
