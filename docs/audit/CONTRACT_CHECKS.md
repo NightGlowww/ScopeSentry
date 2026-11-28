@@ -316,3 +316,38 @@ MCP 有闭环账本，REST 这边一直没有「哪条接口被谁验过」的�
 一个真 bug：update_status 传不存在的 id 会回 **200 成功**（repo 的 UpdateOne 吞掉了 MatchedCount=0）。
 修复是把「匹配 0 条」在 repo 层转成 mongo.ErrNoDocuments，三个通用写操作统一走 errors.Is 映射到 404，
 顺带替掉了原来靠 strings.Contains(err, "no documents in result") 判存在性的写法。
+
+## 「假成功」这一类：仓库层不许吞计数
+
+现象统一是：**mutation 对不存在的目标回 200，界面说成功，库里一条没动。** 根因也统一：
+mongo 驱动的 `UpdateOne`/`UpdateMany`/`DeleteMany` 对「没有文档命中」不报错，
+仓库层写成 `_, err := coll.UpdateOne(...)` 就把 `MatchedCount`/`DeletedCount` 丢了，
+service 拿到 `nil` 一路回成功。
+
+2026-11-28 这一轮共修掉 7 处（全部线上实测过）：
+
+| 接口 | 之前 | 现在 |
+| --- | --- | --- |
+| `POST /api/assets/common/update_status` | 200 | 404 |
+| `POST /api/task/template/delete` | 200 | 404 |
+| `POST /api/assets/fileleak/delete` | 200 `{"deleted":0}` | 404 |
+| `POST /api/assets/npoc_service/delete` | 200 `{"deleted":0}` | 404 |
+| `POST /api/assets/nuclei_result/status` | 200 | 404 |
+| `POST /api/project/update` | 200（还会继续对着不存在的项目起 goroutine） | 404 |
+| `POST /api/sensitive/update/state` | 200 | 404 |
+
+另有一处不是假成功而是崩溃：`POST /api/task/scheduled/delete` 在调度器未初始化时
+`GetGlobalScheduler()` 返回 nil，`RemoveJob` 里对 nil 取锁 panic（Gin Recovery 兜住变 500）。
+改成惰性初始化后，10 处同样的解引用风险一起消失。
+
+**固定下来的规则**（写在这里，改代码时对着看）：
+
+1. 仓库层的 `Update*`/`Delete*` 不许写 `_, err :=`；要么返回计数，要么匹配 0 时返回 `mongo.ErrNoDocuments`。
+2. 判「存在性」用 `MatchedCount`，不要用 `ModifiedCount` —— 值本来就是这样时后者是 0，会被误判成「id 不存在」。
+3. service 负责把驱动错误翻译成业务哨兵（如 `ErrNotFound`），handler 只做 `errors.Is` 映射到 4xx；
+   不要用 `strings.Contains(err.Error(), "no documents in result")`，驱动换文案就失效。
+4. 集成用例对「不存在的目标」既断言不回 200，也断言不回 500 —— 500 会漏掉 panic（Recovery 兜住后就是 500）。
+
+仓库里还有 **62 处** `_, err :=` 形式的调用（`grep -rn '_, err := .*\.(UpdateOne|UpdateMany|DeleteOne|DeleteMany)(' internal/repositories/`），
+不是每一处都需要计数（例如后台巡检的幂等写入、统计字段刷新），但每新增一个用户可点的写接口，
+就该按上面 4 条过一遍，并补一条集成用例。
