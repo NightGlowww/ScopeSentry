@@ -220,7 +220,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             taskData.bindProject,
             taskData.cycleType,
             policyId.value,
-            scanProfile.value
+            taskData.scanProfile
           )
         } else {
           res = await addTaskApi(
@@ -247,7 +247,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
             taskData.cycleType,
             // 选中的扫描策略随任务一起提交：后端据此在生成扫描载荷时收窄插件清单
             policyId.value,
-            scanProfile.value
+            taskData.scanProfile
           )
         }
       }
@@ -371,7 +371,7 @@ const loadTaskData = async (id) => {
   taskData.template = res.data.template
   // 任务上挂过策略时回显选择（后端 task.policyId，空 = 没套用策略）
   policyId.value = res.data.policyId || ''
-  scanProfile.value = res.data.scanProfile || ''
+  taskData.scanProfile = res.data.scanProfile || ''
   taskData.day = res.data.day
   taskData.minute = res.data.minute
   taskData.week = res.data.week
@@ -397,15 +397,14 @@ const loadScheduleData = async (id) => {
   taskData.cycleType = res.data.cycleType
   // 计划任务文档里同样存了 policyId（ScheduledTasks 存的就是 models.Task），一并回显
   policyId.value = res.data.policyId || ''
-  scanProfile.value = res.data.scanProfile || ''
+  taskData.scanProfile = res.data.scanProfile || ''
 }
 
 // 扫描策略选择。声明必须在下面这个 immediate watch 之前：taskid 存在时会同步走
 // loadTaskData() 回显 policyId，晚声明会命中 TDZ（Cannot access before initialization）。
 const policyId = ref('')
-// 扫描档位：空 = 按模板完整扫描；recon = 只做资产测绘（后端 scanprofile.Apply 剔除 nuclei 与目录扫描）。
-// 这个开关以前只有 MCP 能设 —— 界面上看不到、选不了，等于「机制在、人手用不到」。
-const scanProfile = ref('')
+// 扫描档位本身在 taskData.scanProfile（弹窗里原有控件绑定它，但一直没随请求提交，
+// 等于「看得见、点得动、不生效」）。提交时把 taskData.scanProfile 传给 addTaskApi 即可。
 
 watch(
   () => props.taskid, // 监听 props.taskid 的变化
@@ -505,7 +504,7 @@ const goCreatePolicy = () => {
 
 const resetPolicy = () => {
   policyId.value = ''
-  scanProfile.value = ''
+  taskData.scanProfile = ''
   policyApplied.value = null
   policyConflicts.value = []
 }
@@ -769,15 +768,6 @@ loadPolicies()
     <ElDivider content-position="center" style="width: 60%; left: 20%">{{
       t('policy.pickTitle')
     }}</ElDivider>
-    <!-- 扫描档位：决定这次任务跑不跑 nuclei（实测 nuclei 占单任务耗时的九成）。
-         recon 档几分钟出资产面，需要漏洞面时再完整跑一遍 —— 排队紧的时候这是唯一的省时旋钮。 -->
-    <ElFormItem :label="t('task.scanProfile')">
-      <ElSelect v-model="scanProfile" clearable style="width: 40%">
-        <ElOption :label="t('task.scanProfileFull')" value="" />
-        <ElOption :label="t('task.scanProfileRecon')" value="recon" />
-      </ElSelect>
-      <span class="policy-hint inline">{{ t('task.scanProfileHint') }}</span>
-    </ElFormItem>
     <ElFormItem :label="t('policy.pickLabel')">
       <ElSelect
         v-model="policyId"
