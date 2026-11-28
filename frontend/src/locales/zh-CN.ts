@@ -1054,6 +1054,7 @@ export default {
     queueLenHint: '{n} 个任务在等这个节点：节点一次只跑一个，后面的要排到前一个结束',
     moreActions: '更多',
     queueEtaHours: '预计 {n} 小时',
+    queueEtaDays: '预计 {n} 天',
     queueEtaMinutes: '预计 {n} 分钟',
     currentTask: '当前任务',
     currentTaskIdle: '已 {n} 分钟无产出',

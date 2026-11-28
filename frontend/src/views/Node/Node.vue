@@ -252,10 +252,13 @@ const nodeColums = reactive<TableColumn[]>([
       // 「队列 5」看不出严重程度：按最近任务实测均耗时折算成还要等多久
       const eta = Number(row.queueEtaMin) || 0
       if (eta <= 0) return tag
+      // 长任务队列按天算：prod 上完整狩猎动辄十几小时，只显示「预计 916.0 小时」没人读得出来
       const text =
-        eta >= 60
-          ? t('node.queueEtaHours', { n: (eta / 60).toFixed(1) })
-          : t('node.queueEtaMinutes', { n: eta })
+        eta >= 1440
+          ? t('node.queueEtaDays', { n: (eta / 1440).toFixed(1) })
+          : eta >= 60
+            ? t('node.queueEtaHours', { n: (eta / 60).toFixed(1) })
+            : t('node.queueEtaMinutes', { n: eta })
       return h('div', { class: 'node-queue-cell' }, [tag, h('div', { class: 'node-queue-eta' }, text)])
     }
   },

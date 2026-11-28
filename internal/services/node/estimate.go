@@ -10,14 +10,14 @@ import (
 //  1. 用均值：被「暂停过夜 / 发布打断后自动重投」的样本拉爆，5 条任务估成 36 小时；
 //  2. 只用中位数：被大量「注册即完成」「目标为空」的秒级任务拉到 1 分钟，5 条任务估成 5 分钟。
 //
-// 所以两端都要截：真实扫描任务至少是分钟级，最长也就几小时。
+// 所以两端都要截：下限 1 分钟（注册即完成也要算数），上限 24 小时（更长的多半是暂停/等待，不是真实耗时）。
 // 过滤后取中位数；没有可用样本返回 0（界面显示未知，不猜）。
 func estTaskMinutes(samples []float64, minMin, maxMin float64) float64 {
 	if minMin <= 0 {
-		minMin = 3
+		minMin = 1
 	}
 	if maxMin <= minMin {
-		maxMin = 240
+		maxMin = 1440
 	}
 	kept := make([]float64, 0, len(samples))
 	for _, v := range samples {

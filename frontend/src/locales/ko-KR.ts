@@ -1020,6 +1020,9 @@ export default {
     taskInfo: '작업 정보'
   },
   node: {
+    queueEtaMinutes: '예상 {n}분',
+    queueEtaHours: '예상 {n}시간',
+    queueEtaDays: '예상 {n}일',
     memSoftLimit: 'Go 소프트 메모리 한도 {n} MB',
     memHighFor: '{n}분째 고압',
     memPeak1h: '1시간 최고 {n}%',

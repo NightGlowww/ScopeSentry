@@ -1087,6 +1087,7 @@ export default {
     queueLenHint: '{n} tasks waiting for this node; it runs one at a time',
     moreActions: 'More',
     queueEtaHours: '~{n} h',
+    queueEtaDays: '~{n} d',
     queueEtaMinutes: '~{n} min',
     currentTask: 'Current task',
     currentTaskIdle: 'no output for {n} min',

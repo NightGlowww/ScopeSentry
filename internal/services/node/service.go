@@ -81,7 +81,9 @@ func (s *service) queueAvgMinutes() float64 {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	s.avgValue = estTaskMinutes(s.taskRepo.RecentTaskDurationsMinutes(ctx, 20), 3, 240)
+	// 边界按线上真实分布定：prod 的已完成任务从 1 分钟（注册即完成）到 21 小时（完整狩猎）都有。
+	// 原来的 3~240 分钟会把「最近 10 条恰好都是长任务」的情况全过滤掉 → 样本 0 → ETA 永远未知。
+	s.avgValue = estTaskMinutes(s.taskRepo.RecentTaskDurationsMinutes(ctx, 20), 1, 1440)
 	s.avgAt = time.Now()
 	return s.avgValue
 }
