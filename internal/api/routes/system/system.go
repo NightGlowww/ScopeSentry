@@ -33,6 +33,13 @@ func RegisterSystemRoutes(api *gin.RouterGroup) {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 大字段瘦身（SensitiveBody / HttpBody）：默认 dry-run，真正执行要 confirm=SLIM
+				Method:      "POST",
+				Path:        "storage/slim",
+				Handler:     system.SlimStorage,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				// 多源情报订阅状态（CISA KEV / Wiz / PortSwigger / 先知 / MSRC / P0）。
 				Method:      "GET",
 				Path:        "intel-feeds",

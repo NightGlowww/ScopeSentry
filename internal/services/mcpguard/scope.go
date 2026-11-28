@@ -60,6 +60,7 @@ var ToolScopes = map[string]string{
 	"get_task":             ScopeTaskRead,
 	"list_scheduled_tasks": ScopeTaskRead,
 	"list_backups":         ScopeSystemRead,
+	"get_storage_report":   ScopeSystemRead,
 	"get_scheduled_task":   ScopeTaskRead,
 	// 开关只改 scheduledTasks，不新建任务；但启用即意味着「以后会自动扫」，按写权限管
 	"set_scheduled_task_state": ScopeTaskWrite,

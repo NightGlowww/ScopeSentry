@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	systemhandler "github.com/Autumn-27/ScopeSentry/internal/api/handlers/system"
 	"github.com/Autumn-27/ScopeSentry/internal/config"
 	"github.com/Autumn-27/ScopeSentry/internal/constants"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -310,6 +311,13 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 
 	// 备份只读面：运维 Agent 要能回答「最近一次备份成没成」，但备份的创建/恢复/删除
 	// 是不可逆动作，MCP 不给写入口（UI 里 restore 还要 confirm:"RESTORE"）。
+	// 存储占用：解释「库为什么这么大 / 备份为什么久」，只读。
+	// 瘦身入口不给 MCP——那是对存量数据的不可逆操作，只保留 REST + confirm 门禁。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_storage_report",
+		Description: "各集合占用（字节/文档数，按大小降序）+ 合计：用于回答「库为什么这么大、备份为什么久」",
+	}, getStorageReport)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_backups",
 		Description: "列出数据库备份文件（名称、大小、生成时间、SHA256、备注）与当前备份/恢复任务状态",
@@ -1076,6 +1084,14 @@ func applyScanPolicy(ctx context.Context, _ *mcp.CallToolRequest, input applySca
 		return errorResult("策略不存在", nil)
 	}
 	return jsonToolResult(res)
+}
+
+func getStorageReport(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	rep, err := systemhandler.StorageStats(ctx, 10)
+	if err != nil {
+		return errorResult("获取存储占用失败", err)
+	}
+	return jsonToolResult(rep)
 }
 
 func listBackups(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {

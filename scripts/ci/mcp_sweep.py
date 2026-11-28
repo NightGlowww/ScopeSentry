@@ -188,6 +188,8 @@ def main():
         ('list_audit_logs', {'pageIndex': 1, 'pageSize': 2}),
         # 备份只读面：只列文件与状态，创建/恢复/删除不给 MCP 入口
         ('list_backups', {}),
+        # 存储占用：解释「库为什么这么大」的只读入口（瘦身本身不给 MCP）
+        ('get_storage_report', {}),
         ('list_dictionaries', {'kind': 'dir', 'pageIndex': 1, 'pageSize': 2}),
         ('list_export_records', {}),
         ('list_fingerprints', {'pageIndex': 1, 'pageSize': 2}),
