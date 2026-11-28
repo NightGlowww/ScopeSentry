@@ -109,6 +109,11 @@ func Save(c *gin.Context) {
 			response.BadRequest(c, "api.bad_request", err)
 			return
 		}
+		// 改一个已被删掉的模板：明确 404，不能回 200 让人以为保存成功
+		if errors.Is(err, template.ErrTemplateNotFound) {
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

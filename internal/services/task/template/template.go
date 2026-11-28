@@ -138,6 +138,10 @@ func missingCoreModules(t *models.ScanTemplate) []string {
 // 这是「你填得不对」，不是「服务端出错」。
 var ErrIncompleteTemplate = errors.New("模板不完整")
 
+// ErrTemplateNotFound 更新一个已被删掉的模板。
+// UpdateOne 匹配不到文档时返回 nil，所以必须显式区分「不存在」与「保存成功」。
+var ErrTemplateNotFound = errors.New("template not found")
+
 func (s *service) Save(ctx context.Context, id string, result *models.ScanTemplate) (string, error) {
 	// 保存前先做完整性校验：缺核心模块直接拒绝，避免又一次「跑完了才发现没测接口面」。
 	if missing := missingCoreModules(result); len(missing) > 0 {
@@ -164,6 +168,17 @@ func (s *service) Save(ctx context.Context, id string, result *models.ScanTempla
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return "", fmt.Errorf("invalid id format: %w", err)
+	}
+	// 先确认模板存在：UpdateOne 匹配不到也返回 nil，
+	// 于是「改一个已被删掉的模板」会回 200，用户以为保存成功（2026-11-29 实测）。
+	// 注意 FindOne 找不到时回 (nil, nil)，不是 error——只判 err 会把「不存在」当成「存在」
+	existing, ferr := s.repo.FindOne(ctx, bson.M{"_id": objID},
+		options.FindOne().SetProjection(bson.M{"_id": 1}))
+	if ferr != nil {
+		return "", fmt.Errorf("failed to check template: %w", ferr)
+	}
+	if existing == nil {
+		return "", fmt.Errorf("%w: %s", ErrTemplateNotFound, id)
 	}
 
 	filter := bson.M{"_id": objID}
