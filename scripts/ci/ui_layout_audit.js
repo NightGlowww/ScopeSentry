@@ -66,6 +66,38 @@
       issues.push({ kind: 'stuck-mask', sel: String(m.className).slice(0, 50), w: Math.round(r.width), h: Math.round(r.height) })
     }
   }
+  // 表格单元格被裁：只报「短值被裁」，长文本截断是设计（共享 Table 组件默认 showOverflowTooltip，
+  // 悬停能看到全文）。短值被裁才是真问题 —— 状态标签、时间戳裁掉后没有第二种读法：
+  // 2026-11-29 实测 API Key 状态列 88px 装 'Enabled'(101px)，表格里只剩一个省略号。
+  for (const tbl of document.querySelectorAll('.el-table')) {
+    const heads = [...tbl.querySelectorAll('.el-table__header th')].map((th) => (th.innerText || '').trim())
+    for (const tr of [...tbl.querySelectorAll('.el-table__body tr')].slice(0, 20)) {
+      const tds = [...tr.querySelectorAll('td')]
+      tds.forEach((td, i) => {
+        const cell = td.querySelector('.cell')
+        if (!cell) return
+        if (cell.scrollWidth <= cell.clientWidth + 1) return
+        const text = (cell.innerText || '').trim()
+        // 多行富内容（节点当前任务那种堆叠单元格）不算：它本来就设计了 title
+        if (text.includes('\n')) return
+        if (text.length > 24) return
+        // 只报两类「裁掉就没有第二种读法」的值：状态标签和时间戳。
+        // 自由文本（任务名/模板名/URL）在窄列里被截断是设计的一部分，
+        // 共享 Table 组件默认 showOverflowTooltip，悬停能看全文 —— 报出来只会制造噪音
+        // （第一版按「短于 24 字」判，任务页立刻刷出 3 条任务名的假阳）。
+        const hasTag = Boolean(cell.querySelector('.el-tag'))
+        const looksTimestamp = /\d{4}-\d{2}-\d{2}/.test(text)
+        if (!hasTag && !looksTimestamp) return
+        issues.push({
+          kind: 'cell-clip',
+          col: heads[i] || '#' + i,
+          text: text.slice(0, 24),
+          need: cell.scrollWidth,
+          got: cell.clientWidth
+        })
+      })
+    }
+  }
   for (const b of document.querySelectorAll('button, .el-button')) {
     if (!b.offsetParent) continue;
     const r = b.getBoundingClientRect();

@@ -248,3 +248,23 @@ plugin-management 「编辑」抽屉: class="el-drawer rtl open"，computed tran
 
 复检结果：`#/login` 0 条、`#/dashboard/index` 0 条、`#/asset-information/index` 0 条、
 `#/task-management/ScanTask` 0 条。
+## 表格单元格裁切（2026-11-29，第 97 轮）
+
+在 prod 上把 22 个页面的表格逐单元格量了一遍（`cell.scrollWidth` vs `clientWidth`），
+67 处溢出分两类：
+
+- **自由文本截断**（模板名、POC 名、URL、正则、端口值）：共享 Table 组件默认
+  `showOverflowTooltip`，悬停能看到全文，属于设计。不动。
+- **短值被裁**：裁掉之后没有第二种读法。修了四处：
+  - API Key 状态列：`ElTag` 里 `Enabled/Disabled` 实测 101px，列宽 88 → 表格里只剩一个省略号。改 112。
+  - GitHub 任务状态列：`Completed` 需要 117px，列宽 100。改 122。
+  - 任务列表创建时间列：`2026-11-27 05:42:22` 需要 161px，列宽 152 → 秒被裁，时间戳等于不可读。改 172。
+  - 节点「任务数」列里合并显示当前任务名，名字长就被省略且无处可看 → 任务名/模块两行补 `title`。
+
+`ui_layout_audit.js` 增加 `cell-clip` 判定，只报「状态标签」和「时间戳」两类，
+自由文本不报（第一版按「短于 24 字」判，任务页立刻刷出 3 条任务名的假阳）。
+复检：`#/configuration/apikey`、`#/github/index`、`#/task-management/ScanTask`、
+`#/node-management/index`、`#/asset-information/nuclei-result` 全部 0 条。
+
+顺带确认了一个不会自动消失的坑：SPA 只改 hash 不重载文档，部署后老标签页会继续跑旧 bundle——
+验页面改动必须先 `?__r=<ts>` 强刷，否则会以为改动没生效（本轮实测第一枪就是被这个骗到的）。
