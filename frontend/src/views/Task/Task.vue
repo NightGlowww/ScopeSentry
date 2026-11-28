@@ -203,8 +203,10 @@ const taskColums = reactive<TableColumn[]>([
       // 运行中额外显示「正在做什么 + 已用时长」：长任务（目录扫描 7 分钟/目标）
       // 只显示百分比会像卡死，这一段让用户看得出它到底在干什么。
       const mod = row.currentModule as string
-      // 排队中：任务在节点队列里等，还没真正开跑（节点一次只跑一个任务）
-      if (row.status === 1 && row.queued) {
+      // 排队中：任务在节点队列里等，还没真正开跑（节点一次只跑一个任务）。
+      // status 0（待开始）同样要显示——线上实测有任务在队列里躺了 30 小时还是 0%，
+      // 界面只写「待开始」，用户根本分不清是排队还是卡死（2026-11-29）。
+      if ((row.status === 1 || row.status === 0) && row.queued) {
         // 排队位置：知道「前面还有几个」比单纯「排队中」有用得多
         const pos = Number(row.queuePos) || 0
         const hint = pos > 1 ? t('task.queuePosHint', { n: pos - 1 }) : t('task.queuedHint')
