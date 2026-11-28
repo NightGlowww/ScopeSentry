@@ -85,6 +85,11 @@ func (r *repository) NodeRuntime(ctx context.Context, name string) models.NodeRu
 				continue
 			}
 			mod := strings.TrimSuffix(field, "_start")
+			// "scan" 是节点在任务开始时写的任务级标记（runner.go），不是扫描模块；
+			// 把它当「当前模块」显示出来等于告诉运维「正在跑 scan」，毫无信息量。
+			if mod == "scan" {
+				continue
+			}
 			if end, ok := fields[mod+"_end"]; ok && end != "" {
 				continue
 			}

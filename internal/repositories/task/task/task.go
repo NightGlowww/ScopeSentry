@@ -86,6 +86,8 @@ type Repository interface {
 	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
 	// TaskQueueSnapshot 任务在节点队列中的位次 + 快照里带哪些重模块
 	TaskQueueSnapshot(ctx context.Context) map[string]models.TaskQueueEntry
+	// AvgTaskDurationMinutes 最近若干已完成任务的单任务平均耗时（分钟）
+	AvgTaskDurationMinutes(ctx context.Context, limit int64) float64
 	// CountQueuedByPrefix 统计同前缀任务在节点队列里的数量（公平性限制用）
 	CountQueuedByPrefix(ctx context.Context, node, prefix string) (int, error)
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
@@ -591,6 +593,47 @@ func (r *repository) CountQueuedByPrefix(ctx context.Context, node, prefix strin
 		}
 	}
 	return n, nil
+}
+
+// AvgTaskDurationMinutes 最近 limit 个已完成任务的单任务平均耗时（分钟）。
+// 队列「还要等多久」只能按实测均值估：模块已并行，单目标壁钟≈最慢模块，
+// 用历史均值比用「模块耗时相加」靠谱得多（2026-11-29）。
+func (r *repository) AvgTaskDurationMinutes(ctx context.Context, limit int64) float64 {
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+	cur, err := r.db.Collection("task").Find(ctx,
+		bson.M{"status": 3, "startedAt": bson.M{"$ne": ""}, "endTime": bson.M{"$ne": ""}},
+		options.Find().SetSort(bson.D{{Key: "endTime", Value: -1}}).
+			SetLimit(limit).
+			SetProjection(bson.M{"startedAt": 1, "endTime": 1}))
+	if err != nil {
+		return 0
+	}
+	defer cur.Close(ctx)
+	const layout = "2006-01-02 15:04:05"
+	var sum float64
+	var n int
+	for cur.Next(ctx) {
+		var row struct {
+			StartedAt string `bson:"startedAt"`
+			EndTime   string `bson:"endTime"`
+		}
+		if cur.Decode(&row) != nil {
+			continue
+		}
+		start, err1 := time.ParseInLocation(layout, row.StartedAt, time.Local)
+		end, err2 := time.ParseInLocation(layout, row.EndTime, time.Local)
+		if err1 != nil || err2 != nil || !end.After(start) {
+			continue
+		}
+		sum += end.Sub(start).Minutes()
+		n++
+	}
+	if n == 0 {
+		return 0
+	}
+	return sum / float64(n)
 }
 
 // CountTasksCreatedSince 统计某时间点之后创建的任务数（防刷用）。

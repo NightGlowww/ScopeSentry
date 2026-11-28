@@ -10,9 +10,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
@@ -20,6 +22,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/node"
+	taskrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/task/task"
 	"github.com/Autumn-27/ScopeSentry/internal/services/watchdog"
 	"go.uber.org/zap"
 )
@@ -54,12 +57,33 @@ func (s *service) ClearNodeQueue(ctx context.Context, nodeName string) (int64, e
 
 type service struct {
 	nodeRepo node.Repository
+	taskRepo taskrepo.Repository
+
+	// 单任务均耗时只用于估算排队时长，没必要每次轮询（15s）都查一次库
+	avgMu    sync.Mutex
+	avgAt    time.Time
+	avgValue float64
 }
 
 func NewService() Service {
 	return &service{
 		nodeRepo: node.NewRepository(),
+		taskRepo: taskrepo.NewRepository(),
 	}
+}
+
+// queueAvgMinutes 最近完成任务的平均耗时（分钟）。5 分钟缓存，查不到就给 0（界面不猜）。
+func (s *service) queueAvgMinutes() float64 {
+	s.avgMu.Lock()
+	defer s.avgMu.Unlock()
+	if !s.avgAt.IsZero() && time.Since(s.avgAt) < 5*time.Minute {
+		return s.avgValue
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	s.avgValue = s.taskRepo.AvgTaskDurationMinutes(ctx, 10)
+	s.avgAt = time.Now()
+	return s.avgValue
 }
 
 // GetNodeData 获取所有节点数据。
@@ -114,6 +138,13 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 		// 队列长度：让界面能看出这个节点积压了多少任务
 		if q, qerr := s.nodeRepo.NodeQueueLen(ctx, nodeData.Name); qerr == nil {
 			nodeData.QueueLen = q
+			// 排队多久：节点串行执行，队列长度 × 单任务实测均耗时就是壁钟估计。
+			// 只在有历史样本时给数，没有就不猜（0 = 未知）。
+			if q > 0 {
+				if avg := s.queueAvgMinutes(); avg > 0 {
+					nodeData.QueueEtaMinutes = int(math.Round(avg * float64(q)))
+				}
+			}
 		}
 		// 惰性采样：把容器内存写进趋势（4 分钟一条）
 		if rv, perr := strconv.ParseFloat(nodeData.Running, 64); perr == nil {

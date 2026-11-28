@@ -39,6 +39,9 @@ type NodeData struct {
 	IdleMinutes int `json:"idleMinutes"`
 	// Stalled 超过巡检阈值仍无进度：节点该重启了（阈值与 watchdog 同一口径）
 	Stalled bool `json:"stalled"`
+	// QueueEtaMinutes 按最近任务平均耗时估算的排队时长（分钟，0 = 没有可用的历史样本）
+	// 「队列 5」看不出严重程度，「≈3.2 小时」才让人知道今天要不要等（2026-11-29）
+	QueueEtaMinutes int `json:"queueEtaMin"`
 }
 
 type Message struct {

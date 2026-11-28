@@ -250,11 +250,19 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'queueLen',
     label: t('node.queueLen'),
-    width: 100,
-    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
+    width: 110,
+    formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 队列积压说明有任务在排队（节点一次只跑一个），>5 用警告色提示
       const v = cellValue || 0
-      return h(ElTag, { type: v > 5 ? 'danger' : v > 0 ? 'warning' : 'info' }, () => v)
+      const tag = h(ElTag, { type: v > 5 ? 'danger' : v > 0 ? 'warning' : 'info' }, () => v)
+      // 「队列 5」看不出严重程度：按最近任务实测均耗时折算成还要等多久
+      const eta = Number(row.queueEtaMin) || 0
+      if (eta <= 0) return tag
+      const text =
+        eta >= 60
+          ? t('node.queueEtaHours', { n: (eta / 60).toFixed(1) })
+          : t('node.queueEtaMinutes', { n: eta })
+      return h('div', { class: 'node-queue-cell' }, [tag, h('div', { class: 'node-queue-eta' }, text)])
     }
   },
   {
@@ -1067,6 +1075,14 @@ const closepluginDialogVisible = () => {
 }
 .node-task-none {
   color: var(--el-text-color-placeholder);
+}
+.node-queue-cell {
+  line-height: 1.25;
+}
+.node-queue-eta {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
 }
 
 .node-state-cell {
