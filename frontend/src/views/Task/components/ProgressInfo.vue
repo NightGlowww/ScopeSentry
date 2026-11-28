@@ -199,6 +199,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
     // 顺带取任务级工具失败数（接口已返回），不再依赖父组件传参
     cmdFail.value = (res.data as any).cmdFail || 0
     outcome.value = (res.data as any).outcome || {}
+    timeSpend.value = (res.data as any).timeSpend || { modules: [], totalMinutes: 0, spanMinutes: 0, targets: 0 }
     return {
       total: res.data.total,
       list: res.data.list
@@ -306,6 +307,30 @@ const onOutcomeClick = (key: string) => {
 const cmdFail = ref(0)
 // 任务产出统计（子域/URL/资产/漏洞）
 const outcome = ref<Record<string, number>>({})
+// 时间花在哪：接口按「当前页目标 × 模块」累加好的模块耗时分布（降序）
+const timeSpend = ref<{ modules: { module: string; minutes: number; percent: number }[]; totalMinutes: number; spanMinutes: number; targets: number }>({
+  modules: [],
+  totalMinutes: 0,
+  spanMinutes: 0,
+  targets: 0
+})
+// 只显示前三名：剩下的塞进 tooltip。一屏最多十几列模块，全铺出来又是一片噪音。
+const topModules = computed(() => (timeSpend.value.modules || []).slice(0, 3))
+const restModules = computed(() => (timeSpend.value.modules || []).slice(3))
+const fmtMinutes = (min: number): string => {
+  if (!isFinite(min) || min <= 0) return '0m'
+  if (min < 1) return '<1m'
+  if (min < 60) return Math.round(min) + 'm'
+  const h = Math.floor(min / 60)
+  const m = Math.round(min % 60)
+  return h + 'h' + String(m).padStart(2, '0') + 'm'
+}
+const fmtPercent = (pct: number): string => (pct >= 10 ? Math.round(pct) + '%' : pct.toFixed(1) + '%')
+// 模块字段名 → 界面标签，复用进度表头同一套 i18n key
+const moduleLabel = (name: string): string => {
+  const col = (progressColums as any[]).find((c) => c.field === name)
+  return col ? col.label : name
+}
 const lastRefresh = ref('')
 const autoRefresh = ref(true)
 let timer: ReturnType<typeof setInterval> | null = null
@@ -415,6 +440,30 @@ onUnmounted(stopAuto)
     >
       {{ label }} {{ (outcome as any)[key] }}
     </ElTag>
+  </div>
+  <!-- 时间花在哪：进度矩阵是「目标 × 模块」的格子，人眼算不出谁吃掉了时间。
+       只在有实测数据时出现，样本量写在右侧（弹窗按页取，不等于全任务）。 -->
+  <div v-if="timeSpend.totalMinutes > 0" class="outcome-bar time-spend">
+    <span class="outcome-title">{{ t('task.timeSpend') }}</span>
+    <ElTooltip v-for="m in topModules" :key="m.module" placement="top">
+      <template #content>
+        {{ moduleLabel(m.module) }} · {{ fmtMinutes(m.minutes) }} · {{ fmtPercent(m.percent) }}
+      </template>
+      <ElTag size="small" :type="m.percent >= 50 ? 'warning' : 'info'" effect="plain">
+        {{ moduleLabel(m.module) }} {{ fmtMinutes(m.minutes) }} · {{ fmtPercent(m.percent) }}
+      </ElTag>
+    </ElTooltip>
+    <ElTooltip v-if="restModules.length" placement="top">
+      <template #content>
+        <div v-for="m in restModules" :key="m.module">
+          {{ moduleLabel(m.module) }} · {{ fmtMinutes(m.minutes) }} · {{ fmtPercent(m.percent) }}
+        </div>
+      </template>
+      <ElTag size="small" type="info" effect="plain">
+        {{ t('task.timeSpendMore', { n: restModules.length }) }}
+      </ElTag>
+    </ElTooltip>
+    <span class="time-spend__sample">{{ t('task.timeSpendSample', { n: timeSpend.targets }) }}</span>
   </div>
   <div class="progress-hint">
     <span class="hint-text">
@@ -531,6 +580,13 @@ onUnmounted(stopAuto)
 }
 .outcome-clickable {
   cursor: pointer;
+}
+.time-spend {
+  flex-wrap: wrap;
+}
+.time-spend__sample {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 .outcome-clickable:hover {
   border-color: var(--el-color-primary);

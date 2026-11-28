@@ -617,6 +617,10 @@ func (s *service) GetTaskProgress(ctx *gin.Context, taskID string, pageIndex, pa
 		// 任务产出统计：终态任务用完成时冻结的快照（不会再变、也不用每次打 4 次 count）；
 		// 运行中/历史任务回退到实时统计。
 		"outcome": s.taskOutcomeFor(ctx, task),
+		// 时间花在哪：把当前页每格的 [start, end] 按模块累加。
+		// 只算当前页 —— 弹窗 5 秒轮询一次，按全量目标算等于把 Redis 请求放大 N 倍，
+		// 而「哪个模块吃时间」看一页（默认 10 个目标）已经足够，返回体里带 targets 让前端标注样本量。
+		"timeSpend": AggregateModuleMinutes(progressData),
 	}, nil
 }
 

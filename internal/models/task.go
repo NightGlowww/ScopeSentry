@@ -159,6 +159,34 @@ type TaskProgressSnapshot struct {
 	UpdatedAt time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
+// TaskTimeSpend 模块耗时分布：把进度矩阵里每格的 [start, end] 按模块累加。
+//
+// 一屏是「目标 × 模块」的矩阵，人眼算不出哪个模块吃掉了时间；这张小表就是为了让
+// 「nuclei 占了九成」这类判断有界面依据，而不是靠翻 12 个任务手算。
+//
+// 口径：跨目标求和（算力花在哪），不是墙钟跨度。目标之间并行，求和会大于 All 的跨度，
+// 所以 SpanMinutes 单独返回，两者不要相加也不要比较大小。
+type TaskTimeSpend struct {
+	// Modules 按耗时降序，只含有完整 [start, end] 的模块
+	Modules []ModuleTime `json:"modules"`
+	// TotalMinutes 所有模块耗时之和（分钟，1 位小数）
+	TotalMinutes float64 `json:"totalMinutes"`
+	// SpanMinutes 「全部」列（All）的耗时之和（分钟），即目标级墙钟跨度
+	SpanMinutes float64 `json:"spanMinutes"`
+	// Targets 参与统计的目标数（进度弹窗按页取，只覆盖当前页）
+	Targets int `json:"targets"`
+}
+
+// ModuleTime 单个模块的累计耗时
+type ModuleTime struct {
+	// Module 字段名，前端拼 scanTemplate.<Module> 取标签
+	Module string `json:"module"`
+	// Minutes 累计分钟数，1 位小数
+	Minutes float64 `json:"minutes"`
+	// Percent 占 TotalMinutes 的百分比，1 位小数
+	Percent float64 `json:"percent"`
+}
+
 // ListRequest 任务列表分页查询请求
 type ListRequest struct {
 	Search    string `json:"search" binding:"omitempty" example:"测试"`
