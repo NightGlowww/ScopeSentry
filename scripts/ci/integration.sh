@@ -20,7 +20,13 @@ export MONGODB_DATABASE=${MONGODB_DATABASE:-ss_it_$(date +%s)}
 
 echo "== 集成测试 (mongo $MONGODB_IP:$MONGODB_PORT/$MONGODB_DATABASE, redis $REDIS_IP:$REDIS_PORT) =="
 # -v 是为了数 --- PASS 的个数：不带 -v 只有一行 ok，脚本就没法报「通过几个用例」
-out=$(go test -tags integration -count=1 -timeout 10m -v ./internal/api/routes/ 2>&1)
+#
+# 两个包都要跑：internal/mcp 的集成用例（scope 漂移、schema tag、写工具闭环）
+# 以前没人跑——只写不跑等于没写，工具从 tools/list 里消失这类问题只能等上线才发现。
+#
+# -p 1 必须加：不同包默认并行跑各自的测试二进制，两个包同时连同一个库做初始化/建索引
+# 会互相踩（实测：并行时 user_username_unique 检查失败，单独跑就过）。
+out=$(go test -tags integration -count=1 -p 1 -timeout 10m -v ./internal/api/routes/ ./internal/mcp/ 2>&1)
 rc=$?
 pass=$(printf '%s' "$out" | grep -c '^--- PASS' || true)
 if [ "$rc" = "0" ]; then

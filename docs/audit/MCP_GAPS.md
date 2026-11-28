@@ -496,3 +496,29 @@ MCP 调用日志里 `start_task` 两次 `denied: insufficient scope: need task:w
 
 门禁：`verify_all.sh` 增加 `mcp_output`，缺 `SS_BASE`/`SS_MCP_KEY` 时 SKIP（与 column_field 一致）。
 
+## 12. 参数与写链路的静态审计（第 97 轮）
+
+两类问题 82 个工具里都验不到「客户端看到的」这一层，所以补了两个检查点：
+
+**一、声明了但 handler 从不读取的入参。**
+go-sdk 用 handler 泛型入参结构体生成 JSON Schema，Schema 与类型不一致在编译期就没了；
+剩下的风险是另一种：字段声明了（甚至 `required`），handler 里一次都没读。调用方按 Schema
+传值，工具照常成功，只是那个值被静静丢掉——表现是「筛选项不生效」「分页不起作用」，且无报错。
+
+`scripts/ci/mcp_param_audit.py` 按 Go 名字匹配 `input.Xxx` 统计：82 个工具里 69 个可静态判定，
+8 个把整个入参对象往下传（在下游消费，整条跳过），5 个声明为 `_ struct{}`（确实无参）。
+当前结论：**没有「必填但从不读取」的参数**。
+
+**二、写工具是否真的有人验过。**
+同一个脚本反向扫 `mcpguard.ToolScopes` 里所有 `*:write` 工具，检查工具名是否出现在
+`internal/mcp/*_test.go`、`internal/api/routes/*_test.go` 或 `scripts/ci/mcp_sweep.py` 里。
+只登记 scope 不写用例的写工具等于「接口存在但没人验」：MCP 写路径没有 gin 的 binding 兜底，
+问题直接落到数据上。当前 33 个写工具全部被点名。
+
+**三、写链路闭环用例（`internal/mcp/write_closure_integration_test.go`）。**
+走真实 MCP 协议栈（server + in-memory transport），不直接调 handler——直接调只证明函数能跑，
+走协议才覆盖 schema 校验、参数反序列化、结果封装这几层。三个子用例各自「MCP 建 → MCP 读回 →
+MCP 删 → 确认消失」：字典（含 append 后 preview 能读回追加行）、资产组、扫描策略。
+另外 `TestToolsListContract` 断言 82 个工具名字唯一、描述非空、入参 schema 存在，且数量与注册表一致。
+
+门禁：`verify_all.sh` 增加 `mcp_param`（无库也能跑）。

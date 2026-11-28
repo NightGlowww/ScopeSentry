@@ -68,6 +68,9 @@ fi
 # 接口覆盖预算：未覆盖写操作不得超过基线（新增写路由必须带用例，不能悄悄加）
 gate closure_budget python3 scripts/ci/rest_closure.py --budget 0
 
+# MCP 工具面：声明的必填参数必须真的被 handler 读取；写工具必须在某处被点名验过
+gate mcp_param python3 scripts/ci/mcp_param_audit.py
+
 # 写接口幽灵 id：按 id 改/删的接口给不存在的 id 必须 4xx（需要 token）
 if [ -n "${SS_TOKEN:-}" ]; then
   gate write_ghost python3 scripts/ci/write_ghost_probe.py
