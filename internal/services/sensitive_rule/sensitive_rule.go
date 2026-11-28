@@ -25,7 +25,8 @@ import (
 type Service interface {
 	RuleList(ctx *gin.Context, search string, pageIndex, pageSize int) ([]models.SensitiveRuleListItem, int64, error)
 	RuleUpdate(ctx *gin.Context, id string, name, regular, color string, state bool) error
-	RuleAdd(ctx *gin.Context, name, regular, color string, state bool) error
+	// RuleAdd 返回新规则的 id（MCP/自动化需要回执才能后续改/删）
+	RuleAdd(ctx *gin.Context, name, regular, color string, state bool) (string, error)
 	RuleUpdateState(ctx *gin.Context, ids []string, state bool) (int64, error)
 	RuleDelete(ctx *gin.Context, ids []string) (int64, error)
 }
@@ -85,16 +86,17 @@ func (s *service) RuleUpdate(ctx *gin.Context, id string, name, regular, color s
 	return nil
 }
 
-func (s *service) RuleAdd(ctx *gin.Context, name, regular, color string, state bool) error {
+func (s *service) RuleAdd(ctx *gin.Context, name, regular, color string, state bool) (string, error) {
 	if regular == "" {
-		return errors.New("regular is null")
+		return "", errors.New("regular is null")
 	}
 	item := &models.SensitiveRuleItem{Name: name, Regular: regular, Color: color, State: state}
-	if _, err := s.repo.RuleInsert(ctx, item); err != nil {
-		return err
+	oid, err := s.repo.RuleInsert(ctx, item)
+	if err != nil {
+		return "", err
 	}
 	_ = s.nodeService.RefreshConfig(ctx, models.Message{Name: "all", Type: "sensitive"})
-	return nil
+	return oid.Hex(), nil
 }
 
 func (s *service) RuleUpdateState(ctx *gin.Context, ids []string, state bool) (int64, error) {

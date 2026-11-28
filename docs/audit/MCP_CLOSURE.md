@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | `add_asset_tag` | `asset:write` | 拒绝分支 |  |
 | `add_fingerprint` | `template:write` | 拒绝分支 / 写往返 | 建 it-mcp-fp 规则 → list_fingerprints 检索读回（state=true）；同名再 add 走更新不产生第二条 |
+| `add_sensitive_rule` | `template:write` | 拒绝分支 / 写往返 | 建 it-mcp-sr 规则 → list_sensitive_rules 检索读回（state=true） |
 | `append_dictionary_lines` | `asset:write` | 拒绝分支 / 写往返 | 追加 1 行 → preview_dictionary 从 2 行变 3 行 |
 | `apply_scan_policy` | `task:read` | 读 / 拒绝分支 | 策略试算（不写库、不建任务）；需要至少一个真实策略样本，线上无策略时该分支跳过 |
 | `asset_distribution` | `asset:read` | 读 / 拒绝分支 |  |
@@ -31,6 +32,7 @@
 | `delete_nodes` | `node:write` | 拒绝分支 | 节点是扫描执行体，误删影响扫面；只验不存在的名字 |
 | `delete_port_dict_entries` | `asset:write` | 拒绝分支 / 写往返 | 上一条的清理步：confirm=true 按 id 删除后条数回到原值 |
 | `delete_scan_policies` | `task:write` | 拒绝分支 / 写往返 | 上一条的清理步：按 id 删除后 REST 列表归零（效果已复核） |
+| `delete_sensitive_rules` | `template:write` | 拒绝分支 / 写往返 | 上一条的清理步：按 id 删除后检索归零 |
 | `delete_task` | `task:write` | 拒绝分支 |  |
 | `export_task_workbook` | `asset:write` | 拒绝分支 | 会生成 Excel 文件；只验非法入参 |
 | `get_asset_detail` | `asset:read` | 读 / 拒绝分支 |  |
@@ -97,14 +99,15 @@
 | `triage_github_results` | `asset:write` | 拒绝分支 / 写往返 | UpsertHits 造一条 fixture → 研判 ignored → 按 ignored 筛到且 triagedBy=it-mcp |
 | `uninstall_plugin` | `plugin:write` | 拒绝分支 |  |
 | `update_fingerprint` | `template:write` | 拒绝分支 / 写往返 | 上一条里把 state 改成 false → 读回 false（全量更新漏传 state 会被工具拒绝） |
+| `update_sensitive_rule` | `template:write` | 拒绝分支 / 写往返 | 上一条里把 state 改成 false → 读回 false（漏传 state 会被工具拒绝） |
 
 ## 汇总
 
 | 维度 | 数量 |
 | --- | --- |
-| 工具总数 | 91 |
+| 工具总数 | 94 |
 | 读路径验证 | 48 |
-| 拒绝分支验证 | 55 |
-| 写往返验证 | 18 |
+| 拒绝分支验证 | 58 |
+| 写往返验证 | 21 |
 | 仅前条件说明 | 0 |
 | 未归类 | 0 |

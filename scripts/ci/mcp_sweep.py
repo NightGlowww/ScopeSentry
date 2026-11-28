@@ -272,6 +272,10 @@ def main():
     # 模板停用：不存在的 id 必须报错（否则「停用了 0 条」会被当成成功，
     # 调用方以为模板已经不会被扫描引用）
     ('set_poc_state', {'ids': [NOPE]}),
+    # 敏感信息规则：空正则会退化成「匹配一切」，必须被拒；不存在的 id 不能假成功
+    ('add_sensitive_rule', {'name': 'x', 'regular': ''}),
+    ('update_sensitive_rule', {'id': NOPE, 'name': 'x', 'regular': 'y', 'state': True}),
+    ('delete_sensitive_rules', {'ids': [NOPE]}),
     # 指纹规则：rule 为空必须被拒；不存在的 id 不能回「删除成功 0 条」
     ('add_fingerprint', {'name': '', 'rule': ''}),
     ('update_fingerprint', {'id': NOPE, 'name': 'x', 'rule': 'y', 'state': True}),

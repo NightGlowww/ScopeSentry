@@ -92,11 +92,13 @@ func Add(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if err := getSensitiveService().RuleAdd(c, req.Name, req.Regular, req.Color, *req.State); err != nil {
+	id, err := getSensitiveService().RuleAdd(c, req.Name, req.Regular, req.Color, *req.State)
+	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	// 回 id：新增后要能接着改/删，前端也可以直接定位到这条
+	response.Success(c, gin.H{"id": id}, "api.success")
 }
 
 // UpdateState 批量改状态

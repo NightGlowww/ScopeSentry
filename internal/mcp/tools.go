@@ -565,6 +565,22 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: "删除 GitHub 情报任务，同时删除它产出的结果行（不可恢复）；返回删除的任务数与结果数",
 	}, deleteGithubTasks)
 
+	// 规则增删改：与 POC / 指纹同一条闭环标准 —— 只读不算闭环
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "add_sensitive_rule",
+		Description: "新增敏感信息规则（WIH 命中规则），返回新规则 id；regular 为必填正则",
+	}, addSensitiveRule)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "update_sensitive_rule",
+		Description: "按 id 更新敏感信息规则：name/regular/state 必填，color 不传会被清空（REST 同语义）",
+	}, updateSensitiveRule)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_sensitive_rules",
+		Description: "按 id 批量删除敏感信息规则，返回真实删除条数（0 表示 id 都不存在）",
+	}, deleteSensitiveRules)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "set_sensitive_rule_state",
 		Description: "批量启用/停用敏感信息规则",

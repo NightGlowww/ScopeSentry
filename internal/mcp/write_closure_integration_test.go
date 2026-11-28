@@ -350,6 +350,63 @@ func TestWriteToolClosure(t *testing.T) {
 		}
 	})
 
+	// 敏感信息规则：与 POC/指纹同一条标准 —— 新增→读回→改状态→读回→删除→确认消失。
+	t.Run("sensitive_rule", func(t *testing.T) {
+		name := fmt.Sprintf("it-mcp-sr-%d", stamp)
+		var id string
+		t.Cleanup(func() {
+			if id != "" {
+				_, _ = cs.CallTool(context.Background(), &mcp.CallToolParams{
+					Name: "delete_sensitive_rules", Arguments: map[string]any{"ids": []string{id}},
+				})
+			}
+		})
+
+		created := callJSON(t, cs, "add_sensitive_rule", map[string]any{
+			"name": name, "regular": "it-mcp-[0-9]{4}", "state": true,
+		})
+		id, _ = created["id"].(string)
+		if id == "" {
+			t.Fatalf("新增规则没有返回 id: %+v", created)
+		}
+
+		readState := func() (found, state bool) {
+			text := callText(t, cs, "list_sensitive_rules", map[string]any{"search": name, "pageIndex": 1, "pageSize": 10})
+			var data struct {
+				List []struct {
+					ID    string `json:"id"`
+					State bool   `json:"state"`
+				} `json:"list"`
+			}
+			_ = json.Unmarshal([]byte(text), &data)
+			for _, row := range data.List {
+				if row.ID == id {
+					return true, row.State
+				}
+			}
+			return false, false
+		}
+		if found, state := readState(); !found || !state {
+			t.Fatalf("新增后读不回或不是启用态: found=%v state=%v", found, state)
+		}
+
+		callJSON(t, cs, "update_sensitive_rule", map[string]any{
+			"id": id, "name": name, "regular": "it-mcp-[0-9]{4}", "state": false,
+		})
+		if found, state := readState(); !found || state {
+			t.Fatalf("改 state=false 没落库: found=%v state=%v", found, state)
+		}
+
+		del := callJSON(t, cs, "delete_sensitive_rules", map[string]any{"ids": []string{id}})
+		if n, _ := del["deleted"].(float64); n < 1 {
+			t.Fatalf("删除未命中: %+v", del)
+		}
+		id = ""
+		if found, _ := readState(); found {
+			t.Fatalf("删除后仍能查到该规则")
+		}
+	})
+
 	// GitHub 研判：写一条 fixture 结果 → 研判为 ignored → 读回状态与研判人 → 按任务清理。
 	// 用 UpsertHits 造数据而不是走采集任务：采集会打 GitHub API，测试不该有外网副作用。
 	t.Run("github_triage", func(t *testing.T) {
