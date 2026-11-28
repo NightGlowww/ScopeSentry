@@ -49,8 +49,8 @@ nuclei 没有被删、也没有被卸载，只是不再默认挂进模板：
 ## 验证口径
 
 - 模板层：`POST /api/task/template/detail` 里 `VulnerabilityScan=[]`、`Parameters.VulnerabilityScan={}`（7/7 已确认）。
-- 任务层：改配置之后**新领取**的任务日志里不应再出现 `VulnerabilityScan module start scanning the target`
-  （已在跑的任务用的是领取时解析的模板，仍会跑完 nuclei）。
+- 任务层：改配置之后**新创建**的任务日志里不应再出现 `VulnerabilityScan module start scanning the target`
+  （口径修正见下一节：队列条目是提交时的快照，提交得早的任务会照跑完 nuclei）。
 - 队列层：`/api/node` 的 `queueLen` 应随任务变短而下降。
 
 ## 扫描档位（scanProfile，2026-11-29 追加）
@@ -72,6 +72,45 @@ nuclei 改成模板可选之后，还需要一个「这条任务只要快」的�
 - MCP `create_scan_task` 增加 `scanProfile` 参数；建任务弹窗有对应下拉
 
 典型用法：先用 recon 档位把 100 个目标的面铺开（每目标几分钟），再挑真正值得的下发完整档位。
+
+## 关掉 nuclei 的真正机制：插件数量就是开关（2026-11-29 追加）
+
+前面只验证了「模板里的插件清单空了」，但**空清单到底意味着跳过还是按默认跑全量**，当时是猜的。
+翻节点源码（`Autumn-27/ScopeSentry-Scan`）确认了实现：
+
+- `modules/vulnerabilityscan/module.go`：`ProgressStart(r.GetName(), target, id, len(r.Option.VulnerabilityScan))`
+- `internal/handler/task.go`：`ProgressStart(..., flag)` 第一件事是 `if flag == 0 { return }` —— 不记进度、不跑模块
+
+所以 **flag = 插件个数，0 即整段跳过**。空清单 = 模块不执行，模板层关掉是成立的
+（这条结论比「看起来没跑」重要：反过来说，只要清单里还留着一个插件，模块就会跑满，
+不存在「留个占位但参数为空所以不跑」这种中间态）。
+
+## 队列条目是快照，不是引用（2026-11-29 追加，解释「改了模板却没生效」）
+
+`CreateTaskScan` 建任务时就把**解析后的模板 JSON** 推进了节点的待领取队列：
+
+```
+template := GetScanTemplate(...)      // 策略 → 档位 → 参数解析，全在这里定稿
+taskRepo.RPushNodeTask(ctx, node, template)   // 序列化后进 NodeTask:<node>
+```
+
+节点 `LRange` 取到的是一份**写死的载荷**。模板、策略、扫描档位后来怎么改，都改不动已经在队列里的条目。
+
+现场证据（部署了「nuclei 默认关闭」之后仍在跑 nuclei）：
+
+| 观测 | 值 |
+| --- | --- |
+| 模板 `6afaa875…` 的 `VulnerabilityScan` | `[]`（确实是空的） |
+| 节点收到的载荷 `VulnerabilityScan` | `["ed93b8af…"]`（还带着 nuclei 插件） |
+| 任务名 | `huntdeck-intigriti-superdrug-20261126-214221` —— **11-26 提交的** |
+| 结果 | 01:01:29 起跑 `VulnerabilityScan`，按老模板跑满约 20 分钟/目标 |
+
+结论：不是开关没生效，是 backlog 里的旧快照。要让它们立刻变快只有取消后重新提交
+（重新提交会重新解析模板，拿到空清单 → 模块整段跳过）。
+
+界面上补了这条信息：任务列表的排队行会标「队列快照含 Nuclei」（`queuedNuclei`），
+判定直接解析 `NodeTask:<node>` 里的载荷本身（`repositories/task.TaskQueueSnapshot`），
+不看模板现值——否则永远解释不了「为什么这条还在跑 nuclei」。
 
 ## 队列可见性（2026-11-29 追加）
 

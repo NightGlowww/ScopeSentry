@@ -78,6 +78,10 @@ type Task struct {
 	CmdFail int64 `bson:"-" json:"cmdFail,omitempty"`
 	// QueuePos 在节点待领取队列中的位置（1 起，0 表示不在队列里）
 	QueuePos int `bson:"-" json:"queuePos,omitempty"`
+	// QueuedNuclei 排队中的任务快照里是否带 nuclei。
+	// 队列条目是提交时序列化的载荷快照，模板后来改成不跑 nuclei 也改不动它；
+	// 不知道这一点就会以为「改了模板没用」，其实只是 backlog 还没排完（2026-11-29）。
+	QueuedNuclei bool `bson:"-" json:"queuedNuclei,omitempty"`
 	// FailReason 失败原因：巡检判定失败时写入，界面直接显示（否则只看到「失败」两个字）
 	FailReason string `bson:"failReason,omitempty" json:"failReason,omitempty"`
 	// FailCode / FailParams 是同一句话的机器可读形态。
@@ -298,4 +302,14 @@ type PageMonitoringUpdateRequest struct {
 	Node    []string `json:"node" binding:"omitempty" example:"[\"node1\"]"`
 	AllNode bool     `json:"allNode" binding:"omitempty" example:"true"`
 	State   bool     `json:"state" binding:"omitempty" example:"true"`
+}
+
+// TaskQueueEntry 节点待领取队列里的一个条目（提交时序列化的任务载荷快照）。
+// 只留界面需要的判定结果，不把整份载荷留在内存里。
+type TaskQueueEntry struct {
+	// Pos 队列位次，1 起
+	Pos int
+	// Nuclei / DirScan 快照里是否含这两个重模块插件
+	Nuclei  bool
+	DirScan bool
 }

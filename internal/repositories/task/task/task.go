@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Autumn-27/ScopeSentry/internal/constants"
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -83,8 +84,8 @@ type Repository interface {
 	TaskOutcome(ctx context.Context, taskName string) map[string]int64
 	// CountTasksCreatedSince 统计某时间之后创建的任务数
 	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
-	// TaskQueuePositions 任务在节点队列中的位置
-	TaskQueuePositions(ctx context.Context) map[string]int
+	// TaskQueueSnapshot 任务在节点队列中的位次 + 快照里带哪些重模块
+	TaskQueueSnapshot(ctx context.Context) map[string]models.TaskQueueEntry
 	// CountQueuedByPrefix 统计同前缀任务在节点队列里的数量（公平性限制用）
 	CountQueuedByPrefix(ctx context.Context, node, prefix string) (int, error)
 	// CurrentActivity 当前正在执行的模块/目标/开始时间
@@ -598,11 +599,15 @@ func (r *repository) CountTasksCreatedSince(ctx context.Context, since string) (
 	return r.db.Collection("task").CountDocuments(ctx, bson.M{"creatTime": bson.M{"$gte": since}})
 }
 
-// TaskQueuePositions 返回「任务 → 在节点待领取队列里的位置（1 起）」。
-// 队列是 Redis 列表 NodeTask:<node>，元素是任务 JSON（含 id 字段）。
+// TaskQueueSnapshot 返回「任务 → 队列位次 + 快照里带哪些重模块」。
+// 队列是 Redis 列表 NodeTask:<node>，元素是**提交时序列化**的任务 JSON。
 // 一次性把所有节点队列扫一遍，避免每个任务单查一次（2026-11-20）。
-func (r *repository) TaskQueuePositions(ctx context.Context) map[string]int {
-	out := map[string]int{}
+//
+// 为什么连插件清单一起读：队列条目是快照，模板/档位后来改了都不影响它。
+// 只报位次的话，「明明把 nuclei 关了，这条排队任务还在跑 nuclei」就无解——
+// 现场（2026-11-29）就是这样：模板早就没有 nuclei 插件了，排队的旧任务照跑 20 分钟。
+func (r *repository) TaskQueueSnapshot(ctx context.Context) map[string]models.TaskQueueEntry {
+	out := map[string]models.TaskQueueEntry{}
 	keys, err := r.scanKeys(ctx, "NodeTask:*")
 	if err != nil {
 		return out
@@ -614,18 +619,35 @@ func (r *repository) TaskQueuePositions(ctx context.Context) map[string]int {
 		}
 		for i, raw := range items {
 			var payload struct {
-				ID string `json:"id"`
+				ID                string   `json:"id"`
+				VulnerabilityScan []string `json:"VulnerabilityScan"`
+				DirScan           []string `json:"DirScan"`
 			}
 			if err := json.Unmarshal([]byte(raw), &payload); err != nil || payload.ID == "" {
 				continue
 			}
+			entry := models.TaskQueueEntry{
+				Pos:     i + 1,
+				Nuclei:  containsHash(payload.VulnerabilityScan, constants.PluginNuclei),
+				DirScan: containsHash(payload.DirScan, constants.PluginDirScan),
+			}
 			// 同一个任务在多个节点队列里出现时取最靠前的位置
-			if prev, ok := out[payload.ID]; !ok || i+1 < prev {
-				out[payload.ID] = i + 1
+			if prev, ok := out[payload.ID]; !ok || entry.Pos < prev.Pos {
+				out[payload.ID] = entry
 			}
 		}
 	}
 	return out
+}
+
+// containsHash 判断插件清单里是否有某个 hash（空清单 = 该模块不会跑）。
+func containsHash(list []string, hash string) bool {
+	for _, h := range list {
+		if h == hash {
+			return true
+		}
+	}
+	return false
 }
 
 // scanKeys 用 SCAN 迭代代替 KEYS。

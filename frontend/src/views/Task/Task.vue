@@ -210,9 +210,17 @@ const taskColums = reactive<TableColumn[]>([
         // 排队位置：知道「前面还有几个」比单纯「排队中」有用得多
         const pos = Number(row.queuePos) || 0
         const hint = pos > 1 ? t('task.queuePosHint', { n: pos - 1 }) : t('task.queuedHint')
+        // 队列条目是提交时序列化的快照：模板/档位后来改成不跑 nuclei 也改不动它。
+        // 不标出来，「明明关了 nuclei 这条还在跑」就变成玄学（2026-11-29）。
+        const snap = row.queuedNuclei
+          ? h('div', { class: 'progress-sub queued-snapshot', title: t('task.queuedNucleiTip') }, [
+              t('task.queuedNuclei')
+            ])
+          : null
         return h('div', { class: 'progress-cell' }, [
           bar,
-          h('div', { class: 'progress-sub queued' }, hint)
+          h('div', { class: 'progress-sub queued' }, hint),
+          snap
         ])
       }
       // 工具失败和「当前在做什么」要同时看得到：
@@ -1507,6 +1515,11 @@ const setMaxHeight = () => {
 
 .progress-sub.fail {
   color: var(--el-color-danger);
+}
+/* 队列快照里还带 nuclei：用弱化的警示色，别和「失败」抢注意力 */
+.progress-sub.queued-snapshot {
+  color: var(--el-color-warning);
+  opacity: 0.9;
 }
 .progress-sub {
   font-size: 11px;

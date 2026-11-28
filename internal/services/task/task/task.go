@@ -211,8 +211,8 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 
 	// 只给运行中的任务补「当前正在做什么」：长任务（目录扫描 7 分钟/目标）
 	// 只显示百分比会像卡死。运行中任务通常 1-2 个，N+1 查询可接受。
-	// 排队位置：任务在节点待领取队列里排第几（只对排队中的任务有意义）
-	queuePositions := s.taskRepo.TaskQueuePositions(ctx)
+	// 排队快照：位次 + 这条排队任务还会不会跑 nuclei（快照是提交时的，模板改动不回溯）
+	queueSnapshots := s.taskRepo.TaskQueueSnapshot(ctx)
 
 	for i := range tasks {
 		// 工具失败数对所有任务都填：它是任务「结束后」才写回的，
@@ -227,8 +227,9 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 			continue
 		}
 		id := tasks[i].ID.Hex()
-		if pos, ok := queuePositions[id]; ok {
-			tasks[i].QueuePos = pos
+		if snap, ok := queueSnapshots[id]; ok {
+			tasks[i].QueuePos = snap.Pos
+			tasks[i].QueuedNuclei = snap.Nuclei
 		}
 		if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
 			tasks[i].Queued = true

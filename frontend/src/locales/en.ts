@@ -1175,6 +1175,9 @@ export default {
     clearFilters: 'Clear filters',
     listRefreshHint: 'Auto-refresh every 10s · updated {t}',
     refreshJustNow: 'just now',
+    queuedNuclei: 'Nuclei in queued snapshot',
+    queuedNucleiTip:
+      'This queued task carries the payload snapshot taken when it was submitted, so removing Nuclei from the template does not change it: it will still run nuclei for ~20 minutes per target. Cancel and resubmit to skip it.',
     queuePosHint: 'Queued ({n} ahead)',
     queueBacklog: '{n} task(s) queued (a node runs one task at a time)',
     elapsed: 'took',

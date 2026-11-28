@@ -1142,6 +1142,9 @@ export default {
     clearFilters: '清除筛选',
     listRefreshHint: '每 10 秒自动刷新 · 更新于 {t}',
     refreshJustNow: '刚刚',
+    queuedNuclei: '队列快照含 Nuclei',
+    queuedNucleiTip:
+      '这条排队任务的载荷是提交时序列化的快照，模板后来去掉 Nuclei 也不会改到它：轮到它时会跑满 nuclei（约 20 分钟/目标）。想要更快就取消后重新提交。',
     queuePosHint: '排队中（前面还有 {n} 个）',
     queueBacklog: '有 {n} 个任务在排队（节点一次只跑一个任务，后面的要等）',
     elapsed: '耗时',

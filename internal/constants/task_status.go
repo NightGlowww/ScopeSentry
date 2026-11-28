@@ -12,3 +12,11 @@ const (
 	TaskStatusFinished = 3 // 运行完成：进度达到 100%
 	TaskStatusFailed   = 4 // 失败：节点长期无进度/心跳，由后台巡检判定（不是用户暂停）
 )
+
+// 重模块插件 hash。队列里的任务是**入队时序列化的快照**，模板/策略再怎么改都不会
+// 改到已经在队列里的条目——所以要判断「这条排队中的任务还会不会跑 nuclei」，
+// 只能解析它自己的快照。这两个 hash 是唯一口径，写死在多处就会漂。
+const (
+	PluginNuclei  = "ed93b8af6b72fe54a60efdb932cf6fbc"
+	PluginDirScan = "920546788addc6d29ea63e4a314a1b85"
+)
