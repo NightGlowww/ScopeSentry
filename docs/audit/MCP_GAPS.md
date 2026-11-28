@@ -465,3 +465,34 @@ MCP 调用日志里 `start_task` 两次 `denied: insufficient scope: need task:w
 - 未真实调用 `POST /mcp`（需要 API key 明文，库里只有哈希与前缀；本次不新建 key，避免写入）。
 - 未逐一核对 49 个工具的返回体结构（只做入参 schema 与语义核对）；返回体差异（如 `list_assets` 各资产类型返回字段不统一）建议单独做一轮「输出契约」审计。
 - 未评估新增工具对 `mcp_call_logs` 保留策略、限速（`rateLimitPerMin`）的影响；批量只读工具（如遍历 14k POC）建议在工具内做 pageSize 上限。
+
+---
+
+## 11. 输出契约审计（2026-11-29 补上 §10 的第一条遗留项）
+
+`scripts/ci/mcp_output_contract.py`：32 项断言，MCP_OUTPUT=PASS 才算过。
+它补的是 `mcp_sweep.py` 拦不住的一类假成功——**工具返回了东西，但东西和库里的真相不一致**。
+
+| 断言 | 拦的是哪种假成功 |
+| --- | --- |
+| `rows == min(pageSize, total)` | total 说有 4935 条，rows 却是空 |
+| `filter.port=443` 的每一行 port 都是 443 | filter 只影响 total，不影响 rows |
+| `count_assets == list_assets.total` | 两个工具各算一套口径 |
+| 分布返回条数 ≤ limit、分桶有 value+count | limit 被忽略、分桶是空壳 |
+| `search_assets` 每条都真的含关键词 | 搜索退化成「返回全部」 |
+| `get_*` 回显请求的 id | 拿错文档也返回成功 |
+| 节点行带 `queueLen`，有在跑任务必须给 `idleMinutes` | 界面字段悄悄消失 |
+| 越界 `pageIndex` 返回空列表 | 越界复读第一页（比报错更糟） |
+
+### 审计发现的真问题：filter 键与行字段不同名
+
+| 场景 | 之前 | 现在 |
+| --- | --- | --- |
+| 按状态过滤 | `filter.statuscode=["200"]` 命中 4935 条，但行里只有 `status` | 行补 `statuscode` 别名 |
+| 跨工具合并 | `search_assets` 返回 `host`，`list_assets` 返回 `domain` | 行补 `host`（=domain）别名 |
+
+实现是只读别名（`aliasAssetRowFields`，只补缺不改值，脏数据跳过），配 2 个单测。
+没做「把 filter 键改成 status」这种破坏性重命名：现有调用方（含 sweep 脚本）用的是 `statuscode`。
+
+门禁：`verify_all.sh` 增加 `mcp_output`，缺 `SS_BASE`/`SS_MCP_KEY` 时 SKIP（与 column_field 一致）。
+
