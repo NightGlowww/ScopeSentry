@@ -202,3 +202,19 @@
 - 全量 `go test -tags integration ./...`（全新库、`-p 1`）**0 FAIL**；
 - 生产部署 `fork-ee83f44`，`scripts/e2e-smoke.sh` **15/15 PASS**；
 - 前端 `pnpm build:pro` / eslint 0 告警 / **114 单测** / locale 1481×3 一致。
+
+## ARL-Next v1.5.2 逐条对齐（2026-11-28）
+
+上游 `157fb262`（v1.5.2，2026-11-25）之后无新提交。逐条核对 release notes：
+
+| 上游条目 | 我们的状态 | 证据 |
+| --- | --- | --- |
+| 任务批量/单任务多工作表 Excel 导出（`POST /api/export/batch/`、openpyxl write_only、截断响应头） | ✅ 已对齐 | `/api/export/batch` + `POST /api/export` 多 sheet；MCP `export_task_workbook`；实测 CSV 214766 行 / xlsx 合法 zip |
+| 任务资产产出多维筛选（`asset_yield` has/no + `asset_types` 6 维，非法维度 Fail-Closed） | ✅ 本轮对齐 | REST：全量 235 / `has_asset` 187 / `no_asset` 42 / `assetTypes=[vuln]` 1 / `nuclei` → 400；MCP `list_tasks` 同参数，`mcp_sweep` 断言 `has_asset=187 < 235` |
+| 低内存自适应档位（`MONGO_WT_CACHE_GB`、`ARL_WEB_WORKERS`、earlyoom） | 🟡 已测量，暂不启用 | 生产 7.5 GB，`vmstat` si/so 三分钟全 0（换页已停），free 1.45 GB + cache 3.4 GB；Mongo 容器 1.2 GB 限额下 RSS 894 MB，WiredTiger 默认按 cgroup 取 256 MB 缓存，未触顶。swap 用 1.7 GB 是历史残留（SwapCached 122 MB），当前无压力 |
+| 策略端口收敛到系统字典（去手填、`?dict=` 深链、别名归一） | ✅ 已对齐 | 策略端口来自端口字典；`{dict.port.*}` 模板占位符；测试用例覆盖 |
+| `domain_sync` 泛解析并发裁剪（线程池 15、120s 预算） | ⛔ 不适用 | 我们没有 Python `domain_sync`；子域枚举在节点侧（subfinder），服务端不做逐域解析探测 |
+| 边缘网关 418/421 过滤、跨 IP 同质默认页聚类、`catch_all` 跳过、fileLeak 双基线早退 | ⛔ 不在本仓库 | 这些在扫描端（ScopeSentry-Scan）的 `checkHTTP.py`/`fetchSite.py`/`fileLeak.py`；本会话工作目录只有服务端仓库 |
+| 上游 DNS 动态熔断冷却、CDN 路由子域过滤 | ⛔ 不在本仓库 | 同上（`dns_client.py`/`cdn.py`/`domain.py` 属扫描端） |
+
+结论：本仓库范围内 v1.5.2 的能力项已全部对齐（3 ✅ + 1 测量后判定不适用）；剩余 3 项属扫描端组件，需在扫描仓库另行对齐。

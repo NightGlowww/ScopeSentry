@@ -57,7 +57,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bas
   python3 scripts/ci/mcp_sweep.py
 ```
 
-它做四件事（当前 43 条读 + 43 条守卫，78 个工具全覆盖；另含 3 条口径断言：list↔count 一致、过滤字段真的生效、pageSize 夹紧）：
+它做四件事（当前 43 条读 + 45 条守卫，78 个工具全覆盖；另含 4 条口径断言：list↔count 一致、过滤字段真的生效、产出口径 has_asset < 全量、pageSize 夹紧）：
 
 1. 用真实参数调**读类**工具，断言 `isError=false`（顺带看响应大小）；
 2. 用不存在的 id / 非法参数调**写类**工具，断言 `isError=true` —— 这条才是重点：
