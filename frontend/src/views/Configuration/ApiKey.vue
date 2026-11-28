@@ -54,6 +54,10 @@ const mcpConfigExample = computed(
 }`
 )
 
+// 后端实际在用的 scope（从 /api/mcp/tools 回来）。硬编码列表漏项时会自动补上，
+// 否则新加的 scope（如 system:read）在界面上根本选不到 —— 只能建 * 全权 key 或直接调接口。
+const backendScopes = ref<string[]>([])
+
 // 与后端 mcpguard 的 scope 常量一一对应
 const SCOPE_OPTIONS = computed<{ value: string; label: string }[]>(() => [
   { value: 'asset:read', label: t('apiKey.scopeAssetRead') },
@@ -69,6 +73,7 @@ const SCOPE_OPTIONS = computed<{ value: string; label: string }[]>(() => [
   { value: 'plugin:write', label: t('apiKey.scopePluginWrite') },
   { value: 'node:read', label: 'node:read' },
   { value: 'node:write', label: t('apiKey.scopeNodeWrite') },
+  { value: 'system:read', label: t('apiKey.scopeSystemRead') },
   { value: '*', label: '*' }
 ])
 
@@ -84,7 +89,12 @@ const loadToolCatalog = async () => {
     const d = res?.data || {}
     toolCatalog.value = d.list || []
     const counts: Record<string, number> = {}
-    for (const it of d.scopes || []) counts[it.scope] = it.tools
+    const names: string[] = []
+    for (const it of d.scopes || []) {
+      counts[it.scope] = it.tools
+      if (it.scope && it.scope !== '*') names.push(it.scope)
+    }
+    backendScopes.value = names
     // '*' 是超权，覆盖全部工具
     counts['*'] = d.total || toolCatalog.value.length
     scopeTools.value = counts
@@ -97,6 +107,14 @@ const openToolCatalog = async () => {
   if (!toolCatalog.value.length) await loadToolCatalog()
   catalogVisible.value = true
 }
+// 硬编码清单 + 后端多出来的 scope（后端加了新 scope 而界面还没跟上时兜底）
+const allScopeOptions = computed(() => {
+  const known = new Set(SCOPE_OPTIONS.value.map((o) => o.value))
+  const extra = backendScopes.value
+    .filter((s) => !known.has(s))
+    .map((s) => ({ value: s, label: s }))
+  return [...SCOPE_OPTIONS.value, ...extra]
+})
 const scopeLabel = (o: { value: string; label: string }) => {
   const n = scopeTools.value[o.value]
   return n ? `${o.label} · ${t('apiKey.scopeToolCount', { n })}` : o.label
@@ -389,7 +407,7 @@ const closeKeyDialog = () => {
       <ElFormItem label="Scope">
         <ElSelect v-model="editForm.scope" multiple filterable style="width: 100%">
           <ElOption
-            v-for="o in SCOPE_OPTIONS"
+            v-for="o in allScopeOptions"
             :key="o.value"
             :label="scopeLabel(o)"
             :value="o.value"
@@ -479,7 +497,7 @@ const closeKeyDialog = () => {
       </ElFormItem>
       <ElFormItem label="Scope">
         <ElCheckboxGroup v-model="form.scope">
-          <ElCheckbox v-for="opt in SCOPE_OPTIONS" :key="opt.value" :value="opt.value">
+          <ElCheckbox v-for="opt in allScopeOptions" :key="opt.value" :value="opt.value">
             {{ scopeLabel(opt) }}
           </ElCheckbox>
         </ElCheckboxGroup>

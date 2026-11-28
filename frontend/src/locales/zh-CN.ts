@@ -1611,6 +1611,7 @@ export default {
     scopeTaskWrite: 'task:write（任务启停删、策略增删）',
     scopePluginWrite: 'plugin:write（插件安装/重检/卸载）',
     scopeNodeWrite: 'node:write（节点重启/删除）',
+    scopeSystemRead: 'system:read（备份清单与状态、系统信息）',
     scopeToolCount: '{n} 个工具',
     scopeHistory: '*（历史 key）',
     rateLimitPerMin: '限速/分',

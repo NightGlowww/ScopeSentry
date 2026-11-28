@@ -1648,6 +1648,7 @@ export default {
     scopeTaskWrite: 'task:write (작업 시작·중지·삭제, 정책 추가·삭제)',
     scopePluginWrite: 'plugin:write (플러그인 설치/재검사/제거)',
     scopeNodeWrite: 'node:write (노드 재시작/삭제)',
+    scopeSystemRead: 'system:read (백업 목록/상태, 시스템 정보)',
     scopeToolCount: '{n}개 도구',
     scopeHistory: '* (기존 키)',
     rateLimitPerMin: '분당 한도',

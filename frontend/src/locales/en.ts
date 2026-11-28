@@ -1660,6 +1660,7 @@ export default {
     scopeTaskWrite: 'task:write (start/stop/delete tasks, add/delete policies)',
     scopePluginWrite: 'plugin:write (install/recheck/uninstall plugins)',
     scopeNodeWrite: 'node:write (restart/delete nodes)',
+    scopeSystemRead: 'system:read (backup list/status, system info)',
     scopeToolCount: '{n} tools',
     scopeHistory: '* (legacy key)',
     rateLimitPerMin: 'Rate Limit/min',
