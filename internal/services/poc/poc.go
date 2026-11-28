@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -68,11 +69,16 @@ func NewService() Service {
 }
 
 func (s *service) GetPocList(ctx *gin.Context, req *models.PocListRequest) (*models.PocListResponse, error) {
-	query := bson.M{
-		"name": bson.M{
-			"$regex":   req.Search,
-			"$options": "i",
-		},
+	// 搜索要覆盖 name / id / tags 三个字段：
+	// 用户从 nuclei 模板或扫描命令里复制过来的通常是 **id**（ack-cluster-api-public），
+	// 只匹配 name 的话搜不到，界面表现为「库里有但搜索说没有」（2026-11-28 实测，本轮修）。
+	// 同时把输入当字面量：未转义的 $regex 遇到 "(" 之类的字符会报错，
+	// 也会把用户输入当正则执行（a.*b 之类的写法本来就搜不到东西）。
+	search := strings.TrimSpace(req.Search)
+	query := bson.M{}
+	if search != "" {
+		rx := bson.M{"$regex": regexp.QuoteMeta(search), "$options": "i"}
+		query["$or"] = []bson.M{{"name": rx}, {"id": rx}, {"tags": rx}}
 	}
 
 	if len(req.Filter.Level) > 0 {
