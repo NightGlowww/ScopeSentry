@@ -12,9 +12,9 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 199（63%） |
-| 读操作 点名/总数 | 78 / 115 |
-| 写操作 点名/总数 | 81 / 113 |
+| 被测试/契约脚本点名 | 203（65%） |
+| 读操作 点名/总数 | 79 / 115 |
+| 写操作 点名/总数 | 84 / 113 |
 | 无法判读 点名/总数 | 40 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
@@ -30,11 +30,10 @@
 | node | 7 | 10 |
 | fingerprint | 5 | 6 |
 | github | 5 | 26 |
-| backup | 4 | 7 |
 | configuration | 4 | 14 |
 | poc | 4 | 9 |
+| backup | 3 | 7 |
 | mcp | 3 | 10 |
-| sensitive | 3 | 5 |
 | user | 2 | 8 |
 | dictionary | 2 | 19 |
 | project | 2 | 6 |
@@ -50,6 +49,7 @@
 | dict_cdn | 0 | 2 |
 | policy | 0 | 7 |
 | project_aggregation | 0 | 7 |
+| sensitive | 0 | 5 |
 
 ## 写操作里完全没被点名的（优先补测试）
 
@@ -57,7 +57,6 @@
 | --- | --- |
 | GET | `/api/backup/status` |
 | GET | `/api/poc/data/import/status` |
-| POST | `/api/backup/create` |
 | POST | `/api/backup/upload` |
 | POST | `/api/configuration/rad/save` |
 | POST | `/api/configuration/subfinder/save` |
@@ -75,8 +74,6 @@
 | POST | `/api/plugin/status` |
 | POST | `/api/poc/data/import` |
 | POST | `/api/poc/data/sync` |
-| POST | `/api/sensitive/add` |
-| POST | `/api/sensitive/update` |
 | POST | `/api/system/intel-feeds/run` |
 | POST | `/api/system/intel-feeds/update` |
 | POST | `/api/system/storage/slim` |
