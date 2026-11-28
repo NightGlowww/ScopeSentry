@@ -30,6 +30,8 @@ gate feedback     python3 scripts/ci/feedback_guard.py
 gate payload      python3 scripts/ci/frontend_payload_contract.py
 gate scope_drift  python3 scripts/ci/mcp_scope_drift.py
 gate mcp_closure  python3 scripts/ci/mcp_closure.py --strict
+# jsonschema tag 里的等号会让 MCP 工具静默消失（2026-11-29 实测），先扫出来再说
+python3 scripts/ci/jsonschema_tag_check.py | sed 's/^/  /'
 
 # Go 侧：能编译 + vet 干净（不跑需要 Mongo 的集成测试）
 GO_OUT=$(go build ./... 2>&1); GO_RC=$?

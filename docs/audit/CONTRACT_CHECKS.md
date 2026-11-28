@@ -351,3 +351,16 @@ service 拿到 `nil` 一路回成功。
 仓库里还有 **62 处** `_, err :=` 形式的调用（`grep -rn '_, err := .*\.(UpdateOne|UpdateMany|DeleteOne|DeleteMany)(' internal/repositories/`），
 不是每一处都需要计数（例如后台巡检的幂等写入、统计字段刷新），但每新增一个用户可点的写接口，
 就该按上面 4 条过一遍，并补一条集成用例。
+
+## MCP 工具「静默消失」的一个固定原因：jsonschema tag 里的等号
+
+`addTool(... &mcp.Tool{...}, handler)` 的输入结构体用 `jsonschema:"..."` 描述参数。解析器把
+`WORD=VALUE` 当成「默认值标记」，遇到就 panic——而 `addTool` 外层有 recover，**工具不会报错，只是从
+`tools/list` 里消失**。
+
+2026-11-29 实测：给 `create_scan_task` 加 `scanProfile` 时写了「空=按模板；recon=只做资产测绘」，
+部署后 `tools/list` 从 82 掉到 81、`create_scan_task` 不见了；把等号去掉立刻恢复。
+
+排查口径：`SS_BASE=... SS_MCP_KEY=... python3 scripts/ci/mcp_sweep.py --coverage` 会对比
+「源码声明的工具数」与「服务端实际返回的工具数」，不一致就是这类问题；`mcp_closure.py` 另外做静态扫描，
+对含等号的 jsonschema 片段给出告警。

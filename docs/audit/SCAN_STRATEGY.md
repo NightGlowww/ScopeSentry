@@ -52,3 +52,23 @@ nuclei 没有被删、也没有被卸载，只是不再默认挂进模板：
 - 任务层：改配置之后**新领取**的任务日志里不应再出现 `VulnerabilityScan module start scanning the target`
   （已在跑的任务用的是领取时解析的模板，仍会跑完 nuclei）。
 - 队列层：`/api/node` 的 `queueLen` 应随任务变短而下降。
+
+## 扫描档位（scanProfile，2026-11-29 追加）
+
+nuclei 改成模板可选之后，还需要一个「这条任务只要快」的开关——否则要快就得手工改模板、跑完再改回来。
+任务上新增 `scanProfile`：
+
+| 取值 | 行为 |
+| --- | --- |
+| 空（默认） | 按模板完整扫描 |
+| `recon` | 下发时把模板副本里的 `VulnerabilityScan` 与 `DirScan` 清空，其余模块原样保留 |
+
+实现要点：
+
+- `services/task/scanprofile`：`Normalize` / `Apply` / `Describe`，纯函数 + 4 个单测
+  （非重模块必须保留、未知档位按完整处理、nil 模板安全）
+- 只在**下发副本**上裁剪，不写库、不改模板；同一模板可以今天跑 recon、明天跑完整
+- 入库时把「跳过 VulnerabilityScan、DirScan」写进任务 `policyWarnings`，任务列表名字后带「仅资产测绘（快）」
+- MCP `create_scan_task` 增加 `scanProfile` 参数；建任务弹窗有对应下拉
+
+典型用法：先用 recon 档位把 100 个目标的面铺开（每目标几分钟），再挑真正值得的下发完整档位。
