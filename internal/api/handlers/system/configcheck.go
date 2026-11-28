@@ -38,16 +38,15 @@ var optionalModules = []string{"PortFingerprint", "AssetMapping", "AssetHandle",
 // 踩过的坑（2026-11-29）：模板文档的真实结构是 Parameters.<模块> = {插件hash: 配置}，
 // 而这里原先按顶层 d[模块].(bson.A) 查数组 —— 类型断言永远失败，于是「7 个模板全部不完整」
 // 这种吓人的结论其实是自检自己在骗人。现在优先读 Parameters，并兼容顶层数组的老文档。
-func moduleConfigured(doc bson.M, params bson.M, module string) bool {
-	if params != nil {
-		if v, ok := params[module]; ok && nonEmptyModule(v) {
-			return true
-		}
+// 只看 Parameters：扫描载荷就是从这里取的（GetScanTemplate → ParameterParser）。
+// 早先还回退到顶层 doc[模块]，但顶层那个镜像往往有值、Parameters 却是空的 ——
+// 会让自检报「配好了」而实际跑起来是空的（反向误报比误报更糟）。
+func moduleConfigured(params bson.M, module string) bool {
+	if params == nil {
+		return false
 	}
-	if v, ok := doc[module]; ok && nonEmptyModule(v) {
-		return true
-	}
-	return false
+	v, ok := params[module]
+	return ok && nonEmptyModule(v)
 }
 
 // nonEmptyModule 数组、映射、文档三种形态都算，空值一律不算。
@@ -99,12 +98,12 @@ func ConfigCheck(c *gin.Context) {
 			name, _ := d["name"].(string)
 			var critMissing, optMissing []string
 			for _, m := range criticalModules {
-				if !moduleConfigured(d, params, m) {
+				if !moduleConfigured(params, m) {
 					critMissing = append(critMissing, m)
 				}
 			}
 			for _, m := range optionalModules {
-				if !moduleConfigured(d, params, m) {
+				if !moduleConfigured(params, m) {
 					optMissing = append(optMissing, m)
 				}
 			}
