@@ -12,10 +12,10 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 193（61%） |
-| 读操作 点名/总数 | 76 / 115 |
-| 写操作 点名/总数 | 78 / 113 |
-| 无法判读 点名/总数 | 39 / 86 |
+| 被测试/契约脚本点名 | 199（63%） |
+| 读操作 点名/总数 | 78 / 115 |
+| 写操作 点名/总数 | 81 / 113 |
+| 无法判读 点名/总数 | 40 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
 
@@ -23,16 +23,16 @@
 
 | 模块 | 未点名 | 总数 |
 | --- | --- |
-| assets | 27 | 81 |
-| task | 20 | 30 |
+| assets | 26 | 81 |
+| task | 19 | 30 |
 | plugin | 16 | 17 |
 | system | 9 | 10 |
-| configuration | 7 | 14 |
 | node | 7 | 10 |
 | fingerprint | 5 | 6 |
 | github | 5 | 26 |
-| poc | 5 | 9 |
 | backup | 4 | 7 |
+| configuration | 4 | 14 |
+| poc | 4 | 9 |
 | mcp | 3 | 10 |
 | sensitive | 3 | 5 |
 | user | 2 | 8 |
@@ -59,8 +59,6 @@
 | GET | `/api/poc/data/import/status` |
 | POST | `/api/backup/create` |
 | POST | `/api/backup/upload` |
-| POST | `/api/configuration/notification/config/update` |
-| POST | `/api/configuration/notification/update` |
 | POST | `/api/configuration/rad/save` |
 | POST | `/api/configuration/subfinder/save` |
 | POST | `/api/dictionary/port/delete` |
@@ -82,7 +80,6 @@
 | POST | `/api/system/intel-feeds/run` |
 | POST | `/api/system/intel-feeds/update` |
 | POST | `/api/system/storage/slim` |
-| POST | `/api/task/assignProject` |
 | POST | `/api/task/deleteByFilter` |
 | POST | `/api/task/scheduled/pagemonit/add` |
 | POST | `/api/task/scheduled/pagemonit/delete` |
