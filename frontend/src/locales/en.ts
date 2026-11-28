@@ -1082,6 +1082,7 @@ export default {
     offlineSuffix: '(offline)',
     queueLen: 'Queue',
     queueLenHint: '{n} tasks waiting for this node; it runs one at a time',
+    moreActions: 'More',
     queueEtaHours: '~{n} h',
     queueEtaMinutes: '~{n} min',
     currentTask: 'Current task',

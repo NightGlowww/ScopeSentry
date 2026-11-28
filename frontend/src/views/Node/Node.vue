@@ -14,6 +14,9 @@ import {
   ElOption,
   ElInputNumber,
   ElAlert,
+  ElDropdown,
+  ElDropdownMenu,
+  ElDropdownItem,
 } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -289,40 +292,44 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    /* 按钮实际 ~176px；不再固定，避免脱离文档流压住上一列 */
-    width: 220,
+    /* 三个常用按钮 + 「更多」下拉 ≈ 250px */
+    width: 252,
     // 列数到 12 之后总宽超视口：Action 固定在右侧，重启/清空队列永远点得到，
     // 不用先横向滚动（2026-11-29 截图实测：不固定时整列被挤出可视区）。
     fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
-      console.log(row)
+      // 六个按钮塞不进 220px：不折叠时后三个被裁成「…」，恰恰包含重启（2026-11-29 截图实测）。
+      // 常用的三个留在外面，其余收进下拉，保证每个动作都点得到。
       return (
-        <>
-          <BaseButton type="warning" size="small" onClick={() => openPlugin(row.name)}>
-            {t('node.plugin')}
-          </BaseButton>
+        <div class="node-actions">
           <BaseButton type="success" size="small" onClick={() => openLogDialogVisible(row)}>
             {t('node.log')}
           </BaseButton>
           <BaseButton type="primary" size="small" onClick={() => openConfig(row)}>
             {t('common.config')}
           </BaseButton>
-          <ElTooltip content={t('node.rebalanceMsg')}>
-            <BaseButton type="warning" size="small" onClick={() => openRebalance(row)}>
-              {t('node.rebalance')}
-            </BaseButton>
-          </ElTooltip>
-          <ElTooltip content={t('node.clearQueueMsg')}>
-            <BaseButton type="info" size="small" onClick={() => clearQueue(row.name)}>
-              {t('node.clearQueue')}
-            </BaseButton>
-          </ElTooltip>
           <ElTooltip content={t('node.restartMsg')}>
             <BaseButton type="danger" size="small" onClick={() => restartNode(row.name)}>
               {t('node.restart')}
             </BaseButton>
           </ElTooltip>
-        </>
+          <ElDropdown trigger="click" onCommand={(cmd: string) => onRowCommand(cmd, row)}>
+            {{
+              default: () => (
+                <BaseButton type="info" size="small">
+                  {t('node.moreActions')}
+                </BaseButton>
+              ),
+              dropdown: () => (
+                <ElDropdownMenu>
+                  <ElDropdownItem command="plugin">{t('node.plugin')}</ElDropdownItem>
+                  <ElDropdownItem command="rebalance">{t('node.rebalance')}</ElDropdownItem>
+                  <ElDropdownItem command="clearQueue">{t('node.clearQueue')}</ElDropdownItem>
+                </ElDropdownMenu>
+              )
+            }}
+          </ElDropdown>
+        </div>
       )
     }
   }
@@ -575,6 +582,12 @@ const openConfig = async (data) => {
 }
 const restartNode = async (name) => {
   await restartNodeApi(name)
+}
+// Action 列折叠菜单：只有低频、带确认或带弹窗的动作放进来
+const onRowCommand = (cmd: string, row: any) => {
+  if (cmd === 'plugin') openPlugin(row.name)
+  else if (cmd === 'rebalance') openRebalance(row)
+  else if (cmd === 'clearQueue') clearQueue(row.name)
 }
 const delLoading = ref(false)
 // 未勾选任何行时，工具条上的批量删除应禁用
@@ -1069,6 +1082,12 @@ const closepluginDialogVisible = () => {
 .node-task-none {
   color: var(--el-text-color-placeholder);
 }
+.node-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .node-queue-cell {
   line-height: 1.25;
 }
