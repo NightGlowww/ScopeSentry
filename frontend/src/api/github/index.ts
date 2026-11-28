@@ -183,3 +183,24 @@ export const removeThreatTargetsApi = (
   targets: string[]
 ): Promise<IResponse<{ items: string[]; total: number }>> =>
   request.post({ url: targetUrl(kind), data: { action: 'remove', targets } })
+// ---- 噪声仓库黑名单（ignored_repos）----
+// 后端只有一个端点，用 action 区分；这里拆成三个语义函数，调用处不必记 action 字符串。
+export interface IgnoredRepo {
+  repo: string
+  reason?: string
+  createdAt?: string
+}
+
+export const listIgnoredReposApi = (): Promise<IResponse<{ items: IgnoredRepo[]; total: number }>> =>
+  request.post({ url: '/api/github/result/ignored_repos', data: { action: 'list' } })
+
+// purge=true 会同时删除已入库的同仓库结果（不可恢复），界面上必须二次确认
+export const addIgnoredRepoApi = (data: {
+  repo: string
+  reason?: string
+  purge?: boolean
+}): Promise<IResponse<{ repo: string; added: boolean; removed: number }>> =>
+  request.post({ url: '/api/github/result/ignored_repos', data: { action: 'add', ...data } })
+
+export const removeIgnoredRepoApi = (repo: string): Promise<IResponse<{ removed: boolean }>> =>
+  request.post({ url: '/api/github/result/ignored_repos', data: { action: 'remove', repo } })

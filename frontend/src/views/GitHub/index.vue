@@ -18,7 +18,11 @@ import {
   ElInputNumber,
   ElMessage,
   ElMessageBox,
-  ElLink
+  ElLink,
+  ElDrawer,
+  ElTable,
+  ElTableColumn,
+  ElCheckbox
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -30,7 +34,11 @@ import {
   deleteGithubTasksApi,
   listGithubResultsApi,
   getResultOverviewApi,
-  triageGithubResultsApi
+  triageGithubResultsApi,
+  listIgnoredReposApi,
+  addIgnoredRepoApi,
+  removeIgnoredRepoApi,
+  type IgnoredRepo
 } from '@/api/github'
 import SchedulerTab from './SchedulerTab.vue'
 import ThreatTab from './ThreatTab.vue'
@@ -346,6 +354,71 @@ onMounted(() => {
   void loadResultOverview()
 })
 
+// ---------------- 忽略仓库（噪声黑名单） ----------------
+// 后端 collect 时按这份名单跳过（任务与威胁源都会查），所以它是「治理噪声」的入口，
+// 不是纯展示。加名单时可选择顺手清掉已入库的旧结果。
+const ignoredVisible = ref(false)
+const ignoredLoading = ref(false)
+const ignoredList = ref<IgnoredRepo[]>([])
+const ignoredForm = reactive({ repo: '', reason: '', purge: false })
+const ignoredSaving = ref(false)
+
+const loadIgnoredRepos = async () => {
+  ignoredLoading.value = true
+  try {
+    const res = await listIgnoredReposApi()
+    ignoredList.value = res.data.items || []
+  } catch {
+    ignoredList.value = []
+  } finally {
+    ignoredLoading.value = false
+  }
+}
+const openIgnored = () => {
+  ignoredVisible.value = true
+  void loadIgnoredRepos()
+}
+const submitIgnored = async () => {
+  const repo = ignoredForm.repo.trim()
+  if (!repo) {
+    ElMessage.warning(t('ignoredRepoRequired'))
+    return
+  }
+  if (ignoredForm.purge) {
+    // 删库不可恢复，二次确认
+    await ElMessageBox.confirm(t('ignoredPurgeConfirm', { repo }), t('ignoredPurgeTitle'), {
+      confirmButtonText: t('btnIgnore'),
+      cancelButtonText: t('btnCancel'),
+      type: 'warning'
+    })
+  }
+  ignoredSaving.value = true
+  try {
+    const res = await addIgnoredRepoApi({ repo, reason: ignoredForm.reason.trim() || undefined, purge: ignoredForm.purge })
+    const removed = res.data.removed || 0
+    ElMessage.success(removed > 0 ? t('ignoredAddedPurged', { n: removed }) : t('ignoredAdded'))
+    ignoredForm.repo = ''
+    ignoredForm.reason = ''
+    ignoredForm.purge = false
+    await loadIgnoredRepos()
+    // 清过旧结果就刷新列表与总览，否则界面上还留着已删的行
+    if (removed > 0) refreshResults()
+  } catch (e: any) {
+    if (e !== 'cancel' && !e?.response) ElMessage.error(e?.message || t('opFailed'))
+  } finally {
+    ignoredSaving.value = false
+  }
+}
+const dropIgnored = async (repo: string) => {
+  try {
+    await removeIgnoredRepoApi(repo)
+    ElMessage.success(t('ignoredRemoved'))
+    await loadIgnoredRepos()
+  } catch (e: any) {
+    if (!e?.response) ElMessage.error(e?.message || t('opFailed'))
+  }
+}
+
 const handleTriage = async (row: { id: string }, status: string) => {
   await triageGithubResultsApi({ ids: [row.id], status })
   ElMessage.success(t('updateSuccess'))
@@ -491,6 +564,7 @@ const handleTriage = async (row: { id: string }, status: string) => {
           </ElCol>
           <ElCol :span="4">
             <ElButton type="primary" @click="refreshResults">{{ t('btnQuery') }}</ElButton>
+            <ElButton @click="openIgnored">{{ t('ignoredRepoManage') }}</ElButton>
           </ElCol>
         </ElRow>
 
@@ -506,6 +580,30 @@ const handleTriage = async (row: { id: string }, status: string) => {
           @register="resultRegister"
         />
       </ElTabPane>
+
+      <!-- 忽略仓库抽屉：列表 + 添加 + 移除。加名单时可顺手清掉已入库的旧结果（需二次确认）。 -->
+      <ElDrawer v-model="ignoredVisible" :title="t('ignoredRepoTitle')" size="520px">
+        <div class="ignored-add">
+          <ElInput v-model="ignoredForm.repo" :placeholder="t('ignoredRepoPh')" />
+          <ElInput v-model="ignoredForm.reason" :placeholder="t('ignoredReasonPh')" />
+          <ElCheckbox v-model="ignoredForm.purge">{{ t('ignoredPurge') }}</ElCheckbox>
+          <ElButton type="primary" :loading="ignoredSaving" @click="submitIgnored">
+            {{ t('btnIgnore') }}
+          </ElButton>
+          <div class="ignored-hint">{{ t('ignoredHint') }}</div>
+        </div>
+        <ElTable :data="ignoredList" v-loading="ignoredLoading" size="small" style="margin-top: 12px">
+          <ElTableColumn prop="repo" :label="t('colRepo')" min-width="180" />
+          <ElTableColumn prop="reason" :label="t('ignoredReason')" min-width="120" />
+          <ElTableColumn :label="t('colAction')" width="90">
+            <template #default="{ row }">
+              <ElButton link type="danger" @click="dropIgnored(row.repo)">
+                {{ t('btnRemove') }}
+              </ElButton>
+            </template>
+          </ElTableColumn>
+        </ElTable>
+      </ElDrawer>
       <ElTabPane :label="t('tabScheduler')" name="scheduler">
         <SchedulerTab />
       </ElTabPane>
@@ -581,6 +679,16 @@ const handleTriage = async (row: { id: string }, status: string) => {
 }
 .ov-title {
   color: var(--el-text-color-secondary);
+}
+.ignored-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ignored-hint {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .ov-sep {
   width: 1px;

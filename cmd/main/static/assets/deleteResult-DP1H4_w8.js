@@ -1,1 +1,0 @@
-import{a as e}from"./index-D1srqaFj.js";function t(t,a){const{t:n}=e(),i=(null==t?void 0:t.data)??t??{},o=Number(i.deleted??a??0),l=Number(i.requested??o),d=Math.max(0,l-o);return d>0&&o>=0?n("localization.deletePartial",{n:o,missing:d}):n("localization.deleteDone",{n:o})}export{t as d};
