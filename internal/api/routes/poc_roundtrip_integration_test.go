@@ -99,6 +99,28 @@ func TestPocAddUpdateRoundTrip(t *testing.T) {
 	}
 	t.Cleanup(func() { do("/api/poc/delete", map[string]interface{}{"ids": []string{id}}) })
 
+	// 详情要能按 nuclei 模板 id 取（人从模板/命令行复制的是它，不是库内 _id）。
+	// 以前非 ObjectID 直接 500「invalid id format」。
+	wDetail := do("/api/poc/detail", map[string]interface{}{"id": pocID})
+	if wDetail.Code != http.StatusOK {
+		t.Fatalf("按模板 id 取详情 = %d: %s", wDetail.Code, wDetail.Body.String())
+	}
+	var detail struct {
+		Data struct {
+			Name string `json:"name"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(wDetail.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decode poc detail: %v", err)
+	}
+	if detail.Data.Name != firstName {
+		t.Fatalf("按模板 id 取到的不是这条 POC: %q", detail.Data.Name)
+	}
+	// 不存在的标识必须是 404，而不是 500
+	if wMissing := do("/api/poc/detail", map[string]interface{}{"id": "no-such-poc-" + t.Name()}); wMissing.Code == http.StatusInternalServerError {
+		t.Fatalf("不存在的 POC 详情回了 500: %s", wMissing.Body.String())
+	}
+
 	w = do("/api/poc/update", map[string]interface{}{
 		"id": id, "content": pocYAML(pocID, secondName),
 	})

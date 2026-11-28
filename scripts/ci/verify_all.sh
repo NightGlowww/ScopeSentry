@@ -58,6 +58,13 @@ else
   printf '  SKIP %-18s 需要 SS_BASE + SS_MCP_KEY\n' mcp_output
 fi
 
+# 资产过滤器矩阵：每个索引的每个 filter 键必须真的能筛出东西（需要 token，没有就跳过）
+if [ -n "${SS_TOKEN:-}" ]; then
+  gate filter_matrix python3 scripts/ci/filter_matrix.py
+else
+  printf '  SKIP %-18s 需要 SS_BASE + SS_TOKEN\n' filter_matrix
+fi
+
 printf '  SKIP %-18s 需要真实 Mongo/Redis：bash scripts/ci/integration.sh\n' integration
 
 if [ "$FAIL" = "0" ]; then echo 'VERIFY_ALL=PASS'; else echo 'VERIFY_ALL=FAIL'; fi

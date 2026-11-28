@@ -111,20 +111,31 @@ func (s *service) GetPocList(ctx *gin.Context, req *models.PocListRequest) (*mod
 }
 
 func (s *service) GetPocDetail(ctx *gin.Context, req *models.PocDetailRequest) (*models.Poc, error) {
-	id, err := primitive.ObjectIDFromHex(req.ID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid id format: %w", err)
-	}
-
-	result, err := s.repo.FindOne(ctx, bson.M{"_id": id})
-	if err != nil {
-		if errors.Is(err, poc.ErrPocNotFound) {
-			return nil, ErrPocNotFound
+	// 详情要同时支持两种标识：
+	//   1) 库内 _id（ObjectID 十六进制）——列表点进来用的是它；
+	//   2) nuclei 模板 id（ack-cluster-api-public）——人从模板/命令行复制过来的是它。
+	// 以前非 ObjectID 直接 500「invalid id format」，等于告诉调用方「服务器错了」。
+	if id, err := primitive.ObjectIDFromHex(req.ID); err == nil {
+		result, ferr := s.repo.FindOne(ctx, bson.M{"_id": id})
+		if ferr == nil {
+			return result, nil
 		}
-		return nil, fmt.Errorf("failed to get poc detail: %w", err)
+		if !errors.Is(ferr, poc.ErrPocNotFound) {
+			return nil, fmt.Errorf("failed to get poc detail: %w", ferr)
+		}
 	}
 
-	return result, nil
+	// 退回按模板 id 查；查不到就是 404，而不是 500
+	if strings.TrimSpace(req.ID) != "" {
+		result, ferr := s.repo.FindOne(ctx, bson.M{"id": req.ID})
+		if ferr == nil {
+			return result, nil
+		}
+		if !errors.Is(ferr, poc.ErrPocNotFound) {
+			return nil, fmt.Errorf("failed to get poc detail: %w", ferr)
+		}
+	}
+	return nil, ErrPocNotFound
 }
 
 func (s *service) UpdatePoc(ctx *gin.Context, req *models.PocUpdateRequest) error {
