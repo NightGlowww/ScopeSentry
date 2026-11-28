@@ -1205,58 +1205,66 @@ const setMaxHeight = () => {
         {{ t('task.clearFilter') }}
       </ElButton>
     </div>
-    <!-- 四个筛选 + 关键词 + 搜索要挤在一行：span 合计必须 ≤ 24，
-         否则「搜索」按钮会被挤到第二行单独一行（2026-11-28 实测 1811px 宽也换行） -->
-    <ElRow class="locale-search-row">
-      <ElCol class="locale-search-filter" :style="{ flex: '0 0 172px' }">
-        <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
-          <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
-        </ElSelect>
-      </ElCol>
-      <ElCol class="locale-search-filter" :style="{ flex: '0 0 172px' }">
-        <ElSelect v-model="yieldFilter" :placeholder="t('task.yieldFilter')" clearable>
-          <ElOption :label="t('task.yieldHas')" value="has_asset" />
-          <ElOption :label="t('task.yieldNone')" value="no_asset" />
-        </ElSelect>
-      </ElCol>
-      <ElCol v-if="yieldFilter" class="locale-search-filter" :style="{ flex: '0 0 172px' }">
-        <ElSelect
-          v-model="yieldDims"
-          multiple
-          collapse-tags
-          :max-collapse-tags="2"
-          :placeholder="t('task.yieldDims')"
-          clearable
-        >
-          <ElOption label="site" value="site" />
-          <ElOption label="domain" value="domain" />
-          <ElOption label="url" value="url" />
-          <ElOption label="ip" value="ip" />
-          <ElOption label="vuln" value="vuln" />
-          <ElOption label="wih" value="wih" />
-        </ElSelect>
-      </ElCol>
-      <ElCol class="locale-search-filter" :style="{ flex: '0 0 172px' }">
-        <ElSelect v-model="statusFilter" :placeholder="t('task.statusFilter')" clearable>
-          <ElOption :label="t('task.statusAll')" :value="-1" />
-          <ElOption :label="t('task.statusRunning')" :value="1" />
-          <ElOption :label="t('task.statusPaused')" :value="2" />
-          <ElOption :label="t('task.statusFinished')" :value="3" />
-          <ElOption :label="t('task.statusFailed')" :value="4" />
-        </ElSelect>
-      </ElCol>
-      <ElCol :span="1">
-        <ElText class="mx-1">{{ t('task.taskName') }}:</ElText>
-      </ElCol>
-      <ElCol class="locale-search-input" :style="{ flex: '1 1 240px', minWidth: '180px' }">
-        <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
-      </ElCol>
-      <ElCol class="locale-search-btn" :style="{ flex: '0 0 auto' }">
-        <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
-          t('common.search')
-        }}</ElButton>
-      </ElCol>
-    </ElRow>
+    <!-- 筛选栏不用 ElCol：el-col 自带 flex 计算，会把列上的 flex 声明压掉（实测 computed 恒为 0 0 auto），
+         四个筛选各占内容宽 260px 就把一行撑满、把「搜索」挤到第二行。这里用普通 flex 容器。 -->
+    <div class="task-filters">
+      <ElSelect
+        v-model="nodeFilter"
+        class="task-filters__item"
+        :placeholder="t('task.filterByNode')"
+        clearable
+      >
+        <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
+      </ElSelect>
+      <ElSelect
+        v-model="yieldFilter"
+        class="task-filters__item"
+        :placeholder="t('task.yieldFilter')"
+        clearable
+      >
+        <ElOption :label="t('task.yieldHas')" value="has_asset" />
+        <ElOption :label="t('task.yieldNone')" value="no_asset" />
+      </ElSelect>
+      <ElSelect
+        v-if="yieldFilter"
+        v-model="yieldDims"
+        class="task-filters__item"
+        multiple
+        collapse-tags
+        :max-collapse-tags="2"
+        :placeholder="t('task.yieldDims')"
+        clearable
+      >
+        <ElOption label="site" value="site" />
+        <ElOption label="domain" value="domain" />
+        <ElOption label="url" value="url" />
+        <ElOption label="ip" value="ip" />
+        <ElOption label="vuln" value="vuln" />
+        <ElOption label="wih" value="wih" />
+      </ElSelect>
+      <ElSelect
+        v-model="statusFilter"
+        class="task-filters__item"
+        :placeholder="t('task.statusFilter')"
+        clearable
+      >
+        <ElOption :label="t('task.statusAll')" :value="-1" />
+        <ElOption :label="t('task.statusRunning')" :value="1" />
+        <ElOption :label="t('task.statusPaused')" :value="2" />
+        <ElOption :label="t('task.statusFinished')" :value="3" />
+        <ElOption :label="t('task.statusFailed')" :value="4" />
+      </ElSelect>
+      <span class="task-filters__label">{{ t('task.taskName') }}:</span>
+      <ElInput
+        v-model="search"
+        class="task-filters__query"
+        :placeholder="t('common.inputText')"
+        style="height: 36px"
+      />
+      <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
+        t('common.search')
+      }}</ElButton>
+    </div>
     <ElRow>
       <ElCol style="position: relative; top: 16px">
         <div class="mb-10px task-toolbar">
@@ -1545,10 +1553,23 @@ const setMaxHeight = () => {
   width: auto;
   max-width: 100%;
 }
-/* 列宽写在模板的 :style 上：同权重的 `.locale-search-row > .el-col`（flex:0 0 auto）
-   会把这里的声明压掉（浏览器实测 computed 仍是 0 0 auto），行内样式才稳定生效 */
-.locale-search-row .locale-search-filter .el-select {
-  width: 100%;
+.task-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.task-filters__item {
+  flex: 0 0 172px;
+  width: 172px;
+}
+.task-filters__label {
+  white-space: nowrap;
+  color: var(--el-text-color-regular);
+}
+.task-filters__query {
+  flex: 1 1 240px;
+  min-width: 180px;
 }
 .locale-search-row .el-text {
   white-space: nowrap;
