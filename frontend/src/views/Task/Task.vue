@@ -130,6 +130,18 @@ const taskColums = reactive<TableColumn[]>([
     showOverflowTooltip: true
   },
   {
+    // 归属项目：库里写了 bindProject，但之前投影漏字段、界面也没这列，
+    // 「这个任务归档到哪个项目」只能点进详情才知道（2026-11-28 投影修好后补上这一列）
+    field: 'bindProject',
+    label: t('project.project'),
+    width: 140,
+    showOverflowTooltip: true,
+    formatter: (row: any, _col: TableColumn, cellValue: string) => {
+      if (!cellValue) return '-'
+      return projectNameMap.value[cellValue] || cellValue
+    }
+  },
+  {
     field: 'taskNum',
     label: t('task.node'),
     width: 130,
@@ -794,6 +806,8 @@ onMounted(() => {
   loadNodeHealth()
   setInterval(loadNodeHealth, 60000)
   syncAutoList()
+  // 归属项目列要把 id 翻成名字，进页面就拿一次项目树（失败不影响列表本身）
+  getProjectList().catch(() => {})
 })
 // 回到前台立刻补一次刷新，避免看到十几分钟前的旧数据
 const onVisible = () => {
@@ -934,6 +948,9 @@ interface Project {
 const projectList = reactive<Project[]>([])
 const getProjectList = async () => {
   const res = await getProjectAllApi()
+  // 这个函数每次打开「同步到项目」弹窗都会调一次，之前只 push 不清理，
+  // 重复打开会在下拉里堆出重复项（2026-11-28 顺手修）
+  projectList.length = 0
   res.data.list.forEach((item: Project) => {
     projectList.push({
       label: item.label,
@@ -942,6 +959,20 @@ const getProjectList = async () => {
     })
   })
 }
+
+// bindProject 存的是项目 ObjectID；列表要显示名字就得把树拍平成 id→name
+const projectNameMap = computed<Record<string, string>>(() => {
+  const map: Record<string, string> = {}
+  const walk = (nodes: any[]) => {
+    for (const n of nodes || []) {
+      if (!n) continue
+      if (n.value && !String(n.value).startsWith('parent-')) map[String(n.value)] = n.label
+      if (n.children?.length) walk(n.children)
+    }
+  }
+  walk(projectList as any[])
+  return map
+})
 
 const confirmSyncToProjectSelect = async () => {
   const option = ref<'existing' | 'new'>('existing') // 选项：已有 or 新建
