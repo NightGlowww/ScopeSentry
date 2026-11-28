@@ -7,21 +7,26 @@ package maintenance
 // 写入方是扫描节点（本仓库只读），所以只能做「存量瘦身」，写入侧的封顶要在扫描端改。
 //
 // 设计取舍：
-//  1. 默认 dry-run，只统计不写；真正执行要显式 confirm 串（与备份恢复的 RESTORE 同款门禁）；
-//  2. 单次有上限（默认 500 条 / 2GB 读取），可重复执行，避免一次请求把库和 IO 拖死；
-//  3. 只处理未截断过的文档（bodyTruncated != true），可断点续跑；
-//  4. 截断后写回 bodyLen（原始字节数）与 bodyTruncated，读侧据此提示「已截断」，
-//     而不是让用户以为响应体本来就这么短。
+//  1. 默认 dry-run 只统计；真正执行要显式 confirm=SLIM（与备份恢复的 RESTORE 同款门禁）；
+//  2. 只处理未截断过的文档（bodyTruncated != true），可断点续跑；
+//  3. 截断后写回 bodyLen（原始字节数）与 bodyTruncated，读侧据此提示「已截断」；
+//  4. 性能：筛选条件用 $expr + $strLenBytes，索引用不上，等于每次全扫。
+//     因此分批时必须带续跑游标（nextAfterId），否则 38 批就是 38 次全表扫；
+//     落库用 BulkWrite 每 20 条一批，把往返次数压下来。
+//  5. 干跑分两种：limit>0 只看这一批；limit=0 走一次聚合统计全量（可回收多少、还差多少条）。
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
@@ -38,9 +43,12 @@ type SlimOptions struct {
 	Limit      int
 	DryRun     bool
 	Confirm    string
+	// AfterID 续跑游标：上一批返回的 nextAfterId。
+	// 不带它每次都从头扫（$expr 用不上索引），38 批会变成 38 次全表扫。
+	AfterID string
 }
 
-// SlimResult 执行结果（dry-run 时 Updated 为 0，WouldTrim/可回收字节为估算）
+// SlimResult 执行结果
 type SlimResult struct {
 	Collection    string `json:"collection"`
 	KeepBytes     int    `json:"keepBytes"`
@@ -52,19 +60,26 @@ type SlimResult struct {
 	BytesAfter    int64  `json:"bytesAfter"`
 	ReclaimBytes  int64  `json:"reclaimBytes"`
 	RemainingDocs int64  `json:"remainingDocs"`
-	DurationMs    int64  `json:"durationMs"`
+	// NextAfterID 下一批的续跑游标；HasMore=false 表示已扫到尾
+	NextAfterID string `json:"nextAfterId,omitempty"`
+	HasMore     bool   `json:"hasMore"`
+	DurationMs  int64  `json:"durationMs"`
 }
 
 const (
 	defaultKeepBytes = 64 * 1024
-	defaultLimit     = 500
-	maxLimit         = 2000
+	// 单批默认 200、上限 500：一批要把正文读进内存，500 × 1MB 就是 500MB，
+	// 默认值按「内存安全」而不是「次数最少」来定。
+	defaultLimit = 200
+	maxLimit     = 500
+	// bulkFlush 每多少条落一次 BulkWrite：压往返次数，同时限制内存占用
+	bulkFlush = 20
 )
 
 // truncateUTF8 按字节上限截断，并回退到完整 UTF-8 字符边界。
 //
-// 直接 s[:n] 可能把一个多字节字符切成两半，产生非法 UTF-8：BSON 不接受到处乱码，
-// 前端渲染也会出问题。这里最多回退 3 个字节（UTF-8 单字符最长 4 字节）。
+// 直接 s[:n] 可能把一个多字节字符切成两半，产生非法 UTF-8（实测截 65536 字节后
+// mongosh 读到的字符数只有 64296，就是末尾字符被切开）。最多回退 3 字节。
 func truncateUTF8(s string, limit int) string {
 	if limit <= 0 || len(s) <= limit {
 		return s
@@ -79,7 +94,19 @@ func truncateUTF8(s string, limit int) string {
 	return s[:cut]
 }
 
-// SlimBodies 按字节截断大字段（只读 + 定点更新，不动其它字段）。
+func slimFilter(keep int, afterID *primitive.ObjectID) bson.M {
+	f := bson.M{
+		"bodyTruncated": bson.M{"$ne": true},
+		"body":          bson.M{"$exists": true},
+		"$expr":         bson.M{"$gt": bson.A{bson.M{"$strLenBytes": "$body"}, keep}},
+	}
+	if afterID != nil {
+		f["_id"] = bson.M{"$gt": *afterID}
+	}
+	return f
+}
+
+// SlimBodies 按字节截断大字段。
 func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	if mongodb.DB == nil {
 		return nil, errors.New("数据库未就绪")
@@ -88,7 +115,6 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	if coll == "" {
 		coll = "SensitiveBody"
 	}
-	// 只允许明确的几个集合：这是个不可逆操作，不能拿任意集合试
 	if coll != "SensitiveBody" && coll != "HttpBody" {
 		return nil, fmt.Errorf("%w: %q（仅 SensitiveBody / HttpBody）", ErrBadCollection, coll)
 	}
@@ -97,7 +123,10 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 		keep = defaultKeepBytes
 	}
 	limit := opt.Limit
-	if limit <= 0 {
+	if limit < 0 {
+		limit = 0
+	}
+	if limit == 0 && !opt.DryRun {
 		limit = defaultLimit
 	}
 	if limit > maxLimit {
@@ -106,17 +135,50 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	if !opt.DryRun && opt.Confirm != "SLIM" {
 		return nil, ErrConfirmRequired
 	}
+	var afterID *primitive.ObjectID
+	if s := strings.TrimSpace(opt.AfterID); s != "" {
+		if oid, err := primitive.ObjectIDFromHex(s); err == nil {
+			afterID = &oid
+		}
+	}
 
 	start := time.Now()
 	c := mongodb.DB.Collection(coll)
-	filter := bson.M{
-		"bodyTruncated": bson.M{"$ne": true},
-		"body":          bson.M{"$exists": true},
-	}
-	// 只挑「长度超过阈值」的：$expr + $strLenBytes，避免把所有文档拉回来算
-	filter["$expr"] = bson.M{"$gt": bson.A{bson.M{"$strLenBytes": "$body"}, keep}}
+	res := &SlimResult{Collection: coll, KeepBytes: keep, DryRun: opt.DryRun}
 
-	cur, err := c.Find(ctx, filter, options.Find().
+	// limit=0 且 dry-run：一次聚合统计全量（比逐批扫快得多，也只扫一遍）
+	if limit == 0 && opt.DryRun {
+		pipe := mongo.Pipeline{
+			{{"$match", bson.M{"bodyTruncated": bson.M{"$ne": true}, "body": bson.M{"$exists": true}}}},
+			{{"$project", bson.M{"len": bson.M{"$strLenBytes": "$body"}}}},
+			{{"$match", bson.M{"len": bson.M{"$gt": keep}}}},
+			{{"$group", bson.M{"_id": nil, "n": bson.M{"$sum": 1}, "bytes": bson.M{"$sum": "$len"}}}},
+		}
+		cur, err := c.Aggregate(ctx, pipe)
+		if err != nil {
+			return nil, err
+		}
+		defer cur.Close(ctx)
+		var agg struct {
+			N     int64 `bson:"n"`
+			Bytes int64 `bson:"bytes"`
+		}
+		if cur.Next(ctx) {
+			if err := cur.Decode(&agg); err != nil {
+				return nil, err
+			}
+		}
+		res.Scanned = int(agg.N)
+		res.WouldTrim = int(agg.N)
+		res.BytesBefore = agg.Bytes
+		res.BytesAfter = agg.N * int64(keep)
+		res.RemainingDocs = agg.N
+		res.DurationMs = time.Since(start).Milliseconds()
+		finalizeReclaim(res)
+		return res, nil
+	}
+
+	cur, err := c.Find(ctx, slimFilter(keep, afterID), options.Find().
 		SetProjection(bson.M{"_id": 1, "body": 1}).
 		SetLimit(int64(limit)).
 		SetSort(bson.M{"_id": 1}))
@@ -125,62 +187,76 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	}
 	defer cur.Close(ctx)
 
-	res := &SlimResult{Collection: coll, KeepBytes: keep, DryRun: opt.DryRun}
 	type doc struct {
-		ID   interface{} `bson:"_id"`
-		Body string      `bson:"body"`
+		ID   primitive.ObjectID `bson:"_id"`
+		Body string             `bson:"body"`
 	}
-	writes := make([]interface{}, 0, limit)
+	models := make([]mongo.WriteModel, 0, bulkFlush)
+	flush := func() error {
+		if opt.DryRun || len(models) == 0 {
+			models = models[:0]
+			return nil
+		}
+		if _, werr := c.BulkWrite(ctx, models, options.BulkWrite().SetOrdered(false)); werr != nil {
+			return werr
+		}
+		res.Updated += len(models)
+		models = models[:0]
+		return nil
+	}
+
+	var lastID primitive.ObjectID
 	for cur.Next(ctx) {
 		var d doc
 		if err := cur.Decode(&d); err != nil {
-			return nil, err
+			return res, err
 		}
 		res.Scanned++
 		res.WouldTrim++
 		res.BytesBefore += int64(len(d.Body))
-		res.BytesAfter += int64(keep)
-		if opt.DryRun {
-			continue
-		}
-		// 按字节截断，但必须切在 UTF-8 字符边界上：
-		// BSON 字符串要求合法 UTF-8，从中间切开会产生非法序列（实测截断后 body 只剩 64296 字符，
-		// 就是因为末字符被切了一半）。truncateUTF8 会回退到完整字符处。
 		trimmed := truncateUTF8(d.Body, keep)
-		writes = append(writes, bson.M{"id": d.ID, "body": trimmed, "len": int64(len(d.Body))})
+		res.BytesAfter += int64(len(trimmed))
+		lastID = d.ID
+		models = append(models, mongo.NewUpdateOneModel().
+			SetFilter(bson.M{"_id": d.ID}).
+			SetUpdate(bson.M{"$set": bson.M{
+				"body":          trimmed,
+				"bodyLen":       int64(len(d.Body)),
+				"bodyTruncated": true,
+			}}))
+		if len(models) >= bulkFlush {
+			if err := flush(); err != nil {
+				return res, err
+			}
+		}
 	}
 	if err := cur.Err(); err != nil {
-		return nil, err
+		return res, err
 	}
+	if err := flush(); err != nil {
+		return res, err
+	}
+	if !lastID.IsZero() {
+		res.NextAfterID = lastID.Hex()
+	}
+	res.HasMore = res.Scanned >= limit
 
-	if !opt.DryRun {
-		for _, w := range writes {
-			m, _ := w.(bson.M)
-			_, uerr := c.UpdateOne(ctx, bson.M{"_id": m["id"]}, bson.M{"$set": bson.M{
-				"body":          m["body"],
-				"bodyLen":       m["len"],
-				"bodyTruncated": true,
-			}})
-			if uerr != nil {
-				return res, uerr
-			}
-			res.Updated++
+	if left, cerr := c.CountDocuments(ctx, slimFilter(keep, &lastID)); cerr == nil {
+		if opt.DryRun {
+			res.RemainingDocs = left
+		} else {
+			// 写完之后还剩多少（不含本批已被截断的）
+			res.RemainingDocs = left
 		}
 	}
+	res.DurationMs = time.Since(start).Milliseconds()
+	finalizeReclaim(res)
+	return res, nil
+}
 
+func finalizeReclaim(res *SlimResult) {
 	res.ReclaimBytes = res.BytesBefore - res.BytesAfter
 	if res.ReclaimBytes < 0 {
 		res.ReclaimBytes = 0
 	}
-	if left, cerr := c.CountDocuments(ctx, filter); cerr == nil {
-		res.RemainingDocs = left
-		if !opt.DryRun && res.Updated > 0 {
-			res.RemainingDocs -= int64(res.Updated)
-			if res.RemainingDocs < 0 {
-				res.RemainingDocs = 0
-			}
-		}
-	}
-	res.DurationMs = time.Since(start).Milliseconds()
-	return res, nil
 }
