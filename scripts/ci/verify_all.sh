@@ -69,6 +69,8 @@ fi
 gate closure_budget python3 scripts/ci/rest_closure.py --budget 0
 # 界面 ↔ 接口：写路由必须有前端入口或已登记原因（反方向的「死接口」）
 gate ui_closure   python3 scripts/ci/ui_api_closure.py
+# 死代码：包级函数零引用必须删掉或登记原因（「写好了没人调」是这轮挖出三处断链的共同形态）
+gate dead_code    python3 scripts/ci/dead_code.py
 
 # MCP 工具面：声明的必填参数必须真的被 handler 读取；写工具必须在某处被点名验过
 gate mcp_param python3 scripts/ci/mcp_param_audit.py

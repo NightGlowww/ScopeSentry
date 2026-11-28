@@ -444,14 +444,6 @@ func (s *service) DeleteProjects(ctx *gin.Context, ids []string, delA bool) erro
 	return nil
 }
 
-func getBeforeLastDash(s string) string {
-	index := strings.LastIndex(s, "-") // 查找最后一个 '-'
-	if index != -1 {
-		return s[:index]
-	}
-	return s
-}
-
 func (s *service) UpdateAssetsProject(ctx *gin.Context, id string) error {
 	// 获取项目信息
 	project, err := s.projectRepo.FindByID(ctx.Request.Context(), id)

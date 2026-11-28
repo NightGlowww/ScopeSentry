@@ -14,9 +14,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
-	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net/http/httptest"
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -85,10 +83,4 @@ func Scan(params string, nextTime string) error {
 	}
 
 	return nil
-}
-
-func GetTestContext() *gin.Context {
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	return c
 }

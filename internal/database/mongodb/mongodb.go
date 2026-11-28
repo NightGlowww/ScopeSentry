@@ -3,7 +3,6 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -167,37 +166,6 @@ func Count(col string, filter interface{}) (int64, error) {
 	defer cancel()
 
 	return Collection(col).CountDocuments(ctx, filter)
-}
-
-// 分页查询
-func FindPage(
-	col string,
-	filter interface{},
-	result interface{},
-	page int64,
-	pageSize int64,
-	sort bson.D,
-) error {
-
-	ctx, cancel := defaultContext()
-	defer cancel()
-
-	if page < 1 {
-		page = 1
-	}
-
-	opts := options.Find().
-		SetSkip((page - 1) * pageSize).
-		SetLimit(pageSize).
-		SetSort(sort)
-
-	cursor, err := Collection(col).Find(ctx, filter, opts)
-	if err != nil {
-		return err
-	}
-	defer cursor.Close(ctx)
-
-	return cursor.All(ctx, result)
 }
 
 // CollectionOrNil 返回集合句柄；DB 尚未初始化时返回 nil。
