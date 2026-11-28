@@ -149,7 +149,7 @@
 | --- | --- | --- | --- |
 | S1 | FOFA 检索与批量建任务 | `/api/fofa/{status,search,task,task/list,config}` | 建议只读 `fofa_status`+`fofa_search`；`fofa_config`（写 key）P3 |
 | S2 | 资产读模型 | `/api/assets/{cert,cip,http_status,service,stat_finger,nuclei_result,wih,fileleak,npoc}` | 建议合并为 `list_asset_read_model(kind, ...)` 单工具，避免 9 个碎片工具 |
-| S3 | 资产统计分布 | `/api/assets/statistics/{port,service,app,icon}`、`/api/assets/statistics` | `count_assets` 只能给总量，给不了 TopN 分布 |
+| S3 | 资产统计分布 | `/api/assets/statistics/{port,service,app,icon,title}`、`/api/assets/statistics` | **已补（2026-11-28）**：`asset_distribution(dimension=port\|service\|app\|title\|icon)`，输出统一成 `[{value, count, iconHash?}]`，并标出聚合上限（port/service ≤200 桶、title ≤50 桶时 `truncated=true`）。实测 port/service Top5 与 REST 完全一致 |
 | S4 | 导出下载/预览/批量 | `GET /api/export/download`、`POST /api/export/{preview,batch}`、`GET /api/export/task/:taskId` | MCP 传不了二进制，建议返回可下载路径/URL 而非文件流 |
 | S5 | 模板更新/删除 | `POST /api/task/template/{save,delete}` | MCP 只能建不能改，建错的模板永久堆积 |
 | S6 | POC 增改删/导入 | `/api/poc/{add,update,delete,data/import,data/all}` | 导入会触发节点同步，属写操作，P2 |
