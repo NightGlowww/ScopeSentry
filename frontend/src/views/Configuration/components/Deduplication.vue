@@ -11,6 +11,7 @@ import {
   ElAlert,
   ElCard,
   ElText,
+  ElTooltip,
   ElMessage
 } from 'element-plus'
 
@@ -172,13 +173,18 @@ const DeduplicationConfigLoading = ref(false)
           </ElFormItem>
         </ElCol>
         <ElCol :span="5">
+          <!-- 这两个开关以前能勾但服务端什么都不做（静默忽略）。现在明确禁用并说明原因，
+               不再给「按了没反应」的开关。 -->
           <ElFormItem :label="t('sensitiveInformation.sensitiveInformationName')">
-            <ElSwitch
-              v-model="deduplication.SensitiveResult"
-              inline-prompt
-              :active-text="t('common.switchAction')"
-              :inactive-text="t('common.switchInactive')"
-            />
+            <ElTooltip :content="t('configuration.dedupNotApplicableSensitive')" placement="top">
+              <ElSwitch
+                v-model="deduplication.SensitiveResult"
+                disabled
+                inline-prompt
+                :active-text="t('common.switchAction')"
+                :inactive-text="t('common.switchInactive')"
+              />
+            </ElTooltip>
           </ElFormItem>
         </ElCol>
       </ElRow>
@@ -205,12 +211,15 @@ const DeduplicationConfigLoading = ref(false)
         </ElCol>
         <ElCol :span="5">
           <ElFormItem :label="t('PageMonitoring.pageMonitoringName')">
-            <ElSwitch
-              v-model="deduplication.PageMonitoring"
-              inline-prompt
-              :active-text="t('common.switchAction')"
-              :inactive-text="t('common.switchInactive')"
-            />
+            <ElTooltip :content="t('configuration.dedupNotApplicablePage')" placement="top">
+              <ElSwitch
+                v-model="deduplication.PageMonitoring"
+                disabled
+                inline-prompt
+                :active-text="t('common.switchAction')"
+                :inactive-text="t('common.switchInactive')"
+              />
+            </ElTooltip>
           </ElFormItem>
         </ElCol>
       </ElRow>

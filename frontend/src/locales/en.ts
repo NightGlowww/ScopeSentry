@@ -1747,7 +1747,9 @@ export default {
     duplicationconfiguration: 'Deduplication Configuration',
     deduplicationHour: 'Deduplication cycle',
     deduplicationFlag: 'Deduplication switch',
-    runNowOne: 'Run once immediately'
+    runNowOne: 'Run once immediately',
+    dedupNotApplicableSensitive: 'Not deduplicated: hits can be triaged separately (confirmed/ignored); keeping only the newest would drop that state',
+    dedupNotApplicablePage: 'Not deduplicated: one document per URL (content and hashes are arrays), so there are no duplicate rows'
   },
   syslog: {
     levelAll: 'All levels',

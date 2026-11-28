@@ -1696,7 +1696,9 @@ export default {
     duplicationconfiguration: '去重配置',
     deduplicationHour: '去重周期',
     deduplicationFlag: '去重开关',
-    runNowOne: '立即运行一次'
+    runNowOne: '立即运行一次',
+    dedupNotApplicableSensitive: '不在去重范围：同一条命中可能被分别研判（确认/忽略），按最新保留会连研判结果一起丢掉',
+    dedupNotApplicablePage: '不在去重范围：每个 URL 只有一条记录（内容与 hash 是数组），没有重复行可去'
   },
   syslog: {
     levelAll: '全部级别',

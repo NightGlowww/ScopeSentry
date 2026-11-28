@@ -325,6 +325,19 @@ func (s *dedupService) DoAssetDeduplication() error {
 				return err
 			}
 			logger.Info("dedup done", zap.String("collection", "asset"))
+		// 下面两类在配置里可以勾，但去重对它们没有安全语义 —— 以前是「静默不做」，
+		// 用户勾了以为去重了。现在明确跳过并说明原因（界面同步禁用这两个开关）。
+		case "SensitiveResult":
+			// 同 (url, sid, match) 的多条记录各自带研判状态 status（未处理/确认/忽略…），
+			// 按「保留最新」去重会把这些状态一起丢掉 —— 那是删数据，不是去重。
+			logger.Info("dedup skipped",
+				zap.String("collection", "SensitiveResult"),
+				zap.String("reason", "重复行带研判状态，按最新保留会丢掉研判结果，不在去重范围"))
+		case "PageMonitoring":
+			// 每个 URL 只有一条文档（content/hash 是数组，按 URL upsert），不存在重复行。
+			logger.Info("dedup skipped",
+				zap.String("collection", "PageMonitoring"),
+				zap.String("reason", "每个 URL 仅一条记录，无重复可去"))
 		case "subdomain":
 			conf := fgk["subdomain"]
 			logger.Info("dedup start", zap.String("collection", "subdomain"))

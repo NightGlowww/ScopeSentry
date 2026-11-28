@@ -1709,7 +1709,9 @@ export default {
     duplicationconfiguration: '중복 제거 설정',
     deduplicationHour: '중복 제거 주기',
     deduplicationFlag: '중복 제거 활성화',
-    runNowOne: '즉시 한 번 실행'
+    runNowOne: '즉시 한 번 실행',
+    dedupNotApplicableSensitive: '중복 제거 대상 아님: 같은 적중이 개별 판정(확인/무시)될 수 있어 최신만 남기면 판정 결과가 사라집니다',
+    dedupNotApplicablePage: '중복 제거 대상 아님: URL 당 문서가 하나뿐이라 중복 행이 없습니다'
   },
   syslog: {
     levelAll: '전체 레벨',
