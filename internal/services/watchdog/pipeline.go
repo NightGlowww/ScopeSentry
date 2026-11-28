@@ -148,12 +148,25 @@ func Check(ctx context.Context) (map[string]interface{}, error) {
 	setAlert(ctx, alerts, "phantom_running", len(phantoms) > 0,
 		"有 "+itoa(len(phantoms))+" 个任务标记为运行中，但没有节点在跑、也不在队列里，已判定失败："+strings.Join(phantoms, "；"))
 
+	// 6) 活着但不产出：节点还在跑某个任务，但超过窗口没有任何进度写入。
+	//
+	// 这类任务会把整个队列堵死，而上面三条都抓不到（见 stalledAfter 的注释）。
+	// 判失败 + 告警；节点本身要不要重启交给人（或外部重启策略），watchdog 不动它。
+	stalledTasks, stalledNodes := reconcileStalledRunning(ctx, task)
+	setAlert(ctx, alerts, "stalled_running", len(stalledTasks) > 0,
+		"有 "+itoa(len(stalledTasks))+" 个任务在运行中超过 "+itoa(int(stalledAfter().Minutes()))+
+			" 分钟没有进度写入，已判定失败（节点仍在执行，需重启释放队列）："+strings.Join(stalledNodes, "、"))
+
 	return map[string]interface{}{
 		"queued":   queued,
 		"busy":     busy,
 		"zombies":  zombies,
 		"phantoms": phantoms,
 		"expired":  expired,
+		// 卡住判定：任务数、涉及节点、以及当前生效的窗口（分钟）
+		"stalled":         stalledTasks,
+		"stalledNodes":    stalledNodes,
+		"stalledAfterMin": int(stalledAfter().Minutes()),
 		// 当前生效的排队过期窗口：Mongo 配置改了以后，这里能立刻看到实际生效值，
 		// 不必等到有任务过期才反推。
 		"queueMaxAgeH": int(queueMaxAge().Hours()),
@@ -169,6 +182,111 @@ var queueCfg struct {
 	sync.Mutex
 	value    time.Duration
 	loadedAt time.Time
+}
+
+// stalledAfter 运行中的任务多久没有进度写入，就判定「模块卡住」。
+//
+// 现场（2026-11-29）：nuclei 没有时间上限，一个目标能卡 30 分钟以上；那条 2 目标的任务
+// 从 11-24 跑到 11-29 仍是 85%、卡在 VulnerabilityScan，节点活着（心跳正常）却再没有
+// 任何进度写入。watchdog 原有的三条路径都抓不到它：
+//
+//	tasks_stalled      要求「没有任何节点在跑」，而它正是 currentTask；
+//	phantom_running    要求「既非 currentTask 也不在队列」；
+//	node_zombie        要求心跳停更，而节点心跳是好的。
+//
+// 于是队列被一条永远跑不完的任务堵了 5 天。这里补上第四条：**活着但不产出**。
+func stalledAfter() time.Duration {
+	if v := strings.TrimSpace(os.Getenv("WATCHDOG_STALLED_AFTER_MIN")); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Minute
+		}
+	}
+	return 60 * time.Minute
+}
+
+// stallDecision 判定「卡住」的纯函数：给口径一个可测的落点。
+func stallDecision(now, last time.Time, threshold time.Duration) (bool, time.Duration) {
+	if last.IsZero() {
+		return false, 0
+	}
+	elapsed := now.Sub(last)
+	if elapsed < threshold {
+		return false, elapsed
+	}
+	return true, elapsed
+}
+
+// busyTaskIDs 节点 currentTask 指向的任务 → 节点名。
+func busyTaskIDs(ctx context.Context) map[string]string {
+	out := map[string]string{}
+	if redis.Client == nil {
+		return out
+	}
+	keys, err := redis.Client.Keys(ctx, "node:*:currentTask").Result()
+	if err != nil {
+		return out
+	}
+	for _, k := range keys {
+		v, err := redis.Client.Get(ctx, k).Result()
+		if err != nil || v == "" {
+			continue
+		}
+		// key 形如 node:<name>:currentTask
+		parts := strings.Split(k, ":")
+		name := ""
+		if len(parts) >= 3 {
+			name = parts[1]
+		}
+		out[v] = name
+	}
+	return out
+}
+
+// reconcileStalledRunning 把「节点在跑、但长时间没有进度」的任务判失败。
+// 注意：不清节点的 currentTask —— 节点还卡在那个模块里，清掉只会让状态更假；
+// 真正的解法是重启节点，告警里会写清楚。
+func reconcileStalledRunning(ctx context.Context, task *mongo.Collection) ([]string, []string) {
+	failed := []string{}
+	nodes := []string{}
+	busy := busyTaskIDs(ctx)
+	if len(busy) == 0 {
+		return failed, nodes
+	}
+	threshold := stalledAfter()
+	now := time.Now()
+	seenNode := map[string]bool{}
+	for id, nodeName := range busy {
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			continue
+		}
+		var row bson.M
+		if err := task.FindOne(ctx, bson.M{"_id": oid, "status": 1}).Decode(&row); err != nil {
+			continue
+		}
+		last := lastProgressWrite(ctx, id)
+		stalled, elapsed := stallDecision(now, last, threshold)
+		if !stalled {
+			continue
+		}
+		reason := fmt.Sprintf("运行中但 %s 没有进度写入（节点 %s 仍在执行该任务，多半是某个模块卡住），已判定失败；请重启该节点释放队列后 retest",
+			elapsed.Round(time.Minute).String(), nodeName)
+		set := bson.M{
+			"status": 4, "failReason": reason, "endTime": ts(now),
+			"failCode":   "stalledNoProgress",
+			"failParams": bson.M{"since": elapsed.Round(time.Minute).String(), "node": nodeName},
+		}
+		set = taskstats.Merge(set, taskstats.Freeze(ctx, str(row["name"])))
+		if _, err := task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{"$set": set}); err == nil {
+			failed = append(failed, id)
+			if !seenNode[nodeName] {
+				seenNode[nodeName] = true
+				nodes = append(nodes, nodeName)
+			}
+			logger.Warn("watchdog: stalled task " + id + " on " + nodeName + " — " + reason)
+		}
+	}
+	return failed, nodes
 }
 
 func queueMaxAge() time.Duration {
