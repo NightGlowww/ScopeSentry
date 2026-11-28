@@ -158,3 +158,35 @@ taskRepo.RPushNodeTask(ctx, node, template)   // 序列化后进 NodeTask:<node>
 验证方式（不依赖等 60 分钟）：集成测试 `TestWatchdogFailsStalledRunningTask` 造出完整现场
 （status=1 任务 + `currentTask` + 24 小时前的进度时间戳 + 窗口设成 1 分钟），跑一轮 `watchdog.Check()`，
 断言任务落库为 status=4 / `stalledNoProgress` / 原因里含节点名与重启建议。
+
+## 节点可见性：把「队列为什么不动」变成可读答案（2026-11-29 追加）
+
+上一轮只能回答「队列 6 个任务」，回答不了「为什么不动」。现在 `/api/node` 每个节点带：
+
+| 字段 | 含义 | 数据来源 |
+| --- | --- | --- |
+| `currentTaskId` / `currentTaskName` | 此刻在跑哪条任务 | Redis `node:<name>:currentTask` + `task` 集合 |
+| `currentModule` / `currentTarget` / `currentSince` | 跑到哪个模块、哪个目标、什么时候开始 | `TaskInfo:progress:<id>:<target>`（只认有 `_start` 无 `_end` 的模块） |
+| `idleMinutes` | 最近一次进度写入距今多久 | 同上，取全部字段最大值 |
+| `stalled` | 是否超过巡检阈值（与 watchdog 同一口径） | `watchdog.StalledAfterMinutes()` |
+| `queueEtaMin` | 队列折算成还要等多久 | 队列长度 × 单任务耗时中位数 |
+
+界面：任务数量列显示「1 / 任务名 / 目标 / 已 N 分钟无产出」，卡住时顶部红色横幅一键重启；
+队列列显示「预计 3.2 小时」；Action 列固定右侧且低频动作收进「更多」下拉。
+
+### 两个必须记住的坑
+
+1. **均值估不准**：单任务耗时均值被「暂停过夜 / 发布自动重投」拉爆（均值 430 分钟、中位数 40 分钟），
+   5 条任务曾被估成 36 小时；只用中位数又被「秒级空任务」拉到 1 分钟（5 条估成 5 分钟）。
+   最终口径：丢掉 <3 分钟和 >4 小时的样本再取中位数（`services/node.estTaskMinutes`，3 个单测）。
+   当前线上样本被秒级空任务占满，所以 `queueEtaMin=0`（未知）——**宁可不显示，也不显示假数字**。
+2. **`scan` 不是模块**：节点在任务开始时写 `scan_start`（`runner.go`），把它当「当前模块」显示等于
+   告诉运维「正在跑 scan」。解析时跳过它；没有模块在跑时仍回退显示最近活跃的目标。
+
+### UI 回归（截图实测后修的）
+
+- 加一列「当前任务」后总宽超视口，Action 整列被挤出可视区，重启按钮点不到；
+- 把 Action 固定右侧后，6 个按钮放不下，后 3 个被裁成「…」——**正是重启**；
+- 最终：当前任务并进任务数量列（列数回到 11）、Action 固定右侧、常驻 Log/Config/Restart、
+  Plugin/Rebalance/Clear queue 收进「更多」、10 个列宽各收几像素到刚好不横向滚动。
+
