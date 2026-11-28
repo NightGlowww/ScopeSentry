@@ -380,3 +380,35 @@ service 拿到 `nil` 一路回成功。
 
 另外补了第四条巡检 `stalled_running`（节点活着但任务长时间没有进度 → 判失败 + 告警），
 验证方式见 `docs/audit/SCAN_STRATEGY.md`；不自动重启节点。
+
+## 写路径假成功：三种已验证的形态（2026-11-29 补）
+
+「接口回 200，库里什么都没变」在本项目出现过三种，都有集成用例钉住了：
+
+| 形态 | 现场 | 修法 |
+| --- | --- | --- |
+| `UpdateMany`/`UpdateOne` 匹配不到文档 → 返回 nil | 通知配置在空库上首次写入被静默丢弃；扫描模板改一个已删除的 id 回 200 | 配置类写用 upsert；按 id 改的先查存在性，不存在回 404 |
+| 过滤器字段名与文档结构不符 | IP 资产 `filter.port` 查顶级字段，实际在 `ports[].port` → 恒空 | 索引级映射到嵌套路径（`scripts/ci/filter_matrix.py` 覆盖 7 索引 15 键） |
+| 标识类型不对但不报错 | 仪表盘传项目**名称**，`asset.project` 存的是 ObjectID → 200 + 全 0 | 先按 ID 再按名称解析，都不中回 404 |
+
+### 一个容易再踩的坑：`FindOne` 回 `(nil, nil)`
+
+`repositories/task/template`（以及 project 仓库）在找不到文档时返回 `(nil, nil)` 而不是 error。
+所以「先查存在性再更新」必须判 `doc == nil`，只判 `err != nil` 等于没判——模板更新第一版就写成了这样，
+用例当场抓出来（ghost id 仍然 200）。
+
+写存在性检查时按下面写：
+
+```go
+existing, err := repo.FindOne(ctx, filter, opts)
+if err != nil { return err }          // 真错误
+if existing == nil { return ErrNotFound }  // 不存在（不是 error！）
+```
+
+### 新写操作进代码时的三条自检
+
+1. 按 id 改/删：先判存在（注意上面的 nil），不存在给 4xx，别回 200；
+2. 列表类写（配置）：用 upsert，否则新装环境第一次保存就丢；
+3. 过滤/搜索键：拿**真实行里的值**反查一次（`filter_matrix.py` 的做法），筛不出来就是键坏了，
+   不要只看“接口没报错”。
+
