@@ -250,3 +250,23 @@ tools/list 里有、scope 表里有，都不等于能用。这条把 82 个工�
 其余工具不是坏的，是没有可安全验证的前置样本（比如 `create_scan_task` 会真的起扫描、
 `pause_task_targets` 需要「运行中且目标未全部领取」的任务），逐个写在矩阵的「说明」列里。
 `--strict` 在有工具既没验证也没说明时退出码 1，可以接 CI。
+
+## 一键本地门禁（verify_all.sh）与 i18n key 闭环（i18n_keys.js）
+
+```bash
+bash scripts/ci/verify_all.sh        # 全部本地门禁，末行 VERIFY_ALL=PASS/FAIL
+node scripts/ci/i18n_keys.js         # 单跑 i18n key 检查
+```
+
+`verify_all.sh` 跑 7 道本地门禁（typecheck / i18n_keys / i18n_guard / feedback / payload /
+scope_drift / mcp_closure）+ `go build` + `go vet`；`column_field` 需要线上凭据，没给就 SKIP。
+判定契约只有一条：每条门禁的输出里必须出现 `=PASS`，否则打印尾部并以 1 退出 ——
+避免「脚本跑失败但汇总看着是绿的」。
+
+`i18n_keys.js` 补的是 i18n 的反方向：`i18n_guard.py` 只查「.vue 里有没有硬编码中文」，
+查不了「`t('x.y')` 写错一个字母」或「只在一个语言里加了 key」。做法是把两个 locale 文件
+当数据求值（`export default` → `module.exports`）后 flatten 成点路径，再扫所有引用。
+
+本轮结果：zh/en 各 **2201** 个 key 且**集合完全一致**；437 个文件引用 1623 个 key；
+真实缺失 **0**（只有 `views/Components/` 下 26 个未挂路由的 demo 页、以及 `task.module.` 这个
+`t('task.module.' + key)` 动态前缀）。

@@ -29,8 +29,16 @@ WRITE_ROUNDTRIP = {
     'assign_tasks_project': '绑定任务到项目 → REST 复核 bindProject → 传空 projectId 解除 → 回到原值',
     'set_scheduled_task_state': '计划任务 enabled False→True→False，cycleType 与其余字段不变',
     'create_scan_policy': '建 ci-rt 临时策略 → REST policy/list 可见 → 删除 → 列表归零',
-    'set_port_dict_entry': '新增 ci-rt 条目 → 条数 3→4 且值回读 12345 → 按 id 删除 → 回到 3 条',
-    'set_sensitive_rule_state': '规则 state True→False→True，列表回读每一步都对得上',
+    'delete_scan_policies': '上一条的清理步：按 id 删除后 REST 列表归零（效果已复核）',
+    'set_port_dict_entry': '新增 ci-rt 条目 → 条数 3→4、值回读 12345 → 按 id 删除 → 回到 3 条',
+    'delete_port_dict_entries': '上一条的清理步：confirm=true 按 id 删除后条数回到原值',
+    'set_sensitive_rule_state': '规则 state True→False→True，列表回读每步都对得上',
+    'create_dictionary': '建 ci-rt 字典（2 行）→ list_dictionaries 能查到（total=1）',
+    'append_dictionary_lines': '追加 1 行 → preview_dictionary 从 2 行变 3 行',
+    'delete_dictionary_entries': '删 1 行 → preview 从 3 行变 2 行',
+    'delete_dictionary': '删除字典 → list_dictionaries 查不到（total=0）',
+    'create_asset_group': '建 ci-rt-group → list_asset_groups 能查到',
+    'delete_asset_groups': 'confirm+dissolve 删除 → 组列表回到 0',
 }
 
 # 需要前置样本或明确不该自动跑的工具：写清原因，别让「未验证」变成静默
