@@ -204,6 +204,10 @@ func stalledAfter() time.Duration {
 	return 60 * time.Minute
 }
 
+// StalledAfterMinutes 对外暴露当前生效的卡住窗口（分钟）：
+// 巡检判失败、界面标「卡住」，必须是同一个口径，否则会出现「界面说卡住、巡检不管」。
+func StalledAfterMinutes() int { return int(stalledAfter().Minutes()) }
+
 // stallDecision 判定「卡住」的纯函数：给口径一个可测的落点。
 func stallDecision(now, last time.Time, threshold time.Duration) (bool, time.Duration) {
 	if last.IsZero() {

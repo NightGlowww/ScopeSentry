@@ -214,6 +214,40 @@ const nodeColums = reactive<TableColumn[]>([
     }
   },
   {
+    field: 'currentTaskName',
+    label: t('node.currentTask'),
+    minWidth: 230,
+    formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
+      // 「在线 + 队列 6」看不出队列为什么不动：把此刻在跑的模块和「多久没产出」摆出来。
+      // 没有这一列，只能登服务器翻 Redis 才知道节点卡在哪个模块上（2026-11-29）。
+      if (!cellValue) {
+        return h('div', { class: 'node-task-none', title: t('node.currentTaskHint') }, [
+          t('node.currentTaskNone')
+        ])
+      }
+      const idle = Number(row.idleMinutes) || 0
+      const stalled = Boolean(row.stalled)
+      const mod = String(row.currentModule || '')
+      const tgt = String(row.currentTarget || '')
+      const sub = mod ? t('node.currentTaskModule', { module: mod, target: tgt }) : ''
+      return h('div', { class: 'node-task-cell', title: t('node.currentTaskHint') }, [
+        h('div', { class: 'node-task-name' }, cellValue),
+        sub ? h('div', { class: 'node-task-sub' }, sub) : null,
+        idle >= 1
+          ? h(
+              ElTag,
+              {
+                size: 'small',
+                effect: stalled ? 'dark' : 'plain',
+                type: stalled ? 'danger' : idle >= 10 ? 'warning' : 'info'
+              },
+              () => t('node.currentTaskIdle', { n: idle })
+            )
+          : null
+      ])
+    }
+  },
+  {
     field: 'queueLen',
     label: t('node.queueLen'),
     width: 100,
@@ -304,6 +338,26 @@ const healedTargets = computed(() => {
     (a: any, b: any) => (Number(a.queueLen) || 0) - (Number(b.queueLen) || 0)
   )[0].name
 })
+// 卡住节点：心跳正常、currentTask 挂着，但已经超过巡检阈值没有产出。
+// 这是「队列不动」最常见的原因，且没有任何按钮能自己好——必须重启节点。
+const stalledNodes = computed(() => (dataList.value || []).filter((n: any) => Boolean(n.stalled)))
+const restartStalled = async () => {
+  const bad = stalledNodes.value[0]
+  if (!bad) return
+  try {
+    await ElMessageBox.confirm(
+      t('node.stalledConfirm', { name: bad.name }),
+      t('common.delWarning'),
+      { confirmButtonText: 'OK', cancelButtonText: t('common.cancel'), type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  await restartNode(bad.name)
+  ElMessage.success(t('node.stalledSent', { name: bad.name }))
+  getList()
+}
+
 // 节点健康一眼可见：只看「在线/离线」会漏掉「在线但工具一直在失败」。
 // 用 10 分钟窗口——节点本来就按这个粒度上报 cmdFail10m。
 // 降压中：节点因容器内存高把并发降下来了，但已经在跑的任务不会被打断，
@@ -721,6 +775,28 @@ const closepluginDialogVisible = () => {
       </div>
 
       <ElAlert
+        v-if="stalledNodes.length"
+        type="error"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 10px"
+      >
+        <template #title>
+          {{
+            t('node.stalledBanner', {
+              name: stalledNodes[0].name,
+              n: stalledNodes[0].idleMinutes || 0,
+              module:
+                stalledNodes[0].currentModule || stalledNodes[0].currentTaskName || '-',
+              queue: stalledNodes[0].queueLen || 0
+            })
+          }}
+        </template>
+        <BaseButton type="danger" size="small" style="margin-top: 6px" @click="restartStalled">
+          {{ t('node.stalledAction') }}
+        </BaseButton>
+      </ElAlert>
+      <ElAlert
         v-if="offlineNodes.length"
         type="warning"
         :closable="false"
@@ -970,6 +1046,27 @@ const closepluginDialogVisible = () => {
   gap: 8px;
   margin-bottom: 10px;
   flex-wrap: wrap;
+}
+
+.node-task-cell {
+  line-height: 1.25;
+}
+.node-task-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node-task-sub {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  margin: 2px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.node-task-none {
+  color: var(--el-text-color-placeholder);
 }
 
 .node-state-cell {

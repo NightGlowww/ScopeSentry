@@ -40,18 +40,103 @@ type Repository interface {
 	MemPeaks(ctx context.Context) map[string][2]float64
 	// MemHighMinutes 每个节点连续高压（≥90%）的分钟数
 	MemHighMinutes(ctx context.Context) map[string]int
+	// NodeRuntime 节点此刻在跑哪个任务的哪个模块、多久没产出
+	NodeRuntime(ctx context.Context, name string) models.NodeRuntime
+}
+
+// runtimeIdle 一遍读出「模块 + 目标 + 模块开始时间 + 最近一次进度写入」。
+// 只认 <module>_start 且没有对应 _end 的模块：有 _end 说明已跑完，不是「卡在」它。
+func (r *repository) NodeRuntime(ctx context.Context, name string) models.NodeRuntime {
+	var out models.NodeRuntime
+	if r.redisClient == nil {
+		return out
+	}
+	id, err := r.redisClient.Get(ctx, "node:"+name+":currentTask").Result()
+	if err != nil || id == "" {
+		return out
+	}
+	out.TaskID = id
+	out.TaskName = r.taskName(ctx, id)
+
+	keys, kerr := r.redisClient.Keys(ctx, "TaskInfo:progress:"+id+":*").Result()
+	if kerr != nil {
+		return out
+	}
+	var newest time.Time
+	latestStart := ""
+	for _, key := range keys {
+		fields, herr := r.redisClient.HGetAll(ctx, key).Result()
+		if herr != nil {
+			continue
+		}
+		tgt := key[strings.LastIndex(key, ":")+1:]
+		for field, val := range fields {
+			if field == "node" || val == "" {
+				continue
+			}
+			ts, perr := time.ParseInLocation("2006-01-02 15:04:05", val, time.Local)
+			if perr != nil {
+				continue
+			}
+			if ts.After(newest) {
+				newest = ts
+			}
+			if !strings.HasSuffix(field, "_start") {
+				continue
+			}
+			mod := strings.TrimSuffix(field, "_start")
+			if end, ok := fields[mod+"_end"]; ok && end != "" {
+				continue
+			}
+			if val > latestStart {
+				latestStart = val
+				out.Module = mod
+				out.Target = tgt
+				out.Since = val
+			}
+		}
+	}
+	if !newest.IsZero() {
+		out.IdleMinutes = int(time.Since(newest).Minutes())
+	}
+	return out
+}
+
+// taskName 任务名（用于「卡在哪个任务」的可读提示；查不到就留空）。
+func (r *repository) taskName(ctx context.Context, taskID string) string {
+	if r.taskCollection == nil {
+		return ""
+	}
+	oid, err := primitive.ObjectIDFromHex(taskID)
+	if err != nil {
+		return ""
+	}
+	var row struct {
+		Name string `bson:"name"`
+	}
+	if err := r.taskCollection.FindOne(ctx, bson.M{"_id": oid}).Decode(&row); err != nil {
+		return ""
+	}
+	return row.Name
 }
 
 type repository struct {
 	redisClient *redisdriver.Client
 	collection  *mongo.Collection
+	// taskCollection 只用来把 currentTask 的 ObjectID 翻成任务名
+	taskCollection *mongo.Collection
 }
 
 func NewRepository() Repository {
-	return &repository{
+	r := &repository{
 		redisClient: redis.Client,
 		collection:  mongodb.DB.Collection("plugins"),
 	}
+	// mongodb.DB 在降级启动/单测里可能为 nil，取集合会 panic
+	if mongodb.DB != nil {
+		r.taskCollection = mongodb.DB.Collection("task")
+	}
+	return r
 }
 
 // GetAllNodes 获取所有节点

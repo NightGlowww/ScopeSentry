@@ -1049,6 +1049,17 @@ export default {
     offlineSuffix: '（离线）',
     queueLen: '队列',
     queueLenHint: '{n} 个任务在等这个节点：节点一次只跑一个，后面的要排到前一个结束',
+    currentTask: '当前任务',
+    currentTaskIdle: '已 {n} 分钟无产出',
+    currentTaskModule: '{module} · {target}',
+    currentTaskNone: '空闲',
+    currentTaskHint: '节点此刻在跑的模块和目标；「无产出」指这个任务多久没写进度',
+    stalledBanner:
+      '节点 {name} 的当前任务已 {n} 分钟没有产出（{module}），队列 {queue} 个任务在等它结束。这个任务八成卡住了，重启节点才能让队列流动。',
+    stalledAction: '重启该节点',
+    stalledConfirm:
+      '确认重启节点 {name}？当前任务会被判失败（可重新提交），排队中的任务继续执行。',
+    stalledSent: '已向 {name} 发送重启指令',
     clearQueue: '清空队列',
     clearQueueMsg: '清空该节点待领取的任务队列',
     clearQueueConfirm: '确认清空节点 {name} 的待领取队列？这些任务不会被执行。',

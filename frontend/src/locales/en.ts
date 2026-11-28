@@ -1082,6 +1082,17 @@ export default {
     offlineSuffix: '(offline)',
     queueLen: 'Queue',
     queueLenHint: '{n} tasks waiting for this node; it runs one at a time',
+    currentTask: 'Current task',
+    currentTaskIdle: 'no output for {n} min',
+    currentTaskModule: '{module} · {target}',
+    currentTaskNone: 'Idle',
+    currentTaskHint: 'The module and target this node is running now; "no output" is how long since it last wrote progress',
+    stalledBanner:
+      'Node {name} has produced nothing for {n} minutes ({module}) while {queue} tasks wait behind it. The task is most likely stuck; restarting the node is what unblocks the queue.',
+    stalledAction: 'Restart node',
+    stalledConfirm:
+      'Restart node {name}? The running task will be marked failed (it can be resubmitted); queued tasks continue.',
+    stalledSent: 'Restart sent to {name}',
     clearQueue: 'Clear queue',
     clearQueueMsg: 'Clear pending task queue of this node',
     clearQueueConfirm: 'Clear pending queue of node {name}? These tasks will not run.',

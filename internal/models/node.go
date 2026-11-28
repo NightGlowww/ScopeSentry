@@ -25,10 +25,36 @@ type NodeData struct {
 	ContainerMem float64 `json:"containerMem"`
 	// MemSoftLimitMB 节点进程的 Go 软内存上限（MiB）：0 表示节点版本不支持上报
 	MemSoftLimitMB int64 `json:"memSoftLimitMB"`
+
+	// 以下为「此刻在做什么」——队列不动的根因基本都在这几个字段里：
+	// 节点在线、心跳正常、currentTask 指着一个任务，但那个任务已经 N 分钟没有产出。
+	// 2026-11-29 实测：node-jp-01 卡在 VulnerabilityScan 五小时，队列 6 个任务全排在后面，
+	// 而界面只有「在线 / 队列长度 6」，看不出该做什么。
+	CurrentTaskID   string `json:"currentTaskId,omitempty"`
+	CurrentTaskName string `json:"currentTaskName,omitempty"`
+	CurrentModule   string `json:"currentModule,omitempty"`
+	CurrentTarget   string `json:"currentTarget,omitempty"`
+	CurrentSince    string `json:"currentSince,omitempty"`
+	// IdleMinutes 当前任务最近一次进度写入距今多少分钟（无任务或未开始写进度为 0）
+	IdleMinutes int `json:"idleMinutes"`
+	// Stalled 超过巡检阈值仍无进度：节点该重启了（阈值与 watchdog 同一口径）
+	Stalled bool `json:"stalled"`
 }
 
 type Message struct {
 	Name    string `json:"name"`
 	Type    string `json:"type"`
 	Content string `json:"content"`
+}
+
+// NodeRuntime 节点此刻的运行态：在跑哪个任务的哪个模块、多久没产出。
+// 由 Redis 的 node:<name>:currentTask 与 TaskInfo:progress:<id>:<target> 派生，
+// 不复用任务列表的字段，因为节点视角要的是「谁堵住了队列」，不是任务详情。
+type NodeRuntime struct {
+	TaskID      string
+	TaskName    string
+	Module      string
+	Target      string
+	Since       string
+	IdleMinutes int
 }

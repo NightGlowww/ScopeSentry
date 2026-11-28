@@ -20,6 +20,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/node"
+	"github.com/Autumn-27/ScopeSentry/internal/services/watchdog"
 	"go.uber.org/zap"
 )
 
@@ -117,6 +118,18 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 		// 惰性采样：把容器内存写进趋势（4 分钟一条）
 		if rv, perr := strconv.ParseFloat(nodeData.Running, 64); perr == nil {
 			s.nodeRepo.EnsureMemSample(ctx, nodeData.Name, nodeData.ContainerMem, rv)
+		}
+		// 「此刻在跑什么、多久没产出」：队列不动的根因就在这里。
+		// 阈值与巡检共用 StalledAfterMinutes()，避免界面说卡住、巡检判正常。
+		rt := s.nodeRepo.NodeRuntime(ctx, nodeData.Name)
+		if rt.TaskID != "" {
+			nodeData.CurrentTaskID = rt.TaskID
+			nodeData.CurrentTaskName = rt.TaskName
+			nodeData.CurrentModule = rt.Module
+			nodeData.CurrentTarget = rt.Target
+			nodeData.CurrentSince = rt.Since
+			nodeData.IdleMinutes = rt.IdleMinutes
+			nodeData.Stalled = rt.IdleMinutes >= watchdog.StalledAfterMinutes()
 		}
 		result = append(result, nodeData)
 	}
