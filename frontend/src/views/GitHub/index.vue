@@ -71,7 +71,8 @@ const taskColumns = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('colState'),
-    width: 100,
+    // 122：'Completed' 实测 117px，100 会裁成一个省略号
+    width: 122,
     formatter: (_r, __: TableColumn, v: number) => (
       <ElTag type={(taskStateMap[v]?.type as any) || 'info'} effect="light">
         {taskStateMap[v]?.text || v}

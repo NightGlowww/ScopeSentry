@@ -411,7 +411,8 @@ const taskColums = reactive<TableColumn[]>([
   },
   {
     field: 'creatTime',
-    width: 152,
+    // 172：'2026-11-27 05:42:22' 实测 161px，152 会把秒裁掉（时间就不可读了）
+    width: 172,
     sortable: 'custom',
     label: t('task.createTime')
   },

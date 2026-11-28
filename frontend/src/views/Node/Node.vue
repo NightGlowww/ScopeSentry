@@ -108,8 +108,9 @@ const nodeColums = reactive<TableColumn[]>([
       const sub = mod ? t('node.currentTaskModule', { module: mod, target: tgt }) : tgt
       return h('div', { class: 'node-task-cell', title: t('node.currentTaskHint') }, [
         tag,
-        h('div', { class: 'node-task-name' }, name),
-        sub ? h('div', { class: 'node-task-sub' }, sub) : null,
+        // 列宽有限，任务名基本都会被省略：把完整名字挂到 title 上，鼠标停一下就能看到
+        h('div', { class: 'node-task-name', title: name }, name),
+        sub ? h('div', { class: 'node-task-sub', title: sub }, sub) : null,
         idle >= 1
           ? h(
               ElTag,

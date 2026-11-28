@@ -193,7 +193,8 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'enabled',
     label: t('apiKey.status'),
-    minWidth: 80,
+    // 112 是量出来的：ElTag 里「Enabled/Disabled」实测 101px，先前的 80 会把标签裁成省略号
+    width: 112,
     formatter: (_row, __: TableColumn, value: boolean) => (
       <ElTag type={value ? 'success' : 'info'} effect="light">
         {value ? t('apiKey.enabled') : t('apiKey.disabled')}
