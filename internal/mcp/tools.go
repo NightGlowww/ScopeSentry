@@ -362,7 +362,7 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "asset_distribution",
-		Description: "资产分布 TopN：按端口/服务/应用/标题/图标统计资产数量，支持与 list_assets 相同的 search 与 filter。回答「哪些端口/服务/标题占主导」",
+		Description: "资产分布 TopN：按端口/服务/应用/标题/图标统计资产数量，支持与 list_assets 相同的 search 与 filter。回答「哪些端口/服务/标题占主导」。注意后端聚合有上限：port/service 最多 200 个桶、title 最多 50 个，超出时 truncated=true（列表本身仍按 limit 截断）",
 	}, assetDistribution)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
@@ -1416,7 +1416,20 @@ func assetDistribution(ctx context.Context, _ *mcp.CallToolRequest, input assetD
 		return errorResult("dimension 只能是 port/service/app/title/icon", nil)
 	}
 
-	return jsonToolResult(ginH{"dimension": dim, "limit": limit, "buckets": total, "list": out})
+	// 后端聚合自带上限（port/service 200、title 50，见 statistics.go 的 $limit），
+	// 桶数正好等于上限说明「还有更多但被截了」，必须显式告诉调用方，不能让人以为这就是全集。
+	capByDim := map[string]int{"port": 200, "service": 200, "title": 50, "app": 0, "icon": 0}
+	capped := false
+	if c := capByDim[dim]; c > 0 && total >= c {
+		capped = true
+	}
+	return jsonToolResult(ginH{
+		"dimension": dim,
+		"limit":     limit,
+		"buckets":   total,
+		"truncated": capped,
+		"list":      out,
+	})
 }
 
 type countAssetsInput struct {
