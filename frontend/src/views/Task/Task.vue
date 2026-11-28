@@ -1205,19 +1205,21 @@ const setMaxHeight = () => {
         {{ t('task.clearFilter') }}
       </ElButton>
     </div>
+    <!-- 四个筛选 + 关键词 + 搜索要挤在一行：span 合计必须 ≤ 24，
+         否则「搜索」按钮会被挤到第二行单独一行（2026-11-28 实测 1811px 宽也换行） -->
     <ElRow class="locale-search-row">
-      <ElCol :span="4">
+      <ElCol :span="3">
         <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
           <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
         </ElSelect>
       </ElCol>
-      <ElCol :span="4">
+      <ElCol :span="3">
         <ElSelect v-model="yieldFilter" :placeholder="t('task.yieldFilter')" clearable>
           <ElOption :label="t('task.yieldHas')" value="has_asset" />
           <ElOption :label="t('task.yieldNone')" value="no_asset" />
         </ElSelect>
       </ElCol>
-      <ElCol v-if="yieldFilter" :span="4">
+      <ElCol v-if="yieldFilter" :span="3">
         <ElSelect
           v-model="yieldDims"
           multiple
@@ -1234,7 +1236,7 @@ const setMaxHeight = () => {
           <ElOption label="wih" value="wih" />
         </ElSelect>
       </ElCol>
-      <ElCol :span="4">
+      <ElCol :span="3">
         <ElSelect v-model="statusFilter" :placeholder="t('task.statusFilter')" clearable>
           <ElOption :label="t('task.statusAll')" :value="-1" />
           <ElOption :label="t('task.statusRunning')" :value="1" />
@@ -1246,10 +1248,10 @@ const setMaxHeight = () => {
       <ElCol :span="1">
         <ElText class="mx-1">{{ t('task.taskName') }}:</ElText>
       </ElCol>
-      <ElCol :span="5">
+      <ElCol :span="9">
         <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
       </ElCol>
-      <ElCol :span="5">
+      <ElCol :span="2">
         <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
           t('common.search')
         }}</ElButton>
