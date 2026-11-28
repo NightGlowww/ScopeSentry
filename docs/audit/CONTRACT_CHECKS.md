@@ -45,6 +45,7 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bas
 | 25 | 项目名称为空（`{}` / `""` / 纯空白）→ 400，且项目列表里不存在空标题卡片 | `AddProject` 直接绑定 `models.Project` 没有必填校验，`POST {}` 会真的建出一张没有标题的卡片；重名原本也只回 500「api.error」。注意自动化里**只测空名字**，重名用例会真的建项目 |
 | 26 | 端口字典 `add` 传空 `name` 或空 `value`（含纯空白）→ 400，且字典行数不变 | `PortService.Add` 只校验了 `value`，空 `name` 照样插入 —— 端口字典会通过 `{dict.port.*}` 进入扫描参数，无名行会一路带到节点（2026-11-28 扫描「绑持久化模型无 binding 校验」的接口时发现） |
 | 27 | （需 `MCP_KEY`/`SS_MCP_KEY`）MCP `get_task` / `get_project` / `get_poc` 返回的 `name` 必须与 REST 列表/详情一致 | 只断言 `isError=false` 是不够的：工具可以「成功返回一份旧数据」。同源比对才证明读模型没自带一份缓存（2026-11-28 实测三者一致） |
+| 29 | 每个 MCP 工具都登记了 scope（`mcp_scope_drift.py`，静态） | 未登记的工具运行期默认拒绝，构建和 tools/list 都发现不了，只有受限 key 实际调用才 403（2026-11-28 新增 4 个工具时同批核对） |
 | 28 | 变更操作有反馈、失败路径收 loading（`feedback_guard.py`，静态） | 「点了没反应」和「按钮永久转圈」都不会报错，只会在用户手上变成不可用的界面（2026-11-28 实测：页面监控保存无提示、新增 URL 失败后保存键死锁） |
 
 ## MCP 工具矩阵（mcp_sweep.py）
@@ -190,3 +191,20 @@ python3 scripts/ci/feedback_guard.py --strict # SILENT 也算失败
 
 本轮修掉的：PageMonit 新增 URL、计划任务页面监控配置保存、通知开关保存、新建/编辑计划任务、
 系统更新提交、资产/敏感信息/端口字典编辑弹窗、项目信息与统计加载、项目搜索、项目卡片删除后刷新。
+
+## MCP 工具 ↔ scope 漂移（mcp_scope_drift.py）
+
+未登记 scope 的工具在运行期会被「默认拒绝」——只有持 `*` 的 key 能调，普通受限 key 一律 403，
+而这种缺口单测、`go build`、tools/list 都看不出来，只有真机调一次才暴露。所以做成静态检查：
+
+```bash
+python3 scripts/ci/mcp_scope_drift.py
+```
+
+核对 `internal/mcp/tools.go` 里每个 `addTool(... Name: "x")` 与 `mcpguard.ToolScopes` 是否一一对应，
+三个方向都算失败：重复注册、未登记、以及 scope 表里凭空多出没有工具认领的条目。
+当前 **75 个工具 / 75 条 scope，MCP_SCOPE_DRIFT=PASS**。
+
+顺带记录一个容易被忽略的联动：新增 scope 只改后端时，前端「API Key」页的 scope 清单是硬编码的，
+这个 scope 在界面上根本选不到（只能建 `*` 全权 key 或用接口建）。本轮已把该清单改成
+「硬编码打底 + `/api/mcp/tools` 返回的 scopes 自动补齐」，后端再加 scope 时界面不会掉队。
