@@ -205,8 +205,31 @@ python3 scripts/ci/mcp_scope_drift.py
 
 核对 `internal/mcp/tools.go` 里每个 `addTool(... Name: "x")` 与 `mcpguard.ToolScopes` 是否一一对应，
 三个方向都算失败：重复注册、未登记、以及 scope 表里凭空多出没有工具认领的条目。
-当前 **75 个工具 / 75 条 scope，MCP_SCOPE_DRIFT=PASS**。
+当前 **82 个工具 / 82 条 scope，MCP_SCOPE_DRIFT=PASS**（MCP_COVERAGE 同步 82/82：源码声明数 = 服务端 tools/list 数）。
 
 顺带记录一个容易被忽略的联动：新增 scope 只改后端时，前端「API Key」页的 scope 清单是硬编码的，
 这个 scope 在界面上根本选不到（只能建 `*` 全权 key 或用接口建）。本轮已把该清单改成
 「硬编码打底 + `/api/mcp/tools` 返回的 scopes 自动补齐」，后端再加 scope 时界面不会掉队。
+
+## 前端类型门禁（typecheck.sh）
+
+```bash
+bash scripts/ci/typecheck.sh      # TYPECHECK=PASS / FAIL
+```
+
+`build:pro` 走 vite，不做类型检查，所以 `pnpm ts:check` 长期是红的（143 条，从没人跑）。
+2026-11-28 清零到 0 之后固化成门禁。**这不是洁癖** —— 那 143 条里埋着四个真问题，
+其中最贵的一个是：`src/axios/index.ts` 只转发 6 个字段，`timeout` 被静默丢弃，
+于是备份创建/恢复（分钟级）一直按 `REQUEST_TIMEOUT=60s` 超时失败。类型报错的原始信息是
+「`'timeout' does not exist in type 'AxiosConfig'`」，看起来像「类型定义缺字段」，
+实际是「这个参数从来没被转发过」。
+
+## 本轮新增的两条不变量
+
+- **单请求超时必须真的能生效**：`AxiosConfig.timeout` 声明 + `axios/index.ts` 显式转发。
+  回归方式：任何分钟级接口（备份创建/恢复、导出）传 `timeout` 后，前端不应在 60s 报超时。
+- **`change` 事件必须带值**：`TimeRangeFilter` 的 `change` 要把「本次选中的值」带出去，
+  父组件靠它算 `timeFrom`（`v-model` 更新是异步的，父组件立刻读 `modelValue` 会拿到旧值）。
+  `Asset/IP`、`Asset/RootDomain`、`Asset/Subfinder` 三处都依赖这个行为。
+
+注：`build:test`（`ts:check && vite build --mode test`）的 ts:check 段已通过，但 vite 段在 Vite 5.0.6 的 `generateBundle` 里 `String.replace` 爆栈（`RangeError: Maximum call stack size exceeded`），与类型治理无关，另案处理；发布走 `build:pro`，不受影响。
