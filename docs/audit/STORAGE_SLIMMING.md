@@ -98,3 +98,11 @@ curl -s -X POST $BASE/api/system/storage/slim -H "Authorization: Bearer $TOK" \
 | --- | --- | --- | --- | --- |
 | 瘦身后 | 64,296 字符（65,536 字节） | 89,059 | true | true |
 | 还原后 | 87,575 字符 | 89,059 | false | false |
+
+## 页面入口（2026-11-28）
+
+「系统状态」页存储卡片右上角新增「试算大字段可回收空间」：点一次跑 dry-run（limit=0 一次聚合），
+约 22 秒后显示 `SensitiveBody: 18833 docs exceed 64KB, about 16.68 GB reclaimable (dry run took 22.1s)`。
+
+只做试算，**不写库**：真正执行是不可逆操作，仍然只暴露在 `POST /api/system/storage/slim` + `confirm=SLIM`，
+不给页面按钮，避免误点。
