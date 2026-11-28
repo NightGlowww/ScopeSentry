@@ -5,31 +5,32 @@ import (
 	"testing"
 )
 
-// 均值被异常值拉爆是真实事故：线上用均值算出 5 条任务要等 36 小时，
-// 中位数给的是 3 小时。这里把口径钉死。
-func TestEstTaskMinutesUsesMedianAndClampsOutliers(t *testing.T) {
-	samples := []float64{38, 40, 42, 41, 39, 600, 1440}
-	got := estTaskMinutes(samples, 240)
-	if math.Abs(got-40) > 0.01 {
-		t.Fatalf("中位数应为 40，实际 %v", got)
+// 两种真实事故都要覆盖：均值被长尾拉爆、中位数被秒级任务拉低。
+func TestEstTaskMinutesClampsBothEnds(t *testing.T) {
+	// 0.2/0.5 分钟是「注册即完成」的空任务，600/1440 是暂停过夜的样本
+	samples := []float64{0.2, 0.5, 31, 35, 33, 36, 34, 600, 1440}
+	got := estTaskMinutes(samples, 3, 240)
+	if math.Abs(got-34) > 0.01 {
+		t.Fatalf("中位数应为 34，实际 %v", got)
 	}
 }
 
 func TestEstTaskMinutesEvenCountAveragesMiddle(t *testing.T) {
-	got := estTaskMinutes([]float64{30, 50}, 240)
+	got := estTaskMinutes([]float64{30, 50}, 3, 240)
 	if math.Abs(got-40) > 0.01 {
 		t.Fatalf("偶数样本应取中间两值平均 40，实际 %v", got)
 	}
 }
 
-func TestEstTaskMinutesEmptyOrAllOutliers(t *testing.T) {
-	if got := estTaskMinutes(nil, 240); got != 0 {
+func TestEstTaskMinutesNoUsableSample(t *testing.T) {
+	if got := estTaskMinutes(nil, 3, 240); got != 0 {
 		t.Fatalf("无样本应为 0（未知），实际 %v", got)
 	}
-	if got := estTaskMinutes([]float64{500, 900}, 240); got != 0 {
-		t.Fatalf("全是异常值应为 0，实际 %v", got)
+	// 全是秒级空任务：中位数会给出 1 分钟这种误导值，这里要求返回 0
+	if got := estTaskMinutes([]float64{0.1, 0.2, 0.3}, 3, 240); got != 0 {
+		t.Fatalf("只有空任务时应返回 0，实际 %v", got)
 	}
-	if got := estTaskMinutes([]float64{0, -5}, 240); got != 0 {
-		t.Fatalf("非正样本应被丢掉，实际 %v", got)
+	if got := estTaskMinutes([]float64{500, 900}, 3, 240); got != 0 {
+		t.Fatalf("全是异常长样本时应返回 0，实际 %v", got)
 	}
 }

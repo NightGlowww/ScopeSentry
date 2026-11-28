@@ -6,19 +6,22 @@ import (
 
 // estTaskMinutes 从最近任务的耗时样本里估「一个任务大概跑多久」（分钟）。
 //
-// 为什么不是均值：线上实测均值 430 分钟/任务，中位数约 40 —— 差距全来自
-// 「暂停过夜」「发布打断后自动重投」这类样本。用均值算出来的排队时长
-// 会把 5 条任务估成 36 小时，比不说更误导（2026-11-29 实测）。
+// 两次踩坑（都在 2026-11-29 线上）：
+//  1. 用均值：被「暂停过夜 / 发布打断后自动重投」的样本拉爆，5 条任务估成 36 小时；
+//  2. 只用中位数：被大量「注册即完成」「目标为空」的秒级任务拉到 1 分钟，5 条任务估成 5 分钟。
 //
-// 口径：先丢掉超过 clampMin 的样本（那不是正常执行时长），再取中位数。
-// 样本为空返回 0，调用方据此显示「未知」而不是瞎猜。
-func estTaskMinutes(samples []float64, clampMin float64) float64 {
-	if clampMin <= 0 {
-		clampMin = 240
+// 所以两端都要截：真实扫描任务至少是分钟级，最长也就几小时。
+// 过滤后取中位数；没有可用样本返回 0（界面显示未知，不猜）。
+func estTaskMinutes(samples []float64, minMin, maxMin float64) float64 {
+	if minMin <= 0 {
+		minMin = 3
+	}
+	if maxMin <= minMin {
+		maxMin = 240
 	}
 	kept := make([]float64, 0, len(samples))
 	for _, v := range samples {
-		if v <= 0 || v > clampMin {
+		if v < minMin || v > maxMin {
 			continue
 		}
 		kept = append(kept, v)
