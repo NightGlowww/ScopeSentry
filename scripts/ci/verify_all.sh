@@ -66,7 +66,7 @@ else
 fi
 
 # 接口覆盖预算：未覆盖写操作不得超过基线（新增写路由必须带用例，不能悄悄加）
-gate closure_budget python3 scripts/ci/rest_closure.py --budget 28
+gate closure_budget python3 scripts/ci/rest_closure.py --budget 26
 
 # 写接口幽灵 id：按 id 改/删的接口给不存在的 id 必须 4xx（需要 token）
 if [ -n "${SS_TOKEN:-}" ]; then
