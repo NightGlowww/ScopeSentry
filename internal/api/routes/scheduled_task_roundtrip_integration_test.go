@@ -12,6 +12,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // 计划任务的 add / update 此前没有任何测试或契约脚本点名。
@@ -121,5 +122,15 @@ func TestScheduledTaskAddUpdateRoundTrip(t *testing.T) {
 	}
 	if find(renamed) != nil {
 		t.Fatalf("删除后仍能查到计划任务")
+	}
+
+	// 改一个不存在的计划任务：必须是 4xx，不能回 500「操作失败」
+	// （原来 service 返回普通 error，handler 一律 500，一个不存在的 id 被当成服务器故障）
+	ghost := primitive.NewObjectID().Hex()
+	if w := do("/api/task/scheduled/update", map[string]interface{}{
+		"id": ghost, "name": "ghost-" + t.Name(), "node": []string{"node-it"},
+		"cycleType": "daily", "hour": 1, "minute": 0,
+	}); w.Code == http.StatusOK || w.Code == http.StatusInternalServerError {
+		t.Fatalf("更新不存在的计划任务回了 %d（应 4xx）: %s", w.Code, w.Body.String())
 	}
 }

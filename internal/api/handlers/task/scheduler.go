@@ -8,6 +8,7 @@
 package task
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -124,6 +125,10 @@ func UpdateScheduledTask(c *gin.Context) {
 	}
 
 	if err := SchedulerService.UpdateScheduledTask(c, &req); err != nil {
+		if errors.Is(err, scheduler.ErrScheduledTaskNotFound) {
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

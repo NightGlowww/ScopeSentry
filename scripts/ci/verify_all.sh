@@ -65,6 +65,13 @@ else
   printf '  SKIP %-18s 需要 SS_BASE + SS_TOKEN\n' filter_matrix
 fi
 
+# 写接口幽灵 id：按 id 改/删的接口给不存在的 id 必须 4xx（需要 token）
+if [ -n "${SS_TOKEN:-}" ]; then
+  gate write_ghost python3 scripts/ci/write_ghost_probe.py
+else
+  printf '  SKIP %-18s 需要 SS_BASE + SS_TOKEN\n' write_ghost
+fi
+
 printf '  SKIP %-18s 需要真实 Mongo/Redis：bash scripts/ci/integration.sh\n' integration
 
 if [ "$FAIL" = "0" ]; then echo 'VERIFY_ALL=PASS'; else echo 'VERIFY_ALL=FAIL'; fi

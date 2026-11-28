@@ -138,7 +138,9 @@ func (s *service) UpdateScheduledTask(ctx *gin.Context, req *models.Task) error 
 		return err
 	}
 	if existingTask == nil {
-		return fmt.Errorf("scheduled task not found")
+		// 用哨兵错误：handler 要把它映射成 404。
+		// 原来只是普通 error → 500「操作失败」，一个不存在的 id 被当成服务器故障（2026-11-29 实测）。
+		return fmt.Errorf("%w: %s", ErrScheduledTaskNotFound, req.ID.Hex())
 	}
 
 	// 构建更新数据
@@ -272,7 +274,8 @@ func (s *service) GetScheduledTaskDetail(ctx *gin.Context, id string) (*models.T
 		return task, nil
 	}
 
-	return nil, fmt.Errorf("scheduled task not found")
+	// 用哨兵错误：调用方（UpdateScheduledTask / handler）要据此回 404 而不是 500
+	return nil, fmt.Errorf("%w: %s", ErrScheduledTaskNotFound, id)
 }
 
 // addScheduler 添加调度任务
@@ -404,7 +407,7 @@ func (s *service) UpdatePageMonitScheduledTask(ctx *gin.Context, req *models.Tas
 		return err
 	}
 	if existingTask == nil {
-		return fmt.Errorf("scheduled task not found")
+		return fmt.Errorf("%w: page_monitoring", ErrScheduledTaskNotFound)
 	}
 	existingTask.CycleType = "nhours"
 	existingTask.AllNode = req.AllNode
