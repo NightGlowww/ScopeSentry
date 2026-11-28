@@ -8,6 +8,7 @@
 package sensitiveRule
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
@@ -73,7 +74,7 @@ func Update(c *gin.Context) {
 		return
 	}
 	if err := getSensitiveService().RuleUpdate(c, req.ID, req.Name, req.Regular, req.Color, *req.State); err != nil {
-		if errors.Is(err, sensitive.ErrInvalidID) || errors.Is(err, sensitive.ErrNotFound) {
+		if errors.Is(err, svc.ErrInvalidID) || errors.Is(err, svc.ErrNotFound) {
 			// 改一条不存在的规则以前回 200（2026-11-28 线上实测）
 			response.NotFound(c, "api.not_found", err)
 			return

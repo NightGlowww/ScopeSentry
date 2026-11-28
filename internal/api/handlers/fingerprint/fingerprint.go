@@ -8,6 +8,8 @@
 package fingerprint
 
 import (
+	"errors"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	service "github.com/Autumn-27/ScopeSentry/internal/services/fingerprint"
@@ -147,9 +149,9 @@ func Update(c *gin.Context) {
 
 	if err := fingerprintService.Update(c, req.ID, data); err != nil {
 		switch {
-		case errors.Is(err, fingerprint.ErrInvalidRule):
+		case errors.Is(err, service.ErrInvalidRule):
 			response.BadRequest(c, "api.bad_request", err)
-		case errors.Is(err, fingerprint.ErrNotFound):
+		case errors.Is(err, service.ErrNotFound):
 			// 改一条不存在的指纹以前回 200（2026-11-28 线上实测）
 			response.NotFound(c, "api.not_found", err)
 		default:
