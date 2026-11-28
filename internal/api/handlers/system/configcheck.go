@@ -168,12 +168,15 @@ func ConfigCheck(c *gin.Context) {
 	fresh := 0
 	queue := 0
 	staleNames := []string{}
+	knownNodes := map[string]bool{}
+	orphanQueues := []string{}
 	if dbredis.Client != nil {
 		if keys, err := dbredis.Client.Keys(ctx, "node:*").Result(); err == nil {
 			for _, k := range keys {
 				if strings.Contains(k, ":currentTask") {
 					continue
 				}
+				knownNodes[strings.TrimPrefix(k, "node:")] = true
 				if t, terr := dbredis.Client.Type(ctx, k).Result(); terr != nil || t != "hash" {
 					continue
 				}
@@ -192,8 +195,16 @@ func ConfigCheck(c *gin.Context) {
 		}
 		if qk, err := dbredis.Client.Keys(ctx, "NodeTask:*").Result(); err == nil {
 			for _, k := range qk {
-				if n, err := dbredis.Client.LLen(ctx, k).Result(); err == nil {
-					queue += int(n)
+				n, lerr := dbredis.Client.LLen(ctx, k).Result()
+				if lerr != nil {
+					continue
+				}
+				queue += int(n)
+				// 孤儿队列：key 里的节点名不在节点集合里（节点改名/删除后的遗留）。
+				// 这些任务永远没有节点会去 LPOP，界面却一直显示「排队中」——
+				// 也是「最老任务等了 124 小时」这类现象的一种来源。
+				if name := strings.TrimPrefix(k, "NodeTask:"); n > 0 && !knownNodes[name] {
+					orphanQueues = append(orphanQueues, name+"("+itoa(int(n))+")")
 				}
 			}
 		}
@@ -216,7 +227,11 @@ func ConfigCheck(c *gin.Context) {
 	if len(staleNames) > 0 {
 		detail += " stale=" + strings.Join(staleNames, ",")
 	}
-	items = append(items, checkItem{"nodes", fresh > 0, detail})
+	if len(orphanQueues) > 0 {
+		detail += " orphan_queues=" + strings.Join(orphanQueues, ",")
+	}
+	// 有孤儿队列说明有任务永远不会被领取，不能算 ok
+	items = append(items, checkItem{"nodes", fresh > 0 && len(orphanQueues) == 0, detail})
 
 	// 5) LLM
 	// 判定后端：agent/harness 优先，其次是 LLM。两者都配了才算完整。
