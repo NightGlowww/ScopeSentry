@@ -138,7 +138,7 @@
 | M6 | 任务重测 | `POST /api/task/retest` | Agent 修完策略/模板后无法一键重扫，只能新建任务（污染任务表） |
 | M7 | 任务同步到项目 | `POST /api/task/sync` | 扫描产出无法归档到项目，`bindProject` 只在任务完成时生效，中途不能补绑 |
 | M8 | 目标级暂停/恢复 | `POST /api/task/target/{pause,resume}` | 大批量目标失控时无法只停某个目标（只能整任务停） |
-| M9 | 计划任务 CRUD | `/api/scheduled/{add,detail,update,delete}` + `/pagemonit/*` | `create_scan_task.scheduledTasks` 是空参数（§5.5），且无法查看/取消计划 |
+| M9 | 计划任务 CRUD | `/api/scheduled/{add,detail,update,delete}` + `/pagemonit/*` | **部分已补（2026-11-28）**：新增 `list_scheduled_tasks` / `get_scheduled_task` / `set_scheduled_task_state`，且 `create_scan_task(scheduledTasks=true)` 现在真的走 `CreateScheduledTask`（§5.5 已修）。仍缺：改周期参数、删除计划任务（删除可复用 `delete_task`？两者同一集合，但语义不同，未合） |
 | M10 | 备份只读面 | `GET /api/backup/{list,status}` | 运维 Agent 无法回答「最近备份是否成功」 |
 | M11 | GitHub 泄露/威胁情报只读 | `/api/github/result/{list,overview,stats}`、`/api/github/threat/{cve_history,token_status}` | 情报面完全黑盒（26 条路由 0 覆盖） |
 | M12 | 系统/看板趋势 + 审计日志 | `GET /api/system/version`、`POST /api/dashboard/{trend,logs}`、`GET /api/dashboard/sysinfo`、`POST /api/audit/list` | Agent 无法自证「我改了什么/系统是否健康」 |
@@ -227,7 +227,13 @@ POST /api/assets/common/total {"index":"SensitiveResult","filter":{"status":[1]}
 - MCP：`keyword/enabled/pageIndex/pageSize`（tools.go:1342-1347）→ `ScanPolicyListQuery`（models/scan_policy.go:239-244），与 handler 完全对应（handler 额外支持 `search` 作 keyword 别名，MCP 不需要）。
 - 差异：`pageSize>200` 时 REST 返回 400（policy/handler.go:52-61），MCP 静默截断为 200（tools.go:1360-1362）。建议文档化，或与 REST 一致返回错误避免「少拿了数据还以为拿全了」。
 
-### 5.5 create_scan_task：计划任务参数被静默忽略（严重）
+### 5.5 create_scan_task：计划任务参数被静默忽略（严重）——**已修（2026-11-28）**
+
+> 修法：`scheduledTasks=true` 时改调 `schedulerService.CreateScheduledTask`（只写一条周期任务并注册 cron），
+> 不再先 `Insert` 一条一次性任务——原来的 REST 路径会同时留下「立刻跑一次」和「周期跑」两条文档，
+> 对 MCP 调用方是意外的目标消耗。默认值（cycleType=nhours/hour=1/day=1/week=1）由服务层补。
+> 回归：`mcp_sweep.py` 覆盖 `list_scheduled_tasks`/`get_scheduled_task`（读）与
+> `set_scheduled_task_state`（不存在的 id 必须报错）。
 
 - MCP 接受 `scheduledTasks/hour/minute/day/week/cycleType`（tools.go:710-715）并写入 `models.Task`（tools.go:751-756），然后只调 `taskCommonService.Insert`（tools.go:769）。
 - REST `AddTask` 在 Insert 之后还有一段：`if req.ScheduledTasks { SchedulerService.CreateScheduledTask(c,&req) }`（handlers/task/task.go:148-155）；全仓库仅此一处调用（`grep CreateScheduledTask`）。

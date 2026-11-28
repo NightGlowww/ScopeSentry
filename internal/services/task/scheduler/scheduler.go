@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -24,6 +25,8 @@ type Service interface {
 	// DeleteScheduledTasks 删除计划任务，返回真实删除条数
 	DeleteScheduledTasks(ctx *gin.Context, ids []string) (int64, error)
 	GetScheduledTaskDetail(ctx *gin.Context, id string) (*models.Task, error)
+	// SetScheduledTaskState 只切换启用开关，其余字段沿用库里的值
+	SetScheduledTaskState(ctx *gin.Context, id string, enabled bool) (*models.Task, error)
 	UpdatePageMonitScheduledTask(ctx *gin.Context, req *models.Task) error
 	GetPageMonitData(ctx *gin.Context, search string, pageIndex, pageSize int) ([]models.PageMonitoringTask, int64, error)
 	AddPageMonitTask(ctx *gin.Context, url string) error
@@ -358,6 +361,39 @@ func (s *service) calculateCycle(task *models.Task) string {
 	default:
 		return "Unknown cycle"
 	}
+}
+
+// ErrScheduledTaskNotFound 计划任务不存在：调用方用它区分 404 与 500
+var ErrScheduledTaskNotFound = errors.New("scheduled task not found")
+
+// SetScheduledTaskState 只切换「启用」开关，其余字段一律沿用库里的值。
+//
+// 不能拿 UpdateScheduledTask 顶替：那个方法按零值覆盖 AllNode/Hour/Minute/Week 等字段，
+// 传一个只带 id 的请求等于把计划任务的配置清空（2026-11-28 复核时确认）。
+func (s *service) SetScheduledTaskState(ctx *gin.Context, id string, enabled bool) (*models.Task, error) {
+	task, err := s.GetScheduledTaskDetail(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if task == nil {
+		return nil, ErrScheduledTaskNotFound
+	}
+	task.ScheduledTasks = enabled
+	if err := s.schedulerRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, task); err != nil {
+		return nil, err
+	}
+	core := schedulerCore.GetGlobalScheduler()
+	core.RemoveJob(task.ID.Hex())
+	if enabled {
+		tp := "scan"
+		if task.TaskID == "page_monitoring" {
+			tp = "page_monitoring"
+		}
+		if err := s.addScheduler(task, tp); err != nil {
+			return nil, err
+		}
+	}
+	return task, nil
 }
 
 func (s *service) UpdatePageMonitScheduledTask(ctx *gin.Context, req *models.Task) error {

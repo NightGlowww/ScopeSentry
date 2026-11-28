@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -47,6 +48,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
 	"github.com/Autumn-27/ScopeSentry/internal/services/sensitive_rule"
 	taskCommon "github.com/Autumn-27/ScopeSentry/internal/services/task/common"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/scheduler"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/template"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -59,8 +61,10 @@ import (
 )
 
 type deps struct {
-	projectService     project.Service
-	taskService        task.Service
+	projectService project.Service
+	taskService    task.Service
+	// 计划任务（scan 与 page_monitoring 同一集合，scheduledTasks 是启用开关）
+	schedulerService   scheduler.Service
 	taskCommonService  taskCommon.Service
 	templateService    template.Service
 	assetService       asset.Service
@@ -181,6 +185,7 @@ func truncateRunes(s string, limit int) string {
 var d = &deps{
 	projectService:       project.NewService(),
 	taskService:          task.NewService(),
+	schedulerService:     scheduler.NewService(),
 	taskCommonService:    taskCommon.NewService(),
 	templateService:      template.NewService(),
 	assetService:         asset.NewService(),
@@ -263,6 +268,24 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "get_task",
 		Description: "根据任务 ID 获取任务详情",
 	}, getTask)
+
+	// 计划任务（周期扫描）与一次性扫描在同一个集合，但扫描任务列表不返回它们：
+	// create_scan_task 支持 scheduledTasks/cycleType，却没有任何工具能看见或关掉已建的计划，
+	// 于是 agent 建了周期任务之后就失明（2026-11-28 对照 71 个工具确认）。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_scheduled_tasks",
+		Description: "分页获取计划任务（周期扫描，含页面监控）列表：名称、周期、下次/上次执行时间、启用状态、节点与模板",
+	}, listScheduledTasks)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_scheduled_task",
+		Description: "根据任务 ID 获取计划任务详情（目标、忽略、节点、周期参数、模板、绑定项目）",
+	}, getScheduledTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "set_scheduled_task_state",
+		Description: "启用或停用计划任务。只改 scheduledTasks 开关，其余字段与周期保持不变；停用后不再触发新的扫描",
+	}, setScheduledTaskState)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_scan_templates",
@@ -813,6 +836,72 @@ func getTask(ctx context.Context, _ *mcp.CallToolRequest, input getTaskInput) (*
 	return jsonToolResult(result)
 }
 
+type listScheduledTasksInput struct {
+	Search    string `json:"search,omitempty" jsonschema:"任务名称模糊搜索"`
+	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
+	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20"`
+}
+
+func listScheduledTasks(ctx context.Context, _ *mcp.CallToolRequest, input listScheduledTasksInput) (*mcp.CallToolResult, any, error) {
+	capPageSize(&input.PageIndex, &input.PageSize)
+	c := ginContext(ctx)
+	tasks, total, err := d.schedulerService.GetScheduledData(c, input.Search, input.PageIndex, input.PageSize)
+	if err != nil {
+		return errorResult("获取计划任务列表失败", err)
+	}
+	return jsonToolResult(ginH{"list": tasks, "total": total})
+}
+
+type getScheduledTaskInput struct {
+	ID string `json:"id" jsonschema:"计划任务 MongoDB ObjectID，用 list_scheduled_tasks 获取"`
+}
+
+func getScheduledTask(ctx context.Context, _ *mcp.CallToolRequest, input getScheduledTaskInput) (*mcp.CallToolResult, any, error) {
+	if input.ID == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	c := ginContext(ctx)
+	task, err := d.schedulerService.GetScheduledTaskDetail(c, input.ID)
+	if err != nil {
+		if errors.Is(err, scheduler.ErrScheduledTaskNotFound) {
+			return errorResult("计划任务不存在", nil)
+		}
+		return errorResult("获取计划任务详情失败", err)
+	}
+	if task == nil {
+		return errorResult("计划任务不存在", nil)
+	}
+	return jsonToolResult(task)
+}
+
+type setScheduledTaskStateInput struct {
+	ID      string `json:"id" jsonschema:"计划任务 MongoDB ObjectID，用 list_scheduled_tasks 获取"`
+	Enabled bool   `json:"enabled" jsonschema:"true 启用（按周期触发扫描），false 停用（保留配置但不再触发）"`
+}
+
+func setScheduledTaskState(ctx context.Context, _ *mcp.CallToolRequest, input setScheduledTaskStateInput) (*mcp.CallToolResult, any, error) {
+	if input.ID == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	c := ginContext(ctx)
+	task, err := d.schedulerService.SetScheduledTaskState(c, input.ID, input.Enabled)
+	if err != nil {
+		if errors.Is(err, scheduler.ErrScheduledTaskNotFound) {
+			return errorResult("计划任务不存在", nil)
+		}
+		return errorResult("切换计划任务状态失败", err)
+	}
+	return jsonToolResult(ginH{
+		"id":             task.ID.Hex(),
+		"name":           task.Name,
+		"scheduledTasks": task.ScheduledTasks,
+		"cycleType":      task.CycleType,
+		"hour":           task.Hour,
+		"minute":         task.Minute,
+		"nextTime":       task.NextTime,
+	})
+}
+
 type listScanTemplatesInput struct {
 	Query     string `json:"query,omitempty" jsonschema:"模板名称模糊搜索"`
 	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
@@ -971,7 +1060,7 @@ type createScanTaskInput struct {
 	TargetNumber   int                 `json:"targetNumber,omitempty" jsonschema:"search 模式下目标数量上限，0 表示不限制"`
 	TargetIds      []string            `json:"targetIds,omitempty" jsonschema:"select 模式下选中的资产 ObjectID 列表"`
 	BindProject    string              `json:"bindProject,omitempty" jsonschema:"绑定项目 ObjectID，扫描结果归属"`
-	ScheduledTasks bool                `json:"scheduledTasks,omitempty" jsonschema:"是否创建为计划任务"`
+	ScheduledTasks bool                `json:"scheduledTasks,omitempty" jsonschema:"是否创建为计划任务（true 时只建周期任务、不额外立刻跑一次；建好后用 list_scheduled_tasks 查看、set_scheduled_task_state 停用）"`
 	Hour           int                 `json:"hour,omitempty" jsonschema:"计划任务间隔-小时"`
 	Minute         int                 `json:"minute,omitempty" jsonschema:"计划任务间隔-分钟"`
 	Day            int                 `json:"day,omitempty" jsonschema:"计划任务间隔-天"`
@@ -1029,6 +1118,25 @@ func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createSca
 			filter[k] = items
 		}
 		taskModel.Filter = filter
+	}
+	// scheduledTasks=true 时走计划任务入口，而不是「插一条一次性任务」。
+	// 之前只调 Insert，参数被静默忽略：agent 以为建了周期任务，实际只跑一次（docs/audit/MCP_GAPS.md §5.5）。
+	// 这里也不再额外插一条一次性任务：传 true 的含义就是「按周期跑」，不该顺手把目标扫一遍。
+	if input.ScheduledTasks {
+		if err := d.schedulerService.CreateScheduledTask(c, taskModel); err != nil {
+			return errorResult("创建计划任务失败", err)
+		}
+		return jsonToolResult(ginH{
+			"success":       true,
+			"id":            taskModel.ID.Hex(),
+			"scheduled":     true,
+			"cycleType":     taskModel.CycleType,
+			"hour":          taskModel.Hour,
+			"minute":        taskModel.Minute,
+			"day":           taskModel.Day,
+			"week":          taskModel.Week,
+			"scheduledTask": taskModel.ScheduledTasks,
+		})
 	}
 	taskID, err := d.taskCommonService.Insert(ctx, taskModel)
 	if err != nil {

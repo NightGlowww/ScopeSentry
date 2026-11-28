@@ -99,6 +99,8 @@ def probe_ids():
     ids = {}
     d = jcall('list_tasks', {'pageIndex': 1, 'pageSize': 1}) or {}
     ids['task'] = ((d.get('list') or [{}])[0] or {}).get('id')
+    d = jcall('list_scheduled_tasks', {'pageIndex': 1, 'pageSize': 1}) or {}
+    ids['scheduled'] = ((d.get('list') or [{}])[0] or {}).get('id')
     d = jcall('list_pocs', {'pageIndex': 1, 'pageSize': 1}) or {}
     ids['poc'] = ((d.get('list') or [{}])[0] or {}).get('id')
     d = jcall('list_scan_templates', {'pageIndex': 1, 'pageSize': 1}) or {}
@@ -177,6 +179,8 @@ def main():
         ('list_sensitive_rules', {'pageIndex': 1, 'pageSize': 2}),
         ('list_stat_finger', {'pageIndex': 1, 'pageSize': 2}),
         ('list_tasks', {'pageIndex': 1, 'pageSize': 2}),
+        # 计划任务（周期扫描）：create_scan_task 能建，之前没有任何工具能看/关
+        ('list_scheduled_tasks', {'pageIndex': 1, 'pageSize': 2}),
         ('list_wih_results', {'pageIndex': 1, 'pageSize': 2}),
         ('preview_dictionary', {'kind': 'dir', 'name': ids.get('dict') or 'x', 'limit': 1}),
         ('search_assets', {'query': 'a', 'limit': 1}),
@@ -187,6 +191,8 @@ def main():
     ]
     if ids.get('task'):
         READ += [('get_task', {'id': ids['task']}), ('get_task_progress', {'id': ids['task'], 'pageIndex': 1, 'pageSize': 2})]
+    if ids.get('scheduled'):
+        READ += [('get_scheduled_task', {'id': ids['scheduled']})]
     if ids.get('poc'):
         READ += [('get_poc', {'id': ids['poc']})]
     if ids.get('template'):
@@ -221,6 +227,9 @@ def main():
         ('get_poc', {'id': NOPE}),
         ('get_project', {'id': NOPE}),
         ('get_task', {'id': NOPE}),
+        ('get_scheduled_task', {'id': NOPE}),
+        # 开关只改 scheduledTasks，但 id 不存在必须报错（不能假成功返回空任务）
+        ('set_scheduled_task_state', {'id': NOPE, 'enabled': False}),
         ('get_scan_template', {'id': NOPE}),
         ('get_asset_detail', {'asset_type': 'asset', 'id': NOPE}),
         ('count_assets', {'asset_type': 'nope'}),
