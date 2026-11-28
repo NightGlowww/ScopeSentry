@@ -1224,6 +1224,11 @@ export default {
     policyWarnings: 'Policy notes',
     allPocNucleiWarning:
       'The scan node currently accepts only a single-file -t; choosing All POC is silently ignored (0 hits). Pick explicit POCs, or upgrade the node-side nuclei argument handling first.',
+    scanProfile: 'Scan profile',
+    scanProfileFull: 'Full scan (per template)',
+    scanProfileRecon: 'Recon only (fast)',
+    scanProfileHint:
+      'Recon only skips nuclei and directory scanning: a target drops from ~20 minutes to a couple of minutes, which is how you cover many targets first. Run the full profile later where the vuln/endpoint surface matters.',
     nucleiOffHint:
       'nuclei is not selected (VulnerabilityScan is empty): this template only maps assets and usually finishes in minutes. Tick the nuclei plugin under VulnerabilityScan when you do want vulnerability scanning.',
     failed: 'Failed',

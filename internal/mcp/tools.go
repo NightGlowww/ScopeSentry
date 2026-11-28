@@ -1295,6 +1295,7 @@ type createScanTaskInput struct {
 	Day            int                 `json:"day,omitempty" jsonschema:"计划任务间隔-天"`
 	Week           int                 `json:"week,omitempty" jsonschema:"计划任务间隔-周（weekly 周期）"`
 	CycleType      string              `json:"cycleType,omitempty" jsonschema:"周期类型，如 nhours daily weekly"`
+	ScanProfile    string              `json:"scanProfile,omitempty" jsonschema:"扫描档位：空=按模板；recon=只做资产测绘（跳过 nuclei 与目录扫描，任务通常几分钟结束），需要漏洞面时再用模板跑一遍"`
 }
 
 func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createScanTaskInput) (*mcp.CallToolResult, any, error) {
@@ -1336,6 +1337,7 @@ func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createSca
 		Day:            input.Day,
 		Week:           input.Week,
 		CycleType:      input.CycleType,
+		ScanProfile:    input.ScanProfile,
 	}
 	if len(input.Filter) > 0 {
 		filter := make(map[string][]interface{}, len(input.Filter))

@@ -1187,6 +1187,11 @@ export default {
     policyWarnings: '策略提示',
     allPocNucleiWarning:
       '当前扫描节点的 nuclei 只接受单文件 -t，选择「全部 POC」会被静默忽略（0 命中）。请改选具体 POC，或先升级节点侧 nuclei 参数解析。',
+    scanProfile: '扫描档位',
+    scanProfileFull: '按模板完整扫描',
+    scanProfileRecon: '仅资产测绘（快）',
+    scanProfileHint:
+      '仅资产测绘会跳过 nuclei 与目录扫描：单目标从 20 分钟级降到分钟级，适合先把面铺开；需要漏洞/接口面时再用完整档位跑一遍。',
     nucleiOffHint:
       '未勾选 nuclei（VulnerabilityScan 为空）：本次只做资产测绘，任务通常几分钟内结束；需要漏洞扫描时再到 VulnerabilityScan 里勾选 nuclei 插件。',
     failed: '失败',

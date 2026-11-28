@@ -52,6 +52,10 @@ type Task struct {
 	// 只作「选哪个策略」的引用，参数消费在 services/task/taskpolicy（见 docs/audit/SCAN_POLICY.md）。
 	PolicyID string `bson:"policyId,omitempty" json:"policyId,omitempty"`
 
+	// ScanProfile 扫描档位：空 = 按模板；recon = 只做资产测绘（跳过 nuclei 与目录扫描）。
+	// 解决的是「同一个模板，有时要全量、有时只要快」——以前只能改模板再改回来。
+	ScanProfile string `bson:"scanProfile,omitempty" json:"scanProfile,omitempty"`
+
 	// Stats 终态产出快照（对齐 ARL-Next 1.5.2「终态统计补齐」）。
 	// 任务完成那一刻统计一次并冻结：之后哪怕有清理/去重/新任务覆盖，历史任务的战果也不会变。
 	// 空 = 尚未冻结（运行中，或历史数据），此时接口回退到实时统计。

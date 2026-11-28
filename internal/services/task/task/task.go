@@ -193,6 +193,8 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		// 「这个任务归档到哪个项目」只能一个个点详情才能看到（2026-11-28 实测：绑定成功、
 		// 项目页 taskCount 0→1、按 bindProject 过滤能命中，但列表行里是空的）。
 		"bindProject": 1,
+		// 扫描档位：列表要能显示「仅测绘」，否则用户看不出这条任务为什么没有漏洞结果。
+		"scanProfile": 1,
 	}
 
 	// 分页查询

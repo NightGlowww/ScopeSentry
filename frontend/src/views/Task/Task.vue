@@ -141,7 +141,13 @@ const taskColums = reactive<TableColumn[]>([
     label: t('task.taskName'),
     minWidth: 150,
     sortable: 'custom',
-    showOverflowTooltip: true
+    showOverflowTooltip: true,
+    // 档位标在名字后面：同一条任务「为什么没有漏洞结果」看一眼就知道，
+    // 不用点进详情翻 policyWarnings（2026-11-29）。
+    formatter: (row: any, _col: TableColumn, cellValue: string) => {
+      if (row?.scanProfile !== 'recon') return cellValue || '-'
+      return cellValue + ' · ' + t('task.scanProfileRecon')
+    }
   },
   {
     // 归属项目：库里写了 bindProject，但之前投影漏字段、界面也没这列，

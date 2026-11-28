@@ -22,6 +22,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/scanprofile"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskpolicy"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/diskguard"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -164,6 +165,15 @@ func (s *service) Insert(ctx context.Context, task *models.Task) (string, error)
 	// 扫描策略接入：任务带了 policyId 才消费。任务没填模板时用策略的 templateId 兜底并随任务落库；
 	// 任务已填模板则以任务为准（用户选择优先）。策略缺失 / 停用只记日志、按模板默认值继续。
 	s.applyTaskPolicy(ctx, task)
+	// 扫描档位：入库前归一化，并把「这次跳过了什么」写进 policyWarnings，
+	// 让任务列表里能直接看到为什么没有漏洞/目录结果（不然只能靠猜）。
+	task.ScanProfile = scanprofile.Normalize(task.ScanProfile)
+	if task.ScanProfile == scanprofile.Recon {
+		note := scanprofile.Describe([]string{"VulnerabilityScan", "DirScan"})
+		if note != "" {
+			task.PolicyWarnings = append(task.PolicyWarnings, note)
+		}
+	}
 	insertId, err := s.taskRepo.Insert(ctx, task)
 	if err != nil {
 		return "", err
@@ -328,6 +338,9 @@ func (s *service) GetScanTemplate(ctx context.Context, task *models.Task) (*mode
 		if len(applied) > 0 {
 			logger.Info(fmt.Sprintf("task policy %s applied on template %s: %v", task.PolicyID, templateID, applied))
 		}
+	}
+	if dropped := scanprofile.Apply(scanTemplate, task.ScanProfile); len(dropped) > 0 {
+		logger.Info(fmt.Sprintf("task %s scan_profile=recon：跳过 %v", task.Name, dropped))
 	}
 	if len(scanTemplate.VulList) != 0 {
 		if helper.StringInSlice("ed93b8af6b72fe54a60efdb932cf6fbc", scanTemplate.VulnerabilityScan) {

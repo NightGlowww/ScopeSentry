@@ -10,6 +10,8 @@ export type TaskData = {
   queued?: boolean
   queuePos?: number
   failReason?: string
+  // 扫描档位：recon = 仅资产测绘（列表里用标签标出来）
+  scanProfile?: string
 }
 
 export type taskRespData = {

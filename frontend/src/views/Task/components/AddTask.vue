@@ -316,7 +316,9 @@ const taskData = reactive({
   hour: 1,
   minute: 30,
   week: 1,
-  bindProject: null
+  bindProject: null,
+  // 扫描档位：'' = 按模板；'recon' = 只做资产测绘（后端跳过 nuclei 与目录扫描）
+  scanProfile: ''
 })
 const handleCheckAll = (val: CheckboxValueType) => {
   indeterminate.value = false
@@ -892,6 +894,13 @@ loadPolicies()
         </template>
       </ElSelect>
     </ElFormItem>
+    <ElFormItem :label="t('task.scanProfile')">
+      <ElSelect v-model="taskData.scanProfile" style="width: 30%">
+        <ElOption :label="t('task.scanProfileFull')" value="" />
+        <ElOption :label="t('task.scanProfileRecon')" value="recon" />
+      </ElSelect>
+      <div class="scan-profile-hint">{{ t('task.scanProfileHint') }}</div>
+    </ElFormItem>
     <ElDivider />
     <ElRow>
       <ElCol :span="2" :offset="10">
@@ -913,6 +922,13 @@ loadPolicies()
 </template>
 
 <style scoped>
+.scan-profile-hint {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-secondary);
+}
 .policy-hint {
   color: var(--el-text-color-secondary);
   font-size: 12px;
