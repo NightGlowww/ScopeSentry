@@ -297,6 +297,7 @@ POST	/api/task/scheduled/pagemonit/add
 POST	/api/task/scheduled/pagemonit/data
 POST	/api/task/scheduled/pagemonit/delete
 POST	/api/task/scheduled/pagemonit/update
+POST	/api/task/scheduled/run
 POST	/api/task/scheduled/update
 POST	/api/task/start
 POST	/api/task/stop

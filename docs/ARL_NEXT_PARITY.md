@@ -4,14 +4,35 @@
 > 参照方式：以 ARL-Next 的路由/模型/页面作为**功能规格**，用我们自己的 Go + Vue 代码实现等价能力。
 > （ARL-Next 是 GPL-3.0，直接搬源码会把我们的仓库也变成 GPL，所以按接口与行为对齐，不复制其实现代码。）
 
-## 当前基线（2026-11-18）
+## 当前基线（2026-11-29 复核）
 
 | 项 | 状态 |
 | --- | --- |
-| Vue | **3.5.13**（本次升级；vue-router 4.6、pinia 2.3、element-plus 2.14、vue-i18n 9.14、vite 5.0.6、plugin-vue 5.2、vue-tsc 2.2） |
-| 后端 | Go + Gin，171 条路由，Mongo 7 + Redis 7，多节点扫描 |
-| 参照物 | ARL-Next `backend/app/routes/*.py`（52 个路由文件）、`frontend/src/views` |
+| Vue | 3.5.13（vue-router 4.6、pinia 2.3、element-plus 2.14、vue-i18n 9.14、vite 5.0.6） |
+| 后端 | Go + Gin，**315 条路由**，Mongo 7 + Redis 7，多节点扫描 |
+| 参照物 | ARL-Next `backend/app/routes/*.py`：**58 个文件、302 个端点**（快照见 `docs/audit/upstream_routes.json`） |
+| 路由族覆盖 | **57 族：✅ 46 / 🟡 10 / ❌ 1**（明细见自动生成的 `docs/audit/ARL_NEXT_COVERAGE.md`） |
 
+> 下面这张手写的「功能族对照」写于 2026-11-18，之后补了很多能力（ICP 任务链、GitHub 监控、
+> 扫描策略、资产组/地契、字典行级化、任务导出、多工作表 Excel…），表里不少 ❌ 已经过时。
+> **以 `docs/audit/ARL_NEXT_COVERAGE.md` 为准**：它按上游 302 个端点逐族比对，可重跑（`scripts/ci/arl_parity.py`）。
+
+### 复核后的真实缺口（2026-11-29）
+
+| 缺口 | 上游规模 | 现状 | 说明 |
+| --- | --- | --- | --- |
+| nuclei 模板库管理 | 19 端点 | ❌ | 上游有模板 CRUD / 批量开关 / 导入导出 / 测试 / 社区同步（`/community/sync*`）/ 黑名单；我们只有 nuclei **结果**读模型（`/assets/nuclei_result/*`）。这是唯一整族缺失。 |
+| 计划任务手动触发 | `scheduler /run /stop /recover` | 🟡 已补一半 | 本轮补了「立即运行一次」（`/api/task/scheduled/run`，与周期触发同一 jobs.Scan）；仍缺「批量运行 / 停止运行中 / 恢复」。 |
+| 代理节点与策略 | `system_config /proxy* /check_update /request_update_token` | ❌ | 上游能管扫描出口代理节点/策略/探测/冷却；我们没有这层概念。 |
+| 指纹同步 | `fingerprint /sync /sync_from_json /upload` | 🟡 | 有 `batch-add` 与远程搜索；缺「从上游 JSON 直接同步」这条路径。 |
+| 资产族逐族导出/删除 | 各 `asset*` 的 `/delete` `/export` | 🟡（形状差异） | 上游逐族开接口；我们统一走 `/api/assets/common/delete` 与 `/api/export`。计数少但能力在。 |
+
+### 有意不做的差异
+
+- **MCP 面**：上游把 asset_profile / search_assets / create_scan_task 等做成 REST（`mcp.py` 16 端点）；
+  我们做成 MCP 工具（`get_asset_profile` / `search_assets` / `create_scan_task` …），REST 只保留治理面
+  （keys / logs / config / tools）。同一能力，接口形状不同。
+- **syslog**：上游单独一个路由；我们复用 `/api/dashboard/logs`（前端 `Syslog.vue` 就调它）。
 ## 功能族对照
 
 图例：✅ 已有等价能力；🟡 部分具备；❌ 缺失（需要对标实现）。
@@ -247,4 +268,3 @@ grep -rln 'wildcard|dnsserver|domain_sync' internal/ cmd/   # 服务端是否真
 ```
 
 再往前要跟的上游改动都落在扫描器/网关镜像里；服务端能承载的部分当前无欠账。
-

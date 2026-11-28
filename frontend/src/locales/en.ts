@@ -1124,6 +1124,8 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    runNowConfirm: 'Run "{name}" now with its current settings? This creates a separate scan task and keeps the schedule.',
+    runNowOk: 'Triggered "{name}"',
     yieldFilter: 'Asset yield',
     yieldHas: 'Has output',
     yieldNone: 'No output',

@@ -1091,6 +1091,8 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    runNowConfirm: '立即按当前配置运行「{name}」？会生成一条独立的扫描任务，不影响周期。',
+    runNowOk: '已触发「{name}」',
     yieldFilter: '资产产出',
     yieldHas: '有产出',
     yieldNone: '无产出',

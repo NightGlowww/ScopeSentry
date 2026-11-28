@@ -1100,6 +1100,8 @@ export default {
       '이 노드를 기다리는 작업 {n}개: 노드는 한 번에 하나만 실행하므로 앞 작업이 끝나야 시작됩니다'
   },
   task: {
+    runNowConfirm: '"{name}"을(를) 현재 설정으로 지금 실행할까요? 별도 스캔 작업이 생성되며 주기는 그대로입니다.',
+    runNowOk: '"{name}" 실행을 시작했습니다',
     yieldFilter: '자산 산출',
     yieldHas: '산출 있음',
     yieldNone: '산출 없음',

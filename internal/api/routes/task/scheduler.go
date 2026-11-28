@@ -42,6 +42,13 @@ func registerSchedulerTaskRoutes() models.RouteGroup {
 				Middlewares: common.WithAuth(),
 			},
 			{
+				// 立即执行一次（不等周期）：界面上「现在就跑这个周任务」的入口
+				Method:      "POST",
+				Path:        "/run",
+				Handler:     task.RunScheduledTaskNow,
+				Middlewares: common.WithAuth(),
+			},
+			{
 				Method:      "POST",
 				Path:        "/delete",
 				Handler:     task.DeleteScheduledTask,

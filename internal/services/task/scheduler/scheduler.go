@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	schedulerCore "github.com/Autumn-27/ScopeSentry/internal/scheduler"
+	"github.com/Autumn-27/ScopeSentry/internal/scheduler/jobs"
 
 	schedulerRepo "github.com/Autumn-27/ScopeSentry/internal/repositories/task/scheduler"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -25,6 +27,9 @@ type Service interface {
 	// DeleteScheduledTasks 删除计划任务，返回真实删除条数
 	DeleteScheduledTasks(ctx *gin.Context, ids []string) (int64, error)
 	GetScheduledTaskDetail(ctx *gin.Context, id string) (*models.Task, error)
+	// RunScheduledTaskNow 立即执行一次（不等周期）。复用调度器同一个 handler，
+	// 生成的扫描任务与周期触发的那条完全一致（名字追加触发时间戳）。
+	RunScheduledTaskNow(ctx *gin.Context, id string) (*models.Task, error)
 	// SetScheduledTaskState 只切换启用开关，其余字段沿用库里的值
 	SetScheduledTaskState(ctx *gin.Context, id string, enabled bool) (*models.Task, error)
 	UpdatePageMonitScheduledTask(ctx *gin.Context, req *models.Task) error
@@ -279,6 +284,27 @@ func (s *service) GetScheduledTaskDetail(ctx *gin.Context, id string) (*models.T
 }
 
 // addScheduler 添加调度任务
+// RunScheduledTaskNow 立即执行一次计划任务。
+//
+// 走 jobs.Scan（调度器 fire 时调的就是它），而不是另写一套建任务逻辑：
+// 两条路径一旦分叉，「手动跑的结果和按周期跑的不一样」这种问题极难查。
+// nextTime 原样回传，避免手动触发把周期任务的「下次执行时间」清空。
+func (s *service) RunScheduledTaskNow(ctx *gin.Context, id string) (*models.Task, error) {
+	task, err := s.GetScheduledTaskDetail(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// 没有目标的计划任务跑不出扫描任务：底层的 taskCommon.Insert 会回「Target is null」，
+	// 那对用户是个 500 + 一句内部错误。在这里提前挡成 400 并说清楚。
+	if strings.TrimSpace(task.Target) == "" {
+		return nil, ErrScheduledTaskNoTarget
+	}
+	if err := jobs.Scan(id, task.NextTime); err != nil {
+		return nil, fmt.Errorf("run scheduled task now: %w", err)
+	}
+	return s.GetScheduledTaskDetail(ctx, id)
+}
+
 func (s *service) addScheduler(task *models.Task, tp string) error {
 	// 创建调度任务
 	job := &schedulerCore.Job{
@@ -368,6 +394,9 @@ func (s *service) calculateCycle(task *models.Task) string {
 
 // ErrScheduledTaskNotFound 计划任务不存在：调用方用它区分 404 与 500
 var ErrScheduledTaskNotFound = errors.New("scheduled task not found")
+
+// ErrScheduledTaskNoTarget 计划任务没有目标，立即运行无处可跑
+var ErrScheduledTaskNoTarget = errors.New("scheduled task: target is empty")
 
 // SetScheduledTaskState 只切换「启用」开关，其余字段一律沿用库里的值。
 //

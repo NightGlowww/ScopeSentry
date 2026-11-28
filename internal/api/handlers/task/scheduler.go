@@ -329,3 +329,34 @@ func DeletePageMonitTask(c *gin.Context) {
 
 	response.Success(c, nil, "api.success")
 }
+// RunScheduledTaskNow 立即执行一次计划任务
+// @Summary 立即执行计划任务
+// @Description 不等周期，按计划任务当前配置立刻生成一条扫描任务（与周期触发同一条代码路径）
+// @Tags task
+// @Accept json
+// @Produce json
+// @Router /api/task/scheduled/run [post]
+func RunScheduledTaskNow(c *gin.Context) {
+	var req struct {
+		ID string `json:"id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "api.bad_request", err)
+		return
+	}
+	task, err := SchedulerService.RunScheduledTaskNow(c, req.ID)
+	if err != nil {
+		if errors.Is(err, scheduler.ErrScheduledTaskNotFound) {
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
+		if errors.Is(err, scheduler.ErrScheduledTaskNoTarget) {
+			// 没有目标的计划任务跑不出扫描任务：回 400 说明原因，而不是把内部错误当 500 抛出去
+			response.BadRequest(c, "api.task.target_null", nil)
+			return
+		}
+		response.InternalServerError(c, "api.error", err)
+		return
+	}
+	response.Success(c, task, "api.success")
+}

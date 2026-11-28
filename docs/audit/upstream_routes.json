@@ -1,0 +1,418 @@
+{
+ "__init__.py": [],
+ "assetCert.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetCip.py": [
+  "/",
+  "/delete/",
+  "/export/",
+  "/ip_domain_detail/"
+ ],
+ "assetDomain.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetFileleak.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetGroup.py": [
+  "/",
+  "/delete/",
+  "/edit/",
+  "/reorder/"
+ ],
+ "assetIP.py": [
+  "/",
+  "/delete/",
+  "/export/",
+  "/export_domain/",
+  "/export_ip/"
+ ],
+ "assetNpocService.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetNucleiResult.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetOverview.py": [
+  "/count"
+ ],
+ "assetScope.py": [
+  "/",
+  "/add/",
+  "/batch_move_group/",
+  "/bind_enterprise/",
+  "/clear_update_error/",
+  "/delete/",
+  "/edit/",
+  "/update/"
+ ],
+ "assetService.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetSite.py": [
+  "/",
+  "/add_tag/",
+  "/delete/",
+  "/delete_tag/",
+  "/export/",
+  "/save_result_set/",
+  "/subdomain_chain/"
+ ],
+ "assetStatFinger.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetUrl.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetVuln.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "assetWih.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "backup.py": [
+  "/create",
+  "/delete/<string:filename>",
+  "/download/<string:filename>",
+  "/download_ticket",
+  "/info/<string:filename>",
+  "/list",
+  "/restore",
+  "/status",
+  "/upload"
+ ],
+ "batchExport.py": [
+  "/asset_domain/",
+  "/asset_ip/",
+  "/asset_site/",
+  "/asset_wih/",
+  "/cip/",
+  "/domain/",
+  "/ip/",
+  "/ip_port/",
+  "/site/",
+  "/url/",
+  "/wih/"
+ ],
+ "brute_dict.py": [
+  "/append",
+  "/create",
+  "/delete_entries",
+  "/delete_file",
+  "/download",
+  "/list",
+  "/preview",
+  "/search",
+  "/upload_large",
+  "/upload_status"
+ ],
+ "cdn_dict.py": [
+  "/list",
+  "/save"
+ ],
+ "cert.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "cip.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "console.py": [
+  "/info"
+ ],
+ "dashboard.py": [
+  "/logs",
+  "/stats",
+  "/sysinfo",
+  "/trend",
+  "/widgets"
+ ],
+ "dictionary.py": [
+  "/append",
+  "/create",
+  "/delete_entries",
+  "/delete_file",
+  "/download",
+  "/list",
+  "/preview",
+  "/search",
+  "/upload_large",
+  "/upload_status"
+ ],
+ "domain.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "export.py": [
+  "/<string:task_id>",
+  "/batch/"
+ ],
+ "fileleak.py": [
+  "/",
+  "/delete/"
+ ],
+ "fingerprint.py": [
+  "/",
+  "/delete/",
+  "/export/",
+  "/sync/",
+  "/sync_from_json/",
+  "/upload/"
+ ],
+ "github_monitor_result.py": [
+  "/"
+ ],
+ "github_result.py": [
+  "/",
+  "/export/",
+  "/ignored_repos/",
+  "/overview/",
+  "/stats/",
+  "/triage/"
+ ],
+ "github_scheduler.py": [
+  "/",
+  "/delete/",
+  "/recover/",
+  "/run/",
+  "/stop/",
+  "/update/"
+ ],
+ "github_task.py": [
+  "/",
+  "/delete/",
+  "/stop/"
+ ],
+ "github_threat.py": [
+  "/cve_config",
+  "/cve_history",
+  "/cve_history/delete",
+  "/cve_run_once",
+  "/hackers_config",
+  "/hackers_history",
+  "/hackers_run_once",
+  "/hackers_target",
+  "/hackers_target/delete",
+  "/token_status",
+  "/tools_config",
+  "/tools_run_once",
+  "/tools_target",
+  "/tools_target/delete"
+ ],
+ "http_status.py": [],
+ "icp.py": [
+  "/asset",
+  "/backfill_details/<string:task_id>",
+  "/batch_export",
+  "/batch_stop/",
+  "/delete/",
+  "/delete/<string:task_id>",
+  "/export/<string:task_id>",
+  "/restart/",
+  "/restart/<string:task_id>",
+  "/resume/<string:task_id>",
+  "/stop/<string:task_id>",
+  "/sync/<string:task_id>",
+  "/task",
+  "/task/log/<string:task_id>",
+  "/task/overview_count",
+  "/task/overview_count/",
+  "/task/statistics",
+  "/task/statistics/",
+  "/tyc_check",
+  "/tyc_task"
+ ],
+ "image.py": [
+  "/<string:task_id>/<string:file_name>"
+ ],
+ "ip.py": [
+  "/",
+  "/delete/",
+  "/export/",
+  "/export_domain/",
+  "/export_ip/"
+ ],
+ "mcp.py": [
+  "/asset_profile",
+  "/config",
+  "/create_scan_task",
+  "/enterprise_profile",
+  "/export_server",
+  "/keys",
+  "/keys/<string:key_id>",
+  "/keys/<string:key_id>/status",
+  "/logs",
+  "/logs/export",
+  "/overview",
+  "/search_assets",
+  "/stop_scan_task",
+  "/task_detail_export",
+  "/task_status",
+  "/tools"
+ ],
+ "npoc_service.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "nuclei.py": [
+  "/blacklist/",
+  "/blacklist/<string:template_id>/",
+  "/blacklist/delete/",
+  "/community/",
+  "/community/source/",
+  "/community/sync/",
+  "/community/sync_offline/",
+  "/community/sync_status/",
+  "/stats/",
+  "/template/",
+  "/template/batch_toggle/",
+  "/template/create/",
+  "/template/delete/",
+  "/template/detail/",
+  "/template/export/",
+  "/template/import/",
+  "/template/test/",
+  "/template/toggle/",
+  "/template/update/"
+ ],
+ "nuclei_result.py": [
+  "/",
+  "/delete/"
+ ],
+ "poc.py": [
+  "/",
+  "/create/",
+  "/delete/",
+  "/import/",
+  "/source/",
+  "/sync/"
+ ],
+ "policy.py": [
+  "/",
+  "/add/",
+  "/delete/",
+  "/edit/"
+ ],
+ "scheduler.py": [
+  "/",
+  "/add/",
+  "/add/site_monitor/",
+  "/add/wih_monitor/",
+  "/delete/",
+  "/one_time_scan/",
+  "/recover/",
+  "/recover/batch",
+  "/run/",
+  "/run/batch",
+  "/stop/",
+  "/stop/batch"
+ ],
+ "service.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "site.py": [
+  "/",
+  "/add_tag/",
+  "/delete/",
+  "/delete_tag/",
+  "/export/",
+  "/save_result_set/"
+ ],
+ "stat_finger.py": [
+  "/",
+  "/delete/"
+ ],
+ "syslog.py": [
+  "/"
+ ],
+ "system_config.py": [
+  "/capacity_probe",
+  "/check_update",
+  "/general",
+  "/local_version",
+  "/performance",
+  "/proxy",
+  "/proxy/cooldown/reset",
+  "/proxy/nodes",
+  "/proxy/nodes/<string:node_id>",
+  "/proxy/policies",
+  "/proxy/probe",
+  "/request_update_token",
+  "/running_task_count",
+  "/security_policy",
+  "/test_push"
+ ],
+ "task.py": [
+  "/",
+  "/batch_stop/",
+  "/delete/",
+  "/overview_count",
+  "/overview_count/",
+  "/policy/",
+  "/restart/",
+  "/statistics",
+  "/statistics/",
+  "/stop/<string:task_id>",
+  "/sync/",
+  "/sync_scope/"
+ ],
+ "taskFofa.py": [
+  "/submit",
+  "/test"
+ ],
+ "task_schedule.py": [
+  "/",
+  "/delete/",
+  "/recover/",
+  "/run/",
+  "/stop/"
+ ],
+ "url.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ],
+ "user.py": [
+  "/change_pass",
+  "/login",
+  "/logout",
+  "/refresh_token"
+ ],
+ "vuln.py": [
+  "/",
+  "/delete/"
+ ],
+ "wih.py": [
+  "/",
+  "/delete/",
+  "/export/"
+ ]
+}

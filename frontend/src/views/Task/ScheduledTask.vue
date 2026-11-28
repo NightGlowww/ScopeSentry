@@ -27,6 +27,7 @@ import { useIcon } from '@/hooks/web/useIcon'
 import {
   getScheduledTaskDataApi,
   scheduledDeleteTaskApi,
+  taskRunApi,
   updateScheduledTaskPageMonitApi
 } from '@/api/task'
 import { Dialog } from '@/components/Dialog'
@@ -142,14 +143,14 @@ const taskColums = reactive<TableColumn[]>([
               <BaseButton type="success" onClick={() => getTaskContent(row)}>
                 {t('common.edit')}
               </BaseButton>
+              <BaseButton type="warning" onClick={() => handleRunNow(row)}>
+                {t('task.runNow')}
+              </BaseButton>
               <BaseButton type="danger" onClick={() => confirmDelete(row)}>
                 {t('common.delete')}
               </BaseButton>
             </>
           )}
-          {/* <BaseButton type="warning" onClick={() => taskRunNow(row.id)}>
-            {t('task.runNow')}
-          </BaseButton> */}
         </>
       )
     }
@@ -170,6 +171,25 @@ const { tableRegister, tableState, tableMethods } = useTable({
 const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
 const { getList, getElTableExpose } = tableMethods
+
+// 立即运行：走的是后端 jobs.Scan（与周期触发同一条路径），只生成一条独立扫描任务，不动周期。
+// 这个按钮以前是注释状态 —— 前端 api 客户端早就有 taskRunApi，后端却没有 /scheduled/run，
+// 点下去只会 404；现在两边补齐，失败也要把原因（例如「目标不能为空」）弹出来。
+const handleRunNow = async (row: Recordable) => {
+  try {
+    await confirmDialog(t('task.runNowConfirm', { name: row.name }), t('common.reminder'))
+  } catch {
+    return
+  }
+  try {
+    await taskRunApi(row.id)
+    ElMessage.success(t('task.runNowOk', { name: row.name }))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    getList()
+  }
+}
 function tableHeaderColor() {
   return { background: 'var(--app-surface-2)' }
 }
