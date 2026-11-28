@@ -1295,7 +1295,9 @@ type createScanTaskInput struct {
 	Day            int                 `json:"day,omitempty" jsonschema:"计划任务间隔-天"`
 	Week           int                 `json:"week,omitempty" jsonschema:"计划任务间隔-周（weekly 周期）"`
 	CycleType      string              `json:"cycleType,omitempty" jsonschema:"周期类型，如 nhours daily weekly"`
-	ScanProfile    string              `json:"scanProfile,omitempty" jsonschema:"扫描档位：空=按模板；recon=只做资产测绘（跳过 nuclei 与目录扫描，任务通常几分钟结束），需要漏洞面时再用模板跑一遍"`
+	// 注意：jsonschema tag 里不能出现「WORD=VALUE」形式，MCP 会把它当默认值标记并在注册时 panic，
+	// 结果是这个工具从 tools/list 里静默消失（2026-11-29 实测：写完部署后工具数从 82 掉到 81）。
+	ScanProfile string `json:"scanProfile,omitempty" jsonschema:"扫描档位。留空按模板完整扫描；填 recon 表示只做资产测绘（跳过 nuclei 与目录扫描，任务通常几分钟结束），需要漏洞面时再用完整档位跑一遍"`
 }
 
 func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createScanTaskInput) (*mcp.CallToolResult, any, error) {
