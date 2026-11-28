@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"errors"
+
 	"github.com/Autumn-27/ScopeSentry/internal/api/response"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/services/plugin"
@@ -422,6 +424,11 @@ func Status(c *gin.Context) {
 	}
 
 	if err := pluginService.UpdateStatus(c, &req); err != nil {
+		if errors.Is(err, plugin.ErrPluginNotFound) {
+			// 插件列表里已经没有这个 hash（被清理或换过版本），不能回 200 假装改成功
+			response.NotFound(c, "api.plugin.not_found", nil)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -446,6 +453,10 @@ func Run(c *gin.Context) {
 	}
 
 	if err := pluginService.Run(c, &req); err != nil {
+		if errors.Is(err, plugin.ErrPluginNotFound) {
+			response.NotFound(c, "api.plugin.not_found", nil)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

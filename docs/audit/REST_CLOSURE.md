@@ -12,10 +12,10 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 207（66%） |
-| 读操作 点名/总数 | 80 / 115 |
-| 写操作 点名/总数 | 87 / 113 |
-| 无法判读 点名/总数 | 40 / 86 |
+| 被测试/契约脚本点名 | 234（75%） |
+| 读操作 点名/总数 | 84 / 115 |
+| 写操作 点名/总数 | 108 / 113 |
+| 无法判读 点名/总数 | 42 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
 
@@ -24,23 +24,23 @@
 | 模块 | 未点名 | 总数 |
 | --- | --- |
 | assets | 26 | 81 |
-| plugin | 16 | 17 |
-| task | 15 | 30 |
-| system | 9 | 10 |
-| node | 7 | 10 |
-| fingerprint | 5 | 6 |
-| github | 5 | 26 |
-| configuration | 4 | 14 |
-| poc | 4 | 9 |
-| backup | 3 | 7 |
-| mcp | 3 | 10 |
+| plugin | 14 | 17 |
+| task | 11 | 30 |
+| system | 7 | 10 |
+| node | 5 | 10 |
+| github | 4 | 26 |
 | user | 2 | 8 |
-| dictionary | 2 | 19 |
+| fingerprint | 2 | 6 |
+| poc | 2 | 9 |
 | project | 2 | 6 |
 | apikey | 1 | 3 |
+| dictionary | 1 | 19 |
 | export | 1 | 8 |
 | root | 1 | 1 |
 | fofa | 1 | 5 |
+| backup | 0 | 7 |
+| mcp | 0 | 10 |
+| configuration | 0 | 14 |
 | console | 0 | 1 |
 | dashboard | 0 | 5 |
 | icp | 0 | 14 |
@@ -55,32 +55,19 @@
 
 | 方法 | 路径 |
 | --- | --- |
-| GET | `/api/backup/status` |
-| GET | `/api/poc/data/import/status` |
-| POST | `/api/backup/upload` |
-| POST | `/api/configuration/rad/save` |
-| POST | `/api/configuration/subfinder/save` |
-| POST | `/api/dictionary/port/delete` |
-| POST | `/api/fingerprint/add` |
-| POST | `/api/fingerprint/update` |
-| POST | `/api/github/scheduler/stop` |
-| POST | `/api/mcp/keys/:id/status` |
-| POST | `/api/node/config/update` |
-| POST | `/api/node/queue/clear` |
-| POST | `/api/plugin/import` |
-| POST | `/api/plugin/import/data` |
-| POST | `/api/plugin/run` |
-| POST | `/api/plugin/save` |
-| POST | `/api/plugin/status` |
-| POST | `/api/poc/data/import` |
-| POST | `/api/poc/data/sync` |
-| POST | `/api/system/intel-feeds/run` |
-| POST | `/api/system/intel-feeds/update` |
-| POST | `/api/system/storage/slim` |
-| POST | `/api/task/deleteByFilter` |
-| POST | `/api/task/scheduled/pagemonit/update` |
-| POST | `/api/task/stop` |
-| POST | `/api/task/target/resume` |
+| - | 全部已点名，或已登记例外 |
+
+## 已登记的例外（为什么还没点名）
+
+来源 `scripts/ci/closure_excuses.json`。登记不等于免检：条件变了（有了本地桩、有了测试密钥）就该补用例。
+
+| 方法 | 路径 | 原因 |
+| --- | --- | --- |
+| POST | `/api/plugin/import` | 导入插件包要先过 PLUGINKEY 校验（仓库里是本地生成、gitignore 的文件），且成功后广播 install_plugin 到节点；测试环境没有节点，验不出真实安装。可用本地桩 key + 假节点补。 |
+| POST | `/api/plugin/import/data` | 同上：PLUGINKEY 门禁 + install_plugin 广播，本地断言只能覆盖到参数校验，覆盖不到安装语义。 |
+| POST | `/api/plugin/save` | 同上：需要 PLUGINKEY，且 server 型插件会直接注册进全局插件管理器、web 型会广播给节点。要么用桩 key 建一个不参与调度的 type=server 记录，要么在专门插件测试环境里跑。 |
+| POST | `/api/poc/data/sync` | 从上游 POC 仓库拉取（外网 + 上游节奏不受控），本地/CI 没有稳定对端；导入链路本身已由 /api/poc/data/import 的往返用例覆盖。上游可镜像后补。 |
+| POST | `/api/system/intel-feeds/run` | 立即抓取外部情报源（CISA KEV / Wiz / PortSwigger / 先知 / MSRC / P0），依赖外网与第三方响应；开关与参数的守卫已由 TestNodeAndIntelFeedGuards 覆盖。需要离线 fixture（预存 feed 响应）才能验抓取落库。 |
 
 ## 写操作里测试与 UI 都没碰的（死路由候选）
 

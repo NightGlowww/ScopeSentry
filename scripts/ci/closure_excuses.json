@@ -1,0 +1,10 @@
+{
+  "_comment": "未覆盖写操作的登记例外。每条都要写清「为什么现在补不了」和「什么时候该回头补」。条件变了就删掉这条并补用例——登记不是免检。",
+  "excuses": {
+    "POST /api/poc/data/sync": "从上游 POC 仓库拉取（外网 + 上游节奏不受控），本地/CI 没有稳定对端；导入链路本身已由 /api/poc/data/import 的往返用例覆盖。上游可镜像后补。",
+    "POST /api/plugin/import": "导入插件包要先过 PLUGINKEY 校验（仓库里是本地生成、gitignore 的文件），且成功后广播 install_plugin 到节点；测试环境没有节点，验不出真实安装。可用本地桩 key + 假节点补。",
+    "POST /api/plugin/import/data": "同上：PLUGINKEY 门禁 + install_plugin 广播，本地断言只能覆盖到参数校验，覆盖不到安装语义。",
+    "POST /api/plugin/save": "同上：需要 PLUGINKEY，且 server 型插件会直接注册进全局插件管理器、web 型会广播给节点。要么用桩 key 建一个不参与调度的 type=server 记录，要么在专门插件测试环境里跑。",
+    "POST /api/system/intel-feeds/run": "立即抓取外部情报源（CISA KEV / Wiz / PortSwigger / 先知 / MSRC / P0），依赖外网与第三方响应；开关与参数的守卫已由 TestNodeAndIntelFeedGuards 覆盖。需要离线 fixture（预存 feed 响应）才能验抓取落库。"
+  }
+}

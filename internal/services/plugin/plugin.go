@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Autumn-27/ScopeSentry/internal/utils"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
@@ -754,14 +755,27 @@ func generatePluginHash(length int, tp string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// ErrPluginNotFound 插件不存在。
+//
+// 以前 UpdateByHash 对不存在的 hash 只是一次无匹配的 UpdateOne，返回 nil，
+// 于是「启用/禁用」对任意 hash 都回 200：界面上关掉一个已被清理的插件会显示成功，
+// 调度器那边什么都没变。
+var ErrPluginNotFound = errors.New("plugin: not found")
+
 // UpdateStatus 更新插件状态
 func (s *service) UpdateStatus(ctx *gin.Context, req *models.PluginStatusRequest) error {
+	existing, err := s.repo.FindByHash(ctx, req.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return ErrPluginNotFound
+	}
 
 	update := bson.M{
 		"status": req.Status,
 	}
-	err := s.repo.UpdateByHash(ctx, req.ID, update)
-	if err != nil {
+	if err := s.repo.UpdateByHash(ctx, req.ID, update); err != nil {
 		return fmt.Errorf("failed to update plugin status: %w", err)
 	}
 	if req.Status {
@@ -805,7 +819,7 @@ func (s *service) Run(ctx *gin.Context, req *models.PluginRunRequest) error {
 			return fmt.Errorf("failed to find plugin: %w", err)
 		}
 		if plg == nil {
-			return fmt.Errorf("plugin not found")
+			return ErrPluginNotFound
 		}
 
 		// 只允许运行服务端插件

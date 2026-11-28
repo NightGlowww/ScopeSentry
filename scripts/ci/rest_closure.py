@@ -11,6 +11,7 @@
   python3 scripts/ci/rest_closure.py
   python3 scripts/ci/rest_closure.py --write
 """
+import json
 import pathlib
 import re
 import sys
@@ -19,6 +20,24 @@ from collections import Counter
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SNAPSHOT = ROOT / 'docs/audit/routes.snapshot.tsv'
 OUT_MD = ROOT / 'docs/audit/REST_CLOSURE.md'
+EXCUSES_FILE = ROOT / 'scripts/ci/closure_excuses.json'
+
+
+def load_excuses():
+    """已登记的未覆盖写操作。
+
+    这些端点不是「忘了写测试」，而是有明确原因没写（要外部网络、要插件密钥、
+    或者一执行就会动真实数据）。把原因写在文件里，比放一个'预算 10'的数字强：
+    数字只会被慢慢调大，一条一条的理由会被读到。
+    """
+    if not EXCUSES_FILE.exists():
+        return {}
+    try:
+        raw = json.loads(EXCUSES_FILE.read_text(encoding='utf-8'))
+    except Exception as exc:
+        print('CLOSURE_EXCUSES=FAIL 解析 %s 失败: %s' % (EXCUSES_FILE.name, exc))
+        return {}
+    return raw.get('excuses', {})
 BT = chr(96)
 
 READ_HINTS = ('/list', '/detail', '/data', '/stats', '/statistics', '/info', '/count', '/number',
@@ -50,6 +69,23 @@ def classify(path):
 
 def to_regex(path):
     return re.compile('^' + re.sub(r':[A-Za-z_]+', '[^/]+', path) + '$')
+
+
+def composed_hit(path, lits):
+    """测试里用字符串拼接的路径（"/api/mcp/keys/" + id + "/status"）也算引用。
+
+    字面量扫描会在拼接处截断，截断结果正好是路由在第一个参数之前的前缀。
+    为了不把覆盖数吹大，只认一种形态：截断处后面紧接着就是参数段
+    （'/api/mcp/keys' → '/api/mcp/keys/:id/status' 算；
+     '/api/task' → '/api/task/delete' 不算，因为后面第一段不是参数）。
+    """
+    for lit in lits:
+        if len(lit) <= 10 or not path.startswith(lit + '/'):
+            continue
+        rest = path[len(lit) + 1:].split('/')
+        if rest and rest[0].startswith(':'):
+            return True
+    return False
 
 def referenced():
     sources = list((ROOT / 'internal/api/routes').glob('*_test.go'))
@@ -91,7 +127,7 @@ def main():
     ui_lits = ui_referenced()
     for method, path in load_routes():
         rx = to_regex(path)
-        hit = path in lits or any(rx.match(l) for l in lits)
+        hit = path in lits or any(rx.match(l) for l in lits) or composed_hit(path, lits)
         # 前端常用模板串拼路径（/api/mcp/keys/${id}/status），字面量扫描会在 $ 处截断；
         # 截断后正好是路由前缀，所以前缀命中也算引用。第一版只做精确匹配，把这条误判成死路由。
         ui = (path in ui_lits or any(rx.match(l) for l in ui_lits)
@@ -127,8 +163,12 @@ def main():
 
     unref_write = sorted((m, p) for m, p, k, h, ui in rows if k == 'write' and not h)
     dead_write = sorted((m, p) for m, p, k, h, ui in rows if k == 'write' and not h and not ui)
-    print('写操作没被点名 %d 条' % len(unref_write))
-    for m, p in unref_write[:15]:
+    excuses = load_excuses()
+    excused = [(m, p) for m, p in unref_write if '%s %s' % (m, p) in excuses]
+    unexcused = [(m, p) for m, p in unref_write if '%s %s' % (m, p) not in excuses]
+    print('写操作没被点名 %d 条（已登记例外 %d 条，待补 %d 条）' % (
+        len(unref_write), len(excused), len(unexcused)))
+    for m, p in unexcused[:15]:
         print('  %-6s %s' % (m, p))
 
     # --budget N：未覆盖写操作条数不得超过 N。
@@ -140,13 +180,14 @@ def main():
         if idx + 1 < len(sys.argv):
             budget = int(sys.argv[idx + 1])
     if budget is not None:
-        covered_ui_ids = None
-        if len(unref_write) > budget:
-            print('CLOSURE_BUDGET=FAIL 未覆盖写操作 %d 条 > 预算 %d：%s' % (
-                len(unref_write), budget,
-                ', '.join('%s %s' % (m, p) for m, p in unref_write[:5])))
+        if len(unexcused) > budget:
+            print('CLOSURE_BUDGET=FAIL 待补写操作 %d 条 > 预算 %d：%s' % (
+                len(unexcused), budget,
+                ', '.join('%s %s' % (m, p) for m, p in unexcused[:5])))
+            print('  补用例，或在 scripts/ci/closure_excuses.json 里写明为什么没法补')
             return 1
-        print('CLOSURE_BUDGET=PASS 未覆盖写操作 %d 条 ≤ 预算 %d' % (len(unref_write), budget))
+        print('CLOSURE_BUDGET=PASS 待补写操作 %d 条 ≤ 预算 %d（另有 %d 条已登记例外）' % (
+            len(unexcused), budget, len(excused)))
 
     if '--write' in sys.argv:
         lines = ['# REST 接口引用索引', '',
@@ -168,8 +209,17 @@ def main():
         for mod in sorted(mod_total, key=lambda x: mod_total[x] - mod_cov[x], reverse=True):
             lines.append('| %s | %d | %d |' % (mod, mod_total[mod] - mod_cov[mod], mod_total[mod]))
         lines += ['', '## 写操作里完全没被点名的（优先补测试）', '', '| 方法 | 路径 |', '| --- | --- |']
-        for m, p in unref_write:
+        for m, p in unexcused:
             lines.append('| %s | %s |' % (m, BT + p + BT))
+        if not unexcused:
+            lines.append('| - | 全部已点名，或已登记例外 |')
+        lines += ['', '## 已登记的例外（为什么还没点名）', '',
+                  '来源 `scripts/ci/closure_excuses.json`。登记不等于免检：条件变了（有了本地桩、有了测试密钥）就该补用例。',
+                  '', '| 方法 | 路径 | 原因 |', '| --- | --- | --- |']
+        for m, p in excused:
+            lines.append('| %s | %s | %s |' % (m, BT + p + BT, excuses['%s %s' % (m, p)]))
+        if not excused:
+            lines.append('| - | 无 | - |')
         lines += ['', '## 写操作里测试与 UI 都没碰的（死路由候选）', '',
                   '这些要么删掉，要么补上真正的调用方；留着只会让「接口覆盖」看起来比实际好。', '',
                   '| 方法 | 路径 |', '| --- | --- |']
