@@ -1208,18 +1208,18 @@ const setMaxHeight = () => {
     <!-- 四个筛选 + 关键词 + 搜索要挤在一行：span 合计必须 ≤ 24，
          否则「搜索」按钮会被挤到第二行单独一行（2026-11-28 实测 1811px 宽也换行） -->
     <ElRow class="locale-search-row">
-      <ElCol class="locale-search-filter">
+      <ElCol class="locale-search-filter" :style="{ flex: '0 0 172px' }">
         <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
           <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
         </ElSelect>
       </ElCol>
-      <ElCol class="locale-search-filter">
+      <ElCol class="locale-search-filter" :style="{ flex: '0 0 172px' }">
         <ElSelect v-model="yieldFilter" :placeholder="t('task.yieldFilter')" clearable>
           <ElOption :label="t('task.yieldHas')" value="has_asset" />
           <ElOption :label="t('task.yieldNone')" value="no_asset" />
         </ElSelect>
       </ElCol>
-      <ElCol v-if="yieldFilter" class="locale-search-filter">
+      <ElCol v-if="yieldFilter" class="locale-search-filter" :style="{ flex: '0 0 172px' }">
         <ElSelect
           v-model="yieldDims"
           multiple
@@ -1236,7 +1236,7 @@ const setMaxHeight = () => {
           <ElOption label="wih" value="wih" />
         </ElSelect>
       </ElCol>
-      <ElCol class="locale-search-filter">
+      <ElCol class="locale-search-filter" :style="{ flex: '0 0 172px' }">
         <ElSelect v-model="statusFilter" :placeholder="t('task.statusFilter')" clearable>
           <ElOption :label="t('task.statusAll')" :value="-1" />
           <ElOption :label="t('task.statusRunning')" :value="1" />
@@ -1248,10 +1248,10 @@ const setMaxHeight = () => {
       <ElCol :span="1">
         <ElText class="mx-1">{{ t('task.taskName') }}:</ElText>
       </ElCol>
-      <ElCol class="locale-search-input">
+      <ElCol class="locale-search-input" :style="{ flex: '1 1 240px', minWidth: '180px' }">
         <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
       </ElCol>
-      <ElCol class="locale-search-btn">
+      <ElCol class="locale-search-btn" :style="{ flex: '0 0 auto' }">
         <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
           t('common.search')
         }}</ElButton>
@@ -1545,12 +1545,10 @@ const setMaxHeight = () => {
   width: auto;
   max-width: 100%;
 }
-.locale-search-row .locale-search-filter {
-  flex: 0 0 172px;
-}
-.locale-search-row .locale-search-input {
-  flex: 1 1 240px;
-  min-width: 180px;
+/* 列宽写在模板的 :style 上：同权重的 `.locale-search-row > .el-col`（flex:0 0 auto）
+   会把这里的声明压掉（浏览器实测 computed 仍是 0 0 auto），行内样式才稳定生效 */
+.locale-search-row .locale-search-filter .el-select {
+  width: 100%;
 }
 .locale-search-row .el-text {
   white-space: nowrap;
