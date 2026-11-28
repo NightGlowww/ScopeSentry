@@ -42,7 +42,10 @@ const schema = reactive<FormSchema[]>([
     },
     componentProps: {
       // 进登录页直接聚焦用户名，省一次点击
-      autofocus: true
+      autofocus: true,
+      // 不写 placeholder 时表单给的是通用兜底「Please input」，
+      // 而 locales 里 login.usernamePlaceholder 早就备好了（2026-11-28 浏览器实测发现没用上）
+      placeholder: t('login.usernamePlaceholder')
     }
   },
   {
@@ -56,7 +59,8 @@ const schema = reactive<FormSchema[]>([
     componentProps: {
       style: {
         width: '100%'
-      }
+      },
+      placeholder: t('login.passwordPlaceholder')
     }
   },
   {

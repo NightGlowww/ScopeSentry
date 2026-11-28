@@ -16,6 +16,17 @@
 //   行内 :style 仍被 ElCol 自身按 span 计算的 flex 覆盖。最终改成普通 div + flex 容器。
 //   结论：el-col 不适合做「按内容定宽」的工具栏，直接用它排版会打架。
 (() => {
+  // node 下没有 document：直接给人用法提示，而不是抛 ReferenceError（踩过：以为能 node 跑）
+  if (typeof document === 'undefined') {
+    const msg =
+      'ui_layout_audit: 这是浏览器脚本。请在页面 Console 里粘贴，或用 Agent Bridge 的 eval 求值（node 下无 document）'
+    if (typeof console !== 'undefined') console.log(msg)
+    return msg
+  }
+  // 还在加载就别量：el-loading 期间表格/卡片是占位尺寸，量出来全是「换行」假阳
+  // （2026-11-28 实测：资产页刚切过去跑出 6 条 wrapped，4 秒后同页 0 条）
+  const mask = [...document.querySelectorAll('.el-loading-mask')].some((m) => m.offsetParent)
+  if (mask) return JSON.stringify({ url: location.hash, loading: true, total: 0, issues: [] })
   const issues = [];
   const de = document.documentElement;
   if (de.scrollWidth > window.innerWidth + 2) {

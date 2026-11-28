@@ -103,3 +103,12 @@ button:focus-visible,
 .el-row > .el-col > .mx-1 {
   white-space: nowrap;
 }
+
+/* 快速切页/切 tab 时 el-loading 的离场过渡可能被打断，元素停在
+   .el-loading-fade-leave-active 上（opacity: 0）。opacity:0 的元素**仍然吃点击**，
+   于是页面看着完全正常、却点不动任何东西，只有刷新才好（2026-11-28 浏览器实测复现：
+   连切 5 个页面后 8 个遮罩全部卡在 leave-active 且 elementFromPoint 命中它们）。
+   过渡已经开始离场，说明数据已加载完，这时遮罩不该再拦鼠标。 */
+.el-loading-mask.el-loading-fade-leave-active {
+  pointer-events: none;
+}
