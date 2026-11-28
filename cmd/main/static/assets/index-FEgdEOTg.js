@@ -1,1 +1,0 @@
-import{r as a}from"./index-CjmOs3-g.js";const s=()=>a.get({url:"/api/console/info"}),o=()=>a.post({url:"/api/dashboard/stats",data:{}}),t=(s=7)=>a.post({url:"/api/dashboard/trend",data:{days:s}});export{o as a,s as b,t as g};

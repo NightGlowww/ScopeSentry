@@ -36,11 +36,10 @@ const { t } = useI18n()
 // 近 7 天产出趋势：接口一直有、界面一直没接。/stats 只给「现在有多少」，
 // 看不出「这几天还在不在产出」——而后者才是判断扫描是否卡住的第一眼信号。
 const trend = ref<DashboardTrend | null>(null)
-const trendMax = computed(() => {
-  const t = trend.value
-  if (!t) return 0
-  return Math.max(1, ...t.assets.map((n, i) => Math.max(n, t.vulns[i] || 0)))
-})
+// 两条序列各自归一：资产日均上万、漏洞个位数，共用一个最大值会把漏洞柱压成一条线，
+// 而「这几天有没有新漏洞」正是要看的那条。悬停里给的是真实数字，柱高只表达相对量。
+const trendMaxAsset = computed(() => Math.max(1, ...(trend.value?.assets || [1])))
+const trendMaxVuln = computed(() => Math.max(1, ...(trend.value?.vulns || [1])))
 const loadTrend = async () => {
   try {
     trend.value = (await getDashboardTrendApi(7)).data
@@ -474,11 +473,11 @@ async function handleSubmit() {
           <div class="trend-bars">
             <div
               class="trend-fill is-asset"
-              :style="{ height: Math.max(2, Math.round(((trend.assets[i] || 0) / trendMax) * 48)) + 'px' }"
+              :style="{ height: Math.max(2, Math.round(((trend.assets[i] || 0) / trendMaxAsset) * 48)) + 'px' }"
             />
             <div
               class="trend-fill is-vuln"
-              :style="{ height: Math.max(2, Math.round(((trend.vulns[i] || 0) / trendMax) * 48)) + 'px' }"
+              :style="{ height: Math.max(2, Math.round(((trend.vulns[i] || 0) / trendMaxVuln) * 48)) + 'px' }"
             />
           </div>
           <span class="trend-label">{{ label.slice(5) }}</span>
