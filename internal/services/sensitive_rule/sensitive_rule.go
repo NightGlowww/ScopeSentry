@@ -9,6 +9,8 @@ package sensitive_rule
 
 import (
 	"errors"
+	"fmt"
+
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/sensitive_rule"
 
 	"github.com/Autumn-27/ScopeSentry/internal/models"
@@ -16,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
