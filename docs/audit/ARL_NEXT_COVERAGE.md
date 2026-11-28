@@ -48,7 +48,7 @@
 | ip.py | 5 | 3 | ✅ 覆盖 |  |
 | mcp.py | 16 | 7 | 🟡 部分 | 上游把这些做成 REST（asset_profile/search_assets/create_scan_task…）；我们做成 MCP 工具（get_asset_profile/search_assets/create_scan_task…），REST 只留治理面 |
 | npoc_service.py | 3 | 2 | ✅ 覆盖 |  |
-| nuclei.py | 19 | 10 | 🟡 部分 | 我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；缺 toggle/blacklist/社区同步/模板测试 |
+| nuclei.py | 19 | 10 | 🟡 部分 | 我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；toggle/blacklist 由 /api/poc/state + MCP set_poc_state 覆盖，缺社区同步/模板测试 |
 | nuclei_result.py | 2 | 5 | ✅ 覆盖 |  |
 | poc.py | 6 | 10 | ✅ 覆盖 |  |
 | policy.py | 4 | 7 | ✅ 覆盖 |  |

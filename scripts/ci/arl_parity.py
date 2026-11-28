@@ -109,7 +109,7 @@ SHAPE_NOTE = {
     'mcp.py': ('上游把这些做成 REST（asset_profile/search_assets/create_scan_task…）；'
                '我们做成 MCP 工具（get_asset_profile/search_assets/create_scan_task…），REST 只留治理面'),
     'system_config.py': '代理节点/策略、更新检查这些上游能力我们还没有，见候选缺口',
-    'nuclei.py': '我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；缺 toggle/blacklist/社区同步/模板测试',
+    'nuclei.py': '我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；toggle/blacklist 由 /api/poc/state + MCP set_poc_state 覆盖，缺社区同步/模板测试',
 }
 
 

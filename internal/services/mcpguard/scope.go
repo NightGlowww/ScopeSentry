@@ -65,14 +65,14 @@ var ToolScopes = map[string]string{
 	// 开关只改 scheduledTasks，不新建任务；但启用即意味着「以后会自动扫」，按写权限管
 	"set_scheduled_task_state": ScopeTaskWrite,
 	// 立即运行一次：不改周期，但会真的产出一条扫描任务，按写权限管
-	"run_scheduled_task": ScopeTaskWrite,
-	"create_scan_task":         ScopeTaskWrite,
-	"list_scan_templates":      ScopeTemplateRead,
-	"get_scan_template":        ScopeTemplateRead,
-	"create_scan_template":     ScopeTemplateWrite,
-	"list_plugin_modules":      ScopePluginRead,
-	"list_plugins":             ScopePluginRead,
-	"list_assets":              ScopeAssetRead,
+	"run_scheduled_task":   ScopeTaskWrite,
+	"create_scan_task":     ScopeTaskWrite,
+	"list_scan_templates":  ScopeTemplateRead,
+	"get_scan_template":    ScopeTemplateRead,
+	"create_scan_template": ScopeTemplateWrite,
+	"list_plugin_modules":  ScopePluginRead,
+	"list_plugins":         ScopePluginRead,
+	"list_assets":          ScopeAssetRead,
 	// 情报是资产库的只读派生视图（技术栈 + 版本 + CVE 适用性），复用 asset:read。
 	// 不登记的话会被「未登记工具默认拒绝」挡掉——只有持 * 的 key 能调（2026-11-25 实测）。
 	"intel_for_assets":   ScopeAssetRead,
@@ -89,8 +89,10 @@ var ToolScopes = map[string]string{
 	"list_nodes":             ScopeNodeRead,
 	// 只读扩展：POC / 指纹 / 字典 / 看板，统一复用 asset:read，
 	// 避免为了新增只读工具再改前端 scope 选择项
-	"list_pocs":               ScopeAssetRead,
-	"get_poc":                 ScopeAssetRead,
+	"list_pocs": ScopeAssetRead,
+	"get_poc":   ScopeAssetRead,
+	// 模板停用/启用的副作用是「改变后续扫描的载荷」，不是改资产，因此单列 template:write。
+	"set_poc_state":           ScopeTemplateWrite,
 	"list_fingerprints":       ScopeAssetRead,
 	"list_dictionaries":       ScopeAssetRead,
 	"preview_dictionary":      ScopeAssetRead,

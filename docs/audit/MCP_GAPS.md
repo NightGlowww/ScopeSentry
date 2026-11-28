@@ -522,3 +522,24 @@ MCP 删 → 确认消失」：字典（含 append 后 preview 能读回追加行
 另外 `TestToolsListContract` 断言 82 个工具名字唯一、描述非空、入参 schema 存在，且数量与注册表一致。
 
 门禁：`verify_all.sh` 增加 `mcp_param`（无库也能跑）。
+## 13. 模板治理写入口补齐（第 104 轮）
+
+`/api/poc/state` 从第 103 轮起就能批量停用/启用 nuclei 模板，停用后显式 vulList 里引用到的模板
+也会从扫描载荷里剔除（`task/common.GetScanTemplate`）。但 MCP 侧只有 `list_pocs` / `get_poc`
+两条读工具：自动化能看见「哪些模板还在跑」，改不了。上游 ARL-Next 的 nuclei toggle/blacklist
+干的正是这件事，所以这是对齐 + 闭环同时缺的一条。
+
+补 `set_poc_state(ids[], disabled)`，scope 用 `template:write`：副作用是「改变后续扫描的载荷」，
+不是改资产，挂在 `asset:write` 下会让只想打资产标签的 key 顺带获得关掉漏洞扫描的能力。
+
+闭环证据链（三层都验，缺一层就可能「回成功但没落库」）：
+
+- 拒绝分支：`mcp_sweep.py` 的 GUARD 加 `('set_poc_state', {'ids': [NOPE]})` —— 不存在的 id 必须报错，
+  否则「停用了 0 条」会被当成成功，调用方以为模板已经不会被引用；
+- 写往返：`TestWriteToolClosure/poc_state` 停用一枚模板 → `list_pocs` 回读 `disabled=true` → `t.Cleanup` 还原；
+- 账本：`mcp_closure.py` 的 WRITE_ROUNDTRIP 登记该往返，工具总数 84、未归类 0、scope 缺失 0。
+
+顺带把「id 字段名」这个坑记下来：`Poc.ID` 的 json 标签是 `id`，`Template ID` 才是模板标识。
+第一版用例按 `_id` 反序列化，拿到空串，`set_poc_state` 直接回「没有匹配的模板」——这正是
+「调用成功与否」和「改到的是不是那一行」必须分开验的原因。
+

@@ -269,6 +269,9 @@ def main():
         ('stop_task', {'id': NOPE}),
         ('uninstall_plugin', {'node': 'no-such-node-sweep', 'hash': 'abc', 'module': 'x'}),
         ('get_poc', {'id': NOPE}),
+    # 模板停用：不存在的 id 必须报错（否则「停用了 0 条」会被当成成功，
+    # 调用方以为模板已经不会被扫描引用）
+    ('set_poc_state', {'ids': [NOPE]}),
         ('get_project', {'id': NOPE}),
         ('get_task', {'id': NOPE}),
         ('get_scan_policy', {'id': NOPE}),

@@ -76,7 +76,7 @@ func callJSON(t *testing.T, cs *mcp.ClientSession, name string, args map[string]
 	return map[string]any{"raw": text}
 }
 
-// 82 个工具对客户端可见的第一层契约：名字、描述、入参 schema 形状。
+// 全部工具对客户端可见的第一层契约：名字、描述、入参 schema 形状。
 // 描述为空的工具在客户端里只剩一个名字，调用方无从判断该不该用。
 func TestToolsListContract(t *testing.T) {
 	cs := newTestClient(t)
@@ -228,6 +228,57 @@ func TestWriteToolClosure(t *testing.T) {
 		afterText := callText(t, cs, "list_scan_policies", map[string]any{"pageIndex": 1, "pageSize": 50})
 		if strings.Contains(afterText, name) {
 			t.Fatalf("删除后扫描策略仍在列表里: %s", afterText)
+		}
+	})
+
+	// 模板停用/启用：写入口有了，还要证明「读得回来」。
+	// 只断言调用成功是不够的 —— 停用没落库时界面上永远显示已启用，
+	// 而这种缺口在扫描侧的表现是「模板照样跑」，最难被发现。
+	t.Run("poc_state", func(t *testing.T) {
+		listText := callText(t, cs, "list_pocs", map[string]any{"pageIndex": 1, "pageSize": 5})
+		// 注意 id 字段名：Poc.ID 的 json 标签是 "id"，Template ID 才是模板标识。
+		var data struct {
+			List []struct {
+				ID       string `json:"id"`
+				Disabled bool   `json:"disabled"`
+			} `json:"list"`
+		}
+		_ = json.Unmarshal([]byte(listText), &data)
+		if len(data.List) == 0 {
+			t.Skip("库里没有 POC，跳过状态回环")
+		}
+		id := data.List[0].ID
+		wasDisabled := data.List[0].Disabled
+		t.Cleanup(func() {
+			_, _ = cs.CallTool(context.Background(), &mcp.CallToolParams{
+				Name: "set_poc_state", Arguments: map[string]any{"ids": []string{id}, "disabled": wasDisabled},
+			})
+		})
+
+		want := !wasDisabled
+		res := callJSON(t, cs, "set_poc_state", map[string]any{"ids": []string{id}, "disabled": want})
+		if n, _ := res["updated"].(float64); n < 1 {
+			t.Fatalf("停用未命中任何模板: %+v", res)
+		}
+		echo := callText(t, cs, "list_pocs", map[string]any{"pageIndex": 1, "pageSize": 5})
+		var after struct {
+			List []struct {
+				ID       string `json:"id"`
+				Disabled bool   `json:"disabled"`
+			} `json:"list"`
+		}
+		_ = json.Unmarshal([]byte(echo), &after)
+		found := false
+		for _, row := range after.List {
+			if row.ID == id {
+				found = true
+				if row.Disabled != want {
+					t.Fatalf("状态没落库：期望 disabled=%v，实际 %v", want, row.Disabled)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("列表里找不到刚改过的模板 %s", id)
 		}
 	})
 }

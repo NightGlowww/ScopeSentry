@@ -409,6 +409,14 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: "按 POC ID 获取单个 POC 的完整内容",
 	}, getPoc)
 
+	// 模板停用/启用：REST 一直是 /api/poc/state，MCP 只读了两条，
+	// 于是「nuclei 模板治理」在 MCP 侧只能看不能改 —— 上游 ARL-Next 的
+	// nuclei toggle/blacklist 就是这件事，闭环缺的正是这一条写入口。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "set_poc_state",
+		Description: "批量停用/启用 nuclei 模板：停用后该模板不会被任务载荷引用（显式 vulList 也会被剔除），返回实际命中条数",
+	}, setPocState)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_fingerprints",
 		Description: "分页查询 Web 指纹规则",
@@ -1980,6 +1988,33 @@ type listPocsInput struct {
 	Level     []string `json:"level,omitempty" jsonschema:"危险等级过滤：critical/high/medium/low/info"`
 	PageIndex int      `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
 	PageSize  int      `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20，最大 200"`
+}
+
+type setPocStateInput struct {
+	IDs      []string `json:"ids" jsonschema:"POC 记录 ID（list_pocs 返回的 _id），至少一个"`
+	Disabled bool     `json:"disabled" jsonschema:"true 停用、false 启用；停用后扫描载荷不再引用该模板"`
+}
+
+func setPocState(ctx context.Context, _ *mcp.CallToolRequest, input setPocStateInput) (*mcp.CallToolResult, any, error) {
+	if len(input.IDs) == 0 {
+		return errorResult("ids 不能为空", nil)
+	}
+	// 上限对齐 REST 的批量语义：一次几千条既拖慢请求，也让「到底改了哪些」无法回执。
+	if len(input.IDs) > 500 {
+		return errorResult("一次最多 500 个 id", nil)
+	}
+	n, err := d.pocService.SetPocState(ginContext(ctx), input.IDs, input.Disabled)
+	if err != nil {
+		return errorResult("设置模板状态失败", err)
+	}
+	if n == 0 {
+		return errorResult("没有匹配的模板（id 不存在或已删除）", nil)
+	}
+	state := "enabled"
+	if input.Disabled {
+		state = "disabled"
+	}
+	return jsonToolResult(ginH{"updated": n, "state": state})
 }
 
 func listPocs(ctx context.Context, _ *mcp.CallToolRequest, input listPocsInput) (*mcp.CallToolResult, any, error) {

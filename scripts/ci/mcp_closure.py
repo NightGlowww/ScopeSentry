@@ -1,6 +1,6 @@
 
 #!/usr/bin/env python3
-"""MCP 工具闭环矩阵：把「82 个工具到底各自验到什么程度」变成可重复的账本。
+"""MCP 工具闭环矩阵：把「每个工具到底各自验到什么程度」变成可重复的账本。
 
 为什么需要：tools/list 里有、scope 表里有，都不等于「能用」。真正的闭环至少要回答：
   - 读：用真实 id 调一次是不是 isError=false（读得到数据）
@@ -39,6 +39,7 @@ WRITE_ROUNDTRIP = {
     'delete_dictionary': '删除字典 → list_dictionaries 查不到（total=0）',
     'create_asset_group': '建 ci-rt-group → list_asset_groups 能查到',
     'delete_asset_groups': 'confirm+dissolve 删除 → 组列表回到 0',
+    'set_poc_state': '停用一枚模板 → list_pocs 回读 disabled=true → 还原；集成用例 TestWriteToolClosure/poc_state 跑同一往返',
 }
 
 # 需要前置样本或明确不该自动跑的工具：写清原因，别让「未验证」变成静默

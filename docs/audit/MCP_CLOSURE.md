@@ -82,6 +82,7 @@
 | `run_scheduled_task` | `task:write` | 拒绝分支 | 会真的按计划任务配置产出一条扫描任务；sweep 只验不存在的 id（拒绝分支），成功路径由 REST 用例 TestScheduledTaskRunNow 覆盖 |
 | `search_assets` | `asset:read` | 读 |  |
 | `search_dictionary_lines` | `asset:read` | 拒绝分支 |  |
+| `set_poc_state` | `template:write` | 拒绝分支 / 写往返 | 停用一枚模板 → list_pocs 回读 disabled=true → 还原；集成用例 TestWriteToolClosure/poc_state 跑同一往返 |
 | `set_port_dict_entry` | `asset:write` | 拒绝分支 / 写往返 | 新增 ci-rt 条目 → 条数 3→4、值回读 12345 → 按 id 删除 → 回到 3 条 |
 | `set_scheduled_task_state` | `task:write` | 拒绝分支 / 写往返 | 计划任务 enabled False→True→False，cycleType 与其余字段不变 |
 | `set_sensitive_rule_state` | `asset:write` | 拒绝分支 / 写往返 | 规则 state True→False→True，列表回读每步都对得上 |
@@ -94,9 +95,9 @@
 
 | 维度 | 数量 |
 | --- | --- |
-| 工具总数 | 83 |
+| 工具总数 | 84 |
 | 读路径验证 | 48 |
-| 拒绝分支验证 | 47 |
-| 写往返验证 | 13 |
+| 拒绝分支验证 | 48 |
+| 写往返验证 | 14 |
 | 仅前条件说明 | 0 |
 | 未归类 | 0 |
