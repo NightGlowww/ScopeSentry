@@ -161,7 +161,7 @@
 | S12 | 通知配置 | `/api/configuration{,/data,/add,/update,/delete}`（notification 两组） | 读 P2、写 P3；写通知等于给出外发通道 |
 | S13 | 全局配置读取 | `/api/configuration/{data}`（subfinder/rad/system/dedup） | 只读 P2，写 P3 |
 | S14 | 项目更新/删除 | `POST /api/project/{update,delete}` | P2（删除可带删资产，危险） |
-| S15 | 策略详情/更新/应用/试算 | `/api/policy/{detail,update,apply,test}` | `test` 是「策略是否可用」的唯一验证手段，P2 |
+| S15 | 策略详情/更新/应用/试算 | `/api/policy/{detail,update,apply,test}` | **部分已补（2026-11-28）**：`get_scan_policy`（详情+用量）、`apply_scan_policy`（把策略合并到模板的纯计算试算，返回生效配置/应用字段/冲突提示）。仍缺：`update`（改策略）与 `test`（独立校验一份配置） |
 | S16 | 备份写 | `POST /api/backup/{create,restore,upload}`、`DELETE /api/backup/:name` | P3；restore 需 `confirm:"RESTORE"`（backup handler:140） |
 | S17 | MCP 自身治理只读 | `GET /api/mcp/{keys,logs,config}` | P2，便于 Agent 自审计（注意：会暴露 key 前缀与调用轨迹） |
 

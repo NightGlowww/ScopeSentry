@@ -201,9 +201,8 @@ def main():
         ('list_projects', {}),
         ('list_projects_data', {'pageIndex': 1, 'pageSize': 2}),
         ('list_scan_policies', {'pageIndex': 1, 'pageSize': 2}),
-        # 策略详情与试算：试算只做合并计算，不建任务、不改模板
-        ('get_scan_policy', {'id': ids.get('policy') or NOPE}),
-        ('apply_scan_policy', {'policyId': ids.get('policy') or NOPE}),
+        # 策略详情/试算的读用例在下面按「库里有没有策略」条件追加：
+        # 生产上策略数可能是 0，写死 NOPE 会把「不存在」当成期望 ok 的失败。
         ('list_scan_templates', {'pageIndex': 1, 'pageSize': 2}),
         ('list_sensitive_rules', {'pageIndex': 1, 'pageSize': 2}),
         ('list_stat_finger', {'pageIndex': 1, 'pageSize': 2}),
@@ -222,6 +221,11 @@ def main():
         READ += [('get_task', {'id': ids['task']}), ('get_task_progress', {'id': ids['task'], 'pageIndex': 1, 'pageSize': 2})]
     if ids.get('scheduled'):
         READ += [('get_scheduled_task', {'id': ids['scheduled']})]
+    if ids.get('policy'):
+        READ += [
+            ('get_scan_policy', {'id': ids['policy']}),
+            ('apply_scan_policy', {'policyId': ids['policy']}),
+        ]
     if ids.get('poc'):
         READ += [('get_poc', {'id': ids['poc']})]
     if ids.get('template'):
