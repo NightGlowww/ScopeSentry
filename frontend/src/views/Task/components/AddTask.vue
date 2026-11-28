@@ -601,7 +601,7 @@ loadPolicies()
         v-model="taskData.target"
         :placeholder="t('task.msgTarget')"
         type="textarea"
-        rows="10"
+        :rows="10"
         v-if="!sourceTp"
       />
       <ElRadioGroup v-model="targetTp" v-if="sourceTp">
@@ -617,7 +617,7 @@ loadPolicies()
         v-model="taskData.ignore"
         :placeholder="t('task.ignoreMsg')"
         type="textarea"
-        rows="5"
+        :rows="5"
       />
     </ElFormItem>
     <!-- <ElFormItem :label="t('task.bindProject')" v-if="taskData.targetSource != 'project'">

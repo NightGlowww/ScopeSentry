@@ -9,6 +9,10 @@ export type NodeData = {
   maxTaskNum: string
   urlThread: string
   urlMaxNum: string
+  // 容器侧真实压力（cgroup 限额）与节点待领取队列长度：
+  // 宿主 memNum 看不出 cgroup 限制，队列长度决定该不该再往这个节点推任务
+  containerMem?: number
+  queueLen?: number
 }
 
 export type nodeRespData = {

@@ -9,7 +9,8 @@ import { i18n } from '@/plugins/vueI18n'
 export const confirmDialog = async (message: string, title?: string): Promise<boolean> => {
   const tr = (key: string, fallback: string): string => {
     try {
-      const v = i18n?.global?.t?.(key)
+      const resolve = (i18n?.global as unknown as { t?: (k: string) => string })?.t
+      const v = typeof resolve === 'function' ? resolve(key) : key
       return typeof v === 'string' && v && v !== key ? v : fallback
     } catch {
       return fallback

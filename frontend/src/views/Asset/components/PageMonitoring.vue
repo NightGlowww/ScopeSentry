@@ -358,11 +358,6 @@ const persistFilter = () => {
     // 忽略
   }
 }
-const filterChange = async (newFilters: any) => {
-  Object.assign(filter, newFilters)
-  persistFilter()
-  getList()
-}
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
   persistFilter()

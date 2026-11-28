@@ -308,10 +308,7 @@ const onTimeFilterChange = (v?: string) => {
   // 直接用事件带过来的值，避免 v-model 尚未落定时读到旧值
   if (v) timeRange.value = v
   handleSearch(searchParams.value || '')
-  // 「共 N 条」由独立的 getTotal 维护，时间变化时也要刷新（否则总数停在旧值）
-  if (typeof getTotal === 'function') {
-    getTotal(searchParams.value || '', currentPage.value, pageSize.value, filter)
-  }
+  // total 由 useTable 的 fetchDataApi 在 getList() 里一并刷新，这里不需要额外取总数
 }
 
 const { loading, dataList, total, currentPage, pageSize } = tableState

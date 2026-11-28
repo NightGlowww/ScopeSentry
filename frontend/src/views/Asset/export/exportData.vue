@@ -104,7 +104,7 @@ const exportColums = reactive<TableColumn[]>([
           <BaseButton
             type="success"
             disabled={!!row.file_missing}
-            title={row.file_missing ? t('export.fileMissingHint') : ''}
+            {...({ title: row.file_missing ? t('export.fileMissingHint') : '' } as any)}
             onClick={() => download(row.file_name)}
           >
             {t('export.download')}

@@ -42,6 +42,10 @@ declare global {
     method?: AxiosMethod
     headers?: AxiosRequestHeaders
     responseType?: AxiosResponseType
+    // 单请求超时（毫秒）。备份创建/恢复、任务导出等分钟级操作用得上；
+    // 不传则用 service.ts 的 REQUEST_TIMEOUT。必须由 axios/index.ts 显式转发，
+    // 否则 axios 拿不到、只会按默认值超时。
+    timeout?: number
   }
 
   declare interface IResponse<T = any> {

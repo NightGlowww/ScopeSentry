@@ -352,7 +352,7 @@ const getTaskData = async () => {
       name: task.name,
       taskNum: task.taskNum,
       progress: task.progress,
-      status: task.status,
+      status: task.status ?? 0,
       queued: task.queued,
       queuePos: task.queuePos,
       failReason: task.failReason,
@@ -396,14 +396,6 @@ useVisibleInterval(() => {
 }, 10000)
 
 const pluginKey = ref('')
-const updateSystem = async () => {
-  const key = localStorage.getItem(`plugin_key`) as string
-  if (!key) {
-    keyDialogVisible.value = true
-  } else {
-    UpdatedialogVisible.value = true
-  }
-}
 const savePluginKey = async () => {
   if (pluginKey.value) {
     const res = await checkKeyApi(pluginKey.value)

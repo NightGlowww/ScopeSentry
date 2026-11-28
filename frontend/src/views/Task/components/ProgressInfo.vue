@@ -31,9 +31,7 @@ const props = defineProps<{
   // 弹窗是否打开：关闭后必须停掉 5 秒轮询，否则关掉对话框还在后台一直打接口
   visible?: boolean
 }>()
-// 关闭走 emit 而不是调父组件传进来的函数：函数 prop 一旦没传/传错就是静默无反应
 // （2026-11-20 实测点「关闭」没反应，正是这个坑）。
-const emit = defineEmits<{ (e: 'close'): void }>()
 // 模块列：直接显示耗时，而不是"完成/运行中"标签 + 悬停才看得到的时间戳。
 // 用时：<60s → 「12s」；>=60s → 「1m23s」；>=1h → 「1h05m」。
 const fmtDuration = (start: string, end: string): string => {

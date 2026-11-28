@@ -30,7 +30,6 @@ import { getPocDataApi, deletePocDataApi, getPocDetailApi } from '@/api/poc'
 import Detail from './components/Detail.vue'
 import { Dialog } from '@/components/Dialog'
 import { useUserStore } from '@/store/modules/user'
-import { RowState } from '@/api/asset/types'
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 const dialogVisible = ref(false)
@@ -47,7 +46,6 @@ const handleSearch = () => {
   }
   getList()
 }
-const rowStateMap = reactive<Record<string, RowState>>({})
 const nodeColums = reactive<TableColumn[]>([
   {
     field: 'selection',
@@ -313,11 +311,6 @@ const handleSync = async () => {
 }
 
 const upload = ref<UploadInstance>()
-const uploadSuccess = async () => {
-  console.log('导入中')
-  ElMessage.success(t('localization.importing'))
-}
-
 const handleExceed: UploadProps['onExceed'] = (files) => {
   upload.value!.clearFiles()
   const file = files[0] as UploadRawFile

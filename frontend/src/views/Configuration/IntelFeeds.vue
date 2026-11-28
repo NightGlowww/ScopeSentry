@@ -109,7 +109,7 @@ onMounted(load)
         <ElTableColumn prop="kind" :label="t('colKind')" width="90" align="center" />
         <ElTableColumn :label="t('colEnabled')" width="80" align="center">
           <template #default="{ row }">
-            <ElSwitch :model-value="row.enabled" @change="(v: any) => toggle(row, !!v)" />
+            <ElSwitch :model-value="row.enabled" @change="(v: any) => toggle(row as any, !!v)" />
           </template>
         </ElTableColumn>
         <ElTableColumn :label="t('colInterval')" width="120" align="center">
@@ -121,7 +121,7 @@ onMounted(load)
               size="small"
               controls-position="right"
               style="width: 88px"
-              @change="(v: any) => setInterval(row, v)"
+              @change="(v: any) => setInterval(row as any, v)"
             />
           </template>
         </ElTableColumn>
@@ -144,7 +144,7 @@ onMounted(load)
         </ElTableColumn>
         <ElTableColumn :label="t('colAction')" width="110" align="center">
           <template #default="{ row }">
-            <ElButton size="small" :loading="running[row._id]" @click="runOne(row)">{{
+            <ElButton size="small" :loading="running[row._id]" @click="runOne(row as any)">{{
               t('runNow')
             }}</ElButton>
           </template>

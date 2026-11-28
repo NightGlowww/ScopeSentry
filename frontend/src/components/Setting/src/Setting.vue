@@ -41,7 +41,7 @@ const setSystemTheme = (color: string) => {
   setCssVar('--el-color-primary', color)
   appStore.setTheme({ elColorPrimary: color })
   const leftMenuBgColor = useCssVar('--left-menu-bg-color', document.documentElement)
-  setMenuTheme(trim(unref(leftMenuBgColor)))
+  setMenuTheme(trim(unref(leftMenuBgColor) ?? ''))
 }
 
 // 头部主题相关
@@ -82,11 +82,11 @@ const setMenuTheme = (color: string) => {
     // 左侧菜单选中背景颜色
     leftMenuBgActiveColor: isDarkColor
       ? 'var(--el-color-primary)'
-      : hexToRGB(unref(primaryColor), 0.1),
+      : hexToRGB(unref(primaryColor) ?? '#409eff', 0.1),
     // 左侧菜单收起选中背景颜色
     leftMenuCollapseBgActiveColor: isDarkColor
       ? 'var(--el-color-primary)'
-      : hexToRGB(unref(primaryColor), 0.1),
+      : hexToRGB(unref(primaryColor) ?? '#409eff', 0.1),
     // 左侧菜单字体颜色
     leftMenuTextColor: isDarkColor ? '#bfcbd9' : '#333',
     // 左侧菜单选中字体颜色

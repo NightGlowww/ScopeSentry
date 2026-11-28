@@ -49,7 +49,6 @@ import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
 import { buildHref, normalizeHttpUrl, resolveAssetHref, splitHostValues } from '@/utils/hostLink'
 import AssetDetail2 from '../detail/AssetDetail2.vue'
-const { push } = useRouter()
 const { t } = useI18n()
 
 // 资产列表里频繁要复制域名/IP，逐个手选太麻烦，单元格的复制按钮由
@@ -542,8 +541,7 @@ let crudSchemas = reactive<CrudSchema[]>([
       return (
         <ElTooltip
           placement="top-start"
-          rawContent
-          content={<pre class="banner-tooltip">{text}</pre>}
+          v-slots={{ content: () => <pre class="banner-tooltip">{text}</pre> }}
         >
           <div class="banner-clamp">{text}</div>
         </ElTooltip>
@@ -705,10 +703,6 @@ const filterChange = async (newFilters: any) => {
   persistFilter()
   getList()
 }
-const action = (id: string) => {
-  push(`/asset-information/asset-detail?id=${id}`)
-}
-
 const handleImageClick = (screenshot: string) => {
   createImageViewer({
     urlList: [screenshot]
@@ -882,14 +876,6 @@ const { height: windowHeight } = useWindowSize()
 const tableMaxHeight = computed(() => Math.max(420, windowHeight.value - 340))
 const activeNames = ref(['1', '2', '3', '4', '5'])
 
-const activeFilterBarStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '6px 4px',
-  fontSize: '12px'
-}
-
 // 侧栏筛选：有数据时才给固定滚动高度，空数据收成一行提示，
 // 避免三个空列表把整条侧栏拉成一长条空白
 const filterListHeight = (list: unknown[] | undefined, maxRem: number) =>
@@ -897,14 +883,6 @@ const filterListHeight = (list: unknown[] | undefined, maxRem: number) =>
 // 当前生效的任务/项目筛选（下拉渲染成空白时，这是唯一能看出来「有筛选」的地方）
 const activeFilterText = ref('')
 const csearchRef = ref<any>(null)
-const clearTaskProjectFilter = () => {
-  filter.task = []
-  filter.project = []
-  persistFilter()
-  activeFilterText.value = ''
-  csearchRef.value?.resetFilters?.()
-  handleSearch(searchParams.value || '')
-}
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.assign(filter, newFilters)
   {

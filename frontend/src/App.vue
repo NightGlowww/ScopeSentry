@@ -52,6 +52,10 @@ const checkBuild = async () => {
   }
 }
 
+// 模板里直接写 location.reload() 解析不到组件作用域（Vue 会告警并返回 undefined），
+// 点击立刻 TypeError；走 window.location 并暴露成方法
+const reloadPage = () => window.location.reload()
+
 onMounted(() => {
   checkBuild()
   timer = window.setInterval(checkBuild, 5 * 60 * 1000)
@@ -65,7 +69,7 @@ onUnmounted(() => {
   <ConfigGlobal :size="currentSize">
     <div v-if="staleBuild" class="stale-build-bar">
       {{ t('app.staleBuild', { build: staleBuild }) }}
-      <a @click="() => location.reload()">{{ t('app.staleBuildReload') }}</a>
+      <a @click="reloadPage">{{ t('app.staleBuildReload') }}</a>
     </div>
     <RouterView :class="greyMode ? `${prefixCls}-grey-mode` : ''" />
   </ConfigGlobal>

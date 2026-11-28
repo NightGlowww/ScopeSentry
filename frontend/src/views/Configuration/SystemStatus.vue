@@ -25,7 +25,6 @@ const { t } = useI18n('systemStatus')
 const info = ref<ConsoleInfo | null>(null)
 const loading = ref(false)
 const error = ref('')
-let timer: number | undefined
 
 const load = async () => {
   loading.value = true

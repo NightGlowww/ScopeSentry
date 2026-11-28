@@ -10,14 +10,14 @@ import {
   ElButton,
   ElDivider,
 
-  InputInstance,
+  
 
 } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { Codemirror } from 'vue-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { toRefs } from '@vueuse/core'
 import { updatePocDataApi, addPocDataApi } from '@/api/poc'
 import { useAppStore } from '@/store/modules/app'
@@ -41,32 +41,6 @@ const props = defineProps<{
 const { pocForm } = toRefs(props)
 const localForm = ref({ ...pocForm.value })
 
-const levelOptions = [
-  {
-    value: 'critical',
-    label: t('poc.critical')
-  },
-  {
-    value: 'high',
-    label: t('poc.high')
-  },
-  {
-    value: 'medium',
-    label: t('poc.medium')
-  },
-  {
-    value: 'low',
-    label: t('poc.low')
-  },
-  {
-    value: 'info',
-    label: t('poc.info')
-  },
-  {
-    value: 'unknown',
-    label: t('poc.unknown')
-  }
-]
 const saveLoading = ref(false)
 const ruleFormRef = ref<FormInstance>()
 
@@ -108,28 +82,7 @@ const submitForm = async (formEl: FormInstance | undefined) => {
     saveLoading.value = false
   }
 }
-const inputValue = ref('')
-const inputVisible = ref(false)
-const InputRef = ref<InputInstance>()
 
-const handleClose = (tag: string) => {
-  dynamicTags.value.splice(dynamicTags.value.indexOf(tag), 1)
-}
-
-const showInput = () => {
-  inputVisible.value = true
-  nextTick(() => {
-    InputRef.value!.input!.focus()
-  })
-}
-
-const handleInputConfirm = () => {
-  if (inputValue.value) {
-    dynamicTags.value.push(inputValue.value)
-  }
-  inputVisible.value = false
-  inputValue.value = ''
-}
 </script>
 <template>
   <ElForm :model="localForm" label-width="120px" status-icon ref="ruleFormRef">

@@ -315,13 +315,13 @@ const handleSaveEdit = async () => {
       scope: editForm.value.scope,
       tools: editForm.value.tools,
       rateLimitPerMin: Number(editForm.value.rateLimitPerMin) || 0,
-      expiresAt: editForm.value.expiresAt || null
+      expiresAt: editForm.value.expiresAt || undefined
     })
     ElMessage.success(t('apiKey.saved'))
     editDialogVisible.value = false
     getList()
   } catch (e) {
-    ElMessage.error((e && e.message) || t('common.operateFailed'))
+    ElMessage.error((e as any)?.message || t('common.operateFailed'))
   } finally {
     editLoading.value = false
   }

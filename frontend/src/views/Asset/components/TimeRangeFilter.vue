@@ -15,7 +15,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', v: string): void
   (e: 'update:sort', v: string): void
-  (e: 'change'): void
+  // change 会带上本次选中的值：父组件的 onTimeFilterChange(v) 依赖它
+  // （v-model 更新是异步的，父组件立刻读 modelValue 会拿到旧值）
+  (e: 'change', v: string): void
 }>()
 const { t } = useI18n()
 

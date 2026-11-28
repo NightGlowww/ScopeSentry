@@ -4,7 +4,6 @@ import { useEmptyHint } from '@/hooks/web/useEmptyHint'
 import { computed, h, nextTick, onMounted, reactive, Ref, ref } from 'vue'
 import { Icon } from '@/components/Icon'
 import { useTable } from '@/hooks/web/useTable'
-import TimeRangeFilter from './TimeRangeFilter.vue'
 import {
   ElCard,
   ElPagination,
@@ -341,7 +340,6 @@ const { tableRegister, tableState, tableMethods } = useTable({
 
 // 发现时间筛选（对齐 ARL-Next v1.5.1）
 const timeRange = ref<string>('all')
-const timeSort = ref<string>('desc')
 const timeFrom = computed(() => {
   if (timeRange.value === 'all') return ''
   const n = Number(timeRange.value)

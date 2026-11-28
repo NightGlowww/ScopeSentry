@@ -759,7 +759,7 @@ const { tableRegister, tableState, tableMethods } = useTable({
 })
 const { loading, dataList, total, currentPage, pageSize } = tableState
 pageSize.value = 20
-const { getList: rawGetList, getElTableExpose } = tableMethods
+const { getList: rawGetList } = tableMethods
 
 // 节点离线提示：任务卡住最常见的原因是节点掉了，但以前只能去「系统状态」页才看得到。
 // 这里在任务页顶部直接给出「X/Y 节点在线」，离线时高亮成警告条。

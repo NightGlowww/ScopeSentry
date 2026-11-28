@@ -63,7 +63,7 @@ const columns = reactive<TableColumn[]>([
       const href = safeHttpUrl(row.url)
       if (!href) return <span class="mono">{row.url || '-'}</span>
       return (
-        <ElLink href={href} target="_blank" rel="noopener noreferrer" type="primary" class="mono">
+        <ElLink href={href} target="_blank" type="primary" class="mono">
           {row.url}
         </ElLink>
       )

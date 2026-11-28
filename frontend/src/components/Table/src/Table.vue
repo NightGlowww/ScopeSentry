@@ -242,7 +242,9 @@ export default defineComponent({
     })
 
     const setProps = (props: TableProps = {}) => {
-      mergeProps.value = Object.assign(unref(mergeProps), props)
+      // TableProps 是带泛型列的深递归类型，直接 Object.assign 会让 tsc 重载匹配发散（TS2589）；
+      // 收敛成普通对象再合并，语义完全一致。
+      mergeProps.value = Object.assign(unref(mergeProps) as Record<string, any>, props)
       outsideProps.value = { ...props } as any
     }
 

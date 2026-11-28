@@ -362,13 +362,6 @@ const savedFilter = (() => {
   }
 })()
 const filter = reactive<{ [key: string]: any }>(savedFilter)
-const persistFilter = () => {
-  try {
-    sessionStorage.setItem(FILTER_KEY, JSON.stringify({ ...filter }))
-  } catch {
-    // 忽略
-  }
-}
 const handleFilterSearch = (data: any, newFilters: any) => {
   Object.keys(filter).forEach((key) => delete filter[key])
   Object.assign(filter, newFilters)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElButton, ElColorPicker, ElDialog, ElInput, ElMessage, ElTag } from 'element-plus'
+import type { TagProps } from 'element-plus'
 import { useI18n } from '@/hooks/web/useI18n'
 import { getTagColorsApi, setTagColorApi } from '@/api/asset'
 import { tagColorProps } from '@/utils/tagColor'
@@ -19,7 +20,7 @@ const newTag = ref('')
 const newColor = ref('primary')
 const customColor = ref('')
 
-const colorOptions = [
+const colorOptions: { value: TagProps['type']; labelKey: string }[] = [
   { value: 'primary', labelKey: 'asset.colorPrimary' },
   { value: 'success', labelKey: 'asset.colorSuccess' },
   { value: 'info', labelKey: 'asset.colorInfo' },
@@ -124,7 +125,7 @@ const clear = async (tag: string) => {
             :type="option.value"
             effect="light"
             :class="{ 'is-active': newColor === option.value && !customColor }"
-            @click="selectColor(option.value)"
+            @click="selectColor(option.value || '')"
           >
             {{ t(option.labelKey) }}
           </ElTag>

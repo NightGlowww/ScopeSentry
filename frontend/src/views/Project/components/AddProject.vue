@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import { useI18n } from '@/hooks/web/useI18n'
-import { ElDivider, ElForm, ElFormItem, ElInput, ElRow, ElCol, ElButton, FormInstance, ElMessage, CheckboxValueType } from 'element-plus'
+import { ElDivider, ElForm, ElFormItem, ElInput, ElRow, ElCol, ElButton, FormInstance, ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { addProjectDataApi, getProjectContentDataApi, updateProjectDataApi } from '@/api/project'
 import { getNodeDataOnlineApi } from '@/api/node'
@@ -144,7 +144,6 @@ const getProjectInfo = async () => {
   }
 }
 
-const indeterminate = ref(false)
 const isCheckboxDisabledNode = ref(false)
 const nodeOptions = reactive<{ value: string; label: string }[]>([])
 const getNodeList = async () => {
@@ -162,17 +161,6 @@ const getNodeList = async () => {
   console.log(nodeOptions)
 }
 
-const handleCheckAll = (val: CheckboxValueType) => {
-  indeterminate.value = false
-  if (val) {
-    projectForm.node = []
-    nodeOptions.forEach((option) => {
-      return projectForm.node.push(option.value)
-    })
-  } else {
-    projectForm.node = []
-  }
-}
 const templateOptions = reactive<{ value: string; label: string }[]>([])
 const getTemplateList = async () => {
   templateOptions.length = 0
@@ -191,13 +179,6 @@ onMounted(() => {
 const templateId = ref('')
 let DialogTitle = ''
 const dialogVisible = ref(false)
-const editTemplate = async (data) => {
-  templateId.value = data
-  if (data != '') {
-    DialogTitle = t('task.editTemplate')
-  }
-  dialogVisible.value = true
-}
 const closeTemplateDialog = () => {
   dialogVisible.value = false
 }
@@ -230,7 +211,7 @@ const closeTemplateDialog = () => {
         v-model="projectForm.ignore"
         :placeholder="t('task.ignoreMsg')"
         type="textarea"
-        rows="10"
+        :rows="10"
       />
     </ElFormItem>
     <ElFormItem :label="t('setting.logo')" prop="logo">

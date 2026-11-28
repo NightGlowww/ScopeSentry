@@ -183,8 +183,8 @@ const openExport = () => {
 const ids = ref<string[]>([])
 
 const getIds = async () => {
-  const elTableExpose = await props.getElTableExpose()
-  const selectedRows = elTableExpose?.getSelectionRows() || []
+  const elTableExpose = (await props.getElTableExpose()) as any
+  const selectedRows = elTableExpose?.getSelectionRows?.() || []
   ids.value = selectedRows.map((row) => row.id)
   return ids.value
 }
@@ -399,15 +399,6 @@ function handleCloseTag(tag: string) {
     console.warn('handleClose function is not defined')
   }
 }
-function getIconByHash(hash: string) {
-  return props.iconData?.find((item) => item.icon_hash === hash)
-}
-function clearAllTags() {
-  localDynamicTags.value = []
-  if (props.handleClose) {
-    props.handleClose('close')
-  }
-}
 
 // 一行清干净：搜索标签 + 任务下拉 + 项目下拉。
 // 之前是「标签行显示任务条件」+「另一行再写一遍已按任务筛选」两个提示，
@@ -607,7 +598,7 @@ const openCreateTask = async () => {
                 v-model="localStatisticsHidden"
                 :active-value="false"
                 :inactive-value="true"
-                @change="changeStatisticsHidden(localStatisticsHidden)"
+                @change="changeStatisticsHidden?.(localStatisticsHidden)"
               />
             </ElDropdownItem>
             <ElDropdownItem divided>

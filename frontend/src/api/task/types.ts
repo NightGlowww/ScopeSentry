@@ -5,6 +5,11 @@ export type TaskData = {
   progress: string
   creatTime: string
   endTime: string
+  // 终态与排队口径（对齐 ARL-Next 1.5.2），后端 json 字段见 internal/models/task.go
+  status?: number
+  queued?: boolean
+  queuePos?: number
+  failReason?: string
 }
 
 export type taskRespData = {

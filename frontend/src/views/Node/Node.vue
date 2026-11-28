@@ -125,8 +125,7 @@ const nodeColums = reactive<TableColumn[]>([
         {
           round: true,
           effect: 'plain',
-          hit: true,
-          type: numericValue < 50 ? '' : numericValue < 80 ? 'warning' : 'danger'
+          type: numericValue < 50 ? undefined : numericValue < 80 ? 'warning' : 'danger'
         },
         () => numericValue + '%'
       )
@@ -144,8 +143,7 @@ const nodeColums = reactive<TableColumn[]>([
         {
           round: true,
           effect: 'plain',
-          hit: true,
-          type: host < 50 ? '' : host < 80 ? 'warning' : 'danger'
+          type: host < 50 ? undefined : host < 80 ? 'warning' : 'danger'
         },
         () => host + '%'
       )

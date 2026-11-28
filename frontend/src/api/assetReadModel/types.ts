@@ -67,6 +67,8 @@ export interface NucleiResultItem {
 export interface NucleiResultDetail extends NucleiResultItem {
   request: string
   response: string
+  // 命中的 POC 模板正文（后端按 templateId 从 PocList 取，bson:"-"）
+  templateContent?: string
 }
 
 export interface NucleiResultListResult {
@@ -79,6 +81,11 @@ export interface NucleiResultListQuery {
   severity?: string
   templateId?: string
   keyword?: string
+  // 与 internal/models/nuclei_result.go NucleiResultListRequest 对齐
+  // status: 0=全部 1未处理 2处理中 3忽略 4疑似 5确认 6已处理
+  status?: number
+  taskName?: string
+  host?: string
   pageIndex?: number
   pageSize?: number
 }

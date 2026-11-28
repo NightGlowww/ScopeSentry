@@ -393,7 +393,7 @@ const crudSchemas = reactive<CrudSchema[]>([
       const m = map[j.decision] || { text: String(j.decision), type: 'info' }
       return h(
         ElTag,
-        { type: m.type, size: 'small' },
+        { type: m.type as any, size: 'small' },
         () => `${m.text} ${Number(j.isVuln ?? 0).toFixed(2)}`
       )
     },
