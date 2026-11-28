@@ -131,6 +131,56 @@ def leaf_gaps(upstream_eps, matched):
     return out
 
 
+def load_mcp_tools():
+    """MCP 工具名列表。
+
+    我们是 REST + MCP 双入口：只数 REST 会把「已经通过 MCP 提供的能力」记成缺失
+    （指纹增删改就是这种情况，MCP 有、REST 没开）。对齐表必须把两边合起来看。
+    """
+    src = (ROOT / 'internal/mcp/tools.go').read_text(encoding='utf-8')
+    return sorted(set(re.findall(r'Name:\s+"([a-z0-9_]+)"', src)))
+
+
+# 上游族 -> MCP 工具名关键词（任一命中即算这一族在 MCP 侧有覆盖）
+MCP_MAP = {
+    'assetCip.py': ['cip'],
+    'assetGroup.py': ['asset_group'],
+    'assetNucleiResult.py': ['nuclei'],
+    'assetOverview.py': ['asset_distribution', 'count_assets'],
+    'assetScope.py': ['asset_scope'],
+    'assetStatFinger.py': ['stat_finger'],
+    'assetWih.py': ['wih'],
+    'batchExport.py': ['export'],
+    'dashboard.py': ['dashboard'],
+    'dictionary.py': ['dictionary'],
+    'brute_dict.py': ['dictionary'],
+    'cdn_dict.py': ['port_dict'],
+    'fingerprint.py': ['fingerprint'],
+    'github_result.py': ['github_result', 'ignored_repo'],
+    'github_scheduler.py': ['github_task'],
+    'github_task.py': ['github_task'],
+    'github_threat.py': ['ignored_repo'],
+    'icp.py': ['icp'],
+    'mcp.py': [''],
+    'node.py': ['node'],
+    'nuclei.py': ['poc'],
+    'poc.py': ['poc'],
+    'policy.py': ['scan_policy'],
+    'scheduler.py': ['scheduled_task'],
+    'sensitive.py': ['sensitive'],
+    'sensitive_rule.py': ['sensitive_rule'],
+    'system_config.py': ['system_info'],
+    'task.py': ['task'],
+    'taskFofa.py': ['fofa'],
+    'task_schedule.py': ['scheduled_task'],
+    'plugin.py': ['plugin'],
+    'project.py': ['project'],
+    'backup.py': ['backup'],
+    'export.py': ['export'],
+    'audit.py': ['audit'],
+}
+
+
 def load_routes():
     out = []
     for line in SNAPSHOT.read_text(encoding='utf-8').splitlines():
@@ -141,12 +191,27 @@ def load_routes():
     return out
 
 
-def verdict(up_count, matched):
-    if not matched:
+META = ROOT / 'docs/audit/upstream_meta.json'
+
+
+def meta_suffix():
+    """文档里标明基线对应的上游 ref 与抓取日期：没有它就无法判断这张表是否过期。"""
+    if not META.exists():
+        return '，未记录 ref'
+    try:
+        m = json.loads(META.read_text(encoding='utf-8'))
+        return '，ref %s @ %s' % (str(m.get('ref', ''))[:8], m.get('date', ''))
+    except Exception:
+        return ''
+
+
+def verdict(up_count, matched, mcp_matched=None):
+    total = len(matched) + len(mcp_matched or [])
+    if total == 0:
         return '❌ 缺失'
     if up_count == 0:
         return '✅ 覆盖'
-    if len(matched) * 5 >= up_count * 3:
+    if total * 5 >= up_count * 3:
         return '✅ 覆盖'
     return '🟡 部分'
 
@@ -154,31 +219,36 @@ def verdict(up_count, matched):
 def main():
     upstream = json.loads(UPSTREAM.read_text(encoding='utf-8'))
     ours = load_routes()
+    tools = load_mcp_tools()
     rows = []
     unmapped = []
     for fname in sorted(upstream):
         if fname in SKIP:
             continue
         eps = upstream[fname]
-        if fname not in MAP:
+        if fname not in MAP and fname not in MCP_MAP:
             unmapped.append((fname, eps))
             continue
-        keys = MAP[fname]
+        keys = MAP.get(fname, [])
         matched = sorted({p for p in ours if any(k in p for k in keys)}) if keys else []
-        rows.append((fname, eps, matched, verdict(len(eps), matched)))
+        mkeys = MCP_MAP.get(fname, [])
+        # MCP 侧：任一关键词出现在工具名里即算（'' 表示该族整体由 MCP 治理面覆盖）
+        mcp_matched = sorted({t for t in tools if any(k and k in t for k in mkeys)}) if mkeys else []
+        rows.append((fname, eps, matched, mcp_matched, verdict(len(eps), matched, mcp_matched)))
 
-    full = sum(1 for r in rows if r[3] == '✅ 覆盖')
-    part = sum(1 for r in rows if r[3] == '🟡 部分')
-    miss = sum(1 for r in rows if r[3] == '❌ 缺失')
+    full = sum(1 for r in rows if r[4] == '✅ 覆盖')
+    part = sum(1 for r in rows if r[4] == '🟡 部分')
+    miss = sum(1 for r in rows if r[4] == '❌ 缺失')
     print('上游族 %d（端点 %d）：✅ %d / 🟡 %d / ❌ %d，未登记 %d' % (
         len(rows), sum(len(r[1]) for r in rows), full, part, miss, len(unmapped)))
-    for fname, eps, matched, v in rows:
+    for fname, eps, matched, mcp_matched, v in rows:
         if v != '✅ 覆盖':
-            print('  %-26s %-8s 上游 %d 端点，我们 %d 条' % (fname, v, len(eps), len(matched)))
+            print('  %-26s %-8s 上游 %d 端点，REST %d 条 / MCP %d 个' % (
+                fname, v, len(eps), len(matched), len(mcp_matched)))
     for fname, eps in unmapped:
         print('  %-26s 未登记（上游 %d 端点）：%s' % (fname, len(eps), ', '.join(eps[:4])))
     gaps = 0
-    for fname, eps, matched, v in rows:
+    for fname, eps, matched, mcp_matched, v in rows:
         gaps += len(leaf_gaps(eps, matched) if matched else eps)
     print('端点级候选缺口（启发式，需人工复核）：%d 条' % gaps)
 
@@ -187,17 +257,21 @@ def main():
             '# ARL-Next 路由族覆盖对照',
             '',
             '> 由 scripts/ci/arl_parity.py --write 生成，勿手改。',
-            '> 上游快照来自 owl234/ARL-Next 仓库 backend/app/routes（%d 个文件、%d 个端点）。' % (
-                len(upstream), sum(len(v) for v in upstream.values())),
+            '> 上游快照来自 owl234/ARL-Next 仓库 backend/app/routes（%d 个文件、%d 个端点%s）。' % (
+                len(upstream), sum(len(v) for v in upstream.values()), meta_suffix()),
             '>',
             '> 判读口径：✅ 同族有接口且数量不少于上游 60%；🟡 有接口但明显少；❌ 一条都没有；❓ 未登记（需要人判断）。',
-            '> 族名→路径关键词的映射是手写的：自动语义映射会把「都叫域名」的族混在一起，把缺失记成覆盖。',
+            '> 覆盖数 = REST 路由 + MCP 工具：我们是双入口，只数 REST 会把「已通过 MCP 提供」的能力记成缺失',
+            '> （指纹增删改就是这种情况：MCP 有、REST 没开）。',
+            '> 族名→关键词的映射是手写的：自动语义映射会把「都叫域名」的族混在一起，把缺失记成覆盖。',
+            '> 上游基线刷新：python3 scripts/ci/upstream_sync.py --write（会记录 ref 与日期）。',
             '',
-            '| 族 | 上游端点 | 我们接口数 | 判定 | 说明 |',
-            '| --- | ---: | ---: | --- | --- |',
+            '| 族 | 上游端点 | REST | MCP | 判定 | 说明 |',
+            '| --- | ---: | ---: | ---: | --- | --- |',
         ]
-        for fname, eps, matched, v in rows:
-            lines.append('| %s | %d | %d | %s | %s |' % (fname, len(eps), len(matched), v, SHAPE_NOTE.get(fname, '')))
+        for fname, eps, matched, mcp_matched, v in rows:
+            lines.append('| %s | %d | %d | %d | %s | %s |' % (
+                fname, len(eps), len(matched), len(mcp_matched), v, SHAPE_NOTE.get(fname, '')))
         lines += ['', '## 未登记的族（上游有、我们没在 MAP 里表态）', '']
         if unmapped:
             lines += ['| 族 | 上游端点 |', '| --- | --- |']
@@ -206,7 +280,7 @@ def main():
         else:
             lines.append('无。')
         lines += ['', '## 逐族明细', '']
-        for fname, eps, matched, v in rows:
+        for fname, eps, matched, mcp_matched, v in rows:
             lines.append('### %s —— %s' % (fname, v))
             lines.append('')
             lines.append('上游：' + ', '.join(eps[:20]) + (' …' if len(eps) > 20 else ''))
