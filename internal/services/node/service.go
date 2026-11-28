@@ -81,7 +81,7 @@ func (s *service) queueAvgMinutes() float64 {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	s.avgValue = s.taskRepo.AvgTaskDurationMinutes(ctx, 10)
+	s.avgValue = estTaskMinutes(s.taskRepo.RecentTaskDurationsMinutes(ctx, 20), 240)
 	s.avgAt = time.Now()
 	return s.avgValue
 }

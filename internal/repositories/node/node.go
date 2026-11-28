@@ -64,6 +64,9 @@ func (r *repository) NodeRuntime(ctx context.Context, name string) models.NodeRu
 	}
 	var newest time.Time
 	latestStart := ""
+	// newestTarget：最近一次有进度写入的目标。没有模块在跑（模块全结束、等下一目标）时，
+	// 仍要能回答「它卡在哪个目标上」，否则界面只剩任务名（2026-11-29）。
+	newestTarget := ""
 	for _, key := range keys {
 		fields, herr := r.redisClient.HGetAll(ctx, key).Result()
 		if herr != nil {
@@ -80,6 +83,7 @@ func (r *repository) NodeRuntime(ctx context.Context, name string) models.NodeRu
 			}
 			if ts.After(newest) {
 				newest = ts
+				newestTarget = tgt
 			}
 			if !strings.HasSuffix(field, "_start") {
 				continue
@@ -103,6 +107,9 @@ func (r *repository) NodeRuntime(ctx context.Context, name string) models.NodeRu
 	}
 	if !newest.IsZero() {
 		out.IdleMinutes = int(time.Since(newest).Minutes())
+	}
+	if out.Target == "" {
+		out.Target = newestTarget
 	}
 	return out
 }
