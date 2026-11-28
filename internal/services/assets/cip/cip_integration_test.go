@@ -179,3 +179,82 @@ func TestCIPListAggregation(t *testing.T) {
 		t.Fatalf("missing detail = %+v, want nil", missing)
 	}
 }
+// ICP 任务产出（icp_result）必须能在主体页看到。
+//
+// 以前主体页只读 RootDomain.company/icp，而 ICP 任务只写 icp_result —— 查完 ICP，主体页
+// 永远是空的，这条链在界面上是断的。现在读模型把两路合并，这个用例钉住：
+//   - icp_result 单独的记录能成为一个主体（RootDomain 里没有对应行也可以）；
+//   - 域名数 / 样例 / ICP 号 / 详情域列表都算进去；
+//   - 带 project 过滤时它被排除（ICP 结果不归属任何项目）。
+func TestCIPIncludesICPResults(t *testing.T) {
+	if mongodb.DB == nil {
+		t.Skip("mongo not initialized")
+	}
+
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	company := "ICPCo-" + suffix
+	icpNo := "京ICP备" + suffix + "号-1"
+	domains := []string{"icp-" + suffix + "-a.example.com", "icp-" + suffix + "-b.example.com"}
+
+	results := mongodb.DB.Collection("icp_result")
+	t.Cleanup(func() {
+		_, _ = results.DeleteMany(context.Background(), bson.M{"company": company})
+	})
+	now := time.Now()
+	docs := make([]interface{}, 0, len(domains))
+	for _, d := range domains {
+		docs = append(docs, bson.M{
+			"taskId": "it-cip-" + suffix, "domain": d, "company": company, "icpNo": icpNo,
+			"siteName": "", "type": "web", "source": "manual", "createdAt": now,
+		})
+	}
+	if _, err := results.InsertMany(context.Background(), docs); err != nil {
+		t.Fatalf("seed icp_result: %v", err)
+	}
+
+	svc := NewService()
+	list, err := svc.List(context.Background(), models.CIPListRequest{Keyword: company})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	row := findCIPRow(t, list.List, company)
+	if row == nil {
+		t.Fatalf("ICP 任务产出的主体没出现在列表里（total=%d）", list.Total)
+	}
+	if row.DomainCount != int64(len(domains)) {
+		t.Fatalf("domainCount = %d, want %d", row.DomainCount, len(domains))
+	}
+	if row.ICP != icpNo {
+		t.Fatalf("icp = %q, want %q", row.ICP, icpNo)
+	}
+	if len(row.Samples) != len(domains) {
+		t.Fatalf("samples = %v, want %d 条", row.Samples, len(domains))
+	}
+
+	// 详情：这个域名只存在于 icp_result（RootDomain 里没有），也必须能反查到主体
+	detail, err := svc.Detail(context.Background(), models.CIPDetailRequest{Domain: domains[0], PageIndex: 1, PageSize: 20})
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if detail == nil {
+		t.Fatalf("只存在于 icp_result 的域名查详情返回 nil（详情页会 404）")
+	}
+	if detail.Company != company {
+		t.Fatalf("detail.Company = %q, want %q", detail.Company, company)
+	}
+	if detail.Total != int64(len(domains)) || len(detail.List) != len(domains) {
+		t.Fatalf("detail 域名 total=%d len=%d, want %d", detail.Total, len(detail.List), len(domains))
+	}
+	if detail.ICP != icpNo {
+		t.Fatalf("detail.ICP = %q, want %q", detail.ICP, icpNo)
+	}
+
+	// 带 project 过滤时 ICP 结果不参与（它没有项目归属）
+	scoped, err := svc.List(context.Background(), models.CIPListRequest{Project: "it-project-" + suffix})
+	if err != nil {
+		t.Fatalf("List with project: %v", err)
+	}
+	if findCIPRow(t, scoped.List, company) != nil || scoped.Total != 0 {
+		t.Fatalf("带 project 过滤时 ICP 结果不该出现：total=%d rows=%v", scoped.Total, scoped.List)
+	}
+}

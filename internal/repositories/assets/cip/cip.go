@@ -9,6 +9,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
+	icprepo "github.com/Autumn-27/ScopeSentry/internal/repositories/icp"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -20,12 +21,20 @@ const sampleDomainLimit = 10
 
 // Repository ICP/主体读模型仓库（对标 ARL-Next assetCip）。
 //
-// 数据源是 RootDomain 集合的 company/icp/domain 字段，只读，不写任何集合。
+// 数据源有两路，都只读，不写任何集合：
+//  1. RootDomain.company/icp/domain —— 扫描端写的备案字段；
+//  2. icp_result.company/icpNo/domain —— 本仓库 ICP 任务的产出。
+//
+// 为什么要并第二路：ICP 任务跑完、结果落 icp_result、还能同步进地契，但主体页只读 RootDomain，
+// 于是「查了 ICP，主体页永远空的」。
 type Repository interface {
 	// List 按 company 分组统计域名数
 	List(ctx context.Context, req models.CIPListRequest, pageIndex, pageSize int) ([]models.CIPRow, int64, error)
 	// FindRootDomain 按域名取一条根域名记录（找不到返回 nil, nil）
 	FindRootDomain(ctx context.Context, domain string) (*models.RootDomain, error)
+	// CompanyOfDomain 按域名查它所属的主体名：先看 RootDomain.company，再看 icp_result.company。
+	// 只存在于 icp_result 的域名（ICP 任务产出）也能反查到主体，详情页才不会 404。
+	CompanyOfDomain(ctx context.Context, domain string) (string, error)
 	// ListDomainsByCompany 取某主体下的域名（分页）；project 非空时只看该项目
 	ListDomainsByCompany(ctx context.Context, company, project string, pageIndex, pageSize int) ([]models.CIPDomain, int64, error)
 	// ICPsByCompany 取某主体下的 ICP 号集合；project 非空时只看该项目
@@ -43,29 +52,65 @@ func NewRepository() Repository {
 	return &repository{coll: mongodb.DB.Collection("RootDomain")}
 }
 
+// subjectStages 把两路数据统一成 {company, domain, icp, time, project} 形状。
+//
+// icp_result 没有 project 字段，统一填空串：带 project 过滤时会自动被排除，
+// 与「ICP 结果不归属某个项目」的语义一致。
+func subjectStages() mongo.Pipeline {
+	return mongo.Pipeline{
+		{{Key: "$project", Value: bson.D{
+			{Key: "company", Value: "$company"},
+			{Key: "domain", Value: "$domain"},
+			{Key: "icp", Value: "$icp"},
+			{Key: "time", Value: "$time"},
+			{Key: "project", Value: "$project"},
+		}}},
+		{{Key: "$unionWith", Value: bson.D{
+			{Key: "coll", Value: icprepo.CollectionResult},
+			{Key: "pipeline", Value: mongo.Pipeline{
+				{{Key: "$project", Value: bson.D{
+					{Key: "company", Value: "$company"},
+					{Key: "domain", Value: "$domain"},
+					{Key: "icp", Value: "$icpNo"},
+					{Key: "project", Value: ""},
+					{Key: "time", Value: bson.D{{Key: "$dateToString", Value: bson.D{
+						{Key: "format", Value: "%Y-%m-%d %H:%M:%S"},
+						{Key: "date", Value: "$createdAt"},
+						{Key: "onNull", Value: ""},
+					}}}},
+				}}},
+			}},
+		}}},
+	}
+}
+
 // List 按 company 分组统计域名数。
 func (r *repository) List(ctx context.Context, req models.CIPListRequest, pageIndex, pageSize int) ([]models.CIPRow, int64, error) {
-	pipeline := mongo.Pipeline{
+	pipeline := append(subjectStages(), mongo.Pipeline{
 		{{Key: "$match", Value: buildListMatch(req)}},
 		{{Key: "$group", Value: bson.D{
 			{Key: "_id", Value: "$company"},
-			{Key: "domainCount", Value: bson.D{{Key: "$sum", Value: 1}}},
+			// 域名与 ICP 都按去重集合算：同一个域名可能既有 RootDomain 记录又有 ICP 结果
+			{Key: "domains", Value: bson.D{{Key: "$addToSet", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$domain", ""}}}}}},
 			{Key: "icps", Value: bson.D{{Key: "$addToSet", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$icp", ""}}}}}},
-			{Key: "samples", Value: bson.D{{Key: "$addToSet", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$domain", ""}}}}}},
 			{Key: "lastTime", Value: bson.D{{Key: "$max", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$time", ""}}}}}},
 		}}},
 		// 第一段先把 ICP 集合排序去空；第二段再取首个 ICP + 截断样例域名
 		{{Key: "$project", Value: bson.D{
 			{Key: "_id", Value: 1},
-			{Key: "domainCount", Value: 1},
 			{Key: "lastTime", Value: 1},
+			{Key: "domainCount", Value: bson.D{{Key: "$size", Value: bson.D{{Key: "$filter", Value: bson.D{
+				{Key: "input", Value: "$domains"},
+				{Key: "as", Value: "d"},
+				{Key: "cond", Value: bson.D{{Key: "$ne", Value: bson.A{"$d", ""}}}},
+			}}}}}},
 			{Key: "icps", Value: bson.D{{Key: "$filter", Value: bson.D{
 				{Key: "input", Value: bson.D{{Key: "$sortArray", Value: bson.D{{Key: "input", Value: "$icps"}, {Key: "sortBy", Value: 1}}}}},
 				{Key: "as", Value: "i"},
 				{Key: "cond", Value: bson.D{{Key: "$ne", Value: bson.A{"$$i", ""}}}},
 			}}}},
 			{Key: "samples", Value: bson.D{{Key: "$slice", Value: bson.A{
-				bson.D{{Key: "$sortArray", Value: bson.D{{Key: "input", Value: "$samples"}, {Key: "sortBy", Value: 1}}}},
+				bson.D{{Key: "$sortArray", Value: bson.D{{Key: "input", Value: "$domains"}, {Key: "sortBy", Value: 1}}}},
 				sampleDomainLimit,
 			}}}},
 		}}},
@@ -91,7 +136,7 @@ func (r *repository) List(ctx context.Context, req models.CIPListRequest, pageIn
 				{{Key: "$limit", Value: int64(pageSize)}},
 			},
 		}}},
-	}
+	}...)
 
 	var facets []struct {
 		Total []struct {
@@ -141,36 +186,94 @@ func (r *repository) FindRootDomain(ctx context.Context, domain string) (*models
 	return nil, nil
 }
 
+// CompanyOfDomain 按域名反查主体名。
+func (r *repository) CompanyOfDomain(ctx context.Context, domain string) (string, error) {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return "", nil
+	}
+	candidates := []string{domain}
+	if lower := strings.ToLower(domain); lower != domain {
+		candidates = append(candidates, lower)
+	}
+	// RootDomain 优先：扫描端写的 company 是权威值
+	for _, candidate := range candidates {
+		var doc struct {
+			Company string `bson:"company"`
+		}
+		err := r.coll.FindOne(ctx, bson.M{"domain": candidate}, options.FindOne().SetProjection(bson.M{"company": 1})).Decode(&doc)
+		if err == nil {
+			if c := strings.TrimSpace(doc.Company); c != "" {
+				return c, nil
+			}
+		} else if err != mongo.ErrNoDocuments {
+			return "", fmt.Errorf("company of domain %q: %w", candidate, err)
+		}
+	}
+	// 再看 ICP 结果
+	records, err := icprepo.NewResultRepository().FindByDomain(ctx, domain, 1)
+	if err != nil {
+		return "", fmt.Errorf("company of domain %q via icp_result: %w", domain, err)
+	}
+	if len(records) > 0 {
+		return strings.TrimSpace(records[0].Company), nil
+	}
+	return "", nil
+}
+
 // ListDomainsByCompany 取某主体下的域名（按 time 倒序分页）。
+//
+// 走聚合而不是 Find：数据源是 RootDomain ∪ icp_result，同一域名两路都有时只保留一条
+// （按域名去重，time 取较大者），否则详情页会出现重复行。
 func (r *repository) ListDomainsByCompany(ctx context.Context, company, project string, pageIndex, pageSize int) ([]models.CIPDomain, int64, error) {
 	filter := bson.M{"company": company}
 	if project = strings.TrimSpace(project); project != "" {
 		filter["project"] = project
 	}
-	total, err := r.coll.CountDocuments(ctx, filter)
-	if err != nil {
-		return nil, 0, fmt.Errorf("count domains of company %q: %w", company, err)
+	pipeline := append(subjectStages(), mongo.Pipeline{
+		{{Key: "$match", Value: filter}},
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$domain"},
+			{Key: "icp", Value: bson.D{{Key: "$max", Value: "$icp"}}},
+			{Key: "project", Value: bson.D{{Key: "$max", Value: "$project"}}},
+			{Key: "time", Value: bson.D{{Key: "$max", Value: "$time"}}},
+		}}},
+		{{Key: "$facet", Value: bson.M{
+			"total": mongo.Pipeline{
+				{{Key: "$count", Value: "count"}},
+			},
+			"data": mongo.Pipeline{
+				{{Key: "$sort", Value: bson.D{{Key: "time", Value: -1}, {Key: "_id", Value: 1}}}},
+				{{Key: "$skip", Value: int64((pageIndex - 1) * pageSize)}},
+				{{Key: "$limit", Value: int64(pageSize)}},
+			},
+		}}},
+	}...)
+
+	var facets []struct {
+		Total []struct {
+			Count int64 `bson:"count"`
+		} `bson:"total"`
+		Data []struct {
+			Domain  string `bson:"_id"`
+			ICP     string `bson:"icp"`
+			Project string `bson:"project"`
+			Time    string `bson:"time"`
+		} `bson:"data"`
 	}
-	if total == 0 {
+	if err := r.aggregate(ctx, pipeline, &facets); err != nil {
+		return nil, 0, fmt.Errorf("list domains of company %q: %w", company, err)
+	}
+	if len(facets) == 0 {
 		return []models.CIPDomain{}, 0, nil
 	}
-
-	opts := options.Find().
-		SetSort(bson.D{{Key: "time", Value: -1}}).
-		SetSkip(int64((pageIndex - 1) * pageSize)).
-		SetLimit(int64(pageSize))
-	cursor, err := r.coll.Find(ctx, filter, opts)
-	if err != nil {
-		return nil, 0, fmt.Errorf("find domains of company %q: %w", company, err)
+	rows := make([]models.CIPDomain, 0, len(facets[0].Data))
+	for _, d := range facets[0].Data {
+		rows = append(rows, models.CIPDomain{Domain: d.Domain, ICP: d.ICP, Project: d.Project, Time: d.Time})
 	}
-	defer cursor.Close(ctx)
-
-	var rows []models.CIPDomain
-	if err := cursor.All(ctx, &rows); err != nil {
-		return nil, 0, fmt.Errorf("decode domains of company %q: %w", company, err)
-	}
-	if rows == nil {
-		rows = []models.CIPDomain{}
+	var total int64
+	if len(facets[0].Total) > 0 {
+		total = facets[0].Total[0].Count
 	}
 	return rows, total, nil
 }
@@ -181,14 +284,22 @@ func (r *repository) ICPsByCompany(ctx context.Context, company, project string)
 	if project = strings.TrimSpace(project); project != "" {
 		filter["project"] = project
 	}
-	values, err := r.coll.Distinct(ctx, "icp", filter)
-	if err != nil {
-		return nil, fmt.Errorf("distinct icp of company %q: %w", company, err)
+	pipeline := append(subjectStages(), mongo.Pipeline{
+		{{Key: "$match", Value: filter}},
+		{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$icp"}}}},
+		{{Key: "$match", Value: bson.M{"_id": bson.M{"$exists": true, "$nin": bson.A{nil, ""}}}}},
+		{{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
+	}...)
+	var rows []struct {
+		ICP string `bson:"_id"`
 	}
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if s, ok := value.(string); ok && s != "" {
-			out = append(out, s)
+	if err := r.aggregate(ctx, pipeline, &rows); err != nil {
+		return nil, fmt.Errorf("list icp of company %q: %w", company, err)
+	}
+	out := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.ICP != "" {
+			out = append(out, row.ICP)
 		}
 	}
 	sort.Strings(out)
@@ -197,11 +308,11 @@ func (r *repository) ICPsByCompany(ctx context.Context, company, project string)
 
 // CountSubjects 主体总数（去重后的 company 数）。
 func (r *repository) CountSubjects(ctx context.Context) (int64, error) {
-	pipeline := mongo.Pipeline{
+	pipeline := append(subjectStages(), mongo.Pipeline{
 		{{Key: "$match", Value: nonEmptyCompanyCond()}},
 		{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$company"}}}},
 		{{Key: "$count", Value: "count"}},
-	}
+	}...)
 	var rows []struct {
 		Count int64 `bson:"count"`
 	}

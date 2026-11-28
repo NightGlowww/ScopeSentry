@@ -53,7 +53,36 @@ func (s *service) Detail(ctx context.Context, req models.CIPDetailRequest) (*mod
 		return nil, fmt.Errorf("find root domain %q: %w", req.Domain, err)
 	}
 	if root == nil {
-		return nil, nil
+		// 只在 icp_result 里存在的域名（ICP 任务产出、RootDomain 没这行）：
+		// 以前这里直接 return nil → 详情 404，可列表里明明有这个主体。
+		company, cerr := s.repo.CompanyOfDomain(ctx, req.Domain)
+		if cerr != nil {
+			return nil, cerr
+		}
+		if company == "" {
+			return nil, nil
+		}
+		icps, ierr := s.repo.ICPsByCompany(ctx, company, req.Project)
+		if ierr != nil {
+			return nil, ierr
+		}
+		rows, total, lerr := s.repo.ListDomainsByCompany(ctx, company, req.Project, pageIndex, pageSize)
+		if lerr != nil {
+			return nil, lerr
+		}
+		result := &models.CIPDetailResult{
+			Domain:    strings.TrimSpace(req.Domain),
+			Company:   company,
+			ICPs:      icps,
+			List:      rows,
+			Total:     total,
+			PageIndex: pageIndex,
+			PageSize:  pageSize,
+		}
+		if len(icps) > 0 {
+			result.ICP = icps[0]
+		}
+		return result, nil
 	}
 
 	result := &models.CIPDetailResult{
