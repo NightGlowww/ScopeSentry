@@ -140,6 +140,10 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		// 策略套用提示同样要投影：任务创建时写进 policyWarnings（模板没有全局并发字段之类），
 		// 不带上它列表里「策略提示」列永远是「-」，用户看不到自己配的策略为什么没生效。
 		"policyWarnings": 1,
+		// 项目归属：库里写了 bindProject，投影漏掉的话列表永远回空串，
+		// 「这个任务归档到哪个项目」只能一个个点详情才能看到（2026-11-28 实测：绑定成功、
+		// 项目页 taskCount 0→1、按 bindProject 过滤能命中，但列表行里是空的）。
+		"bindProject": 1,
 	}
 
 	// 分页查询
