@@ -78,6 +78,9 @@ type Task struct {
 	CmdFail int64 `bson:"-" json:"cmdFail,omitempty"`
 	// QueuePos 在节点待领取队列中的位置（1 起，0 表示不在队列里）
 	QueuePos int `bson:"-" json:"queuePos,omitempty"`
+	// QueueEtaMin 排队任务预计还要等多久（分钟）。按「位次 × 历史单任务中位耗时」估，
+	// 与节点页的队列 ETA 用同一个估算口径（internal/utils/eta）。0 = 未知。
+	QueueEtaMin int `bson:"-" json:"queueEtaMin,omitempty"`
 	// QueuedNuclei 排队中的任务快照里是否带 nuclei。
 	// 队列条目是提交时序列化的载荷快照，模板后来改成不跑 nuclei 也改不动它；
 	// 不知道这一点就会以为「改了模板没用」，其实只是 backlog 还没排完（2026-11-29）。

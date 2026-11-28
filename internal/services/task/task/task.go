@@ -13,6 +13,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/project"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/tasksync"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
@@ -27,6 +28,7 @@ import (
 	schedulerSvc "github.com/Autumn-27/ScopeSentry/internal/services/task/scheduler"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstate"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstats"
+	"github.com/Autumn-27/ScopeSentry/internal/utils/eta"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -73,6 +75,10 @@ type Service interface {
 
 // service 实现Service接口
 type service struct {
+	// 单任务中位耗时的 5 分钟缓存：任务列表每次翻页都会用到，不能每行查一次库
+	avgMu    sync.Mutex
+	avgAt    time.Time
+	avgValue float64
 	taskRepo         task.Repository
 	commonService    commonTask.Service
 	schedulerService schedulerSvc.Service
@@ -231,6 +237,11 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 			if snap, ok := queueSnapshots[id]; ok {
 				tasks[i].QueuePos = snap.Pos
 				tasks[i].QueuedNuclei = snap.Nuclei
+				// 排第几 × 单任务中位耗时 = 还要等多久。与节点页同一口径，
+				// 两个页面对同一时刻不能给出互相矛盾的数字。
+				if avg := s.taskAvgMinutes(); avg > 0 && snap.Pos > 0 {
+					tasks[i].QueueEtaMin = int(avg * float64(snap.Pos))
+				}
 			}
 			if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
 				tasks[i].Queued = true
@@ -248,6 +259,20 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 	}
 
 	return tasks, total, nil
+}
+
+// taskAvgMinutes 最近完成任务的中位耗时（分钟），5 分钟缓存；查不到返回 0（显示未知，不猜）。
+func (s *service) taskAvgMinutes() float64 {
+	s.avgMu.Lock()
+	defer s.avgMu.Unlock()
+	if !s.avgAt.IsZero() && time.Since(s.avgAt) < 5*time.Minute {
+		return s.avgValue
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	s.avgValue = eta.EstimateMinutes(s.taskRepo.RecentTaskDurationsMinutes(ctx, 20), 1, 1440)
+	s.avgAt = time.Now()
+	return s.avgValue
 }
 
 // taskSort 把 "<字段>:<asc|desc>" 解析成 Mongo 排序。

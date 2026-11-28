@@ -209,7 +209,19 @@ const taskColums = reactive<TableColumn[]>([
       if ((row.status === 1 || row.status === 0) && row.queued) {
         // 排队位置：知道「前面还有几个」比单纯「排队中」有用得多
         const pos = Number(row.queuePos) || 0
-        const hint = pos > 1 ? t('task.queuePosHint', { n: pos - 1 }) : t('task.queuedHint')
+        // 还要等多久：位次 × 历史单任务中位耗时（与节点页同一个估算口径）。
+        // 只写「前面还有 4 个」仍然回答不了「我这条什么时候能跑」。
+        const etaMin = Number(row.queueEtaMin) || 0
+        const etaText =
+          etaMin >= 1440
+            ? t('node.queueEtaDays', { n: (etaMin / 1440).toFixed(1) })
+            : etaMin >= 60
+              ? t('node.queueEtaHours', { n: (etaMin / 60).toFixed(1) })
+              : etaMin > 0
+                ? t('node.queueEtaMinutes', { n: etaMin })
+                : ''
+        const posText = pos > 1 ? t('task.queuePosHint', { n: pos - 1 }) : t('task.queuedHint')
+        const hint = etaText ? posText + ' · ' + etaText : posText
         // 队列条目是提交时序列化的快照：模板/档位后来改成不跑 nuclei 也改不动它。
         // 不标出来，「明明关了 nuclei 这条还在跑」就变成玄学（2026-11-29）。
         const snap = row.queuedNuclei
