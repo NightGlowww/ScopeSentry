@@ -1,1 +1,0 @@
-import{r as a}from"./index-C6rmMP0r.js";const s=s=>a.post({url:"/api/user/login",data:s}),r=s=>a.post({url:"/api/user/changePassword",data:s}),o=()=>a.get({url:"/mock/user/loginOut"}),l=s=>a.get({url:"/mock/role/list",params:s}),t=s=>a.get({url:"/mock/role/list2",params:s});export{t as a,o as b,r as c,l as g,s as l};

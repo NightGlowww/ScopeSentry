@@ -1208,18 +1208,18 @@ const setMaxHeight = () => {
     <!-- 四个筛选 + 关键词 + 搜索要挤在一行：span 合计必须 ≤ 24，
          否则「搜索」按钮会被挤到第二行单独一行（2026-11-28 实测 1811px 宽也换行） -->
     <ElRow class="locale-search-row">
-      <ElCol :span="3">
+      <ElCol class="locale-search-filter">
         <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
           <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
         </ElSelect>
       </ElCol>
-      <ElCol :span="3">
+      <ElCol class="locale-search-filter">
         <ElSelect v-model="yieldFilter" :placeholder="t('task.yieldFilter')" clearable>
           <ElOption :label="t('task.yieldHas')" value="has_asset" />
           <ElOption :label="t('task.yieldNone')" value="no_asset" />
         </ElSelect>
       </ElCol>
-      <ElCol v-if="yieldFilter" :span="3">
+      <ElCol v-if="yieldFilter" class="locale-search-filter">
         <ElSelect
           v-model="yieldDims"
           multiple
@@ -1236,7 +1236,7 @@ const setMaxHeight = () => {
           <ElOption label="wih" value="wih" />
         </ElSelect>
       </ElCol>
-      <ElCol :span="3">
+      <ElCol class="locale-search-filter">
         <ElSelect v-model="statusFilter" :placeholder="t('task.statusFilter')" clearable>
           <ElOption :label="t('task.statusAll')" :value="-1" />
           <ElOption :label="t('task.statusRunning')" :value="1" />
@@ -1248,10 +1248,10 @@ const setMaxHeight = () => {
       <ElCol :span="1">
         <ElText class="mx-1">{{ t('task.taskName') }}:</ElText>
       </ElCol>
-      <ElCol :span="9">
+      <ElCol class="locale-search-input">
         <ElInput v-model="search" :placeholder="t('common.inputText')" style="height: 36px" />
       </ElCol>
-      <ElCol :span="2">
+      <ElCol class="locale-search-btn">
         <ElButton type="primary" :icon="searchicon" @click="handleSearch">{{
           t('common.search')
         }}</ElButton>
@@ -1535,15 +1535,22 @@ const setMaxHeight = () => {
 .locale-search-row {
   align-items: center;
   gap: 12px;
+  /* 这里 span 实际不生效（下面把列宽改成了 flex 定值），
+     四个筛选 + 关键词 + 搜索要按「筛选定宽 / 输入框吃掉剩余 / 按钮贴右」排，
+     否则最后那个「搜索」会被单独挤到第二行 */
+  flex-wrap: wrap;
 }
 .locale-search-row > .el-col {
   flex: 0 0 auto;
   width: auto;
   max-width: 100%;
 }
-.locale-search-row > .el-col:nth-child(2) {
-  flex: 0 1 260px;
-  min-width: 0;
+.locale-search-row .locale-search-filter {
+  flex: 0 0 172px;
+}
+.locale-search-row .locale-search-input {
+  flex: 1 1 240px;
+  min-width: 180px;
 }
 .locale-search-row .el-text {
   white-space: nowrap;
