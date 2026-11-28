@@ -241,14 +241,9 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 	}
 	res.HasMore = res.Scanned >= limit
 
-	if left, cerr := c.CountDocuments(ctx, slimFilter(keep, &lastID)); cerr == nil {
-		if opt.DryRun {
-			res.RemainingDocs = left
-		} else {
-			// 写完之后还剩多少（不含本批已被截断的）
-			res.RemainingDocs = left
-		}
-	}
+	// 这里刻意不再调 CountDocuments：这个 count 也带 $expr + $strLenBytes，
+	// 等于每批都要全表扫一遍（实测每批固定 ~21s，无论 20 条还是 200 条）。
+	// 剩余量交给 limit=0 的全量干跑（一次聚合，24s 出结果）。
 	res.DurationMs = time.Since(start).Milliseconds()
 	finalizeReclaim(res)
 	return res, nil

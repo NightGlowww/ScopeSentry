@@ -16,6 +16,8 @@ type SlimStorageRequest struct {
 	// DryRun 不传时按 true 处理：这个操作不可逆，默认必须是「先看一眼」
 	DryRun  *bool  `json:"dryRun"`
 	Confirm string `json:"confirm"`
+	// AfterID 续跑游标：传上一批返回的 nextAfterId
+	AfterID string `json:"afterId"`
 }
 
 // SlimStorage 处理 POST /api/system/storage/slim。
@@ -38,6 +40,7 @@ func SlimStorage(c *gin.Context) {
 		Limit:      req.Limit,
 		DryRun:     dryRun,
 		Confirm:    req.Confirm,
+		AfterID:    req.AfterID,
 	})
 	if err != nil {
 		// 参数类错误（确认串不对、集合不在白名单）都是调用方问题，回 400；
