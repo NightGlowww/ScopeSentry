@@ -71,6 +71,21 @@ const readPersisted = (key: string): string => {
   return sessionStorage.getItem(key) ?? ''
 }
 const statusFilter = ref<number>(Number(readPersisted(STATUS_KEY) || -1))
+// 产出口径（对齐 ARL-Next 1.5.2）：回答「哪些任务真的扫出了东西 / 哪些白跑了一趟」。
+// 只按终态冻结的 stats 快照筛，口径与「产出」列一致。
+const YIELD_KEY = 'task-yield-filter'
+const yieldFilter = ref<string>(sessionStorage.getItem(YIELD_KEY) || '')
+const yieldDims = ref<string[]>([])
+watch(yieldFilter, (v) => {
+  sessionStorage.setItem(YIELD_KEY, v || '')
+  if (!v) yieldDims.value = []
+  currentPage.value = 1
+  getList()
+})
+// 维度只在「有/无产出」选中时才有意义，改维度直接重查
+watch(yieldDims, () => {
+  if (yieldFilter.value) getList()
+})
 const restoredFilter = ref<boolean>(
   !!readPersisted(STATUS_KEY) || Number(readPersisted(STATUS_KEY) || -1) >= 0
 )
@@ -728,7 +743,9 @@ const { tableRegister, tableState, tableMethods } = useTable({
       statusFilter.value >= 0 ? statusFilter.value : undefined,
       nodeFilter.value || undefined,
       undefined,
-      sortState.value || undefined
+      sortState.value || undefined,
+      yieldFilter.value || undefined,
+      yieldDims.value.length ? yieldDims.value : undefined
     )
     // 首次加载完也要评估是否该起自动刷新：
     // 之前只在 getList() 包装里调 syncAutoList()，而表格首屏走的是这里，
@@ -1192,6 +1209,29 @@ const setMaxHeight = () => {
       <ElCol :span="4">
         <ElSelect v-model="nodeFilter" :placeholder="t('task.filterByNode')" clearable>
           <ElOption v-for="n in nodeOptions" :key="n" :label="n" :value="n" />
+        </ElSelect>
+      </ElCol>
+      <ElCol :span="4">
+        <ElSelect v-model="yieldFilter" :placeholder="t('task.yieldFilter')" clearable>
+          <ElOption :label="t('task.yieldHas')" value="has_asset" />
+          <ElOption :label="t('task.yieldNone')" value="no_asset" />
+        </ElSelect>
+      </ElCol>
+      <ElCol v-if="yieldFilter" :span="4">
+        <ElSelect
+          v-model="yieldDims"
+          multiple
+          collapse-tags
+          :max-collapse-tags="2"
+          :placeholder="t('task.yieldDims')"
+          clearable
+        >
+          <ElOption label="site" value="site" />
+          <ElOption label="domain" value="domain" />
+          <ElOption label="url" value="url" />
+          <ElOption label="ip" value="ip" />
+          <ElOption label="vuln" value="vuln" />
+          <ElOption label="wih" value="wih" />
         </ElSelect>
       </ElCol>
       <ElCol :span="4">

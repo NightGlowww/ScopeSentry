@@ -834,12 +834,20 @@ type listTasksInput struct {
 	Search    string `json:"search,omitempty" jsonschema:"任务名称模糊搜索"`
 	PageIndex int    `json:"pageIndex,omitempty" jsonschema:"页码，从 1 开始，默认 1"`
 	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20"`
+	// 产出口径（对齐 ARL-Next 1.5.2）：回答「哪些任务真的扫出了东西 / 哪些白跑了一趟」
+	BindProject string   `json:"bindProject,omitempty" jsonschema:"按归属项目 ObjectID 过滤（list_projects 获取）"`
+	AssetYield  string   `json:"assetYield,omitempty" jsonschema:"产出口径：has_asset 有产出 / no_asset 终态且无产出；空=全部"`
+	AssetTypes  []string `json:"assetTypes,omitempty" jsonschema:"产出维度：site/domain/url/ip/vuln/wih；空=全部。不支持的维度直接报错"`
 }
 
 func listTasks(ctx context.Context, _ *mcp.CallToolRequest, input listTasksInput) (*mcp.CallToolResult, any, error) {
 	capPageSize(&input.PageIndex, &input.PageSize)
 	c := ginContext(ctx)
-	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, nil, "", "", "")
+	tasks, total, err := d.taskService.List(c, input.Search, input.PageIndex, input.PageSize, task.ListOptions{
+		BindProject: input.BindProject,
+		AssetYield:  input.AssetYield,
+		AssetTypes:  input.AssetTypes,
+	})
 	if err != nil {
 		return errorResult("获取任务列表失败", err)
 	}

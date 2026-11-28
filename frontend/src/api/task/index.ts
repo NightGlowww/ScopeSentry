@@ -21,14 +21,17 @@ export const getTaskDataApi = (
   status?: number,
   node?: string,
   bindProject?: string,
-  sort?: string
+  sort?: string,
+  assetYield?: string,
+  assetTypes?: string[]
 ): Promise<IResponse<TaskDataResponse>> => {
   // bindProject：项目详情页用它列出「为这个项目跑过的任务」。
   // 注意与 task.project（资产归属数组）不同，bindProject 才是任务→项目的归属。
   // sort："<字段>:<asc|desc>"，服务端白名单校验。
   return request.post({
     url: '/api/task/',
-    data: { search, pageIndex, pageSize, status, node, bindProject, sort }
+    // assetYield/assetTypes：产出口径（对齐 ARL-Next 1.5.2），只按终态冻结的 stats 快照筛选
+    data: { search, pageIndex, pageSize, status, node, bindProject, sort, assetYield, assetTypes }
   })
 }
 

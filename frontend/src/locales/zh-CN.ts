@@ -1074,6 +1074,10 @@ export default {
     restartMsg: '仅支持docker'
   },
   task: {
+    yieldFilter: '资产产出',
+    yieldHas: '有产出',
+    yieldNone: '无产出',
+    yieldDims: '产出维度',
     module: {
       TargetHandler: '目标解析',
       SubdomainScan: '子域名扫描',

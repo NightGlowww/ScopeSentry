@@ -36,7 +36,7 @@ import (
 
 // Service 定义任务服务接口
 type Service interface {
-	List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string, sortSpec string) ([]models.Task, int64, error)
+	List(ctx *gin.Context, search string, pageIndex, pageSize int, opt ListOptions) ([]models.Task, int64, error)
 	// DeleteByFilter 按筛选批量删除，返回条数
 	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
 	// CountTasksCreatedSince 统计某时间之后创建的任务数（防刷）
@@ -94,7 +94,24 @@ func NewService() Service {
 }
 
 // List 获取任务列表
-func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, status *int, node, bindProject string, sortSpec string) ([]models.Task, int64, error) {
+// ListOptions 任务列表的可选过滤，集中一处避免 List 参数无限扩张。
+type ListOptions struct {
+	Status      *int
+	Node        string
+	BindProject string
+	Sort        string
+	// AssetYield 产出口径：has_asset（有任意选中的产出） / no_asset（终态且全部为 0）
+	AssetYield string
+	// AssetTypes 产出维度（上游 1.5.2 口径）：site/domain/url/ip/vuln/wih；
+	// 空 = 全部支持的维度。不支持的维度直接报错，不做「静默忽略」。
+	AssetTypes []string
+}
+
+// 产出维度的名字与 stats 键的对应放在 taskstats 包里（那边同时负责写快照），
+// 避免「写快照用一套键、筛选用另一套键」这种漂移。
+
+func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int, opt ListOptions) ([]models.Task, int64, error) {
+	status, node, bindProject, sortSpec := opt.Status, opt.Node, opt.BindProject, opt.Sort
 	filter := bson.M{}
 	if strings.TrimSpace(bindProject) != "" {
 		filter["bindProject"] = strings.TrimSpace(bindProject)
@@ -109,6 +126,38 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 	// 状态过滤：任务堆积时（几十个暂停任务）只靠名字搜很难找
 	if status != nil && *status >= 0 {
 		filter["status"] = *status
+	}
+
+	// 产出口径（对齐 ARL-Next 1.5.2 的 asset_yield / asset_types）：
+	// 只按 stats 快照判断，不去实时数产出——列表要快，且口径必须与「产出」列一致。
+	if strings.TrimSpace(opt.AssetYield) != "" {
+		dims, derr := taskstats.ResolveDims(opt.AssetTypes)
+		if derr != nil {
+			return nil, 0, derr
+		}
+		and := []bson.M{}
+		switch opt.AssetYield {
+		case "has_asset":
+			ors := make([]bson.M, 0, len(dims))
+			for _, k := range dims {
+				ors = append(ors, bson.M{"stats." + k: bson.M{"$gt": 0}})
+			}
+			and = append(and, bson.M{"$or": ors})
+		case "no_asset":
+			// 与上游一致：只有终态任务才谈得上「没产出」，运行中的不算
+			and = append(and, bson.M{"status": bson.M{"$in": []int{
+				constants.TaskStatusFinished, constants.TaskStatusFailed, constants.TaskStatusPaused,
+			}}})
+			for _, k := range dims {
+				and = append(and, bson.M{"$or": []bson.M{
+					{"stats." + k: bson.M{"$exists": false}},
+					{"stats." + k: bson.M{"$lte": 0}},
+				}})
+			}
+		default:
+			return nil, 0, fmt.Errorf("%w: %s（支持 has_asset/no_asset）", taskstats.ErrUnsupportedDim, opt.AssetYield)
+		}
+		filter["$and"] = and
 	}
 
 	// 计算总数

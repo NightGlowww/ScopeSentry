@@ -219,6 +219,9 @@ def main():
         ('delete_task', {'ids': [NOPE]}),
         # 归属补录：空 ids 与非法 id 必须在入参/服务层被拒（合法但不存在的 id 返回 updated=0 + note，
         # 不算失败——解除归属时「本来就是空」也会是 0，硬判错会变成误报）
+        # 不支持的产出维度必须报错：静默退化成「全部」会让用户以为筛到了 nuclei
+        ('list_tasks', {'pageIndex': 1, 'pageSize': 1, 'assetYield': 'has_asset', 'assetTypes': ['nuclei']}),
+        ('list_tasks', {'pageIndex': 1, 'pageSize': 1, 'assetYield': 'whatever'}),
         ('assign_tasks_project', {'ids': [], 'projectId': ''}),
         ('assign_tasks_project', {'ids': ['zzz'], 'projectId': ''}),
         ('pause_task_targets', {'taskId': NOPE, 'targets': ['x.invalid']}),
@@ -334,6 +337,33 @@ def main():
             print('FAIL filter.%s=%s 等于全量 %s（过滤没生效）' % (fkey, fval, fv))
         else:
             print('ok   filter.%s=%-5s total=%s / 全量 %s' % (fkey, fval, fv, base_v))
+
+    # 产出口径（对齐 ARL-Next 1.5.2）：has_asset 必须少于全量且非 0；
+    # 不支持的维度必须报错，不能静默退化成「全部」
+    all_tasks = rpc('list_tasks', {'pageIndex': 1, 'pageSize': 1})
+    has_tasks = rpc('list_tasks', {'pageIndex': 1, 'pageSize': 1, 'assetYield': 'has_asset'})
+    all_v = has_v = None
+    if all_tasks['kind'] == 'OK':
+        try:
+            all_v = (json.loads(all_tasks['text']) or {}).get('total')
+        except Exception:
+            all_v = None
+    if has_tasks['kind'] == 'OK':
+        try:
+            has_v = (json.loads(has_tasks['text']) or {}).get('total')
+        except Exception:
+            has_v = None
+    if all_v is None or has_v is None:
+        fails += 1
+        print('FAIL 产出口径 拿不到 total（all=%s has=%s）' % (all_v, has_v))
+    elif has_v == 0:
+        fails += 1
+        print('FAIL assetYield=has_asset 命中 0 条（口径失效）')
+    elif has_v >= all_v:
+        fails += 1
+        print('FAIL assetYield=has_asset=%s 不小于全量 %s（筛选没生效）' % (has_v, all_v))
+    else:
+        print('ok   assetYield=has_asset total=%s / 全量 %s' % (has_v, all_v))
 
     # 分页夹紧：一次大 pageSize 不能把库拖出来
     big = rpc('list_assets', {'asset_type': 'asset', 'pageIndex': 1, 'pageSize': 100000})

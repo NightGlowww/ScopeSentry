@@ -1107,6 +1107,10 @@ export default {
     restartMsg: 'Only supports Docker'
   },
   task: {
+    yieldFilter: 'Asset yield',
+    yieldHas: 'Has output',
+    yieldNone: 'No output',
+    yieldDims: 'Dimensions',
     module: {
       TargetHandler: 'Target parsing',
       SubdomainScan: 'Subdomain scan',

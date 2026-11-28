@@ -164,6 +164,12 @@ type ListRequest struct {
 	// Sort 表头点击排序："<字段>:<asc|desc>"。字段白名单在 service 里校验，
 	// 只允许 name/status/progress/creatTime/endTime/taskNum —— 不能让前端传任意字段进 $sort。
 	Sort string `json:"sort" binding:"omitempty" example:"creatTime:desc"`
+	// AssetYield 产出口径（对齐 ARL-Next 1.5.2）：has_asset 有产出 / no_asset 终态且无产出。
+	// 只按任务终态冻结的 stats 快照判断，口径与列表「产出」列一致。
+	AssetYield string `json:"assetYield" binding:"omitempty,oneof=has_asset no_asset" example:"has_asset"`
+	// AssetTypes 产出维度：site/domain/url/ip/vuln/wih；空 = 全部。
+	// 不支持的维度（如 nuclei，我们这边没有独立口径）直接 400，不静默忽略。
+	AssetTypes []string `json:"assetTypes" binding:"omitempty" example:"site,domain"`
 }
 
 // ScheduledTask 计划任务模型

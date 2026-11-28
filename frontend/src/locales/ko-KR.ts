@@ -1100,6 +1100,10 @@ export default {
       '이 노드를 기다리는 작업 {n}개: 노드는 한 번에 하나만 실행하므로 앞 작업이 끝나야 시작됩니다'
   },
   task: {
+    yieldFilter: '자산 산출',
+    yieldHas: '산출 있음',
+    yieldNone: '산출 없음',
+    yieldDims: '산출 차원',
     module: {
       TargetHandler: '대상분석',
       SubdomainScan: '서브도메인 스캔',

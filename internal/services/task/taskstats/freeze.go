@@ -7,6 +7,8 @@ package taskstats
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -25,6 +27,11 @@ var specs = []struct{ key, coll string }{
 	{"url", "UrlScan"},
 	{"asset", "asset"},
 	{"vulnerability", "vulnerability"},
+	// 下面两个是 ARL-Next 1.5.2 产出维度（ip / wih）在库里的落点：
+	//   ip   → IPAsset（与 ip 读模型同一集合，字段就是 taskName）
+	//   wih  → SensitiveResult（wih 是它的派生读模型，没有独立集合；口径写清楚比造假维度好）
+	{"ip", "IPAsset"},
+	{"sensitive", "SensitiveResult"},
 }
 
 // Freeze 统计任务产出，返回可直接并入 $set 的字段（stats + statsFrozenAt）。
@@ -78,4 +85,51 @@ func FreezeByID(ctx context.Context, id primitive.ObjectID) bson.M {
 		return nil
 	}
 	return Freeze(ctx, row.Name)
+}
+
+// DimOrder 产出维度（外部名）与 stats 快照键的对应，顺序即默认口径。
+//
+// nuclei 没有独立口径（nuclei 命中就是 vulnerability 文档），所以不列出来：
+// 传了要明确报错，拿 vuln 冒充只会让人以为筛到了 nuclei。
+var DimOrder = []struct{ Name, Key string }{
+	{"site", "asset"},
+	{"domain", "subdomain"},
+	{"url", "url"},
+	{"ip", "ip"},
+	{"vuln", "vulnerability"},
+	{"wih", "sensitive"},
+}
+
+// ErrUnsupportedDim 未知产出维度
+var ErrUnsupportedDim = errors.New("unsupported asset type")
+
+// ResolveDims 把外部维度名翻译成 stats 键；空表示全部支持的维度。
+func ResolveDims(types []string) ([]string, error) {
+	if len(types) == 0 {
+		keys := make([]string, 0, len(DimOrder))
+		for _, d := range DimOrder {
+			keys = append(keys, d.Key)
+		}
+		return keys, nil
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(types))
+	for _, t := range types {
+		name := strings.ToLower(strings.TrimSpace(t))
+		key := ""
+		for _, d := range DimOrder {
+			if d.Name == name {
+				key = d.Key
+				break
+			}
+		}
+		if key == "" {
+			return nil, fmt.Errorf("%w: %s（支持 site/domain/url/ip/vuln/wih）", ErrUnsupportedDim, t)
+		}
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, key)
+		}
+	}
+	return out, nil
 }

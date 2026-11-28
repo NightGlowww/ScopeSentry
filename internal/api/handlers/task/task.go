@@ -8,6 +8,7 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/common"
 	"github.com/Autumn-27/ScopeSentry/internal/services/task/task"
+	"github.com/Autumn-27/ScopeSentry/internal/services/task/taskstats"
 	"github.com/gin-gonic/gin"
 )
 
@@ -52,8 +54,21 @@ func List(c *gin.Context) {
 			logger.Error(fmt.Sprintf("%v", err))
 		}
 	}()
-	tasks, total, err := taskService.List(c, req.Search, req.PageIndex, req.PageSize, req.Status, req.Node, req.BindProject, req.Sort)
+	tasks, total, err := taskService.List(c, req.Search, req.PageIndex, req.PageSize, task.ListOptions{
+		Status:      req.Status,
+		Node:        req.Node,
+		BindProject: req.BindProject,
+		Sort:        req.Sort,
+		AssetYield:  req.AssetYield,
+		AssetTypes:  req.AssetTypes,
+	})
 	if err != nil {
+		// 产出维度/口径传错是调用方的问题，回 400 并把可用取值说清楚，
+		// 不要混进 500 里让用户以为服务挂了
+		if errors.Is(err, taskstats.ErrUnsupportedDim) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
 		logger.Error(fmt.Sprintf("%v", err))
 		response.InternalServerError(c, "api.task.list.error", err)
 		return
