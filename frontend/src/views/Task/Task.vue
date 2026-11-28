@@ -9,7 +9,6 @@ import {
   ElCol,
   ElInput,
   ElRow,
-  ElText,
   ElProgress,
   ElTag,
   ElMessageBox,
@@ -26,7 +25,7 @@ import {
   ElAlert,
   ElSelect,
   ElOption,
-  ElDatePicker
+  ElDatePicker,
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { useTable } from '@/hooks/web/useTable'
@@ -151,7 +150,7 @@ const taskColums = reactive<TableColumn[]>([
     label: t('project.project'),
     width: 140,
     showOverflowTooltip: true,
-    formatter: (row: any, _col: TableColumn, cellValue: string) => {
+    formatter: (_row: any, _col: TableColumn, cellValue: string) => {
       if (!cellValue) return '-'
       return projectNameMap.value[cellValue] || cellValue
     }

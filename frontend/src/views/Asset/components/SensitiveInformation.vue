@@ -38,7 +38,6 @@ import {
   getSensitiveResultNumberApi,
   updateStatusApi
 } from '@/api/asset'
-import { Icon } from '@iconify/vue'
 import { BaseButton } from '@/components/Button'
 import Csearch from '../search/Csearch.vue'
 import { RowState } from '@/api/asset/types'
@@ -48,7 +47,7 @@ interface Project {
   label: string
   children?: Project[]
 }
-const props = defineProps<{
+defineProps<{
   projectList: Project[]
   taskList: { id: string; name: string }[]
 }>()

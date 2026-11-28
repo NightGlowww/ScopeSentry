@@ -12,15 +12,14 @@ import {
   ElFormItem,
   ElInput,
   ElTag,
-  ElPopconfirm,
-  ElMessage
+  ElMessage,
 } from 'element-plus'
 
 import { Table, TableColumn } from '@/components/Table'
 import { failReasonText } from '@/utils/failReason'
 
 import { Dialog } from '@/components/Dialog'
-import { ref, reactive, h, onBeforeUnmount, Ref, computed } from 'vue'
+import { ref, reactive, h, Ref, computed } from 'vue'
 import { getNodeDataApi } from '@/api/node'
 import { getTaskDataApi } from '@/api/task'
 import { useI18n } from '@/hooks/web/useI18n'

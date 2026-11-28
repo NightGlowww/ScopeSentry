@@ -30,13 +30,12 @@ import {
   getTagColorsApi,
   getAssetApi,
   getAssetCardApi,
-  getAssetScreenshotApi,
   getAssetStatisticsPortApi,
   getAssetStatisticsTypeApi,
   getAssetStatisticsappApi,
   getAssetStatisticsiconApi,
   setRemarkApi,
-  totalDataApi
+  totalDataApi,
 } from '@/api/asset'
 import { Icon } from '@/components/Icon'
 import { HostValueCell } from '@/components/HostValueCell'
@@ -50,7 +49,6 @@ import { createImageViewer } from '@/components/ImageViewer'
 import { AssetData, RowState } from '@/api/asset/types'
 import { buildHref, normalizeHttpUrl, resolveAssetHref, splitHostValues } from '@/utils/hostLink'
 import AssetDetail2 from '../detail/AssetDetail2.vue'
-import { url } from 'inspector'
 const { push } = useRouter()
 const { t } = useI18n()
 
@@ -69,7 +67,7 @@ interface Project {
   label: string
   children?: Project[]
 }
-const props = defineProps<{
+defineProps<{
   projectList: Project[]
   taskList: { id: string; name: string }[]
 }>()

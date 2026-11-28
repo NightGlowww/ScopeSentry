@@ -24,7 +24,6 @@ import {
   ElSwitch,
   ElSelect,
   ElOption,
-  ElInput
 } from 'element-plus'
 import { Dialog } from '@/components/Dialog'
 import { useIcon } from '@/hooks/web/useIcon'
@@ -324,14 +323,14 @@ const filterChange = async () => {
 
 watch(
   () => projectValue.value,
-  (newValue) => {
+  (_newValue) => {
     filterChange()
   }
 )
 
 watch(
   () => taskValue.value,
-  (newValue) => {
+  (_newValue) => {
     filterChange()
   }
 )

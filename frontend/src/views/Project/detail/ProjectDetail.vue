@@ -10,7 +10,6 @@ import {
   ElMessage,
   ElMessageBox,
   ElPopover,
-  ElTooltip
 } from 'element-plus'
 import { Edit, Delete } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'

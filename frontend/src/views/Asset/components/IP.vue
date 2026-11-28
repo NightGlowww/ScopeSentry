@@ -18,7 +18,7 @@ interface Project {
   label: string
   children?: Project[]
 }
-const props = defineProps<{
+defineProps<{
   projectList: Project[]
   taskList: { id: string; name: string }[]
 }>()
@@ -288,7 +288,7 @@ const handleClose = (tag: string) => {
 const getFilter = () => {
   return filter
 }
-const spanMethod = ({ row, column, rowIndex, columnIndex }) => {
+const spanMethod = ({ row, _column, rowIndex, columnIndex }) => {
   // columnIndex:
   // 0 = selection (复选框列)
   // 1 = IP

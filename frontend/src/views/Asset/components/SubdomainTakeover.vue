@@ -26,7 +26,7 @@ interface Project {
   label: string
   children?: Project[]
 }
-const props = defineProps<{
+defineProps<{
   projectList: Project[]
   taskList: { id: string; name: string }[]
 }>()

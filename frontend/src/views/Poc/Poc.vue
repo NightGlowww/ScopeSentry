@@ -31,7 +31,6 @@ import Detail from './components/Detail.vue'
 import { Dialog } from '@/components/Dialog'
 import { useUserStore } from '@/store/modules/user'
 import { RowState } from '@/api/asset/types'
-import { addTagApi, deleteTagApi } from '@/api/asset'
 const searchicon = useIcon({ icon: 'iconoir:search' })
 const { t } = useI18n()
 const dialogVisible = ref(false)
@@ -114,7 +113,7 @@ const nodeColums = reactive<TableColumn[]>([
     field: 'tags',
     label: t('localization.tag'),
     fit: 'true',
-    formatter: (row: Recordable, __: TableColumn, tags: string[]) => {
+    formatter: (_row: Recordable, __: TableColumn, tags: string[]) => {
       if (tags.length != 0) {
         return (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -385,7 +384,7 @@ const handleUploadSuccess = (response) => {
   getList()
   upload.value?.clearFiles()
 }
-const handleFileChange = (file, fileList) => {
+const handleFileChange = (_file, fileList) => {
   if (fileList.length > 0) {
     upload.value!.submit()
   }

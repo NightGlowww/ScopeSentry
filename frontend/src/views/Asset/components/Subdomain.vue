@@ -13,8 +13,6 @@ import {
   ElInput,
   ElButton,
   ElTooltip,
-  ElRadioGroup,
-  ElRadioButton
 } from 'element-plus'
 import { Table, TableColumn } from '@/components/Table'
 import { CrudSchema, useCrudSchemas } from '@/hooks/web/useCrudSchemas'
@@ -32,7 +30,7 @@ interface Project {
   label: string
   children?: Project[]
 }
-const props = defineProps<{
+defineProps<{
   projectList: Project[]
   taskList: { id: string; name: string }[]
 }>()
