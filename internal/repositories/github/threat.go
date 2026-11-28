@@ -231,8 +231,11 @@ func (r *threatRepository) RemoveIgnoredRepo(ctx context.Context, repo string) (
 	if err != nil {
 		return false, err
 	}
+	// 过滤条件必须带「名单里确实有这条」：只按 _id 过滤时，$pull 没删到东西
+	// 但 $set updatedAt 仍会让 ModifiedCount>0 → 移除一个不存在的仓库也回 true，
+	// 调用方以为改对了（2026-11-29 实测：remove 两次都是 removed:true）。
 	res, err := collection.UpdateOne(ctx,
-		bson.M{"_id": models.GithubThreatConfigID},
+		bson.M{"_id": models.GithubThreatConfigID, "ignoredRepos.repo": repo},
 		bson.M{
 			"$pull": bson.M{"ignoredRepos": bson.M{"repo": repo}},
 			"$set":  bson.M{"updatedAt": time.Now()},

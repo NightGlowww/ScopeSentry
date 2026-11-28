@@ -53,6 +53,14 @@ func TestGithubIgnoredRepoSkipsCollectionAndPurges(t *testing.T) {
 		t.Fatalf("黑名单命中判定失败：%v vs %s", patterns, ignoredRepo)
 	}
 
+	// 1b) 移除一个不在名单里的仓库必须回 false：
+	//     只按 _id 过滤时 $set updatedAt 会让 ModifiedCount>0，于是「移除了不存在的条目」也报成功。
+	if removed, err := threatRepo.RemoveIgnoredRepo(ctx, "it-nonexistent/repo"); err != nil {
+		t.Fatalf("remove nonexistent: %v", err)
+	} else if removed {
+		t.Fatalf("移除不存在的仓库不应回 true（调用方会以为改对了）")
+	}
+
 	// 2) purge：删除已入库的同仓库结果，别的仓库不受影响
 	removed, err := resultRepo.DeleteByRepo(ctx, ignoredRepo)
 	if err != nil {
