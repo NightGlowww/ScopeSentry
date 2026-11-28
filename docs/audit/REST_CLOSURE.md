@@ -6,13 +6,18 @@
 **这是索引，不是覆盖率裁决。** 两处天然低估：路径可能是拼出来的（脚本按字面量 + 前缀匹配）；
 这个项目 POST 大量用于查列表，光看 method 分不出读写，所以读写分类是名字启发式。
 
+两个维度分开看：**测试/契约点名**反映验证面（谁验过这条接口），**UI 引用**反映产品面
+（界面会不会真的调到）。只看前者会把「UI 在用但没人写测试」误读成「没人用」。
+
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 174（55%） |
-| 读操作 点名/总数 | 73 / 115 |
-| 写操作 点名/总数 | 63 / 113 |
+| 被测试/契约脚本点名 | 179（57%） |
+| 读操作 点名/总数 | 75 / 115 |
+| 写操作 点名/总数 | 66 / 113 |
 | 无法判读 点名/总数 | 38 / 86 |
+| UI 引用 | 302（96%） |
+| 写操作：测试与 UI 都没碰 | 0 |
 
 ## 按模块（未点名 / 总数）
 
@@ -21,7 +26,7 @@
 | assets | 34 | 81 |
 | task | 23 | 30 |
 | plugin | 16 | 17 |
-| configuration | 14 | 14 |
+| configuration | 9 | 14 |
 | system | 9 | 10 |
 | node | 7 | 10 |
 | poc | 7 | 9 |
@@ -61,10 +66,7 @@
 | POST | `/api/assets/nuclei_result/status/batch` |
 | POST | `/api/backup/create` |
 | POST | `/api/backup/upload` |
-| POST | `/api/configuration/deduplication/save` |
-| POST | `/api/configuration/notification/add` |
 | POST | `/api/configuration/notification/config/update` |
-| POST | `/api/configuration/notification/delete` |
 | POST | `/api/configuration/notification/update` |
 | POST | `/api/configuration/rad/save` |
 | POST | `/api/configuration/subfinder/save` |
@@ -100,3 +102,10 @@
 | POST | `/api/task/stop` |
 | POST | `/api/task/sync` |
 | POST | `/api/task/target/resume` |
+
+## 写操作里测试与 UI 都没碰的（死路由候选）
+
+这些要么删掉，要么补上真正的调用方；留着只会让「接口覆盖」看起来比实际好。
+
+| 方法 | 路径 |
+| --- | --- |
