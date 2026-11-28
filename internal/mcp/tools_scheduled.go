@@ -36,7 +36,6 @@ type scheduledTaskInput struct {
 	ScheduledTasks *bool    `json:"scheduledTasks,omitempty" jsonschema:"是否启用调度；创建时不传按启用处理"`
 	ScanProfile    string   `json:"scanProfile,omitempty" jsonschema:"扫描档位：留空按模板；recon = 只做资产测绘"`
 	PolicyID       string   `json:"policyId,omitempty" jsonschema:"扫描策略 id，空 = 不套策略"`
-	Duplicates     string   `json:"duplicates,omitempty" jsonschema:"去重口径"`
 }
 
 // applyScheduledTaskInput 把入参写进 task（创建与更新共用）。
@@ -92,9 +91,6 @@ func applyScheduledTaskInput(task *models.Task, in scheduledTaskInput, isCreate 
 	}
 	if v := strings.TrimSpace(in.PolicyID); v != "" {
 		task.PolicyID = v
-	}
-	if v := strings.TrimSpace(in.Duplicates); v != "" {
-		task.Duplicates = v
 	}
 }
 

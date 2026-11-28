@@ -763,23 +763,9 @@ loadPolicies()
         </ElCol>
       </ElRow>
     </ElFormItem>
-    <ElDivider content-position="center" style="width: 60%; left: 20%">{{
-      t('task.duplicates')
-    }}</ElDivider>
-    <ElRow>
-      <ElCol :span="24">
-        <ElFormItem :label="t('task.duplicates')" prop="type">
-          <ElRadioGroup v-model="taskData.duplicates">
-            <ElRadio label="None" name="duplicates" :checked="true" value="None">{{
-              t('localization.none')
-            }}</ElRadio>
-            <ElTooltip effect="dark" :content="t('task.duplicatesMsg')" placement="top">
-              <ElRadio :label="t('task.duplicatesSubdomain')" name="duplicates" value="subdomain" />
-            </ElTooltip>
-          </ElRadioGroup>
-        </ElFormItem>
-      </ElCol>
-    </ElRow>
+    <!-- 「去重」区块已移除：选项存进 task.duplicates，但下发给节点的载荷只有 ScanTemplate，
+         节点根本拿不到这个字段，勾「子域名去重」不会有任何效果（2026-11-29 核实）。
+         需要历史去重时用「忽略目标」或 recon 档位，都是真实生效的旋钮。 -->
     <ElDivider content-position="center" style="width: 60%; left: 20%">{{
       t('policy.pickTitle')
     }}</ElDivider>

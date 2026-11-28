@@ -952,16 +952,17 @@ func getProject(ctx context.Context, _ *mcp.CallToolRequest, input getProjectInp
 }
 
 type createProjectInput struct {
-	Name           string   `json:"name" jsonschema:"项目名称，必填"`
-	Tag            string   `json:"tag,omitempty" jsonschema:"项目标签，用于分组"`
-	Target         string   `json:"target" jsonschema:"扫描目标，必填。多行或逗号分隔，支持域名/IP/URL 等"`
-	Template       string   `json:"template,omitempty" jsonschema:"关联扫描模板 ID"`
-	Node           []string `json:"node,omitempty" jsonschema:"指定扫描节点名称列表"`
-	AllNode        bool     `json:"allNode,omitempty" jsonschema:"是否使用全部节点"`
-	Ignore         string   `json:"ignore,omitempty" jsonschema:"忽略目标列表，格式同 target"`
-	Duplicates     string   `json:"duplicates,omitempty" jsonschema:"去重策略"`
-	ScheduledTasks bool     `json:"scheduledTasks,omitempty" jsonschema:"是否启用定时扫描"`
-	Hour           int      `json:"hour,omitempty" jsonschema:"定时扫描间隔（小时），仅在启用 scheduledTasks 时有效"`
+	Name     string   `json:"name" jsonschema:"项目名称，必填"`
+	Tag      string   `json:"tag,omitempty" jsonschema:"项目标签，用于分组"`
+	Target   string   `json:"target" jsonschema:"扫描目标，必填。多行或逗号分隔，支持域名/IP/URL 等"`
+	Template string   `json:"template,omitempty" jsonschema:"关联扫描模板 ID"`
+	Node     []string `json:"node,omitempty" jsonschema:"指定扫描节点名称列表"`
+	AllNode  bool     `json:"allNode,omitempty" jsonschema:"是否使用全部节点"`
+	Ignore   string   `json:"ignore,omitempty" jsonschema:"忽略目标列表，格式同 target"`
+	// 没有 duplicates：该字段存进 task.duplicates 但下发给节点的载荷只有 ScanTemplate，
+	// 节点拿不到它，勾了也不会生效。对外不再提供无效参数（2026-11-29）。
+	ScheduledTasks bool `json:"scheduledTasks,omitempty" jsonschema:"是否启用定时扫描"`
+	Hour           int  `json:"hour,omitempty" jsonschema:"定时扫描间隔（小时），仅在启用 scheduledTasks 时有效"`
 }
 
 func createProject(ctx context.Context, _ *mcp.CallToolRequest, input createProjectInput) (*mcp.CallToolResult, any, error) {
@@ -976,7 +977,6 @@ func createProject(ctx context.Context, _ *mcp.CallToolRequest, input createProj
 		Node:           input.Node,
 		AllNode:        input.AllNode,
 		Ignore:         input.Ignore,
-		Duplicates:     input.Duplicates,
 		ScheduledTasks: input.ScheduledTasks,
 		Hour:           input.Hour,
 		Tp:             "project",
@@ -1419,7 +1419,6 @@ type createScanTaskInput struct {
 	Template       string              `json:"template,omitempty" jsonschema:"扫描模板 ObjectID，必填才能执行扫描"`
 	AllNode        bool                `json:"allNode,omitempty" jsonschema:"是否自动加入全部在线节点"`
 	Ignore         string              `json:"ignore,omitempty" jsonschema:"忽略目标列表，格式同 target"`
-	Duplicates     string              `json:"duplicates,omitempty" jsonschema:"去重策略，如 None"`
 	Project        []string            `json:"project,omitempty" jsonschema:"关联项目 ObjectID 列表，targetSource 为 project 时必填"`
 	TargetSource   string              `json:"targetSource,omitempty" jsonschema:"目标来源，可选 general project asset RootDomain subdomain UrlScan 及对应 Source 后缀，默认 general，详见工具 description"`
 	TargetTp       string              `json:"targetTp,omitempty" jsonschema:"Source 来源时的选取方式，search 或 select"`
@@ -1464,7 +1463,6 @@ func createScanTask(ctx context.Context, _ *mcp.CallToolRequest, input createSca
 		Template:       input.Template,
 		AllNode:        input.AllNode,
 		Ignore:         input.Ignore,
-		Duplicates:     input.Duplicates,
 		Project:        input.Project,
 		TargetSource:   targetSource,
 		TargetTp:       input.TargetTp,
