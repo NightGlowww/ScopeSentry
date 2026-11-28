@@ -14,6 +14,7 @@ type Translate = (key: string, params?: Record<string, unknown>) => string
 export const FAIL_CODES = [
   'phantomNoProgress',
   'nodeHeartbeatStale',
+  'stalledNoProgress',
   'staleNoProgress',
   'reconciledStale',
   'queueExpired'

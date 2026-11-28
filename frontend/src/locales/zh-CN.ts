@@ -1119,6 +1119,8 @@ export default {
         '任务标记为运行中，但没有任何节点在跑、也不在队列里，且 {since} 没有进度写入；判定为失败，可重新测试重跑',
       nodeHeartbeatStale:
         '节点 {node} 心跳停在 {at}（超过 {after} 未更新，远大于正常重启所需的 ~7 分钟），已自动释放队列；该任务判定为失败，可重新测试重跑',
+      stalledNoProgress:
+        '任务在运行中但 {since} 没有进度写入（节点 {node} 仍在执行，多半是某个模块卡住），已判定失败；请重启该节点释放队列后重新测试',
       reconciledStale:
         '节点已不在执行该任务，最后一次进度写入于 {last}（进度 {progress}%），按失败收尾',
       queueExpired:

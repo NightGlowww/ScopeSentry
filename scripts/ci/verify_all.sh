@@ -71,6 +71,8 @@ gate closure_budget python3 scripts/ci/rest_closure.py --budget 0
 gate ui_closure   python3 scripts/ci/ui_api_closure.py
 # 死代码：包级函数零引用必须删掉或登记原因（「写好了没人调」是这轮挖出三处断链的共同形态）
 gate dead_code    python3 scripts/ci/dead_code.py
+# 失败原因 code：后端写入 / 回填解析 / 前端映射 / 三语词条必须一致（漏一个就在英韩界面冒出中文）
+gate failcode     python3 scripts/ci/failcode_drift.py
 
 # MCP 工具面：声明的必填参数必须真的被 handler 读取；写工具必须在某处被点名验过
 gate mcp_param python3 scripts/ci/mcp_param_audit.py

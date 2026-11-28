@@ -1,0 +1,1 @@
+const e=["phantomNoProgress","nodeHeartbeatStale","stalledNoProgress","staleNoProgress","reconciledStale","queueExpired"],o=(o,l)=>{const a=(null==o?void 0:o.failReason)||"",s=(null==o?void 0:o.failCode)||"";return s&&e.includes(s)?l(`task.failCode.${s}`,(null==o?void 0:o.failParams)||{}):a};export{o as f};
