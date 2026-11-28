@@ -276,6 +276,8 @@ def main():
         ('get_scheduled_task', {'id': NOPE}),
         # 开关只改 scheduledTasks，但 id 不存在必须报错（不能假成功返回空任务）
         ('set_scheduled_task_state', {'id': NOPE, 'enabled': False}),
+        # 立即运行：只验拒绝分支（不存在的 id）。成功路径会真的产出扫描任务，交给 REST 用例
+        ('run_scheduled_task', {'id': NOPE}),
         ('get_scan_template', {'id': NOPE}),
         ('get_asset_detail', {'asset_type': 'asset', 'id': NOPE}),
         ('count_assets', {'asset_type': 'nope'}),

@@ -88,9 +88,10 @@ MAP = {
     'user.py': ['/user'],
     'vuln.py': ['/assets/vulnerability'],
     'wih.py': ['/assets/wih'],
-    # 上游 nuclei.py 是「模板库管理 + 社区同步 + 黑名单」，我们只有结果读模型：
-    # 明确不映射，让它落到 ❓ 里被看见，而不是拿 nuclei_result 冒充覆盖。
-    'nuclei.py': [],
+    # 上游 nuclei.py 是「模板库管理 + 社区同步 + 黑名单」；我们的模板库就是 POC 模块
+    # （PocList 收的就是 nuclei 模板，含 id/name/severity）。不要拿 nuclei_result 冒充覆盖，
+    # 也不要把整族记成缺失 —— 缺的是 toggle/blacklist/社区同步/测试这几条。
+    'nuclei.py': ['/poc'],
 }
 
 SKIP = {'__init__.py'}
@@ -108,6 +109,7 @@ SHAPE_NOTE = {
     'mcp.py': ('上游把这些做成 REST（asset_profile/search_assets/create_scan_task…）；'
                '我们做成 MCP 工具（get_asset_profile/search_assets/create_scan_task…），REST 只留治理面'),
     'system_config.py': '代理节点/策略、更新检查这些上游能力我们还没有，见候选缺口',
+    'nuclei.py': '我们的模板库是 /api/poc（PocList 存的就是 nuclei 模板）；缺 toggle/blacklist/社区同步/模板测试',
 }
 
 

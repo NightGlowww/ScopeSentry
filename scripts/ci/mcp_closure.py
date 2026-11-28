@@ -44,6 +44,7 @@ WRITE_ROUNDTRIP = {
 # 需要前置样本或明确不该自动跑的工具：写清原因，别让「未验证」变成静默
 NOTES = {
     'create_scan_task': '会真的建任务并触发扫描；sweep 只用非法/缺参验 schema，不制造扫描',
+    'run_scheduled_task': '会真的按计划任务配置产出一条扫描任务；sweep 只验不存在的 id（拒绝分支），成功路径由 REST 用例 TestScheduledTaskRunNow 覆盖',
     'pause_task_targets': '需要「运行中且目标尚未全部领取」的任务；线上没有这种样本时只验拒绝分支',
     'resume_task_targets': '与 pause 成对，同一前置条件',
     'apply_scan_policy': '策略试算（不写库、不建任务）；需要至少一个真实策略样本，线上无策略时该分支跳过',

@@ -11,7 +11,7 @@
 | Vue | 3.5.13（vue-router 4.6、pinia 2.3、element-plus 2.14、vue-i18n 9.14、vite 5.0.6） |
 | 后端 | Go + Gin，**315 条路由**，Mongo 7 + Redis 7，多节点扫描 |
 | 参照物 | ARL-Next `backend/app/routes/*.py`：**58 个文件、302 个端点**（快照见 `docs/audit/upstream_routes.json`） |
-| 路由族覆盖 | **57 族：✅ 46 / 🟡 10 / ❌ 1**（明细见自动生成的 `docs/audit/ARL_NEXT_COVERAGE.md`） |
+| 路由族覆盖 | **57 族：✅ 46 / 🟡 11 / ❌ 0**（明细见自动生成的 `docs/audit/ARL_NEXT_COVERAGE.md`） |
 
 > 下面这张手写的「功能族对照」写于 2026-11-18，之后补了很多能力（ICP 任务链、GitHub 监控、
 > 扫描策略、资产组/地契、字典行级化、任务导出、多工作表 Excel…），表里不少 ❌ 已经过时。
@@ -22,7 +22,7 @@
 | 缺口 | 上游规模 | 现状 | 说明 |
 | --- | --- | --- | --- |
 | nuclei 模板库管理 | 19 端点 | ❌ | 上游有模板 CRUD / 批量开关 / 导入导出 / 测试 / 社区同步（`/community/sync*`）/ 黑名单；我们只有 nuclei **结果**读模型（`/assets/nuclei_result/*`）。这是唯一整族缺失。 |
-| 计划任务手动触发 | `scheduler /run /stop /recover` | 🟡 已补一半 | 本轮补了「立即运行一次」（`/api/task/scheduled/run`，与周期触发同一 jobs.Scan）；仍缺「批量运行 / 停止运行中 / 恢复」。 |
+| 计划任务手动触发 | `scheduler /run /stop /recover` | 🟡 已补一半 | 第 99 轮补了「立即运行一次」（`/api/task/scheduled/run` + MCP `run_scheduled_task`，与周期触发同一 jobs.Scan）；仍缺「停止运行中 / 恢复」。 |
 | 代理节点与策略 | `system_config /proxy* /check_update /request_update_token` | ❌ | 上游能管扫描出口代理节点/策略/探测/冷却；我们没有这层概念。 |
 | 指纹同步 | `fingerprint /sync /sync_from_json /upload` | 🟡 | 有 `batch-add` 与远程搜索；缺「从上游 JSON 直接同步」这条路径。 |
 | 资产族逐族导出/删除 | 各 `asset*` 的 `/delete` `/export` | 🟡（形状差异） | 上游逐族开接口；我们统一走 `/api/assets/common/delete` 与 `/api/export`。计数少但能力在。 |

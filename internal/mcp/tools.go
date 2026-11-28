@@ -329,6 +329,11 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	}, setScheduledTaskState)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "run_scheduled_task",
+		Description: "立即按当前配置运行一次计划任务（不等周期）。生成一条独立的扫描任务，周期与下次执行时间都不变；计划任务必须已配置扫描目标",
+	}, runScheduledTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_scan_templates",
 		Description: "分页获取扫描模板列表",
 	}, listScanTemplates)
@@ -1128,6 +1133,35 @@ func setScheduledTaskState(ctx context.Context, _ *mcp.CallToolRequest, input se
 		"hour":           task.Hour,
 		"minute":         task.Minute,
 		"nextTime":       task.NextTime,
+	})
+}
+
+type runScheduledTaskInput struct {
+	ID string `json:"id" jsonschema:"计划任务 ID（list_scheduled_tasks 的 id）"`
+}
+
+// runScheduledTask 与 REST /api/task/scheduled/run 走同一个 service 方法：
+// 两边一旦分叉，「MCP 跑出来的任务和界面上点出来的不一样」这种问题极难查。
+func runScheduledTask(ctx context.Context, _ *mcp.CallToolRequest, input runScheduledTaskInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.ID) == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	c := ginContext(ctx)
+	task, err := d.schedulerService.RunScheduledTaskNow(c, input.ID)
+	if err != nil {
+		if errors.Is(err, scheduler.ErrScheduledTaskNotFound) {
+			return errorResult("计划任务不存在", nil)
+		}
+		if errors.Is(err, scheduler.ErrScheduledTaskNoTarget) {
+			return errorResult("计划任务没有目标，无法立即运行", nil)
+		}
+		return errorResult("立即运行计划任务失败", err)
+	}
+	return jsonToolResult(ginH{
+		"id":       task.ID.Hex(),
+		"name":     task.Name,
+		"lastTime": task.LastTime,
+		"nextTime": task.NextTime,
 	})
 }
 

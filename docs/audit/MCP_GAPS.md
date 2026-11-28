@@ -498,7 +498,7 @@ MCP 调用日志里 `start_task` 两次 `denied: insufficient scope: need task:w
 
 ## 12. 参数与写链路的静态审计（第 97 轮）
 
-两类问题 82 个工具里都验不到「客户端看到的」这一层，所以补了两个检查点：
+两类问题在工具面上都验不到「客户端看到的」这一层（当时 82 个，第 99 轮加了 run_scheduled_task 后是 83 个），所以补了两个检查点：
 
 **一、声明了但 handler 从不读取的入参。**
 go-sdk 用 handler 泛型入参结构体生成 JSON Schema，Schema 与类型不一致在编译期就没了；

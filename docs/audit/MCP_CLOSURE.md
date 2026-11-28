@@ -79,6 +79,7 @@
 | `reinstall_plugin` | `plugin:write` | 拒绝分支 |  |
 | `restart_node` | `node:write` | 拒绝分支 |  |
 | `resume_task_targets` | `task:write` | 拒绝分支 | 与 pause 成对，同一前置条件 |
+| `run_scheduled_task` | `task:write` | 拒绝分支 | 会真的按计划任务配置产出一条扫描任务；sweep 只验不存在的 id（拒绝分支），成功路径由 REST 用例 TestScheduledTaskRunNow 覆盖 |
 | `search_assets` | `asset:read` | 读 |  |
 | `search_dictionary_lines` | `asset:read` | 拒绝分支 |  |
 | `set_port_dict_entry` | `asset:write` | 拒绝分支 / 写往返 | 新增 ci-rt 条目 → 条数 3→4、值回读 12345 → 按 id 删除 → 回到 3 条 |
@@ -93,9 +94,9 @@
 
 | 维度 | 数量 |
 | --- | --- |
-| 工具总数 | 82 |
+| 工具总数 | 83 |
 | 读路径验证 | 48 |
-| 拒绝分支验证 | 46 |
+| 拒绝分支验证 | 47 |
 | 写往返验证 | 13 |
 | 仅前条件说明 | 0 |
 | 未归类 | 0 |

@@ -64,6 +64,8 @@ var ToolScopes = map[string]string{
 	"get_scheduled_task":   ScopeTaskRead,
 	// 开关只改 scheduledTasks，不新建任务；但启用即意味着「以后会自动扫」，按写权限管
 	"set_scheduled_task_state": ScopeTaskWrite,
+	// 立即运行一次：不改周期，但会真的产出一条扫描任务，按写权限管
+	"run_scheduled_task": ScopeTaskWrite,
 	"create_scan_task":         ScopeTaskWrite,
 	"list_scan_templates":      ScopeTemplateRead,
 	"get_scan_template":        ScopeTemplateRead,

@@ -205,7 +205,7 @@ python3 scripts/ci/mcp_scope_drift.py
 
 核对 `internal/mcp/tools.go` 里每个 `addTool(... Name: "x")` 与 `mcpguard.ToolScopes` 是否一一对应，
 三个方向都算失败：重复注册、未登记、以及 scope 表里凭空多出没有工具认领的条目。
-当前 **82 个工具 / 82 条 scope，MCP_SCOPE_DRIFT=PASS**（MCP_COVERAGE 同步 82/82：源码声明数 = 服务端 tools/list 数）。
+当前 **83 个工具 / 83 条 scope，MCP_SCOPE_DRIFT=PASS**（MCP_COVERAGE 同步：源码声明数 = 服务端 tools/list 数；随手加工具而漏登记 scope 会在这里挂）。
 
 顺带记录一个容易被忽略的联动：新增 scope 只改后端时，前端「API Key」页的 scope 清单是硬编码的，
 这个 scope 在界面上根本选不到（只能建 `*` 全权 key 或用接口建）。本轮已把该清单改成
@@ -240,7 +240,7 @@ bash scripts/ci/typecheck.sh      # TYPECHECK=PASS / FAIL
 python3 scripts/ci/mcp_closure.py --write --strict   # 重新生成 docs/audit/MCP_CLOSURE.md
 ```
 
-tools/list 里有、scope 表里有，都不等于能用。这条把 82 个工具的验证程度做成账本，三个维度：
+tools/list 里有、scope 表里有，都不等于能用。这条把每个工具的验证程度做成账本，三个维度：
 
 - **读**：`mcp_sweep.py` 用真实 id 调通（48 个）；
 - **拒绝分支**：喂不存在/非法参数必须 `isError=true`（46 个，防「假成功」）；
