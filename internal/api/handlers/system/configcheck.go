@@ -26,6 +26,40 @@ import (
 var coreModules = []string{"SubdomainScan", "PortScan", "PortFingerprint", "AssetMapping",
 	"AssetHandle", "URLScan", "WebCrawler", "URLSecurity", "DirScan", "VulnerabilityScan"}
 
+// moduleConfigured 判断模板里某个模块是否真的配了东西。
+//
+// 踩过的坑（2026-11-29）：模板文档的真实结构是 Parameters.<模块> = {插件hash: 配置}，
+// 而这里原先按顶层 d[模块].(bson.A) 查数组 —— 类型断言永远失败，于是「7 个模板全部不完整」
+// 这种吓人的结论其实是自检自己在骗人。现在优先读 Parameters，并兼容顶层数组的老文档。
+func moduleConfigured(doc bson.M, params bson.M, module string) bool {
+	if params != nil {
+		if v, ok := params[module]; ok && nonEmptyModule(v) {
+			return true
+		}
+	}
+	if v, ok := doc[module]; ok && nonEmptyModule(v) {
+		return true
+	}
+	return false
+}
+
+// nonEmptyModule 数组、映射、文档三种形态都算，空值一律不算。
+func nonEmptyModule(v interface{}) bool {
+	switch x := v.(type) {
+	case bson.A:
+		return len(x) > 0
+	case bson.M:
+		return len(x) > 0
+	case bson.D:
+		return len(x) > 0
+	case []interface{}:
+		return len(x) > 0
+	case map[string]interface{}:
+		return len(x) > 0
+	}
+	return false
+}
+
 type checkItem struct {
 	Name   string `json:"name"`
 	OK     bool   `json:"ok"`
@@ -54,9 +88,9 @@ func ConfigCheck(c *gin.Context) {
 		tplTotal = len(docs)
 		for _, d := range docs {
 			miss := 0
+			params, _ := d["Parameters"].(bson.M)
 			for _, m := range coreModules {
-				arr, _ := d[m].(bson.A)
-				if len(arr) == 0 {
+				if !moduleConfigured(d, params, m) {
 					miss++
 				}
 			}
