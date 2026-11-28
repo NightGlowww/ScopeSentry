@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Error } from '@/components/Error'
 import { usePermissionStore } from '@/store/modules/permission'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
-const { push } = useRouter()
+const { push, back } = useRouter()
+const route = useRoute()
 
 const permissionStore = usePermissionStore()
 
@@ -13,5 +14,5 @@ const errorClick = () => {
 </script>
 
 <template>
-  <Error type="403" @error-click="errorClick" />
+  <Error :type="'403'" :path="route.fullPath" @error-click="errorClick" @back-click="back" />
 </template>

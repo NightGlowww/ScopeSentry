@@ -274,7 +274,10 @@ export default {
     noPermission: `抱歉，您无权访问此页面。`,
     pageError: '抱歉，您访问的页面不存在。',
     networkError: '抱歉，服务器报告错误。',
-    returnToHome: '返回首页'
+    returnToHome: '返回首页',
+    back: '返回上一页',
+    requestedPath: '你访问的是：',
+    requestedPathTip: '把这条路径复制给管理员，比一张「页面不存在」的截图有用'
   },
   setting: {
     projectSetting: '项目配置',
