@@ -85,12 +85,16 @@ const taskColums = reactive<TableColumn[]>([
     label: t('task.nextTime'),
     minWidth: 40,
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
-      if (cellValue == '') {
-        return '-'
-      }
-      // 同一个坑：启用开关实际在 scheduledTasks 上。
+      // 启用开关实际在 scheduledTasks 上。
       const on = row?.scheduledTasks ?? row?.state
-      if (on === false || on === 'false' || on === 0) {
+      const enabled = !(on === false || on === 'false' || on === 0)
+      if (cellValue == '') {
+        // 启用但还没跑过时 nextTime 是空的：它由**第一次触发**时写回
+        // （scheduler/jobs/scan.go），不是坏了。显示 '-' 会让人以为任务失联，
+        // 说清楚「等首次触发」才是真实状态。
+        return enabled ? t('task.nextTimePending') : '-'
+      }
+      if (!enabled) {
         return '-'
       }
       return cellValue

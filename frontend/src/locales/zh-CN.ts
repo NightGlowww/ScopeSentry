@@ -1235,6 +1235,7 @@ export default {
     typeTask: '任务类型',
     lastTime: '上次运行',
     nextTime: '下次运行',
+    nextTimePending: '待首次触发',
     msgTaskName: '请输入任务名称',
     taskTarget: '目标',
     pauseTarget: '暂停目标',

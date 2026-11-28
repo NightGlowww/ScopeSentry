@@ -1273,6 +1273,7 @@ export default {
     delAsset: 'Delete assets at the same time:',
     lastTime: 'Last Run',
     nextTime: 'Next Run',
+    nextTimePending: 'after first run',
     taskCycle: 'Task Cycle',
     msgTaskName: 'Please enter the task name',
     taskTarget: 'Target',
