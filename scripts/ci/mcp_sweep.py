@@ -101,6 +101,8 @@ def probe_ids():
     ids['task'] = ((d.get('list') or [{}])[0] or {}).get('id')
     d = jcall('list_scheduled_tasks', {'pageIndex': 1, 'pageSize': 1}) or {}
     ids['scheduled'] = ((d.get('list') or [{}])[0] or {}).get('id')
+    d = jcall('list_scan_policies', {'pageIndex': 1, 'pageSize': 1}) or {}
+    ids['policy'] = ((d.get('list') or [{}])[0] or {}).get('id')
     d = jcall('list_pocs', {'pageIndex': 1, 'pageSize': 1}) or {}
     ids['poc'] = ((d.get('list') or [{}])[0] or {}).get('id')
     d = jcall('list_scan_templates', {'pageIndex': 1, 'pageSize': 1}) or {}
@@ -199,6 +201,9 @@ def main():
         ('list_projects', {}),
         ('list_projects_data', {'pageIndex': 1, 'pageSize': 2}),
         ('list_scan_policies', {'pageIndex': 1, 'pageSize': 2}),
+        # 策略详情与试算：试算只做合并计算，不建任务、不改模板
+        ('get_scan_policy', {'id': ids.get('policy') or NOPE}),
+        ('apply_scan_policy', {'policyId': ids.get('policy') or NOPE}),
         ('list_scan_templates', {'pageIndex': 1, 'pageSize': 2}),
         ('list_sensitive_rules', {'pageIndex': 1, 'pageSize': 2}),
         ('list_stat_finger', {'pageIndex': 1, 'pageSize': 2}),
@@ -260,6 +265,8 @@ def main():
         ('get_poc', {'id': NOPE}),
         ('get_project', {'id': NOPE}),
         ('get_task', {'id': NOPE}),
+        ('get_scan_policy', {'id': NOPE}),
+        ('apply_scan_policy', {'policyId': NOPE}),
         ('get_scheduled_task', {'id': NOPE}),
         # 开关只改 scheduledTasks，但 id 不存在必须报错（不能假成功返回空任务）
         ('set_scheduled_task_state', {'id': NOPE, 'enabled': False}),

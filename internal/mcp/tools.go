@@ -453,6 +453,18 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	}, listScanPolicies)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "get_scan_policy",
+		Description: "按 ID 获取扫描策略详情（配置、启用状态、被任务/模板引用的用量统计）",
+	}, getScanPolicy)
+
+	// 策略试算：只做「合并 + 冲突检查」的纯计算，不写任何东西。
+	// 没有它，Agent 建完策略只能凭描述猜效果，或者直接拿去建任务（污染任务表）。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "apply_scan_policy",
+		Description: "策略试算：把策略合并到指定扫描模板上，返回生效后的配置、应用到的字段与被策略覆盖的冲突提示；不创建任务、不改模板",
+	}, applyScanPolicy)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "create_scan_policy",
 		Description: "创建扫描策略",
 	}, createScanPolicy)
@@ -1019,6 +1031,51 @@ func getScheduledTask(ctx context.Context, _ *mcp.CallToolRequest, input getSche
 		return errorResult("计划任务不存在", nil)
 	}
 	return jsonToolResult(task)
+}
+
+type getScanPolicyInput struct {
+	ID string `json:"id" jsonschema:"扫描策略 ObjectID，用 list_scan_policies 获取"`
+}
+
+func getScanPolicy(ctx context.Context, _ *mcp.CallToolRequest, input getScanPolicyInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.ID) == "" {
+		return errorResult("id 不能为空", nil)
+	}
+	detail, err := d.policyService.Detail(ctx, input.ID)
+	if err != nil {
+		return errorResult("获取策略详情失败", err)
+	}
+	if detail == nil {
+		return errorResult("策略不存在", nil)
+	}
+	return jsonToolResult(detail)
+}
+
+type applyScanPolicyInput struct {
+	PolicyID   string `json:"policyId" jsonschema:"扫描策略 ObjectID，用 list_scan_policies 获取"`
+	TemplateID string `json:"templateId,omitempty" jsonschema:"要合并到的扫描模板 ObjectID（list_scan_templates 获取）；留空表示按策略自身配置试算"`
+}
+
+func applyScanPolicy(ctx context.Context, _ *mcp.CallToolRequest, input applyScanPolicyInput) (*mcp.CallToolResult, any, error) {
+	if strings.TrimSpace(input.PolicyID) == "" {
+		return errorResult("policyId 不能为空", nil)
+	}
+	var raw json.RawMessage
+	if strings.TrimSpace(input.TemplateID) != "" {
+		b, err := json.Marshal(map[string]string{"templateId": strings.TrimSpace(input.TemplateID)})
+		if err != nil {
+			return errorResult("构造模板引用失败", err)
+		}
+		raw = json.RawMessage(b)
+	}
+	res, err := d.policyService.Apply(ctx, input.PolicyID, raw)
+	if err != nil {
+		return errorResult("策略试算失败", err)
+	}
+	if res == nil {
+		return errorResult("策略不存在", nil)
+	}
+	return jsonToolResult(res)
 }
 
 func listBackups(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
