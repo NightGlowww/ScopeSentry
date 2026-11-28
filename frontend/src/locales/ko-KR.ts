@@ -7,6 +7,22 @@ export default {
   },
 
   api: {
+    error: '작업에 실패했습니다. 잠시 후 다시 시도하세요',
+    bad_request: '요청 파라미터가 올바르지 않습니다',
+    not_found: '리소스가 없거나 삭제되었습니다',
+    unauthorized: '로그인 세션이 만료되었습니다. 다시 로그인하세요',
+    forbidden: '이 작업을 수행할 권한이 없습니다',
+    required_fields: '필수 파라미터가 누락되었습니다',
+    name_exists: '같은 이름의 항목이 이미 존재합니다',
+    task: {
+      target_null: '작업에 대상이 없습니다. 스캔 대상을 입력하거나 프로젝트를 연결하세요',
+      url_null: '페이지 모니터링 URL이 비어 있습니다',
+      rate_limited: '요청이 너무 많습니다. 잠시 후 다시 시도하세요',
+      assignProjectFailed: '프로젝트 연결에 실패했습니다'
+    },
+    vulnerability: {
+      hash_missing: '이 취약점에는 식별자(hash)가 없어 위치를 찾을 수 없습니다'
+    },
     success: '요청을 처리했습니다.',
     system: { version: { success: '버전 정보를 조회했습니다.' } }
   },

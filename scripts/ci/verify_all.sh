@@ -73,6 +73,8 @@ gate ui_closure   python3 scripts/ci/ui_api_closure.py
 gate dead_code    python3 scripts/ci/dead_code.py
 # 失败原因 code：后端写入 / 回填解析 / 前端映射 / 三语词条必须一致（漏一个就在英韩界面冒出中文）
 gate failcode     python3 scripts/ci/failcode_drift.py
+# 后端文案 key：必须有词条或命中「后缀/前缀兜底」，否则界面上会露出 api.xxx 裸 key
+gate backend_i18n node scripts/ci/backend_i18n.js
 
 # MCP 工具面：声明的必填参数必须真的被 handler 读取；写工具必须在某处被点名验过
 gate mcp_param python3 scripts/ci/mcp_param_audit.py

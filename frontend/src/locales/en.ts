@@ -7,6 +7,22 @@ export default {
   },
 
   api: {
+    error: 'The operation failed, please try again later',
+    bad_request: 'Invalid request parameters',
+    not_found: 'The resource does not exist or has been deleted',
+    unauthorized: 'Your session has expired, please sign in again',
+    forbidden: 'You do not have permission to perform this action',
+    required_fields: 'Required parameters are missing',
+    name_exists: 'A record with this name already exists',
+    task: {
+      target_null: 'This task has no targets: fill in scan targets first or bind a project to bring them in',
+      url_null: 'The page-monitoring URL is empty',
+      rate_limited: 'Too many requests, please try again later',
+      assignProjectFailed: 'Failed to bind the project'
+    },
+    vulnerability: {
+      hash_missing: 'This vulnerability has no identifier (hash), so it cannot be located'
+    },
     success: 'Operation successful',
     system: { version: { success: 'Version information retrieved' } }
   },

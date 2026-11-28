@@ -7,6 +7,22 @@ export default {
   },
 
   api: {
+    error: '操作失败，请稍后重试',
+    bad_request: '请求参数有误',
+    not_found: '资源不存在或已被删除',
+    unauthorized: '登录状态已失效，请重新登录',
+    forbidden: '没有权限执行该操作',
+    required_fields: '缺少必填参数',
+    name_exists: '同名记录已存在',
+    task: {
+      target_null: '任务没有目标：请先填扫描目标或用「绑定项目」带入目标',
+      url_null: '页面监控URL为空',
+      rate_limited: '操作过于频繁，请稍后再试',
+      assignProjectFailed: '绑定项目失败'
+    },
+    vulnerability: {
+      hash_missing: '这条漏洞缺少标识（hash），无法定位'
+    },
     success: '操作成功',
     system: { version: { success: '版本信息获取成功' } }
   },
