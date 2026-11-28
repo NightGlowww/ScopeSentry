@@ -374,9 +374,15 @@ export const getTaskNamesApi = (): Promise<IResponse<TaskNameData[]>> => {
 // 按当前筛选批量删除任务（必须带 search 或 status）
 export const deleteTaskByFilterApi = (
   search: string,
-  status?: number
+  status?: number,
+  // node 必须一起发给后端：界面上的筛选条件（含节点）就是删除条件，
+  // 少传一个就会「按节点筛选后删掉别的节点的任务」（2026-11-28 修）
+  node?: string
 ): Promise<IResponse<any>> =>
-  request.post({ url: '/api/task/deleteByFilter', data: { search, pageIndex: 1, pageSize: 10, status } })
+  request.post({
+    url: '/api/task/deleteByFilter',
+    data: { search, pageIndex: 1, pageSize: 10, status, node }
+  })
 
 // 各道派发闸门的拒绝次数（进程内累计，重启归零）
 export const getDispatchRejectStatsApi = (): Promise<IResponse<Record<string, number>>> =>

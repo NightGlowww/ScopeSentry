@@ -1207,7 +1207,6 @@ export default {
       'Optional time range: leave empty to export everything the task produced, or limit to this window',
     exportDone: 'Task export package download started',
     nodeOfflineWarn: 'Node offline, tasks may not progress',
-    queuedHint: 'Queued (waiting for a free node)',
     moduleStalled: 'stalled (>1h)',
     minutesShort: 'm',
     emptyTitle: 'No scan tasks yet',

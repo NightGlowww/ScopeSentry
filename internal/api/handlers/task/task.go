@@ -468,11 +468,12 @@ func DeleteByFilter(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if req.Search == "" && (req.Status == nil || *req.Status < 0) {
-		response.BadRequest(c, "api.bad_request", fmt.Errorf("need search or status to avoid full delete"))
+	// 至少要有一个筛选条件，否则就是全量删除
+	if req.Search == "" && (req.Status == nil || *req.Status < 0) && req.Node == "" {
+		response.BadRequest(c, "api.bad_request", fmt.Errorf("need search, status or node to avoid full delete"))
 		return
 	}
-	n, err := taskService.DeleteByFilter(c, req.Search, req.Status)
+	n, err := taskService.DeleteByFilter(c, req.Search, req.Status, req.Node)
 	if err != nil {
 		logger.Error(fmt.Sprintf("DeleteByFilter: %v", err))
 		response.InternalServerError(c, "api.task.delete.error", err)

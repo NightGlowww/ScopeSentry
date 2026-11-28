@@ -65,11 +65,27 @@ func (p *ImportProgress) Finish(lastErr string) {
 	p.LastError = lastErr
 }
 
+// ImportProgressSnapshot 快照 DTO：刻意不带 mutex。
+// 直接把 ImportProgress 按值返回会复制锁（go vet: "copies lock value"），
+// 复制出来的锁对 JSON 无害，但这是个会掩盖真实并发问题的坏习惯。
+type ImportProgressSnapshot struct {
+	Running    bool      `json:"running"`
+	Total      int       `json:"total"`
+	Done       int       `json:"done"`
+	Success    int       `json:"success"`
+	Update     int       `json:"update"`
+	Repeat     int       `json:"repeat"`
+	Failed     int       `json:"failed"`
+	StartedAt  time.Time `json:"startedAt"`
+	FinishedAt time.Time `json:"finishedAt"`
+	LastError  string    `json:"lastError"`
+}
+
 // Snapshot 返回一份可用于 JSON 的快照。
-func (p *ImportProgress) Snapshot() ImportProgress {
+func (p *ImportProgress) Snapshot() ImportProgressSnapshot {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return ImportProgress{
+	return ImportProgressSnapshot{
 		Running:    p.Running,
 		Total:      p.Total,
 		Done:       p.Done,

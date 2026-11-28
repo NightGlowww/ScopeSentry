@@ -77,7 +77,8 @@ const SEARCH_KEY = 'asset:assetinfo:search'
 const searchParams = ref(sessionStorage.getItem(SEARCH_KEY) || '')
 const handleSearch = (data: any) => {
   searchParams.value = data
-  sessionStorage.setItem(SEARCH_KEY, data || '').search
+  // setItem 返回 undefined，之前多写了个 .search —— 一点搜索就 TypeError（类型检查 TS2339 抓到的）
+  sessionStorage.setItem(SEARCH_KEY, data || '')
   getAssetData()
 }
 
@@ -95,11 +96,8 @@ const handleCurrentChange = () => {
   getAssetData()
 }
 const getAssetData = async () => {
-  console.log(pageSize.value)
-  console.log(currentPage.value)
-  console.log(searchParams.value)
   try {
-    const res = await getAssetApi(searchParams.value, currentPage.value, pageSize.value)
+    const res = await getAssetApi(searchParams.value, currentPage.value, pageSize.value, {})
     console.log(res)
   } catch (error) {
     console.error('Error fetching node data:', error)

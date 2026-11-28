@@ -148,11 +148,12 @@ func SlimBodies(ctx context.Context, opt SlimOptions) (*SlimResult, error) {
 
 	// limit=0 且 dry-run：一次聚合统计全量（比逐批扫快得多，也只扫一遍）
 	if limit == 0 && opt.DryRun {
+		// 用 keyed 的 primitive.E：未命名字段会被 go vet 判为 unkeyed fields
 		pipe := mongo.Pipeline{
-			{{"$match", bson.M{"bodyTruncated": bson.M{"$ne": true}, "body": bson.M{"$exists": true}}}},
-			{{"$project", bson.M{"len": bson.M{"$strLenBytes": "$body"}}}},
-			{{"$match", bson.M{"len": bson.M{"$gt": keep}}}},
-			{{"$group", bson.M{"_id": nil, "n": bson.M{"$sum": 1}, "bytes": bson.M{"$sum": "$len"}}}},
+			{primitive.E{Key: "$match", Value: bson.M{"bodyTruncated": bson.M{"$ne": true}, "body": bson.M{"$exists": true}}}},
+			{primitive.E{Key: "$project", Value: bson.M{"len": bson.M{"$strLenBytes": "$body"}}}},
+			{primitive.E{Key: "$match", Value: bson.M{"len": bson.M{"$gt": keep}}}},
+			{primitive.E{Key: "$group", Value: bson.M{"_id": nil, "n": bson.M{"$sum": 1}, "bytes": bson.M{"$sum": "$len"}}}},
 		}
 		cur, err := c.Aggregate(ctx, pipe)
 		if err != nil {

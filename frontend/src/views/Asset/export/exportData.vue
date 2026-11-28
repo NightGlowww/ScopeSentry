@@ -16,7 +16,8 @@ import {
   CheckboxValueType,
   ElCheckboxGroup,
   ElDatePicker,
-  ElMessage
+  ElMessage,
+  ElTooltip
 } from 'element-plus'
 import { computed, onMounted, onUnmounted, reactive, Ref, ref } from 'vue'
 import BatchExportTab from './BatchExportTab.vue'

@@ -37,8 +37,8 @@ import (
 // Service 定义任务服务接口
 type Service interface {
 	List(ctx *gin.Context, search string, pageIndex, pageSize int, opt ListOptions) ([]models.Task, int64, error)
-	// DeleteByFilter 按筛选批量删除，返回条数
-	DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error)
+	// DeleteByFilter 按筛选（名字 + 状态 + 节点）批量删除，返回条数
+	DeleteByFilter(ctx *gin.Context, search string, status *int, node string) (int, error)
 	// CountTasksCreatedSince 统计某时间之后创建的任务数（防刷）
 	CountTasksCreatedSince(ctx context.Context, since string) (int64, error)
 	CheckTaskNameExists(ctx *gin.Context, name string) (bool, error)
@@ -1185,17 +1185,31 @@ func (s *service) ResumeRunningTasks(ctx context.Context) (int, error) {
 	return resumed, nil
 }
 
-// DeleteByFilter 按当前筛选（名字 + 状态）批量删除任务，返回删除条数。
-// 场景：外部队列刷出几十个暂停任务，一页页勾选太慢（2026-11-20）。
-// 安全边界：必须至少有一个筛选条件，且单次最多 200 条，避免误操作清空全库。
-func (s *service) DeleteByFilter(ctx *gin.Context, search string, status *int) (int, error) {
+// buildDeleteFilter 构造批量删除的筛选条件。
+//
+// 单独抽出来是为了能单测：这个函数决定了「点一次删除会删掉哪些任务」，
+// 少一个条件就意味着多删（2026-11-28 实测：界面按节点筛选后删除，后端只按名字+状态删，
+// 节点条件被前端白传，等于跨节点多删）。
+func buildDeleteFilter(search string, status *int, node string) bson.M {
 	filter := bson.M{}
-	if search != "" {
-		filter["name"] = bson.M{"$regex": search, "$options": "i"}
+	if strings.TrimSpace(search) != "" {
+		filter["name"] = bson.M{"$regex": strings.TrimSpace(search), "$options": "i"}
 	}
 	if status != nil && *status >= 0 {
 		filter["status"] = *status
 	}
+	if strings.TrimSpace(node) != "" {
+		// node 是数组字段，等值匹配表示「包含该节点」
+		filter["node"] = strings.TrimSpace(node)
+	}
+	return filter
+}
+
+// DeleteByFilter 按当前筛选（名字 + 状态 + 节点）批量删除任务，返回删除条数。
+// 场景：外部队列刷出几十个暂停任务，一页页勾选太慢（2026-11-20）。
+// 安全边界：必须至少有一个筛选条件，且单次最多 200 条，避免误操作清空全库。
+func (s *service) DeleteByFilter(ctx *gin.Context, search string, status *int, node string) (int, error) {
+	filter := buildDeleteFilter(search, status, node)
 	if len(filter) == 0 {
 		return 0, fmt.Errorf("拒绝执行：未提供任何筛选条件（会造成全量删除）")
 	}

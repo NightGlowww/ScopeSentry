@@ -50,10 +50,17 @@ const nodeColums = reactive<TableColumn[]>([
 const { tableRegister, tableState, tableMethods } = useTable({
   fetchDataApi: async () => {
     const { currentPage, pageSize } = tableState
-    const res = await getNodeDataApi(search.value, currentPage.value, pageSize.value)
+    // getNodeDataApi() 不接受参数、也不返回 total（节点列表是一次性取全量）；
+    // 之前按分页接口传了三个参数并读 res.data.total，表格 total 永远是 undefined。
+    // 这里在前端做本地过滤+分页，别去改接口契约。
+    const res = await getNodeDataApi()
+    const all = (res?.data?.list || []) as any[]
+    const kw = (search.value || '').trim().toLowerCase()
+    const filtered = kw ? all.filter((n) => String(n?.name || n).toLowerCase().includes(kw)) : all
+    const start = (currentPage.value - 1) * pageSize.value
     return {
-      list: res.data.list,
-      total: res.data.total
+      list: filtered.slice(start, start + pageSize.value),
+      total: filtered.length
     }
   }
 })
