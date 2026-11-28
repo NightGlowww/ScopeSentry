@@ -218,3 +218,33 @@
 | 上游 DNS 动态熔断冷却、CDN 路由子域过滤 | ⛔ 不在本仓库 | 同上（`dns_client.py`/`cdn.py`/`domain.py` 属扫描端） |
 
 结论：本仓库范围内 v1.5.2 的能力项已全部对齐（3 ✅ + 1 测量后判定不适用）；剩余 3 项属扫描端组件，需在扫描仓库另行对齐。
+
+## 对齐状态（2026-11-29 复核）
+
+上游 `owl234/ARL-Next` 最近 12 条提交逐条核对。结论：**能力项已对齐完毕**，剩余两条都在扫描器/网关侧，不在本仓范围。
+
+| 上游提交 | 内容 | 我们的状态 |
+| --- | --- | --- |
+| 2026-11-28 | Nginx 1.30.7 安全修复（部署镜像） | 不适用：我们用 Go 二进制 + 前置反向代理 |
+| 2026-11-26 | Bookworm Nginx 网关升到 1.30.8 | 同上 |
+| 2026-11-26 | v1.5.2 兼容性合并 | 已对齐（终态统计冻结、资产产出多维筛选等） |
+| 2026-11-25 | v1.5.2 正式版 | 已对齐 |
+| 2026-11-25 | 4GB 低内存 .env 说明 | 不适用：内存治理走节点侧软限额（`memSoftLimitMB`）与巡检 |
+| 2026-11-24 | domain_sync 泛解析并发 + 上游 DNS 熔断 + 字典迁移 | **扫描器侧**：`grep -rln 'wildcard|dnsserver|domain_sync' internal/ cmd/` 只命中一个 rootdomain 用例，Go 服务端无此链路 |
+| 2026-11-23 | 任务资产产出多工作表 Excel 导出 | 已对齐（`/api/task/export` + 导出弹窗，见 DASHBOARD/export 文档） |
+| 2026-11-23 | 策略端口配置收敛至系统字典 | 已对齐（策略字典 `port`，`{dict.port.*}` 占位符解析） |
+| 2026-11-23 | 任务资产产出多维筛选 + 终态统计补齐 + 数值比较修复 | 已对齐（`assetYield`/`assetTypes` 过滤 + `stats` 冻结） |
+| 2026-11-23 | 低内存自适应 + Puppeteer 串行轮转 | 不适用：我们无 Puppeteer 截图链路 |
+| 2026-11-22 | 边缘网关 418/421 准入过滤、跨 IP 默认后端收敛、目录扫描早退 | **扫描器侧**：响应过滤发生在 ScopeSentry-Scan 的 http 层 |
+| 2026-11-19 | v1.5.0（代理池/三域分流、Nuclei 独立推送、OSINT 续跑、GitHub 去重、MCP 全链路治理、系统设置五域） | 已对齐（MCP 82 工具 + 治理门禁；扫描档位见 SCAN_STRATEGY） |
+
+复核命令（可复现）：
+
+```bash
+curl -s 'https://api.github.com/repos/owl234/ARL-Next/commits?per_page=12' \
+  | python3 -c 'import sys,json;[print(c["commit"]["author"]["date"][:10], c["commit"]["message"].splitlines()[0][:80]) for c in json.load(sys.stdin)]'
+grep -rln 'wildcard|dnsserver|domain_sync' internal/ cmd/   # 服务端是否真有对应链路
+```
+
+再往前要跟的上游改动都落在扫描器/网关镜像里；服务端能承载的部分当前无欠账。
+
