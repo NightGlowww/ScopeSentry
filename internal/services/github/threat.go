@@ -17,10 +17,13 @@ import (
 
 // ThreatRunSummary 单个来源一次运行的统计
 type ThreatRunSummary struct {
-	Kind      string     `json:"kind"`
-	Queries   int        `json:"queries"`
-	Scanned   int64      `json:"scanned"`
-	NewFound  int64      `json:"newFound"`
+	Kind     string `json:"kind"`
+	Queries  int    `json:"queries"`
+	Scanned  int64  `json:"scanned"`
+	NewFound int64  `json:"newFound"`
+	// Ignored 命中黑名单仓库被跳过的条数：不算进 Scanned，但要能看见，
+	// 否则「加了黑名单但结果还在变多」无法解释。
+	Ignored   int64      `json:"ignored"`
 	Stopped   bool       `json:"stopped"`
 	Reason    string     `json:"reason,omitempty"`
 	NextRunAt *time.Time `json:"nextRunAt,omitempty"`
@@ -80,11 +83,17 @@ func (s *Service) RunThreatSource(ctx context.Context, kind string) (*ThreatRunS
 	}
 
 	client := s.clientFor(ctx, src.TokenRef)
+	// 黑名单仓库：命中就跳过。之前这份配置只存不用，加了「忽略」照样往结果里灌噪声。
+	ignored := s.ignoredRepoPatterns(ctx)
 
 	for _, q := range queries {
 		switch kind {
 		case models.GithubThreatKindTools:
 			// tools：q 是 owner/repo，直接查最新 release
+			if matchIgnoredRepo(ignored, q) {
+				summary.Ignored++
+				continue
+			}
 			rel, relErr := client.LatestRelease(ctx, q)
 			if relErr != nil {
 				if _, stop := s.handleThreatErr(relErr, summary, src, ctx, kind); stop {
@@ -122,6 +131,10 @@ func (s *Service) RunThreatSource(ctx context.Context, kind string) (*ThreatRunS
 				continue
 			}
 			for _, it := range res.Items {
+				if matchIgnoredRepo(ignored, it.Repo) {
+					summary.Ignored++
+					continue
+				}
 				summary.Scanned++
 				item := &models.GithubThreatHistory{
 					Kind:        kind,

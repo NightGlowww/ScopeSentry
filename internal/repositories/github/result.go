@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
@@ -51,6 +53,9 @@ type ResultRepository interface {
 	Triage(ctx context.Context, ids []string, status, operator string) (matched, modified int64, err error)
 	Iterate(ctx context.Context, q models.GithubResultListQuery, limit int, fn func(*models.GithubResult) error) error
 	DeleteByTaskIDs(ctx context.Context, taskIDs []string) (int64, error)
+	// DeleteByRepo 按仓库删结果：加黑名单时把已入库的同仓库噪声一起清掉，
+	// 否则「忽略了却还留在列表里」会被当成没生效。
+	DeleteByRepo(ctx context.Context, repo string) (int64, error)
 	CountByTask(ctx context.Context, taskID string) (int64, error)
 }
 
@@ -407,6 +412,23 @@ func (r *resultRepository) DeleteByTaskIDs(ctx context.Context, taskIDs []string
 	res, err := collection.DeleteMany(ctx, bson.M{"taskId": bson.M{"$in": taskIDs}})
 	if err != nil {
 		return 0, fmt.Errorf("github_result: delete by task: %w", err)
+	}
+	return res.DeletedCount, nil
+}
+
+func (r *resultRepository) DeleteByRepo(ctx context.Context, repo string) (int64, error) {
+	repo = strings.TrimSpace(repo)
+	if repo == "" {
+		return 0, nil
+	}
+	collection, err := r.coll()
+	if err != nil {
+		return 0, err
+	}
+	// 大小写不敏感：GitHub 仓库名不区分大小写，黑名单里常写的是人记的写法
+	res, err := collection.DeleteMany(ctx, bson.M{"repo": bson.M{"$regex": "^" + regexp.QuoteMeta(repo) + "$", "$options": "i"}})
+	if err != nil {
+		return 0, err
 	}
 	return res.DeletedCount, nil
 }

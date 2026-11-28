@@ -407,6 +407,30 @@ func TestWriteToolClosure(t *testing.T) {
 		}
 	})
 
+	// 黑名单仓库：add → list 能查到 → remove → 查不到。
+	t.Run("ignored_repo", func(t *testing.T) {
+		repo := fmt.Sprintf("it-mcp-ignored/repo-%d", stamp)
+		t.Cleanup(func() {
+			_, _ = cs.CallTool(context.Background(), &mcp.CallToolParams{
+				Name: "remove_ignored_repo", Arguments: map[string]any{"repo": repo},
+			})
+		})
+
+		callJSON(t, cs, "add_ignored_repo", map[string]any{"repo": repo, "reason": "it 用例"})
+		found := func() bool {
+			text := callText(t, cs, "list_ignored_repos", map[string]any{})
+			return strings.Contains(text, repo)
+		}
+		if !found() {
+			t.Fatalf("加入黑名单后在列表里查不到 %s", repo)
+		}
+
+		callJSON(t, cs, "remove_ignored_repo", map[string]any{"repo": repo})
+		if found() {
+			t.Fatalf("移除后仍能查到 %s", repo)
+		}
+	})
+
 	// 计划任务：建 → 读回 → 只改名（验证不会把 allNode/启用冲掉）→ 读回 → 删 → 确认消失。
 	// 这条同时守住一个真实坑：服务层 UpdateScheduledTask 对 AllNode/ScheduledTasks 是无条件覆盖，
 	// 所以 MCP 的 update 必须先读现状再合并；漏了这步，改个名字就会顺手把调度关掉。

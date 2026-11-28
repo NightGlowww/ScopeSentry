@@ -194,6 +194,7 @@ def main():
         ('list_export_records', {}),
         ('list_fingerprints', {'pageIndex': 1, 'pageSize': 2}),
         ('list_github_results', {'pageIndex': 1, 'pageSize': 2}),
+        ('list_ignored_repos', {}),
         ('list_icp_tasks', {'pageIndex': 1, 'pageSize': 2}),
         ('list_nuclei_results', {'pageIndex': 1, 'pageSize': 2}),
         ('list_plugin_modules', {}),
@@ -272,6 +273,9 @@ def main():
     # 模板停用：不存在的 id 必须报错（否则「停用了 0 条」会被当成成功，
     # 调用方以为模板已经不会被扫描引用）
     ('set_poc_state', {'ids': [NOPE]}),
+    # 黑名单仓库：空 repo 必须拒；移除一个不在名单里的仓库不能回「成功」
+    ('add_ignored_repo', {'repo': ''}),
+    ('remove_ignored_repo', {'repo': 'it-sweep/not-in-list'}),
     # 计划任务：空 name/target 必须拒；不存在的 id 不能假成功
     ('create_scheduled_task', {'name': '', 'target': 'x'}),
     ('update_scheduled_task', {'id': NOPE}),

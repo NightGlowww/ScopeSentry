@@ -568,6 +568,21 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	// 研判与任务生命周期：之前 MCP 只有 list_github_results，
 	// 「看到泄露 → 标成已确认/误报 → 停掉失控的周期任务」这条链在 MCP 侧断在第一步。
 	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_ignored_repos",
+		Description: "列出 GitHub 结果噪声仓库黑名单（owner/repo 或 owner/*）",
+	}, listIgnoredRepos)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "add_ignored_repo",
+		Description: "把仓库加入噪声黑名单：采集（任务与威胁源）时命中即跳过；purge=true 会同时删除已入库的同仓库结果",
+	}, addIgnoredRepo)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "remove_ignored_repo",
+		Description: "从黑名单移除仓库（已删除的历史结果不会恢复）；不在名单里时报错",
+	}, removeIgnoredRepo)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "triage_github_results",
 		Description: "批量研判 GitHub 泄露结果：new/triaged/ignored，记录研判人与时间；id 一条都不存在时报错",
 	}, triageGithubResults)

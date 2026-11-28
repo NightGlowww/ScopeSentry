@@ -12,6 +12,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	githubrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/github"
+	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -212,37 +213,22 @@ func IgnoredRepos(c *gin.Context) {
 			return
 		}
 	}
-	action := req.Action
-	if action == "" {
-		action = "list"
+	// 逻辑收到服务层：MCP 工具与 REST 共用同一段，避免两份实现慢慢分叉
+	res, err := githubsvc.DefaultService().IgnoredRepos(c.Request.Context(), req.Action, req.Repo, req.Reason, req.Purge)
+	if err != nil {
+		if errors.Is(err, githubsvc.ErrInvalidAction) {
+			response.BadRequestWithError(c, "api.github.invalid_action", nil)
+			return
+		}
+		if strings.Contains(err.Error(), "repo is required") {
+			response.BadRequestWithError(c, "api.required.repo", err)
+			return
+		}
+		logger.Error("github intel: ignored repos failed", zap.Error(err))
+		response.InternalServerError(c, "api.server_error", err)
+		return
 	}
-	ctx := c.Request.Context()
-	switch action {
-	case "list":
-		items, err := threatRepo.ListIgnoredRepos(ctx)
-		if err != nil {
-			logger.Error("github intel: list ignored repos failed", zap.Error(err))
-			response.InternalServerError(c, "api.server_error", err)
-			return
-		}
-		response.Success(c, gin.H{"items": items, "total": len(items)}, "api.success")
-	case "add":
-		added, err := threatRepo.AddIgnoredRepo(ctx, req.Repo, req.Reason)
-		if err != nil {
-			response.BadRequestWithError(c, "api.bad_request", err)
-			return
-		}
-		response.Success(c, gin.H{"repo": req.Repo, "added": added}, "api.success")
-	case "remove":
-		removed, err := threatRepo.RemoveIgnoredRepo(ctx, req.Repo)
-		if err != nil {
-			response.BadRequestWithError(c, "api.bad_request", err)
-			return
-		}
-		response.Success(c, gin.H{"repo": req.Repo, "removed": removed}, "api.success")
-	default:
-		response.BadRequestWithError(c, "api.github.invalid_action", nil)
-	}
+	response.Success(c, res, "api.success")
 }
 
 // ExportResults 流式导出 CSV

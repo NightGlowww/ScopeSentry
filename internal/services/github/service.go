@@ -25,6 +25,8 @@ var ErrEmptyQuery = errors.New("github task query is empty")
 
 // RunSummary 一次任务运行的结果
 type RunSummary struct {
+	// Ignored 命中黑名单仓库被跳过的条数（不算进 Scanned，但要能看见）
+	Ignored   int64      `json:"ignored"`
 	TaskID    string     `json:"taskId"`
 	Type      string     `json:"type"`
 	Query     string     `json:"query"`
@@ -224,6 +226,9 @@ func (s *Service) RunTask(ctx context.Context, id string) (*RunSummary, error) {
 		maxPages = models.GithubDefaultMaxPages
 	}
 	const perPage = 100
+	// 噪声仓库黑名单同样作用于任务采集：code search 的噪声主要来自那几个
+	// 教程/示例/镜像仓库，忽略掉才不会每次都把同一批灌进结果里。
+	ignored := s.ignoredRepoPatterns(ctx)
 
 	for page := 1; page <= maxPages; page++ {
 		res, searchErr := client.Search(ctx, kind, summary.Query, page, perPage)
@@ -251,6 +256,10 @@ func (s *Service) RunTask(ctx context.Context, id string) (*RunSummary, error) {
 		summary.Pages = page
 		hits := make([]githubrepo.Hit, 0, len(res.Items))
 		for _, item := range res.Items {
+			if matchIgnoredRepo(ignored, item.Repo) {
+				summary.Ignored++
+				continue
+			}
 			hits = append(hits, githubrepo.Hit{
 				Repo:     item.Repo,
 				Path:     item.Path,

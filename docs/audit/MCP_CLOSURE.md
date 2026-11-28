@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | `add_asset_tag` | `asset:write` | 拒绝分支 |  |
 | `add_fingerprint` | `template:write` | 拒绝分支 / 写往返 | 建 it-mcp-fp 规则 → list_fingerprints 检索读回（state=true）；同名再 add 走更新不产生第二条 |
+| `add_ignored_repo` | `asset:write` | 拒绝分支 / 写往返 | 把 it-mcp-ignored/repo 加入黑名单 → list_ignored_repos 能查到 |
 | `add_sensitive_rule` | `template:write` | 拒绝分支 / 写往返 | 建 it-mcp-sr 规则 → list_sensitive_rules 检索读回（state=true） |
 | `append_dictionary_lines` | `asset:write` | 拒绝分支 / 写往返 | 追加 1 行 → preview_dictionary 从 2 行变 3 行 |
 | `apply_scan_policy` | `task:read` | 读 / 拒绝分支 | 策略试算（不写库、不建任务）；需要至少一个真实策略样本，线上无策略时该分支跳过 |
@@ -64,6 +65,7 @@
 | `list_fingerprints` | `asset:read` | 读 |  |
 | `list_github_results` | `asset:read` | 读 |  |
 | `list_icp_tasks` | `asset:read` | 读 |  |
+| `list_ignored_repos` | `asset:read` | 读 |  |
 | `list_node_plugins` | `node:read` | 读 |  |
 | `list_nodes` | `node:read` | 读 |  |
 | `list_nuclei_results` | `asset:read` | 读 |  |
@@ -85,6 +87,7 @@
 | `recheck_plugin` | `plugin:write` | 拒绝分支 |  |
 | `recover_github_tasks` | `task:write` | 拒绝分支 |  |
 | `reinstall_plugin` | `plugin:write` | 拒绝分支 |  |
+| `remove_ignored_repo` | `asset:write` | 拒绝分支 / 写往返 | 上一条的清理步：移除后名单里查不到（移除不存在的仓库会报错） |
 | `restart_node` | `node:write` | 拒绝分支 |  |
 | `resume_task_targets` | `task:write` | 拒绝分支 | 与 pause 成对，同一前置条件 |
 | `retest_task` | `task:write` | 拒绝分支 |  |
@@ -109,9 +112,9 @@
 
 | 维度 | 数量 |
 | --- | --- |
-| 工具总数 | 98 |
-| 读路径验证 | 48 |
-| 拒绝分支验证 | 62 |
-| 写往返验证 | 24 |
+| 工具总数 | 101 |
+| 读路径验证 | 49 |
+| 拒绝分支验证 | 64 |
+| 写往返验证 | 26 |
 | 仅前条件说明 | 0 |
 | 未归类 | 0 |

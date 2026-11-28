@@ -40,6 +40,8 @@ WRITE_ROUNDTRIP = {
     'create_asset_group': '建 ci-rt-group → list_asset_groups 能查到',
     'delete_asset_groups': 'confirm+dissolve 删除 → 组列表回到 0',
     'set_poc_state': '停用一枚模板 → list_pocs 回读 disabled=true → 还原；集成用例 TestWriteToolClosure/poc_state 跑同一往返',
+    'add_ignored_repo': '把 it-mcp-ignored/repo 加入黑名单 → list_ignored_repos 能查到',
+    'remove_ignored_repo': '上一条的清理步：移除后名单里查不到（移除不存在的仓库会报错）',
     'create_scheduled_task': '建 it-mcp-sched（24h/allNode/启用）→ get_scheduled_task 读回',
     'update_scheduled_task': '上一条只改 name → 读回新名且 allNode/scheduledTasks 未被冲掉',
     'delete_scheduled_tasks': '上一条的清理步：删除后详情读不到',

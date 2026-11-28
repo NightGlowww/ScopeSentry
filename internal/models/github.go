@@ -284,6 +284,9 @@ type GithubIgnoredReposRequest struct {
 	Action string `json:"action"`
 	Repo   string `json:"repo"`
 	Reason string `json:"reason"`
+	// Purge 加黑名单时同时删除已入库的同仓库结果。
+	// 单独给开关而不是默认清：清库是不可逆动作，得由调用方明确要求。
+	Purge bool `json:"purge"`
 }
 
 // GithubThreatConfigRequest 威胁情报来源配置
