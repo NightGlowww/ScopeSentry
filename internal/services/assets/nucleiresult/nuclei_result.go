@@ -12,6 +12,7 @@ import (
 	nucleirepo "github.com/Autumn-27/ScopeSentry/internal/repositories/assets/nucleiresult"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // 分页上限：默认 20 条，单页最多 200（handler 的 binding 会把 >200 拒成 400）
@@ -33,7 +34,7 @@ type Service interface {
 	// UpdateStatus 更新处置状态
 	UpdateStatus(ctx context.Context, id string, status int) error
 	// UpdateStatusMany 批量更新处置状态
-	UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, error)
+	UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, int64, error)
 	// StatusStats 各处置状态计数
 	StatusStats(ctx context.Context, req models.NucleiResultListRequest) (map[int]int64, error)
 }
@@ -208,21 +209,32 @@ func normalizePage(pageIndex, pageSize int) (int, int) {
 }
 
 // UpdateStatus 更新一条漏洞结果的处置状态。
+// 可判别的错误：handler 要靠它区分 400（参数错）和 404（文档不存在），
+// 不能再用字符串前缀判断（原来 invalid id/status 一律冒成 500）。
+// ErrInvalidStatus 与已有的 ErrInvalidID/ErrNotFound 配套，handler 据此区分 400 与 404。
+var ErrInvalidStatus = errors.New("nuclei result: invalid status")
+
 func (s *service) UpdateStatus(ctx context.Context, id string, status int) error {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return fmt.Errorf("invalid id: %w", err)
+		return fmt.Errorf("%w: %v", ErrInvalidID, err)
 	}
 	if status < 1 || status > 6 {
-		return fmt.Errorf("invalid status: %d", status)
+		return fmt.Errorf("%w: %d", ErrInvalidStatus, status)
 	}
-	return s.repo.UpdateStatus(ctx, oid, status)
+	if err := s.repo.UpdateStatus(ctx, oid, status); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return ErrNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 // UpdateStatusMany 批量更新处置状态，返回成功条数。
-func (s *service) UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, error) {
+func (s *service) UpdateStatusMany(ctx context.Context, ids []string, status int) (int64, int64, error) {
 	if status < 1 || status > 6 {
-		return 0, fmt.Errorf("invalid status: %d", status)
+		return 0, 0, fmt.Errorf("%w: %d", ErrInvalidStatus, status)
 	}
 	oids := make([]primitive.ObjectID, 0, len(ids))
 	for _, id := range ids {
@@ -231,7 +243,7 @@ func (s *service) UpdateStatusMany(ctx context.Context, ids []string, status int
 		}
 	}
 	if len(oids) == 0 {
-		return 0, fmt.Errorf("no valid ids")
+		return 0, 0, fmt.Errorf("%w: 没有任何合法 id", ErrInvalidID)
 	}
 	return s.repo.UpdateStatusMany(ctx, oids, status)
 }

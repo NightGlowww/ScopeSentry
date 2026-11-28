@@ -51,6 +51,11 @@ func DeleteFileLeak(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	if deleted == 0 {
+		// 一个都不存在时以前照样回 200 {"deleted":0}：界面提示「已删除」，列表却没变（2026-11-28 实测）
+		response.NotFound(c, "api.not_found", nil)
+		return
+	}
 	response.Success(c, gin.H{"deleted": deleted}, "api.success")
 }
 
@@ -81,6 +86,10 @@ func DeleteNpoc(c *gin.Context) {
 	deleted, err := service.DeleteNpoc(c.Request.Context(), req.IDs)
 	if err != nil {
 		fail(c, err)
+		return
+	}
+	if deleted == 0 {
+		response.NotFound(c, "api.not_found", nil)
 		return
 	}
 	response.Success(c, gin.H{"deleted": deleted}, "api.success")

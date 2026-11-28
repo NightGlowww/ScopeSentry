@@ -137,11 +137,16 @@ func Delete(c *gin.Context) {
 		return
 	}
 
-	err := templateService.Delete(c, req.IDs)
+	deleted, err := templateService.Delete(c, req.IDs)
 	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
+	if deleted == 0 {
+		// 这些 id 一个都不存在：以前回 200「删除成功」，列表却没变（2026-11-28 集成测试实测）
+		response.NotFound(c, "api.not_found", nil)
+		return
+	}
 
-	response.Success(c, nil, "api.success")
+	response.Success(c, map[string]any{"deleted": deleted, "requested": len(req.IDs)}, "api.success")
 }

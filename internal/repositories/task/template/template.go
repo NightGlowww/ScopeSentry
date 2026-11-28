@@ -19,7 +19,7 @@ type Repository interface {
 	Count(ctx context.Context, filter bson.M) (int64, error)
 	InsertOne(ctx context.Context, document interface{}) (string, error)
 	UpdateOne(ctx context.Context, filter bson.M, update bson.M) error
-	DeleteMany(ctx context.Context, filter bson.M) error
+	DeleteMany(ctx context.Context, filter bson.M) (int64, error)
 }
 
 type repository struct {
@@ -96,11 +96,11 @@ func (r *repository) UpdateOne(ctx context.Context, filter bson.M, update bson.M
 }
 
 // DeleteMany 删除多个文档
-func (r *repository) DeleteMany(ctx context.Context, filter bson.M) error {
-	_, err := r.collection.DeleteMany(ctx, filter)
+func (r *repository) DeleteMany(ctx context.Context, filter bson.M) (int64, error) {
+	res, err := r.collection.DeleteMany(ctx, filter)
 	if err != nil {
-		return fmt.Errorf("failed to delete documents: %w", err)
+		return 0, fmt.Errorf("failed to delete documents: %w", err)
 	}
 
-	return nil
+	return res.DeletedCount, nil
 }

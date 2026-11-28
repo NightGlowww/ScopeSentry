@@ -27,7 +27,7 @@ type Repository interface {
 	// UpdateStatus 更新处置状态
 	UpdateStatus(ctx context.Context, id primitive.ObjectID, status int) error
 	// UpdateStatusMany 批量更新处置状态
-	UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, error)
+	UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, int64, error)
 	// StatusStats 各处置状态计数
 	StatusStats(ctx context.Context, filter bson.M) (map[int]int64, error)
 	// ExplainList 列表查询的 explain（queryPlanner），用于验证走索引
@@ -271,23 +271,30 @@ func hostFromURL(raw string) string {
 // UpdateStatus 更新一条漏洞结果的处置状态（1未处理 2处理中 3忽略 4疑似 5确认 6已处理）。
 // 误报请用 3（忽略），确认存在用 5。
 func (r *repository) UpdateStatus(ctx context.Context, id primitive.ObjectID, status int) error {
-	_, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"status": status}})
+	res, err := r.coll.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"status": status}})
 	if err != nil {
 		return fmt.Errorf("failed to update nuclei result status: %w", err)
+	}
+	// 匹配 0 条不是成功：驱动的 UpdateOne 对「没有文档命中」不报错，
+	// 直接回 nil 就变成「200 + 什么也没改」（2026-11-28 集成测试实测）。
+	if res.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
 	}
 	return nil
 }
 
 // UpdateStatusMany 批量更新处置状态，返回实际影响条数。
-func (r *repository) UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, error) {
+func (r *repository) UpdateStatusMany(ctx context.Context, ids []primitive.ObjectID, status int) (int64, int64, error) {
 	if len(ids) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 	res, err := r.coll.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": ids}}, bson.M{"$set": bson.M{"status": status}})
 	if err != nil {
-		return 0, fmt.Errorf("failed to batch update nuclei result status: %w", err)
+		return 0, 0, fmt.Errorf("failed to batch update nuclei result status: %w", err)
 	}
-	return res.ModifiedCount, nil
+	// 同时回 matched 与 modified：只回 modified 的话，「id 全不存在」和
+	// 「本来就是这个状态」都会是 0，调用方分不清是失败还是无事可做。
+	return res.MatchedCount, res.ModifiedCount, nil
 }
 
 // StatusStats 返回各处置状态的漏洞数量（1未处理 2处理中 3忽略 4疑似 5确认 6已处理）。

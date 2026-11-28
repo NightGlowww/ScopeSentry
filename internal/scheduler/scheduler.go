@@ -63,8 +63,15 @@ var (
 // 启动后注册的 handler（例如 github intel 在调度器 Start 之后才注册）
 // 需要把库里已存在但当时被跳过的任务补排进来，否则它永远只在 DB 里躺着。
 
-// GetGlobalScheduler 获取全局调度器实例
+// GetGlobalScheduler 获取全局调度器实例（惰性初始化）。
+//
+// 以前这里直接返回 globalScheduler，而它要等 InitializeGlobalScheduler() 才会被建出来。
+// 任何在初始化之前跑的删除/更新路径（例如 /api/task/scheduled/delete、
+// 插件删除时摘调度任务）就会对 nil 取锁直接 nil pointer dereference，
+// 被 Gin 的 Recovery 兜住后对外表现为 500（2026-11-28 集成测试实测）。
+// InitializeGlobalScheduler 内部是 sync.Once，重复调用安全。
 func GetGlobalScheduler() *Scheduler {
+	InitializeGlobalScheduler()
 	return globalScheduler
 }
 

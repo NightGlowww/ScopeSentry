@@ -20,7 +20,7 @@ type Service interface {
 	List(ctx context.Context, pageIndex, pageSize int, query string) (*models.TemplateList, error)
 	Detail(ctx *gin.Context, id string) (*models.ScanTemplate, error)
 	Save(ctx context.Context, id string, result *models.ScanTemplate) (string, error)
-	Delete(ctx *gin.Context, ids []string) error
+	Delete(ctx *gin.Context, ids []string) (int64, error)
 }
 
 type service struct {
@@ -162,21 +162,21 @@ func (s *service) Save(ctx context.Context, id string, result *models.ScanTempla
 }
 
 // Delete 删除模板
-func (s *service) Delete(ctx *gin.Context, ids []string) error {
+func (s *service) Delete(ctx *gin.Context, ids []string) (int64, error) {
 	var objIDs []primitive.ObjectID
 	for _, id := range ids {
 		objID, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			return fmt.Errorf("invalid id format: %w", err)
+			return 0, fmt.Errorf("invalid id format: %w", err)
 		}
 		objIDs = append(objIDs, objID)
 	}
 
 	filter := bson.M{"_id": bson.M{"$in": objIDs}}
-	err := s.repo.DeleteMany(ctx, filter)
+	deleted, err := s.repo.DeleteMany(ctx, filter)
 	if err != nil {
-		return fmt.Errorf("failed to delete templates: %w", err)
+		return 0, fmt.Errorf("failed to delete templates: %w", err)
 	}
 
-	return nil
+	return deleted, nil
 }

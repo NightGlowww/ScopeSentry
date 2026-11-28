@@ -31,7 +31,15 @@ func UpdateStatus(c *gin.Context) {
 		return
 	}
 	if err := nucleiResultService.UpdateStatus(c.Request.Context(), req.ID, req.Status); err != nil {
-		response.InternalServerError(c, "api.error", err)
+		switch {
+		case errors.Is(err, nucleiservice.ErrInvalidID), errors.Is(err, nucleiservice.ErrInvalidStatus):
+			response.BadRequest(c, "api.bad_request", err)
+		case errors.Is(err, nucleiservice.ErrNotFound):
+			// 以前这里回 200：界面上「已标为误报」，库里一条没动（2026-11-28 集成测试实测）
+			response.NotFound(c, "api.not_found", nil)
+		default:
+			response.InternalServerError(c, "api.error", err)
+		}
 		return
 	}
 	response.Success(c, nil, "api.success")
@@ -67,12 +75,22 @@ func UpdateStatusBatch(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	n, err := nucleiResultService.UpdateStatusMany(c.Request.Context(), req.IDs, req.Status)
+	matched, updated, err := nucleiResultService.UpdateStatusMany(c.Request.Context(), req.IDs, req.Status)
 	if err != nil {
+		if errors.Is(err, nucleiservice.ErrInvalidStatus) || errors.Is(err, nucleiservice.ErrInvalidID) {
+			response.BadRequest(c, "api.bad_request", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, map[string]interface{}{"updated": n}, "api.success")
+	if matched == 0 {
+		response.NotFound(c, "api.not_found", nil)
+		return
+	}
+	// matched 与 updated 分开回：id 全存在但本来就是这个状态时，updated=0 是正常的，
+	// 只回 updated 会让调用方以为是失败。
+	response.Success(c, map[string]interface{}{"updated": updated, "matched": matched}, "api.success")
 }
 
 // List Nuclei 结果列表（只读视图，对标 ARL-Next assetNucleiResult）
