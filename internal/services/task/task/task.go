@@ -927,6 +927,8 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
 				return fmt.Errorf("failed to update task status: %w", err)
 			}
+			// 写成功之后再发通知：先发后写会把「没落库的完成」通知出去
+			taskstats.NotifyTerminal(task.Name, set)
 
 			// issue #278：完成即删 tmp/time，逐目标明细随后也可能被清理。
 			// 先把 Redis 里的明细快照进 Mongo，接口在 Redis 读不到时回放这份快照。
@@ -1173,6 +1175,7 @@ func (s *service) SweepStaleTasks(ctx context.Context, staleAfter time.Duration)
 			logger.Error(fmt.Sprintf("sweep task %s failed: %v", id, err))
 			continue
 		}
+		taskstats.NotifyTerminal(task.Name, deadSet)
 		swept++
 		logger.Info(fmt.Sprintf("stale task marked failed after %d auto-resumes: %s (%s)", task.AutoResumeCount, task.Name, id))
 	}

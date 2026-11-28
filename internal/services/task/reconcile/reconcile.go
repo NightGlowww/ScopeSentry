@@ -317,6 +317,8 @@ func finalizeStaleTasks(ctx context.Context, keep map[primitive.ObjectID]struct{
 			continue
 		}
 		if res.ModifiedCount > 0 {
+			// 真的改到了才通知（条件更新没命中时发通知等于报假警）
+			taskstats.NotifyTerminal(row.Name, finalSet)
 			finalized++
 		}
 	}

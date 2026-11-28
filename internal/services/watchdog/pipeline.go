@@ -282,6 +282,7 @@ func reconcileStalledRunning(ctx context.Context, task *mongo.Collection) ([]str
 		}
 		set = taskstats.Merge(set, taskstats.Freeze(ctx, str(row["name"])))
 		if _, err := task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{"$set": set}); err == nil {
+			taskstats.NotifyTerminal(str(row["name"]), set)
 			failed = append(failed, id)
 			if !seenNode[nodeName] {
 				seenNode[nodeName] = true
@@ -362,7 +363,10 @@ func expireStaleQueued(ctx context.Context, task *mongo.Collection) []string {
 		// 终态就要冻结产出快照：否则列表「产出」列对这条任务永远是「—」
 		expiredSet := bson.M{"status": 4, "failReason": reason, "endTime": ts(time.Now())}
 		expiredSet = taskstats.Merge(expiredSet, taskstats.Freeze(ctx, str(r["name"])))
-		_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 0}, bson.M{"$set": expiredSet})
+		if res, uerr := task.UpdateOne(ctx, bson.M{"_id": oid, "status": 0}, bson.M{"$set": expiredSet}); uerr == nil && res.ModifiedCount > 0 {
+			// 只有真的改到了才通知：条件更新没命中时发通知等于报假警
+			taskstats.NotifyTerminal(str(r["name"]), expiredSet)
+		}
 		logger.Warn("watchdog: 过期排队任务 " + id + " — " + reason)
 		out = append(out, id)
 	}
@@ -431,7 +435,9 @@ func reconcilePhantomRunning(ctx context.Context, task *mongo.Collection) []stri
 			"failParams": bson.M{"since": elapsed},
 		}
 		phantomSet = taskstats.Merge(phantomSet, taskstats.Freeze(ctx, str(r["name"])))
-		_, _ = task.UpdateOne(ctx, bson.M{"_id": r["_id"], "status": 1}, bson.M{"$set": phantomSet})
+		if res, uerr := task.UpdateOne(ctx, bson.M{"_id": r["_id"], "status": 1}, bson.M{"$set": phantomSet}); uerr == nil && res.ModifiedCount > 0 {
+			taskstats.NotifyTerminal(str(r["name"]), phantomSet)
+		}
 		logger.Warn("watchdog: " + id + " " + reason)
 		out = append(out, id)
 	}
@@ -533,7 +539,9 @@ func reconcileZombieNodes(ctx context.Context, task *mongo.Collection, queued in
 				},
 			}
 			zombieSet = taskstats.Merge(zombieSet, taskstats.FreezeByID(ctx, oid))
-			_, _ = task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{"$set": zombieSet})
+			if res, uerr := task.UpdateOne(ctx, bson.M{"_id": oid, "status": 1}, bson.M{"$set": zombieSet}); uerr == nil && res.ModifiedCount > 0 {
+				taskstats.NotifyTerminal(name, zombieSet)
+			}
 		}
 		logger.Warn("watchdog: " + reason)
 		out = append(out, name+"("+cur+")")
