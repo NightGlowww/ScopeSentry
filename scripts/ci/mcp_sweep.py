@@ -272,6 +272,15 @@ def main():
     # 模板停用：不存在的 id 必须报错（否则「停用了 0 条」会被当成成功，
     # 调用方以为模板已经不会被扫描引用）
     ('set_poc_state', {'ids': [NOPE]}),
+    # 指纹规则：rule 为空必须被拒；不存在的 id 不能回「删除成功 0 条」
+    ('add_fingerprint', {'name': '', 'rule': ''}),
+    ('update_fingerprint', {'id': NOPE, 'name': 'x', 'rule': 'y', 'state': True}),
+    ('delete_fingerprints', {'ids': [NOPE]}),
+    # GitHub 处置：不存在的 id 必须报错，否则「研判了 0 条」会被当成标好了
+    ('triage_github_results', {'ids': [NOPE], 'status': 'triaged'}),
+    ('stop_github_tasks', {'ids': [NOPE]}),
+    ('recover_github_tasks', {'ids': [NOPE]}),
+    ('delete_github_tasks', {'ids': [NOPE]}),
         ('get_project', {'id': NOPE}),
         ('get_task', {'id': NOPE}),
         ('get_scan_policy', {'id': NOPE}),

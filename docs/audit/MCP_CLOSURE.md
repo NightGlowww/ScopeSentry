@@ -7,6 +7,7 @@
 | 工具 | scope | 验证 | 说明 |
 | --- | --- | --- | --- |
 | `add_asset_tag` | `asset:write` | 拒绝分支 |  |
+| `add_fingerprint` | `template:write` | 拒绝分支 / 写往返 | 建 it-mcp-fp 规则 → list_fingerprints 检索读回（state=true）；同名再 add 走更新不产生第二条 |
 | `append_dictionary_lines` | `asset:write` | 拒绝分支 / 写往返 | 追加 1 行 → preview_dictionary 从 2 行变 3 行 |
 | `apply_scan_policy` | `task:read` | 读 / 拒绝分支 | 策略试算（不写库、不建任务）；需要至少一个真实策略样本，线上无策略时该分支跳过 |
 | `asset_distribution` | `asset:read` | 读 / 拒绝分支 |  |
@@ -25,6 +26,8 @@
 | `delete_dictionary` | `asset:write` | 拒绝分支 / 写往返 | 删除字典 → list_dictionaries 查不到（total=0） |
 | `delete_dictionary_entries` | `asset:write` | 拒绝分支 / 写往返 | 删 1 行 → preview 从 3 行变 2 行 |
 | `delete_export_files` | `asset:write` | 拒绝分支 |  |
+| `delete_fingerprints` | `template:write` | 拒绝分支 / 写往返 | 上一条的清理步：按 id 删除后 list_fingerprints 检索归零 |
+| `delete_github_tasks` | `task:write` | 拒绝分支 |  |
 | `delete_nodes` | `node:write` | 拒绝分支 | 节点是扫描执行体，误删影响扫面；只验不存在的名字 |
 | `delete_port_dict_entries` | `asset:write` | 拒绝分支 / 写往返 | 上一条的清理步：confirm=true 按 id 删除后条数回到原值 |
 | `delete_scan_policies` | `task:write` | 拒绝分支 / 写往返 | 上一条的清理步：按 id 删除后 REST 列表归零（效果已复核） |
@@ -76,6 +79,7 @@
 | `pause_task_targets` | `task:write` | 拒绝分支 | 需要「运行中且目标尚未全部领取」的任务；线上没有这种样本时只验拒绝分支 |
 | `preview_dictionary` | `asset:read` | 读 |  |
 | `recheck_plugin` | `plugin:write` | 拒绝分支 |  |
+| `recover_github_tasks` | `task:write` | 拒绝分支 |  |
 | `reinstall_plugin` | `plugin:write` | 拒绝分支 |  |
 | `restart_node` | `node:write` | 拒绝分支 |  |
 | `resume_task_targets` | `task:write` | 拒绝分支 | 与 pause 成对，同一前置条件 |
@@ -87,17 +91,20 @@
 | `set_scheduled_task_state` | `task:write` | 拒绝分支 / 写往返 | 计划任务 enabled False→True→False，cycleType 与其余字段不变 |
 | `set_sensitive_rule_state` | `asset:write` | 拒绝分支 / 写往返 | 规则 state True→False→True，列表回读每步都对得上 |
 | `start_task` | `task:write` | 拒绝分支 |  |
+| `stop_github_tasks` | `task:write` | 拒绝分支 |  |
 | `stop_icp_tasks` | `icp:write` | 拒绝分支 |  |
 | `stop_task` | `task:write` | 拒绝分支 |  |
+| `triage_github_results` | `asset:write` | 拒绝分支 / 写往返 | UpsertHits 造一条 fixture → 研判 ignored → 按 ignored 筛到且 triagedBy=it-mcp |
 | `uninstall_plugin` | `plugin:write` | 拒绝分支 |  |
+| `update_fingerprint` | `template:write` | 拒绝分支 / 写往返 | 上一条里把 state 改成 false → 读回 false（全量更新漏传 state 会被工具拒绝） |
 
 ## 汇总
 
 | 维度 | 数量 |
 | --- | --- |
-| 工具总数 | 84 |
+| 工具总数 | 91 |
 | 读路径验证 | 48 |
-| 拒绝分支验证 | 48 |
-| 写往返验证 | 14 |
+| 拒绝分支验证 | 55 |
+| 写往返验证 | 18 |
 | 仅前条件说明 | 0 |
 | 未归类 | 0 |

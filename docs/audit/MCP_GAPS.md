@@ -543,3 +543,28 @@ MCP 删 → 确认消失」：字典（含 append 后 preview 能读回追加行
 第一版用例按 `_id` 反序列化，拿到空串，`set_poc_state` 直接回「没有匹配的模板」——这正是
 「调用成功与否」和「改到的是不是那一行」必须分开验的原因。
 
+## 14. 写入口按家族补齐：指纹 + GitHub 处置（第 105 轮）
+
+把「REST 有、MCP 只有读」按家族扫了一遍。判定规则：**MCP 已经挂了这个家族的读工具，
+却没有任何写工具** —— 自动化看得见、改不了，闭环断在中间。按此规则捞出两处：
+
+| 家族 | REST 写路由 | 补齐前 MCP | 本轮补 |
+| --- | --- | --- | --- |
+| fingerprint | 5（add/batch-add/update/delete/data） | 只有 list_fingerprints | add / update / delete 三个 |
+| github | 25（task create/stop/delete、scheduler run/stop/recover/update、result triage、threat run_once…） | 只有 list_github_results | triage / stop / recover / delete 四个 |
+
+指纹规则是扫描识别的输入，写错了改不了等于模板库只能重建；GitHub 那条更典型 ——
+「看到泄露 → 标研判 → 停掉失控的周期任务」三步里 MCP 只会第一步。
+
+两个刻意的取舍：
+
+- `update_fingerprint` 的 `state` 做成必填。REST 的 Update 是全量 `$set`（name/rule/category/
+  parent_category/state/company 六个字段一起覆盖），漏传 state 会把规则静默关掉；工具层直接拒绝，
+  比事后解释「为什么规则自己失效了」便宜。
+- GitHub 采集类（`task/create`、`threat/*_run_once`）不做成 MCP 工具：它们会真的对外打 GitHub API
+  并写结果库，属于「有外部副作用」的一类，登记在案而不是顺手暴露。
+
+证据链与 POC 那条一致：拒绝分支 7 条进 `mcp_sweep.py` 的 GUARD，写往返 4 条进
+`TestWriteToolClosure`（fingerprint 新增/改 state/删除，github 用 UpsertHits 造 fixture 后研判），
+账本 91 工具 / 未归类 0 / scope 缺失 0。
+

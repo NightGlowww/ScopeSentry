@@ -93,6 +93,13 @@ var ToolScopes = map[string]string{
 	"get_poc":   ScopeAssetRead,
 	// 模板停用/启用的副作用是「改变后续扫描的载荷」，不是改资产，因此单列 template:write。
 	"set_poc_state":           ScopeTemplateWrite,
+	"add_fingerprint":         ScopeTemplateWrite,
+	"update_fingerprint":      ScopeTemplateWrite,
+	"delete_fingerprints":     ScopeTemplateWrite,
+	"triage_github_results":   ScopeAssetWrite,
+	"stop_github_tasks":       ScopeTaskWrite,
+	"recover_github_tasks":    ScopeTaskWrite,
+	"delete_github_tasks":     ScopeTaskWrite,
 	"list_fingerprints":       ScopeAssetRead,
 	"list_dictionaries":       ScopeAssetRead,
 	"preview_dictionary":      ScopeAssetRead,

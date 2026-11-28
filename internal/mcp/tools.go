@@ -41,6 +41,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export"
 	"github.com/Autumn-27/ScopeSentry/internal/services/fingerprint"
+	githubsvc "github.com/Autumn-27/ScopeSentry/internal/services/github"
 	"github.com/Autumn-27/ScopeSentry/internal/services/icp"
 	"github.com/Autumn-27/ScopeSentry/internal/services/mcpguard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
@@ -106,8 +107,11 @@ type deps struct {
 	nucleiService     nucleiresultsvc.Service
 	wihService        wihsvc.Service
 	statFingerService statfingersvc.Service
-	// GitHub 泄露结果（code_leak / cve / hacker 的命中），只读
+	// GitHub 泄露结果（code_leak / cve / hacker 的命中）
 	githubResultRepo githubrepo.ResultRepository
+	// GitHub 情报任务本体：周期任务的暂停/恢复/删除只能通过它，
+	// 之前 MCP 只挂了 ResultRepository，于是「能看命中、停不了任务」。
+	githubService *githubsvc.Service
 	// 服务端操作日志（只读，仓库层直接给 List）
 	auditRepo auditrepo.Repository
 }
@@ -226,6 +230,7 @@ var d = &deps{
 	wihService:        wihsvc.NewService(),
 	statFingerService: statfingersvc.NewService(),
 	githubResultRepo:  githubrepo.NewResultRepository(),
+	githubService:     githubsvc.DefaultService(),
 	auditRepo:         auditrepo.NewRepository(),
 }
 
@@ -422,6 +427,23 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: "分页查询 Web 指纹规则",
 	}, listFingerprints)
 
+	// 指纹规则治理：和 POC 同一个坑 —— 只读工具让自动化「看得见、改不了」，
+	// 而指纹库是扫描识别的输入，改不了等于闭环断在模板侧（2026-11-29）。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "add_fingerprint",
+		Description: "新增 Web 指纹规则（同名的按更新处理，避免重复导入同一份 YAML）；rule 为必填 YAML",
+	}, addFingerprint)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "update_fingerprint",
+		Description: "按 id 全量更新指纹规则：name/rule/state 必填，未传的可选字段会被清空（REST 同语义）",
+	}, updateFingerprint)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_fingerprints",
+		Description: "按 id 批量删除指纹规则，返回真实删除条数（0 表示 id 都不存在）",
+	}, deleteFingerprints)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_dictionaries",
 		Description: "按类型（port/subdomain/dir/brute）分页列出字典",
@@ -520,6 +542,28 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "list_github_results",
 		Description: "分页查询 GitHub 泄露结果（code_leak / cve / hacker，按 status/type/taskId 过滤）",
 	}, listGithubResults)
+
+	// 研判与任务生命周期：之前 MCP 只有 list_github_results，
+	// 「看到泄露 → 标成已确认/误报 → 停掉失控的周期任务」这条链在 MCP 侧断在第一步。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "triage_github_results",
+		Description: "批量研判 GitHub 泄露结果：new/triaged/ignored，记录研判人与时间；id 一条都不存在时报错",
+	}, triageGithubResults)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "stop_github_tasks",
+		Description: "暂停 GitHub 情报周期任务（调度器跳过）；本来就是暂停态属幂等成功，id 不存在则报错",
+	}, stopGithubTasks)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "recover_github_tasks",
+		Description: "恢复被暂停的 GitHub 情报周期任务：状态回到待开始并清掉 nextRunAt，让它立刻可跑",
+	}, recoverGithubTasks)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_github_tasks",
+		Description: "删除 GitHub 情报任务，同时删除它产出的结果行（不可恢复）；返回删除的任务数与结果数",
+	}, deleteGithubTasks)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "set_sensitive_rule_state",

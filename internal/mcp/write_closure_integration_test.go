@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Autumn-27/ScopeSentry/internal/models"
+	githubrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/github"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -279,6 +281,105 @@ func TestWriteToolClosure(t *testing.T) {
 		}
 		if !found {
 			t.Fatalf("列表里找不到刚改过的模板 %s", id)
+		}
+	})
+
+	// 指纹规则：新增 → 读回 → 改 state → 读回 → 删除 → 确认消失。
+	// 「同名按更新处理」是服务层既有行为，这里顺带锁住：重复 add 不应产生第二条。
+	t.Run("fingerprint", func(t *testing.T) {
+		name := fmt.Sprintf("it-mcp-fp-%d", stamp)
+		var id string
+		t.Cleanup(func() {
+			if id != "" {
+				_, _ = cs.CallTool(context.Background(), &mcp.CallToolParams{
+					Name: "delete_fingerprints", Arguments: map[string]any{"ids": []string{id}},
+				})
+			}
+		})
+
+		created := callJSON(t, cs, "add_fingerprint", map[string]any{
+			"name": name, "rule": "title: \"it-mcp\"", "category": "it", "state": true,
+		})
+		id, _ = created["id"].(string)
+		if id == "" {
+			t.Fatalf("新增指纹没有返回 id: %+v", created)
+		}
+
+		var listRow struct {
+			ID    string `json:"id"`
+			State bool   `json:"state"`
+		}
+		readRow := func() (found bool) {
+			text := callText(t, cs, "list_fingerprints", map[string]any{"search": name, "pageIndex": 1, "pageSize": 10})
+			var data struct {
+				List []struct {
+					ID    string `json:"id"`
+					State bool   `json:"state"`
+				} `json:"list"`
+			}
+			_ = json.Unmarshal([]byte(text), &data)
+			for _, row := range data.List {
+				if row.ID == id {
+					listRow.ID, listRow.State = row.ID, row.State
+					return true
+				}
+			}
+			return false
+		}
+		if !readRow() || !listRow.State {
+			t.Fatalf("新增后读不回或 state 不是启用态: %+v", listRow)
+		}
+
+		callJSON(t, cs, "update_fingerprint", map[string]any{
+			"id": id, "name": name, "rule": "title: \"it-mcp\"", "state": false,
+		})
+		if !readRow() {
+			t.Fatalf("更新后规则消失了")
+		}
+		if listRow.State {
+			t.Fatalf("state=false 没落库，读回仍是启用")
+		}
+
+		del := callJSON(t, cs, "delete_fingerprints", map[string]any{"ids": []string{id}})
+		if n, _ := del["deleted"].(float64); n < 1 {
+			t.Fatalf("删除未命中: %+v", del)
+		}
+		id = ""
+		if readRow() {
+			t.Fatalf("删除后仍能查到该规则")
+		}
+	})
+
+	// GitHub 研判：写一条 fixture 结果 → 研判为 ignored → 读回状态与研判人 → 按任务清理。
+	// 用 UpsertHits 造数据而不是走采集任务：采集会打 GitHub API，测试不该有外网副作用。
+	t.Run("github_triage", func(t *testing.T) {
+		taskID := fmt.Sprintf("it-mcp-gh-%d", stamp)
+		repo := githubrepo.NewResultRepository()
+		ctx := context.Background()
+		t.Cleanup(func() { _, _ = repo.DeleteByTaskIDs(ctx, []string{taskID}) })
+		if _, err := repo.UpsertHits(ctx, taskID, "code_leak", "", "it", []githubrepo.Hit{{
+			Repo: "it/repo", Path: "a.env", Commit: "deadbeef", Title: "it rule", Snippet: "x=1",
+		}}); err != nil {
+			t.Fatalf("造 fixture 失败: %v", err)
+		}
+		list, _, err := repo.List(ctx, models.GithubResultListQuery{TaskID: taskID, PageIndex: 1, PageSize: 5})
+		if err != nil || len(list) == 0 {
+			t.Fatalf("fixture 结果读不回来: %v", err)
+		}
+		rid := list[0].ID.Hex()
+
+		res := callJSON(t, cs, "triage_github_results", map[string]any{
+			"ids": []string{rid}, "status": "ignored", "operator": "it-mcp",
+		})
+		if n, _ := res["updated"].(float64); n < 1 {
+			t.Fatalf("研判未命中任何结果: %+v", res)
+		}
+		after, _, err := repo.List(ctx, models.GithubResultListQuery{TaskID: taskID, Status: "ignored", PageIndex: 1, PageSize: 5})
+		if err != nil || len(after) == 0 {
+			t.Fatalf("研判后按 ignored 筛不到: %v", err)
+		}
+		if after[0].TriagedBy != "it-mcp" {
+			t.Fatalf("研判人没落库，实际 %q", after[0].TriagedBy)
 		}
 	})
 }

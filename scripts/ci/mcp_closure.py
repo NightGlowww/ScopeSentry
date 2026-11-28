@@ -40,6 +40,10 @@ WRITE_ROUNDTRIP = {
     'create_asset_group': '建 ci-rt-group → list_asset_groups 能查到',
     'delete_asset_groups': 'confirm+dissolve 删除 → 组列表回到 0',
     'set_poc_state': '停用一枚模板 → list_pocs 回读 disabled=true → 还原；集成用例 TestWriteToolClosure/poc_state 跑同一往返',
+    'add_fingerprint': '建 it-mcp-fp 规则 → list_fingerprints 检索读回（state=true）；同名再 add 走更新不产生第二条',
+    'update_fingerprint': '上一条里把 state 改成 false → 读回 false（全量更新漏传 state 会被工具拒绝）',
+    'delete_fingerprints': '上一条的清理步：按 id 删除后 list_fingerprints 检索归零',
+    'triage_github_results': 'UpsertHits 造一条 fixture → 研判 ignored → 按 ignored 筛到且 triagedBy=it-mcp',
 }
 
 # 需要前置样本或明确不该自动跑的工具：写清原因，别让「未验证」变成静默
