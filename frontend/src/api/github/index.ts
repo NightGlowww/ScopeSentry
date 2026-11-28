@@ -204,3 +204,16 @@ export const addIgnoredRepoApi = (data: {
 
 export const removeIgnoredRepoApi = (repo: string): Promise<IResponse<{ removed: boolean }>> =>
   request.post({ url: '/api/github/result/ignored_repos', data: { action: 'remove', repo } })
+// 按天趋势：结果页的「最近 N 天新增」小图用它。
+// 接口本来就存在，只是前端一直没调（ui_api_closure 里挂着「界面未做」的例外）。
+export interface GithubDailyStat {
+  date: string
+  total: number
+  new: number
+  triaged: number
+  ignored: number
+}
+
+export const getResultStatsApi = (data: { days?: number; type?: string; project?: string; keyword?: string }): Promise<
+  IResponse<{ items: GithubDailyStat[]; days: number }>
+> => request.post({ url: '/api/github/result/stats', data })

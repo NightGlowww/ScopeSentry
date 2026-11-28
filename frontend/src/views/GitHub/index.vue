@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import {
   ElButton,
   ElCol,
@@ -34,6 +34,7 @@ import {
   deleteGithubTasksApi,
   listGithubResultsApi,
   getResultOverviewApi,
+  getResultStatsApi,
   triageGithubResultsApi,
   listIgnoredReposApi,
   addIgnoredRepoApi,
@@ -345,13 +346,34 @@ const loadResultOverview = async () => {
     resultOverview.value = { total: 0, byType: {}, byStatus: {} }
   }
 }
+// 最近 7 天新增趋势：接口一直都在，前端从没调过。
+// 用纯 CSS 柱子而不是引入图表：结果页已经有一排筛选 + 总览条，再加一块图表会把列表压下去。
+const resultStats = ref<{ date: string; total: number; new: number; triaged: number; ignored: number }[]>([])
+const loadResultStats = async () => {
+  try {
+    const res = await getResultStatsApi({
+      days: 7,
+      type: resultFilters.type || undefined,
+      project: resultFilters.project || undefined,
+      keyword: resultFilters.keyword || undefined
+    })
+    resultStats.value = res.data.items || []
+  } catch {
+    resultStats.value = []
+  }
+}
+// 柱高按最大值归一；全 0 时不画（否则一排空柱子看着像坏了）
+const trendMax = computed(() => resultStats.value.reduce((m, d) => Math.max(m, d.new), 0))
+
 // 总览与列表同源：查询、研判、翻页之后都要重算
 const refreshResults = async () => {
   await getResultList()
   void loadResultOverview()
+  void loadResultStats()
 }
 onMounted(() => {
   void loadResultOverview()
+  void loadResultStats()
 })
 
 // ---------------- 忽略仓库（噪声黑名单） ----------------
@@ -524,6 +546,27 @@ const handleTriage = async (row: { id: string }, status: string) => {
             {{ typeLabel(String(kind)) }} {{ n }}
           </ElTag>
         </div>
+        <!-- 最近 7 天新增：一眼看出「这几天是不是在持续产出」，比翻页数有用 -->
+        <div v-if="trendMax > 0" class="trend-bar">
+          <span class="ov-title">{{ t('trendTitle') }}</span>
+          <ElTooltip
+            v-for="d in resultStats"
+            :key="d.date"
+            placement="top"
+          >
+            <template #content>
+              {{ d.date }} · {{ t('trendTotal', { n: d.total }) }} · new {{ d.new }} · triaged {{ d.triaged }} · ignored {{ d.ignored }}
+            </template>
+            <div class="trend-col">
+              <div
+                class="trend-bar-fill"
+                :class="{ 'is-empty': d.new === 0 }"
+                :style="{ height: Math.max(2, Math.round((d.new / trendMax) * 28)) + 'px' }"
+              />
+              <span class="trend-date">{{ d.date.slice(5) }}</span>
+            </div>
+          </ElTooltip>
+        </div>
         <ElRow :gutter="12" class="mb-10px">
           <ElCol :span="5">
             <ElInput
@@ -678,6 +721,33 @@ const handleTriage = async (row: { id: string }, status: string) => {
   font-size: 13px;
 }
 .ov-title {
+  color: var(--el-text-color-secondary);
+}
+.trend-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.trend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: default;
+}
+.trend-bar-fill {
+  width: 14px;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--el-color-primary);
+  transition: height 0.2s ease;
+}
+.trend-bar-fill.is-empty {
+  background: var(--el-border-color);
+}
+.trend-date {
+  font-size: 11px;
   color: var(--el-text-color-secondary);
 }
 .ignored-add {

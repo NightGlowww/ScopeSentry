@@ -2212,6 +2212,8 @@ export default {
     tabThreat: 'Threat intelligence',
     overviewTitle: 'Overview',
     overviewTotal: '{n} total',
+    trendTitle: 'New in the last 7 days',
+    trendTotal: '{n} total',
     statePending: 'Pending',
     stateRunning: 'Running',
     statePaused: 'Paused',

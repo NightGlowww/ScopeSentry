@@ -2153,6 +2153,8 @@ export default {
     tabThreat: '威胁情报',
     overviewTitle: '总览',
     overviewTotal: '共 {n} 条',
+    trendTitle: '最近 7 天新增',
+    trendTotal: '共 {n} 条',
     statePending: '待开始',
     stateRunning: '运行中',
     statePaused: '已暂停',

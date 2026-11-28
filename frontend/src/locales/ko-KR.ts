@@ -2163,6 +2163,8 @@ export default {
     tabThreat: '위협 인텔리전스',
     overviewTitle: '개요',
     overviewTotal: '총 {n}건',
+    trendTitle: '최근 7일 신규',
+    trendTotal: '총 {n}건',
     statePending: '대기 중',
     stateRunning: '실행 중',
     statePaused: '일시중지됨',
