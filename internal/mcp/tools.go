@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -1265,27 +1264,23 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 	return jsonToolResult(out)
 }
 
-// numericFilterKeys 这些字段在 Mongo 里是数字；JSON 里传成字符串会让等值匹配恒为空，
-// 表现为「过滤后 0 条」的静默错误（实测 filter.statuscode:"200" → 0，200 → 4）。
-var numericFilterKeys = map[string]struct{}{
-	"statuscode": {},
-	"port":       {},
-	"length":     {},
-}
-
-// mcpFilterValues 把 MCP 的 []string 过滤值转成 []interface{}，并对数值字段做类型归一。
+// mcpFilterValues 把 MCP 的 []string 过滤值原样转成 []interface{}。
+//
+// 这里曾经按字段名做「字符串 → 数字」归一，结果把 port 过滤打成静默 0：
+// asset.port 在库里存的是字符串 "443"，转成 int 后等值匹配不到任何文档。
+// 实测（2026-11-28）：
+//
+//	filter {"port":["443"]}  → REST total 6530，MCP total 0   ← 归一惹的祸
+//	filter {"port":[443]}    → REST total 0
+//	filter {"statuscode":["200"]} 与 [200] 都是 4935（该字段两种形态都能命中）
+//
+// 后端 helper.buildFilterForms 对「数值歧义字段」收到 string 时会同时下发字符串与数字两种形态，
+// 哪种存法都能命中。所以 MCP 只要和 REST 一样原样透传字符串，就自动拿到这层归一。
 func mcpFilterValues(filter map[string][]string) map[string][]interface{} {
 	out := make(map[string][]interface{}, len(filter))
 	for k, vals := range filter {
-		_, numeric := numericFilterKeys[strings.ToLower(strings.TrimSpace(k))]
 		items := make([]interface{}, 0, len(vals))
 		for _, v := range vals {
-			if numeric {
-				if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
-					items = append(items, n)
-					continue
-				}
-			}
 			items = append(items, v)
 		}
 		out[k] = items
