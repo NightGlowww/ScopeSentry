@@ -272,6 +272,12 @@ def main():
     # 模板停用：不存在的 id 必须报错（否则「停用了 0 条」会被当成成功，
     # 调用方以为模板已经不会被扫描引用）
     ('set_poc_state', {'ids': [NOPE]}),
+    # 计划任务：空 name/target 必须拒；不存在的 id 不能假成功
+    ('create_scheduled_task', {'name': '', 'target': 'x'}),
+    ('update_scheduled_task', {'id': NOPE}),
+    ('delete_scheduled_tasks', {'ids': [NOPE]}),
+    # 重跑会真的按原任务配置新建一条扫描任务：sweep 只验不存在的 id（成功路径需人工授权）
+    ('retest_task', {'id': NOPE}),
     # 敏感信息规则：空正则会退化成「匹配一切」，必须被拒；不存在的 id 不能假成功
     ('add_sensitive_rule', {'name': 'x', 'regular': ''}),
     ('update_sensitive_rule', {'id': NOPE, 'name': 'x', 'regular': 'y', 'state': True}),

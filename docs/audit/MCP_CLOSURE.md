@@ -23,6 +23,7 @@
 | `create_scan_policy` | `task:write` | 拒绝分支 / 写往返 | 建 ci-rt 临时策略 → REST policy/list 可见 → 删除 → 列表归零 |
 | `create_scan_task` | `task:write` | 拒绝分支 | 会真的建任务并触发扫描；sweep 只用非法/缺参验 schema，不制造扫描 |
 | `create_scan_template` | `template:write` | 拒绝分支 |  |
+| `create_scheduled_task` | `task:write` | 拒绝分支 / 写往返 | 建 it-mcp-sched（24h/allNode/启用）→ get_scheduled_task 读回 |
 | `delete_asset_groups` | `asset:write` | 拒绝分支 / 写往返 | confirm+dissolve 删除 → 组列表回到 0 |
 | `delete_dictionary` | `asset:write` | 拒绝分支 / 写往返 | 删除字典 → list_dictionaries 查不到（total=0） |
 | `delete_dictionary_entries` | `asset:write` | 拒绝分支 / 写往返 | 删 1 行 → preview 从 3 行变 2 行 |
@@ -32,6 +33,7 @@
 | `delete_nodes` | `node:write` | 拒绝分支 | 节点是扫描执行体，误删影响扫面；只验不存在的名字 |
 | `delete_port_dict_entries` | `asset:write` | 拒绝分支 / 写往返 | 上一条的清理步：confirm=true 按 id 删除后条数回到原值 |
 | `delete_scan_policies` | `task:write` | 拒绝分支 / 写往返 | 上一条的清理步：按 id 删除后 REST 列表归零（效果已复核） |
+| `delete_scheduled_tasks` | `task:write` | 拒绝分支 / 写往返 | 上一条的清理步：删除后详情读不到 |
 | `delete_sensitive_rules` | `template:write` | 拒绝分支 / 写往返 | 上一条的清理步：按 id 删除后检索归零 |
 | `delete_task` | `task:write` | 拒绝分支 |  |
 | `export_task_workbook` | `asset:write` | 拒绝分支 | 会生成 Excel 文件；只验非法入参 |
@@ -85,6 +87,7 @@
 | `reinstall_plugin` | `plugin:write` | 拒绝分支 |  |
 | `restart_node` | `node:write` | 拒绝分支 |  |
 | `resume_task_targets` | `task:write` | 拒绝分支 | 与 pause 成对，同一前置条件 |
+| `retest_task` | `task:write` | 拒绝分支 |  |
 | `run_scheduled_task` | `task:write` | 拒绝分支 | 会真的按计划任务配置产出一条扫描任务；sweep 只验不存在的 id（拒绝分支），成功路径由 REST 用例 TestScheduledTaskRunNow 覆盖 |
 | `search_assets` | `asset:read` | 读 |  |
 | `search_dictionary_lines` | `asset:read` | 拒绝分支 |  |
@@ -99,15 +102,16 @@
 | `triage_github_results` | `asset:write` | 拒绝分支 / 写往返 | UpsertHits 造一条 fixture → 研判 ignored → 按 ignored 筛到且 triagedBy=it-mcp |
 | `uninstall_plugin` | `plugin:write` | 拒绝分支 |  |
 | `update_fingerprint` | `template:write` | 拒绝分支 / 写往返 | 上一条里把 state 改成 false → 读回 false（全量更新漏传 state 会被工具拒绝） |
+| `update_scheduled_task` | `task:write` | 拒绝分支 / 写往返 | 上一条只改 name → 读回新名且 allNode/scheduledTasks 未被冲掉 |
 | `update_sensitive_rule` | `template:write` | 拒绝分支 / 写往返 | 上一条里把 state 改成 false → 读回 false（漏传 state 会被工具拒绝） |
 
 ## 汇总
 
 | 维度 | 数量 |
 | --- | --- |
-| 工具总数 | 94 |
+| 工具总数 | 98 |
 | 读路径验证 | 48 |
-| 拒绝分支验证 | 58 |
-| 写往返验证 | 21 |
+| 拒绝分支验证 | 62 |
+| 写往返验证 | 24 |
 | 仅前条件说明 | 0 |
 | 未归类 | 0 |

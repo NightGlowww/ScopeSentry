@@ -333,6 +333,23 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Description: "启用或停用计划任务。只改 scheduledTasks 开关，其余字段与周期保持不变；停用后不再触发新的扫描",
 	}, setScheduledTaskState)
 
+	// 周期任务的增删改：MCP 早就能列/看/跑/开关，唯独不能建改删 ——
+	// 自动化没法把「每天扫一遍这批目标」编排进去。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "create_scheduled_task",
+		Description: "新建计划任务（周期扫描）：name/target 必填，cycleType 默认 nhours；同名已存在时报错而不是建第二条",
+	}, createScheduledTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "update_scheduled_task",
+		Description: "修改计划任务：只传要改的字段（先读现状再合并，不会把 allNode/启用状态冲成 false），改完按新周期重排",
+	}, updateScheduledTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "delete_scheduled_tasks",
+		Description: "批量删除计划任务，返回真实删除条数（0 表示 id 都不存在）；不影响已产出的扫描任务",
+	}, deleteScheduledTasks)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "run_scheduled_task",
 		Description: "立即按当前配置运行一次计划任务（不等周期）。生成一条独立的扫描任务，周期与下次执行时间都不变；计划任务必须已配置扫描目标",
@@ -484,6 +501,11 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "stop_task",
 		Description: "暂停指定任务",
 	}, stopTask)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "retest_task",
+		Description: "按原任务配置重跑一条任务（REST retest 的 MCP 入口）：目标/模板/策略沿用原任务",
+	}, retestTask)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "delete_task",

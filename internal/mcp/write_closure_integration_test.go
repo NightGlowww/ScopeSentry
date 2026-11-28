@@ -407,6 +407,73 @@ func TestWriteToolClosure(t *testing.T) {
 		}
 	})
 
+	// 计划任务：建 → 读回 → 只改名（验证不会把 allNode/启用冲掉）→ 读回 → 删 → 确认消失。
+	// 这条同时守住一个真实坑：服务层 UpdateScheduledTask 对 AllNode/ScheduledTasks 是无条件覆盖，
+	// 所以 MCP 的 update 必须先读现状再合并；漏了这步，改个名字就会顺手把调度关掉。
+	t.Run("scheduled_task", func(t *testing.T) {
+		name := fmt.Sprintf("it-mcp-sched-%d", stamp)
+		var id string
+		t.Cleanup(func() {
+			if id != "" {
+				_, _ = cs.CallTool(context.Background(), &mcp.CallToolParams{
+					Name: "delete_scheduled_tasks", Arguments: map[string]any{"ids": []string{id}},
+				})
+			}
+		})
+
+		created := callJSON(t, cs, "create_scheduled_task", map[string]any{
+			"name": name, "target": "it-mcp-sched.example.com", "cycleType": "nhours",
+			"hour": 24, "allNode": true, "scheduledTasks": true,
+		})
+		id, _ = created["id"].(string)
+		if id == "" {
+			t.Fatalf("创建计划任务没有返回 id: %+v", created)
+		}
+
+		// 显式传 id：删除后要把 id 清空以便 cleanup 跳过，读回判定不能跟着丢失
+		readBack := func(probeID string) (n string, allNode, scheduled bool, found bool) {
+			text := callText(t, cs, "get_scheduled_task", map[string]any{"id": probeID})
+			var data struct {
+				Name           string `json:"name"`
+				AllNode        bool   `json:"allNode"`
+				ScheduledTasks bool   `json:"scheduledTasks"`
+			}
+			if err := json.Unmarshal([]byte(text), &data); err != nil {
+				return "", false, false, false
+			}
+			return data.Name, data.AllNode, data.ScheduledTasks, data.Name != ""
+		}
+		n, allNode, scheduled, found := readBack(id)
+		if !found || n != name || !allNode || !scheduled {
+			t.Fatalf("创建后读回不对: name=%q allNode=%v scheduled=%v found=%v", n, allNode, scheduled, found)
+		}
+
+		newName := name + "-renamed"
+		callJSON(t, cs, "update_scheduled_task", map[string]any{"id": id, "name": newName})
+		n, allNode, scheduled, found = readBack(id)
+		if !found || n != newName {
+			t.Fatalf("改名没落库: name=%q found=%v", n, found)
+		}
+		if !allNode || !scheduled {
+			t.Fatalf("只改名字却把配置冲掉了: allNode=%v scheduled=%v", allNode, scheduled)
+		}
+
+		del := callJSON(t, cs, "delete_scheduled_tasks", map[string]any{"ids": []string{id}})
+		if d, _ := del["deleted"].(float64); d < 1 {
+			t.Fatalf("删除未命中: %+v", del)
+		}
+		goneID := id
+		id = ""
+		// 删除后详情应当报错（或回空）。这里不能用 callText —— 它把错误直接判失败，
+		// 而「读不到」正是我们想要的结论。
+		res, callErr := cs.CallTool(context.Background(), &mcp.CallToolParams{
+			Name: "get_scheduled_task", Arguments: map[string]any{"id": goneID},
+		})
+		if callErr == nil && res != nil && !res.IsError {
+			t.Fatalf("删除后仍能读到该计划任务: %s", goneID)
+		}
+	})
+
 	// GitHub 研判：写一条 fixture 结果 → 研判为 ignored → 读回状态与研判人 → 按任务清理。
 	// 用 UpsertHits 造数据而不是走采集任务：采集会打 GitHub API，测试不该有外网副作用。
 	t.Run("github_triage", func(t *testing.T) {
