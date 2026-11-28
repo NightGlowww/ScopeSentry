@@ -188,7 +188,8 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'action',
     label: t('tableDemo.action'),
-    minWidth: 30,
+    // 220：三个按钮（Edit/Disable/Delete）实测要 187px，minWidth 30 会把 Delete 裁掉（prod 实测）
+    width: 220,
     formatter: (row, __: TableColumn, _: number) => {
       return (
         <>
