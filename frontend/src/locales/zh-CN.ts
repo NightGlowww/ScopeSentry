@@ -1057,6 +1057,7 @@ export default {
     rebalanceNeedTarget: '请选择目标节点',
     rebalanceDone: '已迁移 {n} 个任务',
     queueShort: '队列 {n}',
+    queueWithNuclei: '{n}（含 nuclei {k}）',
     cmdFailTip:
       '外部工具（子域/爬虫/目录扫描）非零退出 {total} 次，其中最近 10 分钟 {recent} 次。失败会静默减少资产产出。',
     cmdFail: '工具失败',

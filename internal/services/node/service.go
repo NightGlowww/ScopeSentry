@@ -148,6 +148,8 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 		// 队列长度：让界面能看出这个节点积压了多少任务
 		if q, qerr := s.nodeRepo.NodeQueueLen(ctx, nodeData.Name); qerr == nil {
 			nodeData.QueueLen = q
+			// 队列构成（含几条 nuclei）：逐条读队列不便宜，30 秒缓存一次
+			nodeData.QueueNuclei = s.queueNucleiCached(ctx, nodeData.Name)
 			// 排队多久：节点串行执行，队列长度 × 单任务实测均耗时就是壁钟估计。
 			// 只在有历史样本时给数，没有就不猜（0 = 未知）。
 			if q > 0 {
@@ -183,6 +185,36 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 	})
 
 	return result, nil
+}
+
+// queueNucleiCached 缓存每个节点的「队列里含 nuclei 的条数」。
+// 节点页几秒轮询一次，而扫队列要 LRANGE 全量载荷，没必要每次都做。
+type queueNucleiEntry struct {
+	at    time.Time
+	value int
+}
+
+var (
+	queueNucleiMu   sync.Mutex
+	queueNucleiSeen = map[string]queueNucleiEntry{}
+)
+
+func (s *service) queueNucleiCached(ctx context.Context, node string) int {
+	queueNucleiMu.Lock()
+	if e, ok := queueNucleiSeen[node]; ok && time.Since(e.at) < 30*time.Second {
+		queueNucleiMu.Unlock()
+		return e.value
+	}
+	queueNucleiMu.Unlock()
+
+	n, err := s.nodeRepo.NodeQueueNuclei(ctx, node)
+	if err != nil {
+		return 0
+	}
+	queueNucleiMu.Lock()
+	queueNucleiSeen[node] = queueNucleiEntry{at: time.Now(), value: n}
+	queueNucleiMu.Unlock()
+	return n
 }
 
 // updateNodeState 更新节点状态

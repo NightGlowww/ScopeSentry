@@ -30,6 +30,8 @@ type Repository interface {
 	GetNodePlugin(ctx context.Context, nodeName string) ([]models.NodePluginInfo, error)
 	// NodeQueueLen 节点待领取队列长度
 	NodeQueueLen(ctx context.Context, name string) (int64, error)
+	// NodeQueueNuclei 队列里含 nuclei 的任务数（判断「为什么等这么久」用）
+	NodeQueueNuclei(ctx context.Context, name string) (int, error)
 	// ClearNodeQueue 清空节点待领取队列
 	ClearNodeQueue(ctx context.Context, name string) (int64, error)
 	// MoveQueuedTasks 把待开始任务从一个节点的队列迁到另一个节点
@@ -327,6 +329,29 @@ func (r *repository) GetNodePlugin(ctx context.Context, nodeName string) ([]mode
 // NodeQueueLen 返回该节点待领取队列长度（NodeTask:<name>）。
 func (r *repository) NodeQueueLen(ctx context.Context, name string) (int64, error) {
 	return r.redisClient.LLen(ctx, "NodeTask:"+name).Result()
+}
+
+// nucleiTemplateHash 是 VulnerabilityScan 里 nuclei 插件的固定 hash。
+// 队列条目是提交时序列化的扫描载荷，含这个 hash 就说明这条任务会跑 nuclei。
+const nucleiTemplateHash = "ed93b8af6b72fe54a60efdb932cf6fbc"
+
+// NodeQueueNuclei 数队列里有多少条载荷含 nuclei。
+//
+// 为什么需要：队列长度只说「有几个在等」，回答不了「为什么这么久」——
+// nuclei 占单任务耗时约九成，6 个里 5 个含 nuclei 与全是 recon 档是完全不同的等待。
+// 逐条读队列做子串匹配，由调用方缓存（节点页几秒一次轮询，不适合每次都扫）。
+func (r *repository) NodeQueueNuclei(ctx context.Context, name string) (int, error) {
+	items, err := r.redisClient.LRange(ctx, "NodeTask:"+name, 0, -1).Result()
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, it := range items {
+		if strings.Contains(it, nucleiTemplateHash) {
+			n++
+		}
+	}
+	return n, nil
 }
 
 // ClearNodeQueue 清空该节点待领取队列，返回清掉的条数。

@@ -1082,6 +1082,7 @@ export default {
     rebalanceNeedTarget: '대상 노드를 선택하세요',
     rebalanceDone: '{n}개 작업을 이동했습니다',
     queueShort: '대기 {n}',
+    queueWithNuclei: '{n} (nuclei {k}건 포함)',
     cmdFailTip:
       '외부 도구(서브도메인/크롤러/디렉터리) 비정상 종료 {total}회, 최근 10분 {recent}회. 실패하면 자산 산출이 조용히 줄어듭니다.',
     cmdFail: '도구 실패',

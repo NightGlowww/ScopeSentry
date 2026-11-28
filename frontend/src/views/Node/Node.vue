@@ -248,7 +248,14 @@ const nodeColums = reactive<TableColumn[]>([
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 队列积压说明有任务在排队（节点一次只跑一个），>5 用警告色提示
       const v = cellValue || 0
-      const tag = h(ElTag, { type: v > 5 ? 'danger' : v > 0 ? 'warning' : 'info' }, () => v)
+      // 队列构成：nuclei 占单任务耗时约九成，「6 个在等」和「6 个里 5 个要跑 nuclei」是两种等待
+      const nuclei = Number(row.queueNuclei) || 0
+      const label = nuclei > 0 ? t('node.queueWithNuclei', { n: v, k: nuclei }) : String(v)
+      const tag = h(
+        ElTag,
+        { type: v > 5 ? 'danger' : v > 0 ? 'warning' : 'info' },
+        () => label
+      )
       // 「队列 5」看不出严重程度：按最近任务实测均耗时折算成还要等多久
       const eta = Number(row.queueEtaMin) || 0
       if (eta <= 0) return tag

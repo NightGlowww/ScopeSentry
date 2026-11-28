@@ -14,6 +14,9 @@ type NodeData struct {
 	ModulesConfig string `json:"modulesConfig"`
 	// QueueLen 该节点待领取的任务数（节点一次只跑一个，积压多说明排队严重）
 	QueueLen int64 `json:"queueLen"`
+	// QueueNuclei 队列里含 nuclei 的任务数：nuclei 占单任务耗时约九成，
+	// 「6 个在等」和「6 个里有 5 个要跑 nuclei」是两种完全不同的等待。
+	QueueNuclei int `json:"queueNuclei"`
 	// CmdFail 外部工具失败累计（ksubdomain/rad/katana 等非零退出次数）
 	CmdFail int64 `json:"cmdFail"`
 	// CmdFail10m 最近 10 分钟内的工具失败次数：判断"这批任务产出可不可信"用它

@@ -1090,6 +1090,7 @@ export default {
     rebalanceNeedTarget: 'Pick a target node first',
     rebalanceDone: 'Moved {n} task(s)',
     queueShort: 'queue {n}',
+    queueWithNuclei: '{n} ({k} with nuclei)',
     cmdFailTip:
       'External tools (subdomain/crawler/dirscan) exited non-zero {total} times, {recent} in last 10 min. Failures silently reduce asset output.',
     cmdFail: 'Tool failures',
