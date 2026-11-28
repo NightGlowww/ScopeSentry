@@ -206,3 +206,45 @@ plugin-management 「编辑」抽屉: class="el-drawer rtl open"，computed tran
 ```
 
 即抽屉「停在屏幕右侧之外」是后台渲染伪象，不是产品缺陷，故未记入。同理，任何 `el-dropdown / tooltip / drawer` 的 **位置** 不可作为证据；本报告所有结论均来自布局盒度量（flex/absolute 定位）与命中测试，不依赖 transform 终态。
+
+## 2026-11-28 浏览器实测复检（Agent Bridge 在线上页面跑 ui_layout_audit.js）
+
+验证方式：用 Agent Bridge 打开线上 `http://100.115.186.92:8082`，真实登录（表单填用户名密码点 Sign in），
+然后在 `#/dashboard/index`、`#/asset-information/index`、`#/task-management/ScanTask`、
+`#/login` 上求值 `ui_layout_audit.js`，并补充做了元素级探针（`elementFromPoint`、逐级算有效 opacity/visibility、
+`el-loading-mask` 全量枚举）。
+
+### 修掉的两个真问题
+
+**1) 卡在离场过渡里的 loading 遮罩会吃掉整页点击（严重）**
+
+快速切页/切 tab 时 Element Plus 的 loading 离场过渡会被打断，元素停在
+`.el-loading-mask.el-loading-fade-leave-active`，计算样式 `opacity: 0`。关键点：
+**`opacity: 0` 的元素仍然接收指针事件**，所以 `elementFromPoint` 命中的是遮罩而不是表格 ——
+页面看着完全正常，点哪都没反应，只能刷新。连切 5 个页面后实测 8 个遮罩全部卡住，
+其中 6 个覆盖整个内容区（1611×905）。
+
+修法（`src/styles/index.less`）：离场中的遮罩 `pointer-events: none`。
+数据已经加载完才会进入离场，这时不该再拦鼠标。
+验证：修复后构造一个「卡住的遮罩」，计算样式 `pointer-events: none`、`elementFromPoint` 不再命中它；
+修复前同样的构造是 `auto` 且命中。
+
+**2) 登录页占位符没走 i18n**
+
+用户名/密码框显示表单的通用兜底 `Please input`，而 `locales` 里
+`login.usernamePlaceholder`（请输入用户名 / Please input username）、
+`passwordPlaceholder` 中英双语早就写好了，表单从来没引用过。
+现在绑上，实测英文站显示 `Please input username` / `Please input password`。
+
+### 审计脚本本身的三类假阳（一起修了）
+
+| 症状 | 原因 | 修法 |
+| --- | --- | --- |
+| `node scripts/ci/ui_layout_audit.js` 抛 `ReferenceError: document is not defined` | 这是浏览器脚本，被当成 node 脚本用过 | 无 `document` 时打印用法并正常退出 |
+| 刚切页就量，跑出 6 条 `wrapped`，4 秒后同页 0 条 | loading 期间是占位尺寸 | 有可见 `.el-loading-mask` 时直接返回 `loading: true` |
+| 登录页表单被判「工具栏换行」 | `el-row` 里 24+24+24+24 本来就该竖排 | 各列 `span` 之和 > 24 时跳过；`position: fixed` 的遮罩 `offsetParent` 恒为 null，改用 rect 判断 |
+
+新增检查项 `stuck-mask`：把「opacity≈0 但仍吃点击」这个状态做成可重复检测（构造用例可稳定命中）。
+
+复检结果：`#/login` 0 条、`#/dashboard/index` 0 条、`#/asset-information/index` 0 条、
+`#/task-management/ScanTask` 0 条。

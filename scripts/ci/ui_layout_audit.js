@@ -10,6 +10,7 @@
 //   wrapped     同一工具栏里的控件被挤到第二行 —— 注意用「顶边 > 第一行最大底边」判定，
 //               不能只看 top 是否相等：同一行里按钮/输入框高度不同，top 天然不一致（会假阳性）
 //   zero-btn    可点击元素被压成 0 尺寸（span/width 组合写错时的典型症状）
+//   stuck-mask  卡在离场过渡里的 el-loading 遮罩（opacity:0 但仍吃点击 → 整页点不动）
 //
 // 踩过的坑（2026-11-28）：任务页筛选栏曾被挤成两行，改了三种写法都没生效 ——
 //   span 无效（CSS 已把 .el-col 覆盖成 flex:0 0 auto）、scoped 类被同权重规则压住、
@@ -35,11 +36,34 @@
   for (const row of document.querySelectorAll('.task-filters, .task-toolbar, .mb-10px, .el-row')) {
     const kids = [...row.children].filter((k) => k.offsetParent);
     if (kids.length < 3) continue;
+    // el-row 里各列 span 之和 > 24 表示这一行本来就该折行（登录表单 24+24+24+24 就是），
+    // 不是缺陷。只有「本来就该排一行」却折了才算。span 读不出来时按旧逻辑判。
+    if (row.classList.contains('el-row')) {
+      const spans = kids.map((k) => {
+        const m = String(k.className).match(/\bel-col-(\d+)\b/)
+        return m ? Number(m[1]) : null
+      })
+      if (spans.every((v) => v !== null) && spans.reduce((a, b) => a + b, 0) > 24) continue
+    }
     const rects = kids.map((k) => k.getBoundingClientRect());
     const minTop = Math.min(...rects.map((r) => r.top));
     const tallest = Math.max(...rects.map((r) => r.height));
     if (rects.some((r) => r.top > minTop + tallest + 4)) {
       issues.push({ kind: 'wrapped', sel: String(row.className).slice(0, 40), spread: Math.round(Math.max(...rects.map((r) => r.bottom)) - minTop) });
+    }
+  }
+  // 卡在离场过渡里的 loading 遮罩：opacity 已经是 0，元素却还在吃指针事件，
+  // 于是「页面看着正常、点哪都没反应」。用 elementFromPoint 判定，别只看 opacity。
+  for (const m of document.querySelectorAll('.el-loading-mask')) {
+    const cs = getComputedStyle(m)
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue
+    if (parseFloat(cs.opacity || '1') > 0.02) continue
+    // 注意：position:fixed 的元素 offsetParent 恒为 null，别用它判可见
+    const r = m.getBoundingClientRect()
+    if (r.width < 8 || r.height < 8) continue
+    const hit = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2))
+    if (hit && hit.closest && hit.closest('.el-loading-mask') === m) {
+      issues.push({ kind: 'stuck-mask', sel: String(m.className).slice(0, 50), w: Math.round(r.width), h: Math.round(r.height) })
     }
   }
   for (const b of document.querySelectorAll('button, .el-button')) {
