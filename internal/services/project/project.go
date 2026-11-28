@@ -399,6 +399,11 @@ func (s *service) UpdateProject(ctx *gin.Context, p *models.UpdateProject) error
 	rawTarget := p.Target
 	p.Target = ""
 	if err := s.projectRepo.UpdateProject(ctx, p); err != nil {
+		// 项目不存在时不要再往下走：以前 repo 吞掉 MatchedCount=0，service 会继续
+		// UpsertProjectTarget 并起 goroutine 重算资产数（对着一个不存在的项目）。
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return ErrProjectNotFound
+		}
 		return err
 	}
 

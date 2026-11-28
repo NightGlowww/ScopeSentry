@@ -298,8 +298,16 @@ func (r *repository) UpdateProject(ctx context.Context, p *models.UpdateProject)
 	}
 
 	filter := bson.M{"_id": objID}
-	_, err = r.collection.UpdateOne(ctx, filter, bson.M{"$set": p})
-	return err
+	res, err := r.collection.UpdateOne(ctx, filter, bson.M{"$set": p})
+	if err != nil {
+		return err
+	}
+	// 匹配 0 条不是成功：以前这里直接 return err（nil），于是「改一个不存在的项目」
+	// 回 200 success，后续还照样去 Upsert 目标并起 goroutine（2026-11-28 线上实测）。
+	if res.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
 }
 
 func (r *repository) DeleteProjectAsset(ctx context.Context, ids []string) error {

@@ -69,10 +69,12 @@ func (r *repository) RuleUpdate(ctx context.Context, id primitive.ObjectID, upda
 
 func (r *repository) RuleUpdateStateMany(ctx context.Context, ids []primitive.ObjectID, state bool) (int64, error) {
 	res, err := r.RuleCollection.UpdateMany(ctx, bson.M{"_id": bson.M{"$in": ids}}, bson.M{"$set": bson.M{"state": state}})
+	// 用 MatchedCount 而不是 ModifiedCount：规则本来就是这个状态时 ModifiedCount=0，
+	// 但它确实存在。调用方要回答的是「这些 id 有没有命中」，不是「字段值变没变」。
 	if err != nil {
 		return 0, err
 	}
-	return res.ModifiedCount, nil
+	return res.MatchedCount, nil
 }
 
 func (r *repository) RuleDeleteMany(ctx context.Context, ids []primitive.ObjectID) (int64, error) {

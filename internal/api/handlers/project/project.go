@@ -149,6 +149,11 @@ func UpdatePorject(c *gin.Context) {
 			response.BadRequest(c, "api.project.name_exists", nil)
 			return
 		}
+		if errors.Is(err, project.ErrProjectNotFound) {
+			// 改一个不存在的项目以前回 200 success（repo 吞掉了 MatchedCount=0）
+			response.NotFound(c, "api.not_found", nil)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

@@ -100,11 +100,17 @@ func UpdateState(c *gin.Context) {
 		response.BadRequest(c, "api.bad_request", err)
 		return
 	}
-	if _, err := getSensitiveService().RuleUpdateState(c, req.IDs, req.State); err != nil {
+	matched, err := getSensitiveService().RuleUpdateState(c, req.IDs, req.State)
+	if err != nil {
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
-	response.Success(c, nil, "api.success")
+	if matched == 0 {
+		// 这些 id 一个都不存在时以前回 200：界面显示「已停用」，规则其实没动（2026-11-28 线上实测）
+		response.NotFound(c, "api.not_found", nil)
+		return
+	}
+	response.Success(c, gin.H{"updated": matched}, "api.success")
 }
 
 // Delete 批量删除

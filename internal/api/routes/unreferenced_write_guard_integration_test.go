@@ -48,6 +48,8 @@ func TestUnreferencedWriteGuards(t *testing.T) {
 		{"project/delete 不存在 id", "/api/project/delete", map[string]interface{}{"ids": []string{nope}}},
 		{"sensitive/delete 不存在 id", "/api/sensitive/delete", map[string]interface{}{"ids": []string{nope}}},
 		{"fingerprint/delete 不存在 id", "/api/fingerprint/delete", map[string]interface{}{"ids": []string{nope}}},
+		{"project/update 不存在的 id", "/api/project/update", map[string]interface{}{"id": nope, "name": "no-such-project-r74"}},
+		{"sensitive/update/state 不存在的 id", "/api/sensitive/update/state", map[string]interface{}{"ids": []string{nope}, "state": false}},
 		{"plugin/delete 不存在的插件", "/api/plugin/delete", map[string]interface{}{"data": []map[string]string{{"hash": "no-such-hash-r73", "module": "TargetHandler"}}}},
 	}
 
