@@ -232,7 +232,20 @@ func (s *service) GetTypeStatistics(ctx *gin.Context, query *models.SearchReques
 }
 
 func (s *service) GetIconStatistics(ctx *gin.Context, query *models.SearchRequest) (*models.IconStatisticsResponse, error) {
-	skip := (query.PageIndex - 1) * query.PageSize
+	// 分页参数必须在这里补默认值：$limit 收到 0 会被 Mongo 直接拒（the limit must be positive），
+	// 而调用方（MCP 工具、只想看 TopN 的前端面板）通常不会传 pageSize —— 之前这条链路整条 500。
+	pageSize := query.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+	pageIndex := query.PageIndex
+	if pageIndex <= 0 {
+		pageIndex = 1
+	}
+	skip := (pageIndex - 1) * pageSize
 	searchQuery, err := s.assetService.BuildSearchQuery(*query)
 	if err != nil {
 		return nil, err
@@ -257,7 +270,7 @@ func (s *service) GetIconStatistics(ctx *gin.Context, query *models.SearchReques
 		}},
 		{"$sort": bson.M{"number": -1}},
 		{"$skip": skip},
-		{"$limit": query.PageSize},
+		{"$limit": pageSize},
 	}
 
 	// 返回 *mongo.Cursor
