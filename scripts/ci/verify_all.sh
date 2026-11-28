@@ -49,5 +49,7 @@ else
   printf '  SKIP %-18s 需要 SS_BASE + SS_TOKEN\n' column_field
 fi
 
+printf '  SKIP %-18s 需要真实 Mongo/Redis：bash scripts/ci/integration.sh\n' integration
+
 if [ "$FAIL" = "0" ]; then echo 'VERIFY_ALL=PASS'; else echo 'VERIFY_ALL=FAIL'; fi
 exit $FAIL

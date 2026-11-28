@@ -290,7 +290,7 @@ func TestIcpServiceSyncScope(t *testing.T) {
 		t.Fatalf("create scope: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := groupSvc.DeleteScopes(context.Background(), []string{scopeID}); err != nil {
+		if _, err := groupSvc.DeleteScopes(context.Background(), []string{scopeID}); err != nil {
 			t.Logf("cleanup scope %s: %v", scopeID, err)
 		}
 	})

@@ -237,6 +237,10 @@ func TestIcpRoutesGuardsAndFlow(t *testing.T) {
 	}
 
 	// ---------- 5) restart + 状态轮询 ----------
+	// 建任务会立刻拉起后台 goroutine；本地库毫秒级就进 running，此时 restart 被 ErrTaskBusy 拒掉是**正确行为**。
+	// 这条断言以前是时序相关的假失败（这套集成测试此前编译都不过，所以没人跑到过）——2026-11-28 本地 Mongo/Redis 实测。
+	// 先 stop 把任务落到可重启状态；已经在跑或已经结束时 stop 也可能报错，这里不校验它的返回。
+	do(http.MethodPost, "/api/icp/task/stop", map[string]interface{}{"ids": []string{taskID}}, true)
 	if w := do(http.MethodPost, "/api/icp/task/restart", map[string]interface{}{"taskId": taskID}, true); w.Code != http.StatusOK {
 		t.Fatalf("restart = %d: %s", w.Code, w.Body.String())
 	}
@@ -355,7 +359,7 @@ func TestIcpRoutesGuardsAndFlow(t *testing.T) {
 		t.Fatalf("sync 响应缺少 scopeId: %v", syncData)
 	}
 	t.Cleanup(func() {
-		if err := assetgroup.NewService().DeleteScopes(context.Background(), []string{scopeID}); err != nil {
+		if _, err := assetgroup.NewService().DeleteScopes(context.Background(), []string{scopeID}); err != nil {
 			t.Logf("cleanup scope %s: %v", scopeID, err)
 		}
 	})

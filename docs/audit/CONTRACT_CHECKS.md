@@ -270,3 +270,31 @@ scope_drift / mcp_closure）+ `go build` + `go vet`；`column_field` 需要线�
 本轮结果：zh/en 各 **2201** 个 key 且**集合完全一致**；437 个文件引用 1623 个 key；
 真实缺失 **0**（只有 `views/Components/` 下 26 个未挂路由的 demo 页、以及 `task.module.` 这个
 `t('task.module.' + key)` 动态前缀）。
+
+## API 集成测试（integration.sh）
+
+```bash
+bash scripts/ci/integration.sh     # 需要真实 Mongo + Redis，末行 INTEGRATION=PASS/FAIL
+```
+
+2026-11-28 之前这套测试**根本跑不起来**，两个原因都真实存在：
+
+1. `//go:build integration` 的包编译不过：`assetgroup.Service.DeleteScopes` 早就改成返回 `(int64, error)`，
+   而 `icp_routes_integration_test.go` 与 `services/icp/icp_integration_test.go` 还按单返回值调用
+   → `go vet -tags integration ./...` 直接报错，等于整套集成测试（含 314 条路由的清单守卫）不存在。
+2. 就算编译过，`SetupRouter()` 会触发 bootstrap 连接 Mongo/Redis，连不上就 `log.Fatalf`，
+   所以「路由清单守卫不需要数据库」这句注释是过时的。
+
+修完之后（本地起 mongo:7 + redis:7 容器实测）：
+
+| 项 | 结果 |
+| --- | --- |
+| 路由总数 | **314**（其中 `/api` 下 313） |
+| 集成用例 | **23 个全绿**（`--- PASS` 计数 23，整包 `ok`） |
+| 修复的用例 | `TestIcpRoutesGuardsAndFlow`：建任务后后台 goroutine 立刻进 running，此时 `restart` 返回 400 `icp task is running` 是**正确行为**；用例改成先 stop 再 restart，消除时序假失败 |
+
+覆盖到的面：登录与鉴权白名单、路由清单、用户管理（含最后一个超管保护）、策略 CRUD/apply/test、
+MCP 治理端到端、导出、ICP 全流程、GitHub 流转、FOFA、资产组、读模型、项目聚合、字典索引与回填、
+以及一批「新接口守卫」（未认证、坏 ObjectID、超长文案、空筛选的全量删除保护等）。
+
+每次跑用独立数据库（`ss_it_<时间戳>`），不污染任何既有库。
