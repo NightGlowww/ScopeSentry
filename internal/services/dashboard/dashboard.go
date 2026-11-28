@@ -20,6 +20,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	"github.com/Autumn-27/ScopeSentry/internal/repositories/dashboard"
+	project "github.com/Autumn-27/ScopeSentry/internal/repositories/project"
 	"github.com/Autumn-27/ScopeSentry/internal/services/node"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/sysinfo"
@@ -36,6 +37,13 @@ const (
 
 // ErrInvalidDays 趋势窗口只允许 7 / 30（handler 已用 binding 拦过，这里是内部兜底）
 var ErrInvalidDays = errors.New("dashboard: days must be 7 or 30")
+
+// ErrProjectNotFound 传入的项目标识（ID 或名称）在库里不存在。
+//
+// 以前不校验：asset.project 存的是项目 ObjectID 字符串，传项目**名称**时条件永远不命中，
+// 于是仪表盘返回全 0 且 code=200——调用方（尤其是自动化 / MCP）会据此断言
+// 「这个项目没有资产」，实际只是标识写错了（2026-11-29 实测）。
+var ErrProjectNotFound = errors.New("dashboard: project not found")
 
 // Service 仪表盘读模型服务
 type Service interface {
@@ -54,12 +62,40 @@ type Service interface {
 }
 
 type service struct {
-	repo dashboard.Repository
+	repo        dashboard.Repository
+	projectRepo project.Repository
 }
 
 // NewService 创建仪表盘服务实例
 func NewService() Service {
-	return &service{repo: dashboard.NewRepository()}
+	return &service{
+		repo:        dashboard.NewRepository(),
+		projectRepo: project.NewRepository(),
+	}
+}
+
+// resolveProject 把「项目 ID 或项目名称」规范成资产集合里 project 字段的真实取值。
+//
+// 空字符串 = 全库（保持原语义）。三种标识写法都要工作，否则就是一次静默的假成功：
+// 传 ObjectID、传名称、名称写错（后者必须报错，不能回全 0）。
+func (s *service) resolveProject(ctx context.Context, idOrName string) (string, error) {
+	if idOrName == "" {
+		return "", nil
+	}
+	if s.projectRepo != nil {
+		if p, err := s.projectRepo.FindByID(ctx, idOrName); err != nil {
+			return "", err
+		} else if p != nil && !p.ID.IsZero() {
+			return p.ID.Hex(), nil
+		}
+		if p, err := s.projectRepo.FindByName(ctx, idOrName); err != nil {
+			return "", err
+		} else if p != nil && !p.ID.IsZero() {
+			return p.ID.Hex(), nil
+		}
+		return "", fmt.Errorf("%w: %s", ErrProjectNotFound, idOrName)
+	}
+	return idOrName, nil
 }
 
 // Stats 七类总量。
@@ -68,7 +104,11 @@ func NewService() Service {
 // 跨机房（Mongo 与应用不在同一台机）时 9 次串行往返会明显拖慢首屏。
 func (s *service) Stats(ctx context.Context, req models.DashboardStatsRequest) (*models.DashboardStats, error) {
 	project := strings.TrimSpace(req.Project)
-	base := bsonProjectFilter(project)
+	resolved, err := s.resolveProject(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+	base := bsonProjectFilter(resolved)
 
 	out := &models.DashboardStats{Project: project, GeneratedAt: helper.FormatTime(time.Now())}
 
@@ -162,7 +202,11 @@ func (s *service) Trend(ctx context.Context, req models.DashboardTrendRequest) (
 	endStr := today.Format("2006-01-02") + " 23:59:59"
 
 	project := strings.TrimSpace(req.Project)
-	base := bsonProjectFilter(project)
+	resolved, err := s.resolveProject(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+	base := bsonProjectFilter(resolved)
 
 	var (
 		wg       sync.WaitGroup

@@ -51,6 +51,11 @@ func Stats(c *gin.Context) {
 
 	result, err := dashboardService.Stats(c.Request.Context(), req)
 	if err != nil {
+		// 项目标识写错必须明说：回 200 + 全 0 会让调用方以为「这个项目没有资产」
+		if errors.Is(err, dashboardservice.ErrProjectNotFound) {
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}
@@ -80,6 +85,10 @@ func Trend(c *gin.Context) {
 
 	result, err := dashboardService.Trend(c.Request.Context(), req)
 	if err != nil {
+		if errors.Is(err, dashboardservice.ErrProjectNotFound) {
+			response.NotFound(c, "api.not_found", err)
+			return
+		}
 		response.InternalServerError(c, "api.error", err)
 		return
 	}

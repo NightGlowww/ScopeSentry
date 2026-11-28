@@ -18,6 +18,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/database/redis"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -32,7 +33,16 @@ func TestDashboardAndConsoleRoutes(t *testing.T) {
 	token := seedUserAndLogin(t, router)
 
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
-	project := "proj-dash-routes-" + suffix
+	// 仪表盘现在会校验项目标识（id 或名称），未知标识回 404 而不是静默全 0。
+	// 所以夹具必须有一个真实项目：资产的 project 字段存它的 ObjectID 十六进制。
+	projOID := primitive.NewObjectID()
+	project := projOID.Hex()
+	projectColl := mongodb.DB.Collection("project")
+	if _, err := projectColl.InsertOne(context.Background(), bson.M{
+		"_id": projOID, "name": "proj-dash-routes-" + suffix, "tag": "it",
+	}); err != nil {
+		t.Fatalf("seed project: %v", err)
+	}
 
 	// 日期用与 dashboard 相同的口径（配置时区）算，避免跨零点跑测试时日期漂
 	now := helper.GetNowTime()
@@ -49,6 +59,7 @@ func TestDashboardAndConsoleRoutes(t *testing.T) {
 	urlColl := mongodb.DB.Collection("UrlScan")
 	sensColl := mongodb.DB.Collection("SensitiveResult")
 	t.Cleanup(func() {
+		_, _ = projectColl.DeleteOne(context.Background(), bson.M{"_id": projOID})
 		filter := bson.M{"project": project}
 		_, _ = assetColl.DeleteMany(context.Background(), filter)
 		_, _ = vulnColl.DeleteMany(context.Background(), filter)
