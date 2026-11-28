@@ -10,7 +10,8 @@ import {
   ElTableColumn,
   ElTag,
   ElDescriptions,
-  ElDescriptionsItem
+  ElDescriptionsItem,
+  ElMessage
 } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
@@ -43,6 +44,30 @@ const load = async () => {
 // 2026-11-28 实测 SensitiveBody 18.3GB / 1.9 万条，其余集合加起来不到 1GB。
 type StorageCol = { name: string; bytes: number; docs: number }
 const storage = ref<{ total: number; collections: StorageCol[]; collectedAt: string } | null>(null)
+// 瘦身试算（dry-run，limit=0 = 一次聚合统计全量；实测 18.8k 条约 26 秒）
+const slimLoading = ref(false)
+const slimResult = ref<{ wouldTrim: number; reclaimBytes: number; durationMs: number } | null>(null)
+const estimateSlim = async () => {
+  slimLoading.value = true
+  try {
+    const res: any = await request.post({
+      url: '/api/system/storage/slim',
+      data: { collection: 'SensitiveBody', limit: 0 }
+    })
+    const d = res?.data
+    if (d) {
+      slimResult.value = {
+        wouldTrim: Number(d.wouldTrim || 0),
+        reclaimBytes: Number(d.reclaimBytes || 0),
+        durationMs: Number(d.durationMs || 0)
+      }
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    slimLoading.value = false
+  }
+}
 const loadStorage = async () => {
   try {
     const res: any = await request.get({ url: '/api/system/storage' })
@@ -199,6 +224,17 @@ onMounted(() => {
         <span v-if="storage" class="hint" style="margin-left: 8px">
           {{ t('storageSummary', { total: mb(storage.total) }) }}
         </span>
+        <!-- 大字段瘦身只做「试算」：真跑是不可逆操作，留在接口层 + confirm 门禁，
+             不放进页面按钮里，避免误点。 -->
+        <ElButton
+          class="slim-btn"
+          size="small"
+          :loading="slimLoading"
+          :title="t('slimHint')"
+          @click="estimateSlim"
+        >
+          {{ t('slimEstimate') }}
+        </ElButton>
       </template>
       <ElTable v-if="storage?.collections?.length" :data="storage.collections" size="small">
         <ElTableColumn prop="name" :label="t('colCollection')" min-width="180" />
@@ -210,12 +246,27 @@ onMounted(() => {
         </ElTableColumn>
         <ElTableColumn prop="docs" :label="t('colDocs')" width="120" />
       </ElTable>
+      <div v-if="slimResult" class="hint slim-result">
+        {{
+          t('slimResult', {
+            n: slimResult.wouldTrim,
+            reclaim: mb(slimResult.reclaimBytes),
+            seconds: (slimResult.durationMs / 1000).toFixed(1)
+          })
+        }}
+      </div>
       <div v-else class="hint">{{ t('noData') }}</div>
     </ElCard>
   </ContentWrap>
 </template>
 
 <style scoped>
+.slim-btn {
+  float: right;
+}
+.slim-result {
+  margin-top: 8px;
+}
 .mb-12px {
   margin-bottom: 12px;
 }

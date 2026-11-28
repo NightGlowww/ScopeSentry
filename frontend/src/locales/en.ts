@@ -2376,6 +2376,9 @@ export default {
     uptimeSeconds: 'Uptime (seconds)',
     collectedTime: 'Collected at',
     storageUsage: 'Storage usage',
+  slimEstimate: 'Estimate reclaimable space',
+  slimHint: 'Dry run only: nothing is modified; executing requires the API with confirm=SLIM',
+  slimResult: 'SensitiveBody: {n} docs exceed 64KB, about {reclaim} reclaimable (dry run took {seconds}s)',
     storageSummary:
       '{total} in total; backup size and duration are driven by the largest collection',
     colCollection: 'Collection',
