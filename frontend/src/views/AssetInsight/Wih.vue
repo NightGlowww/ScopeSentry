@@ -98,12 +98,20 @@ const detail = ref<WihRow | null>(null)
 const body = ref('')
 const bodyLoaded = ref(false)
 const bodyLoading = ref(false)
+// 正文可能很大：后端默认只回前 2MB；存量瘦身后库里可能只保留了一部分，
+// 这两种情况都要提示，否则用户以为拿到的是完整响应体。
+const bodyTruncated = ref(false)
+const bodySlimmed = ref(false)
+const bodyTotalMB = ref(0)
 
 const openDetail = async (row: WihRow) => {
   drawerVisible.value = true
   detail.value = row
   body.value = ''
   bodyLoaded.value = false
+  bodyTruncated.value = false
+  bodySlimmed.value = false
+  bodyTotalMB.value = 0
   detailLoading.value = true
   try {
     const res = await getWihDetailApi(row.id)
@@ -120,8 +128,11 @@ const loadBody = async () => {
   if (!bodyId) return
   bodyLoading.value = true
   try {
-    const res = await getSensitiveResultBodyApi(bodyId)
+    const res: any = await getSensitiveResultBodyApi(bodyId)
     body.value = res?.data?.body ?? ''
+    bodyTruncated.value = !!res?.data?.truncated
+    bodySlimmed.value = !!res?.data?.storedTruncated
+    bodyTotalMB.value = Number(res?.data?.totalBytes || 0) / (1024 * 1024)
     bodyLoaded.value = true
   } finally {
     bodyLoading.value = false
@@ -256,6 +267,12 @@ const detailTypeTagProps = computed(() => {
             >
               {{ t('wih.loadBody') }}
             </ElButton>
+          </div>
+          <div v-if="bodyLoaded && bodySlimmed" class="hint" style="margin-bottom: 8px">
+            {{ t('asset.bodySlimmed', { mb: bodyTotalMB.toFixed(1) }) }}
+          </div>
+          <div v-else-if="bodyLoaded && bodyTruncated" class="hint" style="margin-bottom: 8px">
+            {{ t('asset.bodyTruncated', { mb: bodyTotalMB.toFixed(1) }) }}
           </div>
           <pre v-if="bodyLoaded" class="detail-block__code">{{ body }}</pre>
           <ElText v-else-if="!detail.bodyId" type="info">{{ t('wih.bodyEmpty') }}</ElText>

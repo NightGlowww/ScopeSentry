@@ -1347,6 +1347,7 @@ export default {
     filterTask: '任务：{list}',
     filterProject: '项目：{n} 个',
     bodyTruncated: '正文较大，仅显示前 2MB（原始 {mb} MB）',
+    bodySlimmed: '数据库只保留了正文的一部分（原始 {mb} MB，存量瘦身所致）',
     filterApplied: '已应用筛选：',
     clearFilters: '清空筛选',
     llmNoId: '这条记录没有 id，无法判定',

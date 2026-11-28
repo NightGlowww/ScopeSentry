@@ -1390,6 +1390,7 @@ export default {
     filterTask: 'Task: {list}',
     filterProject: 'Project: {n}',
     bodyTruncated: 'The body is large; only the first 2 MB is shown ({mb} MB in total)',
+    bodySlimmed: 'Only part of the body is kept in storage (original {mb} MB; trimmed by the storage slimming policy)',
     filterApplied: 'Filters applied:',
     clearFilters: 'Clear filters',
     llmNoId: 'This record has no id, so it cannot be judged',

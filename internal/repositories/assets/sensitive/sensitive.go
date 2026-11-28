@@ -18,6 +18,9 @@ type Repository interface {
 	Aggregate(ctx context.Context, pipeline mongo.Pipeline) ([]models.SensitiveInfo, error)
 	AggregateRaw(ctx context.Context, pipeline mongo.Pipeline) ([]bson.M, error)
 	FindBodyByMD5(ctx context.Context, md5 string) (string, error)
+	// FindBodyMetaByMD5 同时返回「原始长度」与「存量是否已被瘦身截断」，
+	// 否则瘦身之后读侧会把 64KB 当成原始长度，看起来像是响应体本来就这么短。
+	FindBodyMetaByMD5(ctx context.Context, md5 string) (body string, origLen int64, storedTruncated bool, err error)
 	// FindMD5ByResultID 按 SensitiveResult 的 _id 取它对应的 md5
 	FindMD5ByResultID(ctx context.Context, id primitive.ObjectID) (string, error)
 	AggregateSIDStat(ctx context.Context, pipeline mongo.Pipeline) ([]models.SensitiveSIDStat, error)
@@ -90,6 +93,23 @@ func (r *repository) AggregateRaw(ctx context.Context, pipeline mongo.Pipeline) 
 		return nil, err
 	}
 	return results, nil
+}
+
+// FindBodyMetaByMD5 读正文 + 存量截断元信息（bodyLen / bodyTruncated）。
+func (r *repository) FindBodyMetaByMD5(ctx context.Context, md5 string) (string, int64, bool, error) {
+	var result struct {
+		Body          string `bson:"body"`
+		BodyLen       int64  `bson:"bodyLen"`
+		BodyTruncated bool   `bson:"bodyTruncated"`
+	}
+	err := r.BodyCollection.FindOne(ctx, bson.M{"md5": md5}).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return "", 0, false, nil
+		}
+		return "", 0, false, fmt.Errorf("failed to find content: %w", err)
+	}
+	return result.Body, result.BodyLen, result.BodyTruncated, nil
 }
 
 func (r *repository) FindBodyByMD5(ctx context.Context, md5 string) (string, error) {

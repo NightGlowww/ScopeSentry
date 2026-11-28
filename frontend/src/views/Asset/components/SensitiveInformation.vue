@@ -504,6 +504,9 @@ const DialogVisible = ref(false)
 const body = ref('')
 // 正文可能很大（实测最长 5.9MB、平均 1MB）：后端默认只回前 2MB 并标注是否截断
 const bodyTruncated = ref(false)
+// 库里存的正文本身被存量瘦身截断（文档见 docs/audit/STORAGE_SLIMMING.md），
+// 与「按 maxBytes 截断」是两件事，提示要分开，否则用户以为调大上限就能看全。
+const bodySlimmed = ref(false)
 const bodyTotalMB = ref(0)
 const action = async (id) => {
   // 以前这里写了 id.replace('md5==', '')，但返回值被丢掉（空操作）；
@@ -511,6 +514,7 @@ const action = async (id) => {
   const res: any = await getSensitiveResultBodyApi(id)
   body.value = res?.data?.body ?? ''
   bodyTruncated.value = !!res?.data?.truncated
+  bodySlimmed.value = !!res?.data?.storedTruncated
   bodyTotalMB.value = Number(res?.data?.totalBytes || 0) / (1024 * 1024)
   DialogVisible.value = true
 }
@@ -735,7 +739,10 @@ const drawerAggregationData = computed<SensitiveAggregation[]>(() => {
     :max-height="maxHeight"
   >
     <ElScrollbar :max-height="maxHeight">
-      <div v-if="bodyTruncated" class="hint" style="margin-bottom: 8px">
+      <div v-if="bodySlimmed" class="hint" style="margin-bottom: 8px">
+        {{ t('asset.bodySlimmed', { mb: bodyTotalMB.toFixed(1) }) }}
+      </div>
+      <div v-else-if="bodyTruncated" class="hint" style="margin-bottom: 8px">
         {{ t('asset.bodyTruncated', { mb: bodyTotalMB.toFixed(1) }) }}
       </div>
       <div :style="{ whiteSpace: 'pre-line' }">{{ body }}</div>

@@ -1380,6 +1380,7 @@ export default {
     filterTask: '작업: {list}',
     filterProject: '프로젝트: {n}개',
     bodyTruncated: '본문이 커서 앞 2MB만 표시합니다 (원본 {mb} MB)',
+    bodySlimmed: '저장소에는 본문 일부만 보관됩니다 (원본 {mb} MB, 저장소 슬리밍 정책)',
     filterApplied: '적용된 필터:',
     clearFilters: '필터 지우기',
     llmNoId: '이 레코드에는 id가 없어 판정할 수 없습니다',

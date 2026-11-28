@@ -81,6 +81,8 @@ type GetSensitiveBodyResponse struct {
 	// TotalBytes 是原始正文长度；Truncated=true 表示只返回了前 MaxBytes 字节
 	TotalBytes int  `json:"totalBytes"`
 	Truncated  bool `json:"truncated"`
+	// StoredTruncated=true 表示库里存的正文本身已被存量瘦身截断（原始长度见 TotalBytes）
+	StoredTruncated bool `json:"storedTruncated"`
 }
 
 type SensitiveSIDStat struct {

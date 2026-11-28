@@ -3,9 +3,9 @@ package sensitive
 import (
 	"context"
 	"errors"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"strings"
 	"unicode/utf8"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/Autumn-27/ScopeSentry/internal/utils/helper"
 	"github.com/gin-gonic/gin"
@@ -22,7 +22,9 @@ type Service interface {
 	GetSensitiveInfoNumber(ctx context.Context, query models.SearchRequest) (int64, int64, error)
 	// GetBodyByID 取正文：id 支持 md5 / "md5==<md5>" / SensitiveResult 的 _id；
 	// maxBytes>0 时只返回前 maxBytes 字节，并回原始长度与是否截断。
-	GetBodyByID(ctx *gin.Context, id string, maxBytes int) (body string, total int, truncated bool, err error)
+	// storedTruncated 表示库里存的正文本身已被瘦身截断（bodyTruncated），
+	// 与「我们按 maxBytes 截了」是两件事，前端要分别提示。
+	GetBodyByID(ctx *gin.Context, id string, maxBytes int) (body string, total int, truncated bool, storedTruncated bool, err error)
 	GetSIDStatistics(ctx *gin.Context, query models.SearchRequest) ([]models.SensitiveSIDStat, error)
 	GetMatchInfo(ctx *gin.Context, req models.SearchRequest) (*models.MatchListResponse, error)
 }
@@ -188,47 +190,55 @@ func (s *service) GetSensitiveInfoNumber(ctx context.Context, query models.Searc
 const defaultBodyMaxBytes = 2 << 20
 const hardBodyMaxBytes = 8 << 20
 
-func (s *service) GetBodyByID(ctx *gin.Context, id string, maxBytes int) (string, int, bool, error) {
+func (s *service) GetBodyByID(ctx *gin.Context, id string, maxBytes int) (string, int, bool, bool, error) {
 	key := strings.TrimSpace(id)
 	key = strings.TrimPrefix(key, "md5==")
 	key = strings.TrimPrefix(key, "md5:")
 
 	// 列表行给的是 SensitiveResult 的 ObjectID，正文表按 md5 存 —— 先试着当 md5，
 	// 不中再当 _id 翻译一次。之前只当 md5 用，前端传 ObjectID 时永远「content not found」。
-	content, err := s.repo.FindBodyByMD5(ctx, key)
+	content, origLen, storedTruncated, err := s.repo.FindBodyMetaByMD5(ctx, key)
 	if err != nil {
-		return "", 0, false, err
+		return "", 0, false, false, err
 	}
 	if content == "" {
 		if oid, perr := primitive.ObjectIDFromHex(key); perr == nil {
 			if md5, merr := s.repo.FindMD5ByResultID(ctx.Request.Context(), oid); merr == nil && md5 != "" {
-				content, err = s.repo.FindBodyByMD5(ctx, md5)
+				content, origLen, storedTruncated, err = s.repo.FindBodyMetaByMD5(ctx, md5)
 				if err != nil {
-					return "", 0, false, err
+					return "", 0, false, false, err
 				}
 			}
 		}
 	}
 	if content == "" {
-		return "", 0, false, ErrContentNotFound
+		return "", 0, false, false, ErrContentNotFound
 	}
 
-	total := len(content)
+	// 原始长度优先用 bodyLen（存量瘦身前的字节数）：瘦身后的正文只有 64KB，
+	// 用 len(content) 会把「原始 1MB」谎报成 64KB。bodyTruncated 额外暴露给调用方，
+	// 让前端能区分「我们按 maxBytes 截了」和「库里存的本来就不完整」。
+	storedLen := len(content)
+	total := storedLen
+	if storedTruncated && origLen > 0 {
+		total = int(origLen)
+	}
 	if maxBytes <= 0 {
 		maxBytes = defaultBodyMaxBytes
 	}
 	if maxBytes > hardBodyMaxBytes {
 		maxBytes = hardBodyMaxBytes
 	}
-	if total > maxBytes {
+	if storedLen > maxBytes {
 		cut := content[:maxBytes]
 		// 别把多字节字符切断
 		for len(cut) > 0 && !utf8.ValidString(cut) {
 			cut = cut[:len(cut)-1]
 		}
-		return cut, total, true, nil
+		return cut, total, true, storedTruncated, nil
 	}
-	return content, total, false, nil
+	// 正文完整返回，但库里存的本身可能已被瘦身截断 → 仍然标记 truncated
+	return content, total, storedTruncated, storedTruncated, nil
 }
 
 func (s *service) GetSIDStatistics(ctx *gin.Context, query models.SearchRequest) ([]models.SensitiveSIDStat, error) {

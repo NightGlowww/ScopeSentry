@@ -96,7 +96,7 @@ func GetSensitiveInfoBody(c *gin.Context) {
 		return
 	}
 
-	body, total, truncated, err := sensitiveService.GetBodyByID(c, query.ID, query.MaxBytes)
+	body, total, truncated, storedTruncated, err := sensitiveService.GetBodyByID(c, query.ID, query.MaxBytes)
 	if err != nil {
 		if errors.Is(err, sensitive.ErrContentNotFound) {
 			// 找不到正文是「这条记录没有正文」，不是服务端故障（以前一律 500）
@@ -112,6 +112,9 @@ func GetSensitiveInfoBody(c *gin.Context) {
 		"body":       body,
 		"totalBytes": total,
 		"truncated":  truncated,
+		// 库里存的正文本身已被瘦身截断（详见 docs/audit/STORAGE_SLIMMING.md），
+		// 与「响应按 maxBytes 截断」区分开，前端要提示「原始 X KB，仅保留前 64KB」
+		"storedTruncated": storedTruncated,
 	}, "api.success")
 }
 
