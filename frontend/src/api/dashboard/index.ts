@@ -45,3 +45,17 @@ export interface DashboardStats {
 
 export const getDashboardStatsApi = (): Promise<IResponse<DashboardStats>> =>
   request.post({ url: '/api/dashboard/stats', data: {} })
+export interface DashboardTrend {
+  days: number
+  timezone: string
+  start: string
+  end: string
+  labels: string[]
+  assets: number[]
+  vulns: number[]
+}
+
+// 按天趋势：仪表盘只调过 /stats，这个接口一直没人用（ui_api_closure 里挂着例外）。
+// 资产与漏洞两条序列一起返回，画图不必再聚合。
+export const getDashboardTrendApi = (days = 7): Promise<IResponse<DashboardTrend>> =>
+  request.post({ url: '/api/dashboard/trend', data: { days } })

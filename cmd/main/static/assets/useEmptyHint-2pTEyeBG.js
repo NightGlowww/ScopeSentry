@@ -1,0 +1,1 @@
+import{a as t}from"./index-1Cmj6w4s.js";import{q as s}from"./vendor-DcxeDOcd.js";const m=m=>{const{t:r}=t();return s(()=>{const t=(m.value||"").trim(),s=/task\s*==\s*"([^"]+)"/.exec(t),a=/domain\s*==\s*"([^"]+)"/.exec(t);return s?r("smartEmpty.task",{v:s[1]}):a?r("smartEmpty.domain",{v:a[1]}):r(t?"smartEmpty.filtered":"common.noData")})};export{m as u};

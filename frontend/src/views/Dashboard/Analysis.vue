@@ -24,6 +24,7 @@ import { getNodeDataApi } from '@/api/node'
 import { getTaskDataApi } from '@/api/task'
 import { useI18n } from '@/hooks/web/useI18n'
 import { UPDATEsYSTEMApi, getVersionDataApi } from '@/api/dashboard/analysis'
+import { getDashboardTrendApi, type DashboardTrend } from '@/api/dashboard'
 import { checkKeyApi } from '@/api/plugins'
 import { useVisibleInterval } from '@/hooks/web/useVisibleInterval'
 import { useSingleTabLeader } from '@/hooks/web/useSingleTabLeader'
@@ -32,6 +33,22 @@ const { t } = useI18n()
 
 // 服务端自身健康：负载/内存/磁盘。之前这些只在 /healthz 里，界面上看不到——
 // 宿主被别的容器吃满 CPU 时（load 19/4 核），服务端会被拖到探活失败还无人察觉（2026-11-20）。
+// 近 7 天产出趋势：接口一直有、界面一直没接。/stats 只给「现在有多少」，
+// 看不出「这几天还在不在产出」——而后者才是判断扫描是否卡住的第一眼信号。
+const trend = ref<DashboardTrend | null>(null)
+const trendMax = computed(() => {
+  const t = trend.value
+  if (!t) return 0
+  return Math.max(1, ...t.assets.map((n, i) => Math.max(n, t.vulns[i] || 0)))
+})
+const loadTrend = async () => {
+  try {
+    trend.value = (await getDashboardTrendApi(7)).data
+  } catch {
+    trend.value = null
+  }
+}
+
 const serverHealth = ref<any>(null)
 const loadServerHealth = async () => {
   try {
@@ -67,7 +84,10 @@ loadServerHealth()
 // 每 30 秒刷新：健康是要"盯"的指标，进来一次就不动等于没有
 useVisibleInterval(() => {
   loadServerHealth()
+  void loadTrend()
 }, 30000)
+// 趋势首屏取一次；30 秒轮询里再刷新（按天统计，刷太快没意义）
+void loadTrend()
 
 const nodeColumns = reactive<TableColumn[]>([
   {
@@ -436,6 +456,36 @@ async function handleSubmit() {
 
 <template>
   <PanelGroup />
+  <!-- 近 7 天产出：/stats 只说「现在有多少」，这一条回答「这几天还在不在产出」 -->
+  <ElCard v-if="trend && trend.labels.length" shadow="never" class="mb-12px trend-card">
+    <div class="trend-head">
+      <span class="trend-title">{{ t('dashboard.trendTitle') }}</span>
+      <ElTag size="small" effect="plain" type="primary">{{ t('dashboard.trendAssets') }}</ElTag>
+      <ElTag size="small" effect="plain" type="danger">{{ t('dashboard.trendVulns') }}</ElTag>
+      <span class="trend-range">{{ trend.start.slice(0, 10) }} → {{ trend.end.slice(0, 10) }}</span>
+    </div>
+    <div class="trend-body">
+      <ElTooltip v-for="(label, i) in trend.labels" :key="label" placement="top">
+        <template #content>
+          {{ label }} · {{ t('dashboard.trendAssets') }} {{ trend.assets[i] || 0 }} ·
+          {{ t('dashboard.trendVulns') }} {{ trend.vulns[i] || 0 }}
+        </template>
+        <div class="trend-col">
+          <div class="trend-bars">
+            <div
+              class="trend-fill is-asset"
+              :style="{ height: Math.max(2, Math.round(((trend.assets[i] || 0) / trendMax) * 48)) + 'px' }"
+            />
+            <div
+              class="trend-fill is-vuln"
+              :style="{ height: Math.max(2, Math.round(((trend.vulns[i] || 0) / trendMax) * 48)) + 'px' }"
+            />
+          </div>
+          <span class="trend-label">{{ label.slice(5) }}</span>
+        </div>
+      </ElTooltip>
+    </div>
+  </ElCard>
   <ElCard v-if="serverHealth" shadow="never" class="mb-12px server-health">
     <div class="server-health__row">
       <span class="server-health__title">{{ t('dashboard.serverHealth') }}</span>
@@ -621,6 +671,57 @@ async function handleSubmit() {
 </template>
 
 <style scoped>
+.trend-card :deep(.el-card__body) {
+  padding: 12px 16px;
+}
+.trend-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.trend-title {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+.trend-range {
+  margin-left: auto;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+.trend-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.trend-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+}
+.trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 48px;
+}
+.trend-fill {
+  width: 10px;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+}
+.trend-fill.is-asset {
+  background: var(--el-color-primary);
+}
+.trend-fill.is-vuln {
+  background: var(--el-color-danger);
+}
+.trend-label {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
 .server-health__row {
   display: flex;
   align-items: center;
