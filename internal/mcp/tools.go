@@ -667,15 +667,45 @@ func warnUnregisteredTools(names []string) {
 		logger.Error("mcp: tools missing from mcpguard.ToolScopes (restricted keys will be denied)",
 			zap.Int("count", len(missing)), zap.Strings("tools", missing))
 	})
+	// 注册期被 schema 校验挡下来的工具：对客户端表现为 unknown tool，
+	// 不单独报一条的话只能从「工具数少了」自己发现
+	warnSkippedOnce.Do(func() {
+		skippedToolsMu.Lock()
+		dropped := make([]string, 0, len(skippedTools))
+		for n := range skippedTools {
+			dropped = append(dropped, n)
+		}
+		skippedToolsMu.Unlock()
+		if len(dropped) == 0 {
+			return
+		}
+		sort.Strings(dropped)
+		logger.Error("mcp: tools declared but NOT registered (invalid schema; clients see unknown tool)",
+			zap.Int("count", len(dropped)), zap.Strings("tools", dropped))
+	})
 }
 
 var warnUnregisteredOnce sync.Once
+
+// warnSkippedOnce 只报一次被跳过的工具清单
+var warnSkippedOnce sync.Once
 
 // addTool 统一注册入口。
 //
 // 两个职责：
 //  1. 登记工具名（names），供 ToolNames() 做「治理表 vs 实际工具」漂移测试；
 //  2. allowedTools 非 nil 时只注册集合内的工具，让 tools/list 与治理策略一致。
+//
+// 注册期被跳过的工具名：会记录到 skippedTools，由 warnUnregisteredTools 汇总上报。
+// 单独留着的理由：只记一行 ERROR 的话，工具从 tools/list 里消失这件事对客户端完全不可见
+// （2026-11-28 实测：list_tasks 因为 tag 里写了 “空=全部” 被整条跳过，客户端只看到 unknown tool）。
+var (
+	skippedToolsMu sync.Mutex
+	// 用 map 去重：Stateless 模式下每个请求都会新建 server 并重新注册一遍工具，
+	// 用 slice 记录会按请求数量级膨胀（同 warnUnregisteredTools 早期那 98199 行日志的坑）。
+	skippedTools = map[string]struct{}{}
+)
+
 func addTool[In, Out any](server *mcp.Server, allowedTools map[string]bool, names *[]string, tool *mcp.Tool, handler mcp.ToolHandlerFor[In, Out]) {
 	*names = append(*names, tool.Name)
 	if allowedTools != nil && !allowedTools[tool.Name] {
@@ -686,6 +716,9 @@ func addTool[In, Out any](server *mcp.Server, allowedTools map[string]bool, name
 	// 坏的那个跳过并记错误，其余工具照常可用。
 	defer func() {
 		if r := recover(); r != nil {
+			skippedToolsMu.Lock()
+			skippedTools[tool.Name] = struct{}{}
+			skippedToolsMu.Unlock()
 			logger.Error("mcp: tool registration skipped (invalid schema)",
 				zap.String("tool", tool.Name), zap.Any("panic", r))
 		}
@@ -836,8 +869,8 @@ type listTasksInput struct {
 	PageSize  int    `json:"pageSize,omitempty" jsonschema:"每页条数，默认 20"`
 	// 产出口径（对齐 ARL-Next 1.5.2）：回答「哪些任务真的扫出了东西 / 哪些白跑了一趟」
 	BindProject string   `json:"bindProject,omitempty" jsonschema:"按归属项目 ObjectID 过滤（list_projects 获取）"`
-	AssetYield  string   `json:"assetYield,omitempty" jsonschema:"产出口径：has_asset 有产出 / no_asset 终态且无产出；空=全部"`
-	AssetTypes  []string `json:"assetTypes,omitempty" jsonschema:"产出维度：site/domain/url/ip/vuln/wih；空=全部。不支持的维度直接报错"`
+	AssetYield  string   `json:"assetYield,omitempty" jsonschema:"产出口径：has_asset 有产出 / no_asset 终态且无产出；留空表示不过滤"`
+	AssetTypes  []string `json:"assetTypes,omitempty" jsonschema:"产出维度（site/domain/url/ip/vuln/wih）；留空表示全部维度。不支持的维度会直接报错"`
 }
 
 func listTasks(ctx context.Context, _ *mcp.CallToolRequest, input listTasksInput) (*mcp.CallToolResult, any, error) {

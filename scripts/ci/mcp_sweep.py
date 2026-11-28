@@ -139,7 +139,23 @@ def coverage(read_list, guard_list):
     print('工具总数 %d，已覆盖 %d，未覆盖 %d' % (len(names), len(names) - len(missing), len(missing)))
     for n in missing:
         print('  未覆盖:', n)
-    if missing:
+
+    # 注册期静默丢工具：源码里 addTool 了，但 tools/list 里没有。
+    # 服务端对单个工具的 schema 非法会 recover 掉只记日志，客户端完全看不出来——
+    # 2026-11-28 实测：一个 jsonschema tag 里写了 “空=全部”，list_tasks 整条工具就消失了。
+    source_missing = []
+    tools_go = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'internal', 'mcp', 'tools.go')
+    if os.path.exists(tools_go):
+        import re
+        src = open(tools_go, encoding='utf-8', errors='ignore').read()
+        declared = set(re.findall(r'addTool\(server, allowedTools, &names, &mcp\.Tool\{\s*Name:\s*"([a-z0-9_]+)"', src, re.S))
+        served = set(names)
+        source_missing = sorted(declared - served)
+        print('源码声明 %d，服务端实际 %d' % (len(declared), len(served)))
+        for n in source_missing:
+            print('  声明了但没注册（schema 非法被跳过？）:', n)
+
+    if missing or source_missing:
         print('MCP_COVERAGE=FAIL')
         return 1
     print('MCP_COVERAGE=PASS')
