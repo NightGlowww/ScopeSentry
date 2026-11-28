@@ -30,6 +30,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/root_domain"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/sensitive"
 	statfingersvc "github.com/Autumn-27/ScopeSentry/internal/services/assets/statfinger"
+	statisticssvc "github.com/Autumn-27/ScopeSentry/internal/services/assets/statistics"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/subdomain"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/url"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/vulnerability"
@@ -94,6 +95,8 @@ type deps struct {
 	exportService        export.Service
 	// 备份只读面：Agent 至少要能回答「最近一次备份成没成」
 	backupService backup.Service
+	// 资产分布统计（端口/服务/应用/标题/图标 TopN）：只读聚合，UI 有、MCP 一直没有
+	statisticsService statisticssvc.Service
 	// 资产组 / 地契（asset_group + asset_scope，ARL-Next 资产模型）
 	assetGroupService assetgroup.Service
 	// ICP 主体任务（company → domain → asset 链路的入口）
@@ -215,6 +218,7 @@ var d = &deps{
 	exportService:        export.NewService(),
 	backupService:        backup.NewService(),
 	assetGroupService:    assetgroup.NewService(),
+	statisticsService:    statisticssvc.NewService(),
 	// icp 服务是进程内单例（与 HTTP handler 共用），构造只建仓库句柄，不碰库
 	icpService:        icp.DefaultService(),
 	nucleiService:     nucleiresultsvc.NewService(),
@@ -355,6 +359,11 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "count_assets",
 		Description: countAssetsToolDesc,
 	}, countAssets)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "asset_distribution",
+		Description: "资产分布 TopN：按端口/服务/应用/标题/图标统计资产数量，支持与 list_assets 相同的 search 与 filter。回答「哪些端口/服务/标题占主导」",
+	}, assetDistribution)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "get_asset_detail",
@@ -1300,6 +1309,114 @@ type listAssetsInput struct {
 	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，与 search 可组合。filter.project 为项目 ObjectID（list_projects 获取）；filter.task 为任务名称；statuscode/port/length 可传数字或数字字符串"`
 	Sort             map[string]string   `json:"sort,omitempty" jsonschema:"排序。仅 UrlScan/DirScanResult 支持 length：ascending 升序，其他值降序"`
 	Sid              string              `json:"sid,omitempty" jsonschema:"敏感信息规则名称，仅 asset_type 为 SensitiveResult 时有效"`
+}
+
+type assetDistributionInput struct {
+	Dimension        string              `json:"dimension" jsonschema:"统计维度，必填：port / service / app / title / icon"`
+	SearchExpression string              `json:"search,omitempty" jsonschema:"搜索表达式，语法同 list_assets"`
+	Filter           map[string][]string `json:"filter,omitempty" jsonschema:"精确过滤 JSON，语法同 list_assets；filter.project 为项目 ObjectID"`
+	Limit            int                 `json:"limit,omitempty" jsonschema:"返回前 N 项，默认 20，最多 200"`
+}
+
+// assetDistribution 资产分布 TopN。
+//
+// REST 侧是 5 个端点（/api/assets/statistics/{port,service,app,title,icon}），
+// 返回结构各不相同（Port/Service/App/Title/Icon 各包一层）。MCP 侧统一成
+// [{value, count, iconHash?}]，Agent 不用为每个维度记一套字段名。
+func assetDistribution(ctx context.Context, _ *mcp.CallToolRequest, input assetDistributionInput) (*mcp.CallToolResult, any, error) {
+	dim := strings.ToLower(strings.TrimSpace(input.Dimension))
+	if dim == "" {
+		return errorResult("dimension 不能为空（port/service/app/title/icon）", nil)
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	query := models.SearchRequest{Index: "asset", SearchExpression: input.SearchExpression}
+	if len(input.Filter) > 0 {
+		query.Filter = mcpFilterValues(input.Filter)
+	}
+	c := ginContext(ctx)
+
+	type bucket struct {
+		Value    string `json:"value"`
+		Count    int64  `json:"count"`
+		IconHash string `json:"iconHash,omitempty"`
+	}
+	out := make([]bucket, 0, limit)
+	total := 0
+
+	switch dim {
+	case "port":
+		res, err := d.statisticsService.GetPortStatistics(c, &query)
+		if err != nil {
+			return errorResult("端口统计失败", err)
+		}
+		total = len(res.Port)
+		for _, it := range res.Port {
+			if len(out) >= limit {
+				break
+			}
+			out = append(out, bucket{Value: it.Value, Count: it.Number})
+		}
+	case "service":
+		res, err := d.statisticsService.GetTypeStatistics(c, &query)
+		if err != nil {
+			return errorResult("服务统计失败", err)
+		}
+		total = len(res.Service)
+		for _, it := range res.Service {
+			if len(out) >= limit {
+				break
+			}
+			out = append(out, bucket{Value: it.Value, Count: it.Number})
+		}
+	case "app":
+		res, err := d.statisticsService.GetAppStatistics(c, &query)
+		if err != nil {
+			return errorResult("应用统计失败", err)
+		}
+		// 注意字段名是 Product（应用=产品指纹），不是 App
+		total = len(res.Product)
+		for _, it := range res.Product {
+			if len(out) >= limit {
+				break
+			}
+			out = append(out, bucket{Value: it.Value, Count: it.Number})
+		}
+	case "title":
+		res, err := d.statisticsService.GetTitleStatistics(c, &query)
+		if err != nil {
+			return errorResult("标题统计失败", err)
+		}
+		total = len(res.Title)
+		for _, it := range res.Title {
+			if len(out) >= limit {
+				break
+			}
+			out = append(out, bucket{Value: it.Value, Count: it.Number})
+		}
+	case "icon":
+		res, err := d.statisticsService.GetIconStatistics(c, &query)
+		if err != nil {
+			return errorResult("图标统计失败", err)
+		}
+		total = len(res.Icon)
+		for _, it := range res.Icon {
+			if len(out) >= limit {
+				break
+			}
+			// 图标内容是 base64，几百 KB：列表只给 hash 和数量，取原图走 get_asset_detail
+			out = append(out, bucket{Value: it.IconHash, Count: it.Number, IconHash: it.IconHash})
+		}
+	default:
+		return errorResult("dimension 只能是 port/service/app/title/icon", nil)
+	}
+
+	return jsonToolResult(ginH{"dimension": dim, "limit": limit, "buckets": total, "list": out})
 }
 
 type countAssetsInput struct {

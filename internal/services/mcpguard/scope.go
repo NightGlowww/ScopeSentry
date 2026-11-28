@@ -72,9 +72,10 @@ var ToolScopes = map[string]string{
 	"list_assets":              ScopeAssetRead,
 	// 情报是资产库的只读派生视图（技术栈 + 版本 + CVE 适用性），复用 asset:read。
 	// 不登记的话会被「未登记工具默认拒绝」挡掉——只有持 * 的 key 能调（2026-11-25 实测）。
-	"intel_for_assets": ScopeAssetRead,
-	"count_assets":     ScopeAssetRead,
-	"get_asset_detail": ScopeAssetRead,
+	"intel_for_assets":   ScopeAssetRead,
+	"count_assets":       ScopeAssetRead,
+	"asset_distribution": ScopeAssetRead,
+	"get_asset_detail":   ScopeAssetRead,
 	// 三个聚合视图也是资产库的只读派生（一次回答「这个目标/这家企业有什么」），
 	// 长期漏登记：持受限 scope 的 key 调它们会被默认拒绝，而 * key 又看不出问题，
 	// 直到翻生产日志才发现（2026-11-28 实测 98199 行告警）。

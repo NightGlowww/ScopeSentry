@@ -169,6 +169,12 @@ def main():
     # (工具名, 参数, 期望)  期望: ok / err / rpc_err
     READ = [
         ('count_assets', {'asset_type': 'asset'}),
+        # 资产分布 TopN（端口/服务/应用/标题/图标）：只读聚合，之前只能回 UI 看
+        ('asset_distribution', {'dimension': 'port', 'limit': 5}),
+        ('asset_distribution', {'dimension': 'service', 'limit': 5}),
+        ('asset_distribution', {'dimension': 'app', 'limit': 5}),
+        ('asset_distribution', {'dimension': 'title', 'limit': 5}),
+        ('asset_distribution', {'dimension': 'icon', 'limit': 3}),
         ('get_console_info', {}),
         ('get_dashboard_stats', {}),
         ('get_export_fields', {'index': 'asset'}),
@@ -260,6 +266,9 @@ def main():
         ('get_scan_template', {'id': NOPE}),
         ('get_asset_detail', {'asset_type': 'asset', 'id': NOPE}),
         ('count_assets', {'asset_type': 'nope'}),
+        # 未知维度必须报错，不能返回全量（否则「按端口看分布」会拿到一堆无关数据）
+        ('asset_distribution', {'dimension': 'nope'}),
+        ('asset_distribution', {'dimension': ''}),
         ('list_assets', {'asset_type': 'nope'}),
         # 字典/插件：字典不存在要报错（不能静默返回空），插件不存在要报错（不能假成功）。
         ('search_dictionary_lines', {'kind': 'port', 'name': '__nope__', 'keyword': '80'}),
