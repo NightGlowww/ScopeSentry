@@ -332,19 +332,40 @@ const handleCopyKey = () => {
 }
 
 const handleDelete = async (row: { id: string; name: string }) => {
-  await ElMessageBox.confirm(t('apiKey.deleteConfirm', { name: row.name }), t('common.reminder'), {
-    confirmButtonText: t('common.ok'),
-    cancelButtonText: t('common.cancel'),
-    type: 'warning'
-  })
-  const res = await deleteMcpKeyApi(row.id)
-  ElMessage.success(deleteResultMessage(res, 1))
-  getList()
+  try {
+    await ElMessageBox.confirm(t('apiKey.deleteConfirm', { name: row.name }), t('common.reminder'), {
+      confirmButtonText: t('common.ok'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    })
+  } catch {
+    // 用户点取消：ElMessageBox 以 reject 表达，别当成失败弹错误
+    return
+  }
+  try {
+    const res = await deleteMcpKeyApi(row.id)
+    ElMessage.success(deleteResultMessage(res, 1))
+  } catch (e: any) {
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    // 无论成败都对齐服务端：删失败多半是这条已经在别处没了，界面不能继续留着它
+    getList()
+  }
 }
 
 const handleToggle = async (row: { id: string; name: string; enabled: boolean }) => {
-  await setMcpKeyStatusApi(row.id, !row.enabled)
-  getList()
+  const next = !row.enabled
+  const stateLabel = next ? t('apiKey.enabled') : t('apiKey.disabled')
+  try {
+    await setMcpKeyStatusApi(row.id, next)
+    ElMessage.success(t('apiKey.statusChanged', { name: row.name, state: stateLabel }))
+  } catch (e: any) {
+    // 以前这里没有任何分支：接口报错（比如这条 key 已不存在）时按钮点下去毫无反应，
+    // 只有控制台里一条 unhandled rejection，界面上永远停在旧状态。
+    ElMessage.error(e?.message || t('common.operateFailed'))
+  } finally {
+    getList()
+  }
 }
 
 const closeKeyDialog = () => {

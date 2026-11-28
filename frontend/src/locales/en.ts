@@ -1666,6 +1666,7 @@ export default {
     status: 'Status',
     enabled: 'Enabled',
     disabled: 'Disabled',
+    statusChanged: '{name} is now {state}',
     namePlaceholder: 'Enter API Key name, e.g. Cursor MCP',
     keyShowOnce: 'Copy and save this key now. It will not be shown again.',
     fullKey: 'Full Key',

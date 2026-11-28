@@ -1626,6 +1626,7 @@ export default {
     status: '상태',
     enabled: '활성화',
     disabled: '비활성화',
+    statusChanged: '{name}이(가) {state}되었습니다',
     namePlaceholder: 'API Key 이름을 입력하세요. 예: Cursor MCP',
     keyShowOnce: '지금 키를 복사하여 보관하세요. 키는 다시 표시되지 않습니다.',
     fullKey: '전체 키',

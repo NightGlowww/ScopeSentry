@@ -1620,6 +1620,7 @@ export default {
     status: '状态',
     enabled: '启用',
     disabled: '禁用',
+    statusChanged: '「{name}」已{state}',
     namePlaceholder: '请输入 API Key 名称，如 Cursor MCP',
     keyShowOnce: '请立即复制保存，关闭后将无法再次查看完整 Key',
     fullKey: '完整 Key',
