@@ -109,8 +109,15 @@
     }
   }
   // 有文字却看不见：卡在进场过渡第一帧（scaleX(0)/opacity:0）或被 opacity 压掉。
-  // 只看 offsetParent 非空（真在布局里）的元素，避免把隐藏 tab 里的内容当问题报。
-  for (const el of document.querySelectorAll('.el-tag, .el-button, .el-alert, .hint, .target-tag')) {
+  //
+  // 只在 document.visibilityState === 'visible' 时判：后台标签页（含 Agent Bridge 的常驻后台 tab）
+  // 里 requestAnimationFrame 不跑，进场过渡就永久停在 scaleX(0)，量出来「全部隐形」——
+  // 那是测量环境的问题，不是页面问题（2026-11-29 踩过：威胁情报页误报 10 条）。
+  const canJudgePaint = document.visibilityState === 'visible'
+  if (!canJudgePaint) {
+    issues.push({ kind: 'skipped-invisible', detail: 'document.hidden=true，绘制类判定跳过' })
+  }
+  for (const el of canJudgePaint ? document.querySelectorAll('.el-tag, .el-button, .el-alert, .hint, .target-tag') : []) {
     if (!el.offsetParent) continue;
     const text = (el.innerText || '').trim();
     if (!text) continue;

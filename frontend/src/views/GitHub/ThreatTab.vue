@@ -228,10 +228,10 @@ onMounted(async () => {
           <ElButton type="primary" @click="addTarget(item.kind)">{{ t('btnAdd') }}</ElButton>
         </div>
         <div class="target-list">
-          <!-- disable-transitions 不是装饰：这些标签挂载时所在的 tab 是 display:none，
-               进场过渡的 rAF 在隐藏面板里不会跑，el-zoom-in-center-enter-from 会永久留在
-               元素上（scaleX(0) + opacity 0）—— 结果就是「已有目标一个都看不见，还点不到 ×」
-               （2026-11-29 实测：切到威胁情报页，10 个标签全是 0 宽不可见）。 -->
+          <!-- disable-transitions：这些标签在 tab 面板 display:none 时就已挂载，进场过渡的第一帧
+               （el-zoom-in-center-enter-from = scaleX(0) + opacity 0）要等 rAF 推进才被移除。
+               正常前台会自愈，但在后台标签页/无渲染的截图环境里 rAF 不跑，量出来就是「标签全隐形」，
+               布局体检与截图都会假报。关掉过渡让渲染与测量都确定，代价只是没有那 0.3s 缩放动画。 -->
           <ElTag
             v-for="tag in targets[item.kind]"
             :key="tag"
