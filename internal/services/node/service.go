@@ -108,8 +108,16 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 	timeout := NodeTimeout()
 
 	result := make([]models.NodeData, 0, len(nodes))
+	// 上下线通知：和存活判定共用同一次计算，避免出现「列表说离线、通知说在线」两套口径
+	aliveNow := make(map[string]bool, len(nodes))
+	aliveDetail := make(map[string]string, len(nodes))
 	for _, nodeData := range nodes {
 		lv := ClassifyLiveness(nodeData.State, nodeData.UpdateTime, now, loc, timeout)
+		aliveNow[nodeData.Name] = lv.Alive
+		if !lv.Alive && strings.TrimSpace(nodeData.UpdateTime) != "" {
+			aliveDetail[nodeData.Name] = fmt.Sprintf("最后心跳 %s（超过 %s 未更新）",
+				nodeData.UpdateTime, lv.TimeDiff.Round(time.Minute).String())
+		}
 		switch {
 		case lv.ParseFailed:
 			logger.Warn("Node heartbeat timestamp unparsable, keeping node",
@@ -166,6 +174,9 @@ func (s *service) GetNodeData(ctx context.Context, online bool) ([]models.NodeDa
 		}
 		result = append(result, nodeData)
 	}
+
+	// 观测完一轮再判上下线：列表页与节点领取任务都会调这里，变化才发通知（内部去重）
+	observeLiveness(aliveNow, aliveDetail)
 
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Name < result[j].Name
