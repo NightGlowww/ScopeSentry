@@ -65,7 +65,8 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'name',
     label: t('node.nodeName'),
-    minWidth: 180
+    minWidth: 160,
+    fixed: 'left'
   },
   {
     field: 'maxTaskNum',
@@ -84,17 +85,40 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'running',
     label: t('node.taskCount'),
-    width: 110,
-    formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
-      return h(
-        ElTag,
-        {
-          round: true,
-          effect: 'plain',
-          hit: true
-        },
-        () => cellValue
-      )
+    minWidth: 230,
+    formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
+      const tag = h(ElTag, { round: true, effect: 'plain', hit: true }, () => cellValue)
+      // 「在线 + 队列 6」看不出队列为什么不动：把此刻在跑的模块和「多久没产出」摆出来。
+      // 没有这段，只能登服务器翻 Redis 才知道节点卡在哪个模块上（2026-11-29）。
+      // 放在这一列而不是单开一列：列一多，右侧的 Action（含重启）就被挤出视口。
+      const name = String(row.currentTaskName || '')
+      if (!name) {
+        return h('div', { class: 'node-task-cell' }, [
+          tag,
+          h('div', { class: 'node-task-none' }, t('node.currentTaskNone'))
+        ])
+      }
+      const idle = Number(row.idleMinutes) || 0
+      const stalled = Boolean(row.stalled)
+      const mod = String(row.currentModule || '')
+      const tgt = String(row.currentTarget || '')
+      const sub = mod ? t('node.currentTaskModule', { module: mod, target: tgt }) : tgt
+      return h('div', { class: 'node-task-cell', title: t('node.currentTaskHint') }, [
+        tag,
+        h('div', { class: 'node-task-name' }, name),
+        sub ? h('div', { class: 'node-task-sub' }, sub) : null,
+        idle >= 1
+          ? h(
+              ElTag,
+              {
+                size: 'small',
+                effect: stalled ? 'dark' : 'plain',
+                type: stalled ? 'danger' : idle >= 10 ? 'warning' : 'info'
+              },
+              () => t('node.currentTaskIdle', { n: idle })
+            )
+          : null
+      ])
     }
   },
   {
@@ -187,7 +211,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('node.nodeStatus'),
-    width: 150,
+    width: 140,
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
       const tag = h(
         ElTag,
@@ -214,40 +238,6 @@ const nodeColums = reactive<TableColumn[]>([
     }
   },
   {
-    field: 'currentTaskName',
-    label: t('node.currentTask'),
-    minWidth: 230,
-    formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
-      // 「在线 + 队列 6」看不出队列为什么不动：把此刻在跑的模块和「多久没产出」摆出来。
-      // 没有这一列，只能登服务器翻 Redis 才知道节点卡在哪个模块上（2026-11-29）。
-      if (!cellValue) {
-        return h('div', { class: 'node-task-none', title: t('node.currentTaskHint') }, [
-          t('node.currentTaskNone')
-        ])
-      }
-      const idle = Number(row.idleMinutes) || 0
-      const stalled = Boolean(row.stalled)
-      const mod = String(row.currentModule || '')
-      const tgt = String(row.currentTarget || '')
-      const sub = mod ? t('node.currentTaskModule', { module: mod, target: tgt }) : ''
-      return h('div', { class: 'node-task-cell', title: t('node.currentTaskHint') }, [
-        h('div', { class: 'node-task-name' }, cellValue),
-        sub ? h('div', { class: 'node-task-sub' }, sub) : null,
-        idle >= 1
-          ? h(
-              ElTag,
-              {
-                size: 'small',
-                effect: stalled ? 'dark' : 'plain',
-                type: stalled ? 'danger' : idle >= 10 ? 'warning' : 'info'
-              },
-              () => t('node.currentTaskIdle', { n: idle })
-            )
-          : null
-      ])
-    }
-  },
-  {
     field: 'queueLen',
     label: t('node.queueLen'),
     width: 110,
@@ -268,7 +258,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'cmdFail',
     label: t('node.cmdFail'),
-    width: 120,
+    width: 110,
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 累计次数 + 最近 10 分钟增量：前者看历史，后者判断「刚跑这批可不可信」
       const v = cellValue || 0
@@ -301,6 +291,9 @@ const nodeColums = reactive<TableColumn[]>([
     label: t('tableDemo.action'),
     /* 按钮实际 ~176px；不再固定，避免脱离文档流压住上一列 */
     width: 220,
+    // 列数到 12 之后总宽超视口：Action 固定在右侧，重启/清空队列永远点得到，
+    // 不用先横向滚动（2026-11-29 截图实测：不固定时整列被挤出可视区）。
+    fixed: 'right',
     formatter: (row, __: TableColumn, _: number) => {
       console.log(row)
       return (
