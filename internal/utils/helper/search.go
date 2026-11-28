@@ -651,6 +651,38 @@ func GetSearchQuery(req models.SearchRequest) (map[string]interface{}, error) {
 					f = "status"
 				}
 			}
+			// IPAsset 的 port/service/app 在文档里是 ports[] 数组里的嵌套字段，
+			// filterKeyCache 只有顶级字段名 → 过滤器查 ports.port 之外的字段永远不命中，
+			// 表现为 filter.port=443 返回 0 条（而库里明明有一堆 443）。2026-11-29 实测。
+			// 这里直接给出嵌套路径，并让下面的 hasNestedFieldQuery 把查询切到聚合管道。
+			nestedKey := ""
+			if req.Index == "IPAsset" {
+				switch f {
+				case "port":
+					nestedKey = "ports.port"
+				case "service":
+					nestedKey = "ports.server.service"
+				case "app":
+					nestedKey = "ports.server.technologies"
+				}
+			}
+			if nestedKey != "" {
+				tmpOr := make([]map[string]interface{}, 0, len(values))
+				for _, v := range values {
+					if v == "" {
+						continue
+					}
+					for _, form := range buildFilterForms(f, v) {
+						tmpOr = append(tmpOr, map[string]interface{}{nestedKey: form})
+					}
+				}
+				if len(tmpOr) > 0 {
+					result["$and"] = append(result["$and"].([]map[string]interface{}), map[string]interface{}{
+						"$or": tmpOr,
+					})
+				}
+				continue
+			}
 			if mongoKey, ok := filterKeyCache[f]; ok {
 				tmpOr := make([]map[string]interface{}, 0, len(values))
 				for _, v := range values {
