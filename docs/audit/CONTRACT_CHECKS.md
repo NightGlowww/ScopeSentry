@@ -233,3 +233,20 @@ bash scripts/ci/typecheck.sh      # TYPECHECK=PASS / FAIL
   `Asset/IP`、`Asset/RootDomain`、`Asset/Subfinder` 三处都依赖这个行为。
 
 注：`build:test`（`ts:check && vite build --mode test`）的 ts:check 段已通过，但 vite 段在 Vite 5.0.6 的 `generateBundle` 里 `String.replace` 爆栈（`RangeError: Maximum call stack size exceeded`），与类型治理无关，另案处理；发布走 `build:pro`，不受影响。
+
+## MCP 闭环矩阵（mcp_closure.py）
+
+```bash
+python3 scripts/ci/mcp_closure.py --write --strict   # 重新生成 docs/audit/MCP_CLOSURE.md
+```
+
+tools/list 里有、scope 表里有，都不等于能用。这条把 82 个工具的验证程度做成账本，三个维度：
+
+- **读**：`mcp_sweep.py` 用真实 id 调通（48 个）；
+- **拒绝分支**：喂不存在/非法参数必须 `isError=true`（46 个，防「假成功」）；
+- **写往返**：合法参数下真的改到库、复核、再还原（5 个：`assign_tasks_project`、`set_scheduled_task_state`、
+  `create_scan_policy`、`set_port_dict_entry`、`set_sensitive_rule_state`）。
+
+其余工具不是坏的，是没有可安全验证的前置样本（比如 `create_scan_task` 会真的起扫描、
+`pause_task_targets` 需要「运行中且目标未全部领取」的任务），逐个写在矩阵的「说明」列里。
+`--strict` 在有工具既没验证也没说明时退出码 1，可以接 CI。
