@@ -23,8 +23,15 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var coreModules = []string{"SubdomainScan", "PortScan", "PortFingerprint", "AssetMapping",
-	"AssetHandle", "URLScan", "WebCrawler", "URLSecurity", "DirScan", "VulnerabilityScan"}
+// criticalModules 少了就跑不出东西的模块：没有子域/端口/URL 就没有资产面。
+// optionalModules 是增强项：很多模板（尤其 recon 档）故意不配，缺了不算错。
+// VulnerabilityScan 不在任何一类里：nuclei 插件是在组装扫描载荷时注入的
+// （见 services/task/common.GetScanTemplate 里往 Parameters.VulnerabilityScan 塞 nuclei 与 -t），
+// 模板文档里本来就该是空的 —— 早先把它算成必需，导致自检永远红：7 个模板必然「全部不完整」。
+var criticalModules = []string{"SubdomainScan", "PortScan", "URLScan"}
+
+var optionalModules = []string{"PortFingerprint", "AssetMapping", "AssetHandle",
+	"WebCrawler", "URLSecurity", "DirScan"}
 
 // moduleConfigured 判断模板里某个模块是否真的配了东西。
 //
@@ -79,7 +86,8 @@ func ConfigCheck(c *gin.Context) {
 	// 1) 模板完整性
 	var tplMissing int
 	var tplTotal int
-	var badNames []string
+	var critNotes []string
+	var optNotes []string
 	cur, _ := mongodb.DB.Collection("ScanTemplates").Find(ctx, bson.M{})
 	if cur != nil {
 		var docs []bson.M
@@ -87,25 +95,39 @@ func ConfigCheck(c *gin.Context) {
 		_ = cur.Close(ctx)
 		tplTotal = len(docs)
 		for _, d := range docs {
-			miss := 0
 			params, _ := d["Parameters"].(bson.M)
-			for _, m := range coreModules {
+			name, _ := d["name"].(string)
+			var critMissing, optMissing []string
+			for _, m := range criticalModules {
 				if !moduleConfigured(d, params, m) {
-					miss++
+					critMissing = append(critMissing, m)
 				}
 			}
-			if miss > 0 {
-				tplMissing++
-				if n, _ := d["name"].(string); n != "" && len(badNames) < 5 {
-					badNames = append(badNames, n)
+			for _, m := range optionalModules {
+				if !moduleConfigured(d, params, m) {
+					optMissing = append(optMissing, m)
 				}
+			}
+			if len(critMissing) > 0 {
+				tplMissing++
+				if name != "" && len(critNotes) < 5 {
+					critNotes = append(critNotes, name+"("+strings.Join(critMissing, ",")+")")
+				}
+			}
+			if len(optMissing) > 0 && name != "" && len(optNotes) < 5 {
+				optNotes = append(optNotes, name+"("+strings.Join(optMissing, ",")+")")
 			}
 		}
 	}
-	items = append(items, checkItem{"templates", tplMissing == 0,
-		strings.TrimSpace(strings.Join([]string{
-			"total=" + itoa(tplTotal), "incomplete=" + itoa(tplMissing), strings.Join(badNames, ","),
-		}, " "))})
+	tplDetail := "total=" + itoa(tplTotal) + " critical_missing=" + itoa(tplMissing)
+	if len(critNotes) > 0 {
+		tplDetail += " " + strings.Join(critNotes, " ")
+	}
+	if len(optNotes) > 0 {
+		// 未配的增强模块只做信息，不影响结论：recon 档故意不配它们
+		tplDetail += " optional_not_configured: " + strings.Join(optNotes, " ")
+	}
+	items = append(items, checkItem{"templates", tplMissing == 0, tplDetail})
 
 	// 2) subfinder provider：有 key 却没接进去的，单独点出来
 	var sfVal string
