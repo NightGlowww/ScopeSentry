@@ -16,7 +16,7 @@
 | 位置 | 问题 | 后果 |
 | --- | --- | --- |
 | `views/Asset/components/assetInfo.vue` | `sessionStorage.setItem(...).search` | `setItem` 返回 undefined，一点搜索就 TypeError |
-| `views/Set。Subfinder.vue` | 用分页参数调 `getNodeDataApi()`（该接口不收参、不返回 total） | 表格 total 恒为 undefined |
+| `views/Setting/Subfinder.vue` | 用分页参数调 `getNodeDataApi()`（该接口不收参、不返回 total） | 表格 total 恒为 undefined |
 | `views/Asset/export/exportData.vue` | 模板用了未导入的 `ElTooltip` | 组件解析失败，提示框不渲染 |
 | `views/Asset/components/{IP,RootDomain}.vue` | `typeof getTotal === 'function'` 但 `getTotal` 根本不存在 | 类型检查报错（运行时被 typeof 兜住，属于死代码） |
 | `locales/{zh-CN,en}.ts` | `queuedHint` 定义了两次 | 后定义覆盖前定义，用户看到的是较短的那条 |
