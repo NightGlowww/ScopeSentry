@@ -42,6 +42,8 @@ export type TaskDetail = {
   cycleType: string
   // 建任务时选中的扫描策略 id（空 = 没套用策略）；写入方是 /api/task/add 的 policyId
   policyId?: string
+  // 扫描档位：空 = 按模板完整扫描；recon = 只做资产测绘（后端 scanprofile.Apply 剔除 nuclei 与目录扫描）
+  scanProfile?: string
 }
 
 export type TaskProgessInfo = {

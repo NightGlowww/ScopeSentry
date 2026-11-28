@@ -86,7 +86,11 @@ export const addTaskApi = (
   cycleType: string,
   // 扫描策略：建任务时选中的策略 id（可空 = 不套用策略）。
   // 后端把它存进 task.policyId，建扫描载荷时按策略的插件清单收窄模板（docs/audit/SCAN_POLICY.md）。
-  policyId?: string
+  policyId?: string,
+  // 扫描档位：空 = 按模板完整扫描；recon = 只做资产测绘（跳过 nuclei 与目录扫描）。
+  // 后端 scanprofile.Apply 会把它翻译成「剔除哪些模块」，实测 nuclei 占单任务耗时的九成，
+  // 所以排队紧的时候用 recon 档位几分钟就能出结果。
+  scanProfile?: string
 ): Promise<IResponse<taskRespData>> => {
   return request.post({
     url: '/api/task/add',
@@ -112,7 +116,8 @@ export const addTaskApi = (
       week,
       bindProject,
       cycleType,
-      policyId: policyId || undefined
+      policyId: policyId || undefined,
+      scanProfile: scanProfile || undefined
     }
   })
 }
@@ -140,7 +145,9 @@ export const addScheduledTaskApi = (
   bindProject: string | null,
   cycleType: string,
   // 计划任务同样存 policyId（ScheduledTasks 里存的就是 models.Task，定时轮次会原样回读）
-  policyId?: string
+  policyId?: string,
+  // 周期任务也能选档位：日常跑 recon、需要漏洞面时再手动完整跑一遍，是很常见的用法
+  scanProfile?: string
 ): Promise<IResponse<taskRespData>> => {
   return request.post({
     url: '/api/task/scheduled/add',
@@ -166,7 +173,8 @@ export const addScheduledTaskApi = (
       week,
       bindProject,
       cycleType,
-      policyId: policyId || undefined
+      policyId: policyId || undefined,
+      scanProfile: scanProfile || undefined
     }
   })
 }
