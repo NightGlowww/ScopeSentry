@@ -12,9 +12,9 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 179（57%） |
+| 被测试/契约脚本点名 | 186（59%） |
 | 读操作 点名/总数 | 75 / 115 |
-| 写操作 点名/总数 | 66 / 113 |
+| 写操作 点名/总数 | 73 / 113 |
 | 无法判读 点名/总数 | 38 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
@@ -23,7 +23,7 @@
 
 | 模块 | 未点名 | 总数 |
 | --- | --- |
-| assets | 34 | 81 |
+| assets | 27 | 81 |
 | task | 23 | 30 |
 | plugin | 16 | 17 |
 | configuration | 9 | 14 |
@@ -57,13 +57,6 @@
 | --- | --- |
 | GET | `/api/backup/status` |
 | GET | `/api/poc/data/import/status` |
-| POST | `/api/assets/asset_group/edit` |
-| POST | `/api/assets/asset_group/reorder` |
-| POST | `/api/assets/asset_scope/bind_enterprise` |
-| POST | `/api/assets/asset_scope/clear_update_error` |
-| POST | `/api/assets/asset_scope/delete` |
-| POST | `/api/assets/asset_scope/update` |
-| POST | `/api/assets/nuclei_result/status/batch` |
 | POST | `/api/backup/create` |
 | POST | `/api/backup/upload` |
 | POST | `/api/configuration/notification/config/update` |
