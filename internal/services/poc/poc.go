@@ -34,6 +34,10 @@ import (
 // ErrPocNotFound POC 不存在
 var ErrPocNotFound = errors.New("poc not found")
 
+// ErrInvalidTemplate POC 模板 YAML 解析失败：调用方参数问题，handler 映射 400。
+// 以前这种错会冒成 500 + 原始 yaml 报错文案（2026-11-28 线上实测）。
+var ErrInvalidTemplate = errors.New("poc: invalid template")
+
 // Service 定义POC服务接口
 type Service interface {
 	GetPocList(ctx *gin.Context, req *models.PocListRequest) (*models.PocListResponse, error)
@@ -126,7 +130,7 @@ func (s *service) UpdatePoc(ctx *gin.Context, req *models.PocUpdateRequest) erro
 	var pt models.PocTemplate
 	err = yaml.Unmarshal([]byte(req.Content), &pt)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal poc template: %w", err)
+		return fmt.Errorf("%w: %v", ErrInvalidTemplate, err)
 	}
 	ptTags := strings.Split(pt.Info.Tags, ",")
 	tags := helper.RemoveArrayDuplicates(ptTags)
@@ -139,9 +143,13 @@ func (s *service) UpdatePoc(ctx *gin.Context, req *models.PocUpdateRequest) erro
 		},
 	}
 
-	_, err = s.repo.UpdateOne(ctx, bson.M{"_id": id}, update)
+	res, err := s.repo.UpdateOne(ctx, bson.M{"_id": id}, update)
 	if err != nil {
 		return fmt.Errorf("failed to update poc: %w", err)
+	}
+	// 匹配 0 条不是成功：改一个不存在的 POC 以前回 200（2026-11-28 线上实测同类问题）
+	if res == nil || res.MatchedCount == 0 {
+		return ErrPocNotFound
 	}
 	go func() {
 		msg := models.Message{

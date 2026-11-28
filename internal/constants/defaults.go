@@ -313,9 +313,8 @@ var ScanTemplateDefault = models.ScanTemplate{
 		WebCrawler:  map[string]string{},
 		URLSecurity: map[string]string{},
 		DirScan:     map[string]string{},
-		VulnerabilityScan: map[string]string{
-			"ed93b8af6b72fe54a60efdb932cf6fbc": "-s high,critical",
-		},
+		// VulnerabilityScan 默认留空：nuclei 是可选的重活，模板里显式选了插件才跑。
+		VulnerabilityScan: map[string]string{},
 	},
 	SubdomainScan: []string{
 		"d60ba73c70aac430a0a54e796e7e19b8",

@@ -1224,6 +1224,8 @@ export default {
     policyWarnings: 'Policy notes',
     allPocNucleiWarning:
       'The scan node currently accepts only a single-file -t; choosing All POC is silently ignored (0 hits). Pick explicit POCs, or upgrade the node-side nuclei argument handling first.',
+    nucleiOffHint:
+      'nuclei is not selected (VulnerabilityScan is empty): this template only maps assets and usually finishes in minutes. Tick the nuclei plugin under VulnerabilityScan when you do want vulnerability scanning.',
     failed: 'Failed',
     syncToProjectHint:
       'Sync selected task assets into a project; existing assets are not duplicated.',

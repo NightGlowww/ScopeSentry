@@ -100,7 +100,15 @@ func UpdatePoc(c *gin.Context) {
 	}
 
 	if err := pocService.UpdatePoc(c, &req); err != nil {
-		response.InternalServerError(c, "api.error", err)
+		switch {
+		case errors.Is(err, pocservice.ErrInvalidTemplate):
+			// 模板 YAML 写错是调用方参数问题，回 400 + 可读原因；以前是 500 + 原始 yaml 报错
+			response.BadRequest(c, "api.bad_request", err)
+		case errors.Is(err, pocservice.ErrPocNotFound):
+			response.NotFound(c, "api.not_found", err)
+		default:
+			response.InternalServerError(c, "api.error", err)
+		}
 		return
 	}
 

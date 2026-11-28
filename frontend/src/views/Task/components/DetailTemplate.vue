@@ -38,6 +38,11 @@ const props = defineProps<{
   id: string
 }>()
 
+// nuclei 现在默认不跑：模板里 VulnerabilityScan 没有勾选插件时就跳过漏洞扫描，
+// 只做资产测绘（任务时间从小时级回到分钟级）。这里给出可见提示，避免"为什么没有漏洞结果"
+// 又要靠猜（2026-11-29）。
+const vulnEnabled = computed(() => (plugins['VulnerabilityScan'] || []).some((p) => p.enabled))
+
 // 模块数组
 const modules = [
   'TargetHandler',
@@ -683,6 +688,14 @@ const handleCheckChange = (data, checked) => {
     <ElFormItem :label="t('task.templateName')">
       <ElInput v-model="templateName" />
     </ElFormItem>
+    <ElAlert
+      v-if="!vulnEnabled"
+      class="mb-10px"
+      type="info"
+      :closable="false"
+      show-icon
+      :title="t('task.nucleiOffHint')"
+    />
     <div v-for="module in modules" :key="module">
       <ElCard class="module-card" :body-style="{ padding: '20px' }" shadow="always">
         <div

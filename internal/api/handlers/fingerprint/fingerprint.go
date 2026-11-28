@@ -146,7 +146,15 @@ func Update(c *gin.Context) {
 	}
 
 	if err := fingerprintService.Update(c, req.ID, data); err != nil {
-		response.InternalServerError(c, "api.error", err)
+		switch {
+		case errors.Is(err, fingerprint.ErrInvalidRule):
+			response.BadRequest(c, "api.bad_request", err)
+		case errors.Is(err, fingerprint.ErrNotFound):
+			// 改一条不存在的指纹以前回 200（2026-11-28 线上实测）
+			response.NotFound(c, "api.not_found", err)
+		default:
+			response.InternalServerError(c, "api.error", err)
+		}
 		return
 	}
 	response.Success(c, nil, "api.success")

@@ -100,8 +100,16 @@ func (s *service) Detail(ctx *gin.Context, id string) (*models.ScanTemplate, err
 // 视目标类型而定，不强制。
 var coreModules = []string{
 	"SubdomainScan", "PortScan", "PortFingerprint", "AssetMapping", "AssetHandle",
-	"URLScan", "WebCrawler", "URLSecurity", "DirScan", "VulnerabilityScan",
+	"URLScan", "WebCrawler", "URLSecurity", "DirScan",
 }
+
+// advisoryModules 允许留空，但留空会改变扫描范围，保存时留一条日志。
+//
+// VulnerabilityScan（nuclei）原先在 coreModules 里，代价是**每个模板都必须挂 nuclei**：
+// 每个任务都要跑一遍模板集，而节点 maxTaskNum=1，一个任务从几分钟变成几小时，
+// 队列就永远排不完（2026-11-29 反馈）。它本来也不是"资产测绘"的组成部分，
+// 现在改成可选项：留空 = 只做资产测绘、不跑 nuclei；要跑就在模板里显式选 nuclei 插件。
+var advisoryModules = []string{"VulnerabilityScan"}
 
 func missingCoreModules(t *models.ScanTemplate) []string {
 	pairs := map[string][]string{
@@ -134,6 +142,13 @@ func (s *service) Save(ctx context.Context, id string, result *models.ScanTempla
 	if missing := missingCoreModules(result); len(missing) > 0 {
 		return "", fmt.Errorf("%w：以下核心模块没有选择插件 —— %s（这些模块缺失会让扫描静默降级，且界面上看不出来）",
 			ErrIncompleteTemplate, strings.Join(missing, "、"))
+	}
+	// 可选模块留空是合法配置（例如只要资产测绘、不要漏洞扫描），但要让它在日志里留痕，
+	// 否则「这条任务为什么一个漏洞都没有」又会变成只能靠猜。
+	for _, m := range advisoryModules {
+		if m == "VulnerabilityScan" && len(result.VulnerabilityScan) == 0 {
+			logger.Warn(fmt.Sprintf("模板 %s 未选择 VulnerabilityScan 插件：本次只做资产测绘，不跑 nuclei", result.Name))
+		}
 	}
 	if id == "" {
 		// 插入新模板

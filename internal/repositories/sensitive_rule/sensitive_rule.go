@@ -63,8 +63,15 @@ func (r *repository) RuleInsert(ctx context.Context, item *models.SensitiveRuleI
 }
 
 func (r *repository) RuleUpdate(ctx context.Context, id primitive.ObjectID, update bson.M) error {
-	_, err := r.RuleCollection.UpdateOne(ctx, bson.M{"_id": id}, update)
-	return err
+	res, err := r.RuleCollection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	if err != nil {
+		return err
+	}
+	// 匹配 0 条不是成功：改一条不存在的规则以前回 200（2026-11-28 线上实测）
+	if res.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
+	return nil
 }
 
 func (r *repository) RuleUpdateStateMany(ctx context.Context, ids []primitive.ObjectID, state bool) (int64, error) {

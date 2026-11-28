@@ -100,9 +100,15 @@ func (s *service) Add(ctx context.Context, data models.FingerprintRule) (string,
 	return id, nil
 }
 
+// 可判别的错误：handler 据此把「规则为空 / 不存在」映射成 400、404，而不是 500。
+var (
+	ErrInvalidRule = errors.New("fingerprint: rule is null")
+	ErrNotFound    = errors.New("fingerprint: not found")
+)
+
 func (s *service) Update(ctx context.Context, id string, data models.FingerprintRule) error {
 	if data.Rule == "" {
-		return errors.New("rule is null")
+		return ErrInvalidRule
 	}
 	// Rule 现在存储的是 YAML 内容，不再转换为 Express
 	// express, err := helper.StringToPostfix(data.Rule)
@@ -118,6 +124,9 @@ func (s *service) Update(ctx context.Context, id string, data models.Fingerprint
 		"company":         data.Company,
 	}}
 	if err := s.repo.Update(ctx, id, update); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return ErrNotFound
+		}
 		return err
 	}
 	_ = s.nodeService.RefreshConfig(ctx, models.Message{Name: "all", Type: "finger"})

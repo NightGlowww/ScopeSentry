@@ -59,13 +59,22 @@ func (s *service) RuleList(ctx *gin.Context, search string, pageIndex, pageSize 
 	return list, total, nil
 }
 
+// 可判别的错误：handler 据此把「id 格式错 / 规则不存在」映射成 404，而不是 500。
+var (
+	ErrInvalidID = errors.New("sensitive rule: invalid id")
+	ErrNotFound  = errors.New("sensitive rule: not found")
+)
+
 func (s *service) RuleUpdate(ctx *gin.Context, id string, name, regular, color string, state bool) error {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %v", ErrInvalidID, err)
 	}
 	update := bson.M{"$set": bson.M{"name": name, "regular": regular, "color": color, "state": state}}
 	if err := s.repo.RuleUpdate(ctx, oid, update); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return ErrNotFound
+		}
 		return err
 	}
 	// 广播刷新

@@ -60,9 +60,13 @@ func (r *repository) Update(ctx context.Context, id string, update bson.M) error
 	if err != nil {
 		return fmt.Errorf("invalid id: %w", err)
 	}
-	_, err = r.collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	res, err := r.collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		return fmt.Errorf("update error: %w", err)
+	}
+	// 匹配 0 条不是成功：改一条不存在的指纹以前回 200（2026-11-28 线上实测）
+	if res.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
 	}
 	return nil
 }
