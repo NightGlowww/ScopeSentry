@@ -364,3 +364,19 @@ service 拿到 `nil` 一路回成功。
 排查口径：`SS_BASE=... SS_MCP_KEY=... python3 scripts/ci/mcp_sweep.py --coverage` 会对比
 「源码声明的工具数」与「服务端实际返回的工具数」，不一致就是这类问题；`mcp_closure.py` 另外做静态扫描，
 对含等号的 jsonschema 片段给出告警。
+
+## 2026-11-29 扫描策略三条不变量
+
+这三条都是「看起来在跑，其实没在按预期跑」的类型，各自钉一条断言：
+
+1. **nuclei 必须显式选择才跑**：`VulnerabilityScan` 已从模板的硬性核心模块里移除；模板没勾 nuclei 时
+   下发副本里既没有插件也没有参数（`TestGetScanTemplateAppliesScanProfile` 覆盖）。
+2. **任务档位必须真的改下发内容**：`scanProfile=recon` 时下发副本摘掉 `VulnerabilityScan` 与 `DirScan`，
+   其余模块原样保留；同时任务 `policyWarnings` 里要留下「跳过了什么」的可见提示
+   （`TestTaskScanProfileReconPersisted` + `scanprofile` 单测）。
+3. **待开始任务也要有排队位次**：`TaskList` 对 status 0/1 都回 `queued`/`queuePos`，
+   前端据此显示「排队中 / 前面还有 N 个」（`TestTaskListQueueInfoForPendingTask`）。
+   线上实测：5 条任务排队 30 小时，改之前界面只写「待开始 0%」。
+
+另外补了第四条巡检 `stalled_running`（节点活着但任务长时间没有进度 → 判失败 + 告警），
+验证方式见 `docs/audit/SCAN_STRATEGY.md`；不自动重启节点。

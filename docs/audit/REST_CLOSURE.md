@@ -9,17 +9,17 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 171（54%） |
+| 被测试/契约脚本点名 | 174（55%） |
 | 读操作 点名/总数 | 73 / 115 |
-| 写操作 点名/总数 | 61 / 113 |
-| 无法判读 点名/总数 | 37 / 86 |
+| 写操作 点名/总数 | 63 / 113 |
+| 无法判读 点名/总数 | 38 / 86 |
 
 ## 按模块（未点名 / 总数）
 
 | 模块 | 未点名 | 总数 |
 | --- | --- |
 | assets | 34 | 81 |
-| task | 26 | 30 |
+| task | 23 | 30 |
 | plugin | 16 | 17 |
 | configuration | 14 | 14 |
 | system | 9 | 10 |
@@ -90,7 +90,6 @@
 | POST | `/api/system/intel-feeds/run` |
 | POST | `/api/system/intel-feeds/update` |
 | POST | `/api/system/storage/slim` |
-| POST | `/api/task/add` |
 | POST | `/api/task/assignProject` |
 | POST | `/api/task/deleteByFilter` |
 | POST | `/api/task/scheduled/add` |
@@ -101,4 +100,3 @@
 | POST | `/api/task/stop` |
 | POST | `/api/task/sync` |
 | POST | `/api/task/target/resume` |
-| POST | `/api/task/template/save` |
