@@ -217,6 +217,10 @@ def main():
         ('delete_port_dict_entries', {'ids': [NOPE], 'confirm': True}),
         ('delete_scan_policies', {'ids': [NOPE]}),
         ('delete_task', {'ids': [NOPE]}),
+        # 归属补录：更新 0 条必须报错（service 对不存在的 id 不报错，会被当成假成功）
+        ('assign_tasks_project', {'ids': [NOPE], 'projectId': ''}),
+        ('pause_task_targets', {'taskId': NOPE, 'targets': ['x.invalid']}),
+        ('resume_task_targets', {'taskId': NOPE, 'targets': ['x.invalid']}),
         ('export_task_workbook', {'taskId': NOPE, 'format': 'xlsx'}),
         ('recheck_plugin', {'node': 'no-such-node-sweep', 'hash': 'abc', 'module': 'x'}),
         ('restart_node', {'node': 'no-such-node-sweep'}),
@@ -298,6 +302,36 @@ def main():
             print('FAIL %-28s list.total=%s != count_assets=%s' % (atype, lv, cv))
         else:
             print('ok   %-28s total=%s（list 与 count 一致）' % (atype, cv))
+
+    # 过滤真的生效：数值型过滤字段最容易被「类型归一」打成静默 0 条
+    # （实测曾有 filter.port:"443" → 0，而库里有 6530 条）。这里只要求「过滤后既不是全量也不是 0」，
+    # 不写死具体数字，换库换环境都不会误报。
+    base = rpc('count_assets', {'asset_type': 'asset'})
+    base_v = None
+    if base['kind'] == 'OK':
+        try:
+            base_v = (json.loads(base['text']) or {}).get('total')
+        except Exception:
+            base_v = None
+    for fkey, fval in (('port', '443'), ('statuscode', '200')):
+        fr = rpc('count_assets', {'asset_type': 'asset', 'filter': {fkey: [fval]}})
+        fv = None
+        if fr['kind'] == 'OK':
+            try:
+                fv = (json.loads(fr['text']) or {}).get('total')
+            except Exception:
+                fv = None
+        if fv is None or base_v is None:
+            fails += 1
+            print('FAIL filter.%s 拿不到 total' % fkey)
+        elif fv == 0:
+            fails += 1
+            print('FAIL filter.%s=%s 命中 0 条（过滤被打成静默空结果）' % (fkey, fval))
+        elif fv == base_v:
+            fails += 1
+            print('FAIL filter.%s=%s 等于全量 %s（过滤没生效）' % (fkey, fval, fv))
+        else:
+            print('ok   filter.%s=%-5s total=%s / 全量 %s' % (fkey, fval, fv, base_v))
 
     # 分页夹紧：一次大 pageSize 不能把库拖出来
     big = rpc('list_assets', {'asset_type': 'asset', 'pageIndex': 1, 'pageSize': 100000})

@@ -275,6 +275,25 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 	// 计划任务（周期扫描）与一次性扫描在同一个集合，但扫描任务列表不返回它们：
 	// create_scan_task 支持 scheduledTasks/cycleType，却没有任何工具能看见或关掉已建的计划，
 	// 于是 agent 建了周期任务之后就失明（2026-11-28 对照 71 个工具确认）。
+	// 任务归属补录：扫描产出归档到项目是这条链路的最后一公里，
+	// 之前只有 bindProject（建任务时就定死），跑完才想归档只能回 UI。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "assign_tasks_project",
+		Description: "把已有任务挂到指定项目下（projectId 传空字符串表示解除归属）。只改归属，不触发扫描",
+	}, assignTasksProject)
+
+	// 目标级暂停/恢复：整任务停会把已经跑出结果的目标一起扔掉，
+	// 大批量目标失控时只能一个一个目标停（issue #277 的 REST 能力，MCP 一直没有）。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "pause_task_targets",
+		Description: "暂停（跳过）任务里的指定目标：未被节点领取的目标会从队列摘除并减少 taskNum，已领取的只记录状态",
+	}, pauseTaskTargets)
+
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "resume_task_targets",
+		Description: "恢复被 pause_task_targets 暂停的目标",
+	}, resumeTaskTargets)
+
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "list_scheduled_tasks",
 		Description: "分页获取计划任务（周期扫描，含页面监控）列表：名称、周期、下次/上次执行时间、启用状态、节点与模板",
@@ -844,6 +863,69 @@ func getTask(ctx context.Context, _ *mcp.CallToolRequest, input getTaskInput) (*
 		return errorResult("任务不存在", nil)
 	}
 	return jsonToolResult(result)
+}
+
+type assignTasksProjectInput struct {
+	IDs       []string `json:"ids" jsonschema:"任务 ObjectID 列表，必填"`
+	ProjectID string   `json:"projectId" jsonschema:"项目 ObjectID，用 list_projects 获取；传空字符串表示解除归属"`
+}
+
+func assignTasksProject(ctx context.Context, _ *mcp.CallToolRequest, input assignTasksProjectInput) (*mcp.CallToolResult, any, error) {
+	if len(input.IDs) == 0 {
+		return errorResult("ids 不能为空", nil)
+	}
+	c := ginContext(ctx)
+	updated, err := d.taskService.AssignProject(c, input.IDs, input.ProjectID)
+	if err != nil {
+		return errorResult("更新任务归属失败", err)
+	}
+	// Service 对不存在的 id 不报错（更新 0 条）。对 MCP 调用方来说那是「假成功」：
+	// 以为归档了，其实一个任务都没动。这里按 0 条判失败。
+	if updated == 0 {
+		return errorResult("没有任务被更新（id 不存在或已删除）", nil)
+	}
+	return jsonToolResult(ginH{"updated": updated, "projectId": input.ProjectID})
+}
+
+type taskTargetsInput struct {
+	TaskID  string   `json:"taskId" jsonschema:"任务 ObjectID，用 list_tasks 获取"`
+	Targets []string `json:"targets" jsonschema:"要暂停/恢复的目标（域名或 IP，需与任务里的目标字符串一致）"`
+}
+
+func pauseTaskTargets(ctx context.Context, _ *mcp.CallToolRequest, input taskTargetsInput) (*mcp.CallToolResult, any, error) {
+	return runTargetControl(ctx, input, "pause")
+}
+
+func resumeTaskTargets(ctx context.Context, _ *mcp.CallToolRequest, input taskTargetsInput) (*mcp.CallToolResult, any, error) {
+	return runTargetControl(ctx, input, "resume")
+}
+
+// runTargetControl 逐个目标执行暂停/恢复：单个目标失败不影响其余目标，
+// 结果按目标回执，避免「一个拼错就整批白跑」。
+func runTargetControl(ctx context.Context, input taskTargetsInput, action string) (*mcp.CallToolResult, any, error) {
+	if input.TaskID == "" || len(input.Targets) == 0 {
+		return errorResult("taskId 与 targets 不能为空", nil)
+	}
+	c := ginContext(ctx)
+	done := make([]string, 0, len(input.Targets))
+	failed := make([]ginH, 0)
+	for _, t := range input.Targets {
+		var err error
+		if action == "pause" {
+			err = d.taskService.PauseTarget(c, input.TaskID, t)
+		} else {
+			err = d.taskService.ResumeTarget(c, input.TaskID, t)
+		}
+		if err != nil {
+			failed = append(failed, ginH{"target": t, "error": err.Error()})
+			continue
+		}
+		done = append(done, t)
+	}
+	if len(done) == 0 {
+		return errorResult("没有目标被处理", nil)
+	}
+	return jsonToolResult(ginH{"action": action, "done": done, "failed": failed})
 }
 
 type listScheduledTasksInput struct {
