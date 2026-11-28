@@ -220,24 +220,27 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		tasks[i].CmdFail = s.taskRepo.TaskCmdFail(ctx, tasks[i].ID.Hex())
 
 		st := tasks[i].Status
-		// 排队信息（队列位次 / 是否在队列里）对「待开始」同样有意义：
-		// 节点一次只跑一个任务，待开始的任务可能已经在队列里排了几十小时，
-		// 只显示「待开始 0%」会让人分不清是排队还是卡死（2026-11-29）。
-		if st != constants.TaskStatusRunning && st != constants.TaskStatusPending {
-			continue
-		}
-		id := tasks[i].ID.Hex()
-		if snap, ok := queueSnapshots[id]; ok {
-			tasks[i].QueuePos = snap.Pos
-			tasks[i].QueuedNuclei = snap.Nuclei
-		}
-		if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
-			tasks[i].Queued = true
+		// 排队信息只给「待开始」：status=1 是节点已经领走后的运行态，
+		// 它可能仍在 NodeTask:<node> 里留着一条旧消息（重投/恢复都会留），
+		// 对着一条 Running 43 小时的任务显示「Queued (5 ahead)」等于自相矛盾
+		// （2026-11-29 任务页实测）。
+		// 但「待开始」必须给：节点一次只跑一个，待开始的任务可能已在队列里躺几十小时，
+		// 只显示「待开始 0%」会让人分不清是排队还是卡死。
+		if st == constants.TaskStatusPending {
+			id := tasks[i].ID.Hex()
+			if snap, ok := queueSnapshots[id]; ok {
+				tasks[i].QueuePos = snap.Pos
+				tasks[i].QueuedNuclei = snap.Nuclei
+			}
+			if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
+				tasks[i].Queued = true
+			}
 		}
 		// 「正在做什么」只有运行中的任务才有
 		if st != constants.TaskStatusRunning {
 			continue
 		}
+		id := tasks[i].ID.Hex()
 		mod, tgt, since := s.taskRepo.CurrentActivity(ctx, id)
 		tasks[i].CurrentModule = mod
 		tasks[i].CurrentTarget = tgt
