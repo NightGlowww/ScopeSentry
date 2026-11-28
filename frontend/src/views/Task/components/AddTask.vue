@@ -78,7 +78,17 @@ const rules = reactive<FormRules<RuleForm>>({
       trigger: 'blur'
     }
   ],
-  node: [{ required: true, message: t('task.nodeMsg'), trigger: 'blur' }],
+  // 勾了「自动加入全部在线节点」就不必再手选：服务端会补齐全部节点。
+  // 原来的 required:true 会让这个开关在建任务时被前端直接拦死。
+  node: [
+    {
+      trigger: 'change',
+      validator: (_rule, value, callback) => {
+        if (taskData.allNode || (Array.isArray(value) && value.length > 0)) return callback()
+        callback(new Error(t('task.nodeMsg')))
+      }
+    }
+  ],
   template: [{ required: true, message: t('localization.selectTemplate'), trigger: 'blur' }],
   day: [
     {

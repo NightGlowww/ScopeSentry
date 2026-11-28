@@ -159,9 +159,16 @@ func AddTask(c *gin.Context) {
 		return
 	}
 
-	// 验证必要参数
-	if req.Name == "" || len(req.Node) == 0 {
-		response.BadRequest(c, "api.task.target_null", nil)
+	// 验证必要参数。
+	// 注意 allNode：勾了「自动加入全部在线节点」时前端不传 node 列表，服务层会自己补齐
+	// （services/task/common.CreateTaskScan 里 append 所有节点）。以前这里只认 node 非空，
+	// 于是那个开关从 API 层就被拦下来，等于不存在（2026-11-29 修）。
+	if req.Name == "" {
+		response.BadRequest(c, "api.required.name", nil)
+		return
+	}
+	if len(req.Node) == 0 && !req.AllNode {
+		response.BadRequest(c, "api.task.node_null", nil)
 		return
 	}
 

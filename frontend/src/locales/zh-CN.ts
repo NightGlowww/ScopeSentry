@@ -17,6 +17,7 @@ export default {
     task: {
       target_null: '任务没有目标：请先填扫描目标或用「绑定项目」带入目标',
       url_null: '页面监控URL为空',
+      node_null: '请选择执行节点，或打开「自动加入全部在线节点」',
       rate_limited: '操作过于频繁，请稍后再试',
       assignProjectFailed: '绑定项目失败'
     },

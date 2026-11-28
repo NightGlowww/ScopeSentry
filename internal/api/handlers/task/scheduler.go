@@ -92,9 +92,14 @@ func CreateScheduledTask(c *gin.Context) {
 		return
 	}
 
-	// 验证必要参数
-	if req.Name == "" || len(req.Node) == 0 {
-		response.BadRequest(c, "api.task.target_null", nil)
+	// 验证必要参数。allNode=true 时允许不传 node（服务层会补齐全部节点），
+	// 与 /api/task/add 保持一致；空目标不在这里拦 —— 计划任务的目标由周期轮次决定。
+	if req.Name == "" {
+		response.BadRequest(c, "api.required.name", nil)
+		return
+	}
+	if len(req.Node) == 0 && !req.AllNode {
+		response.BadRequest(c, "api.task.node_null", nil)
 		return
 	}
 
@@ -329,6 +334,7 @@ func DeletePageMonitTask(c *gin.Context) {
 
 	response.Success(c, nil, "api.success")
 }
+
 // RunScheduledTaskNow 立即执行一次计划任务
 // @Summary 立即执行计划任务
 // @Description 不等周期，按计划任务当前配置立刻生成一条扫描任务（与周期触发同一条代码路径）

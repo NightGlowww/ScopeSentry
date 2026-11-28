@@ -73,5 +73,6 @@
     "api.apikey.not_found": "API Key 不存在",
     "api.dict.port.not_found": "端口字典条目不存在",
     "api.dict.not_found": "字典不存在",
-    "api.task.scheduled.not_found": "计划任务不存在"
+    "api.task.scheduled.not_found": "计划任务不存在",
+    "api.task.node_null": "请选择执行节点，或打开「自动加入全部在线节点」"
 }

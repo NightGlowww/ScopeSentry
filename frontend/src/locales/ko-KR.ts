@@ -17,6 +17,7 @@ export default {
     task: {
       target_null: '작업에 대상이 없습니다. 스캔 대상을 입력하거나 프로젝트를 연결하세요',
       url_null: '페이지 모니터링 URL이 비어 있습니다',
+      node_null: '실행 노드를 선택하거나 "모든 온라인 노드 자동 참여"를 켜세요',
       rate_limited: '요청이 너무 많습니다. 잠시 후 다시 시도하세요',
       assignProjectFailed: '프로젝트 연결에 실패했습니다'
     },

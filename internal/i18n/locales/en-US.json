@@ -73,5 +73,6 @@
     "api.apikey.not_found": "API key not found",
     "api.dict.port.not_found": "Port dictionary entry not found",
     "api.dict.not_found": "Dictionary not found",
-    "api.task.scheduled.not_found": "Scheduled task not found"
+    "api.task.scheduled.not_found": "Scheduled task not found",
+    "api.task.node_null": "Pick at least one node, or turn on \"join all online nodes automatically\""
 }

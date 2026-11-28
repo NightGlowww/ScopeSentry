@@ -17,6 +17,7 @@ export default {
     task: {
       target_null: 'This task has no targets: fill in scan targets first or bind a project to bring them in',
       url_null: 'The page-monitoring URL is empty',
+      node_null: 'Pick at least one node, or turn on "join all online nodes automatically"',
       rate_limited: 'Too many requests, please try again later',
       assignProjectFailed: 'Failed to bind the project'
     },
