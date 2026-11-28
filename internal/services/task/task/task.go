@@ -924,12 +924,17 @@ func (s *service) ProcessTaskProgress(ctx context.Context, task models.Task) err
 
 		} else {
 			// 更新任务进度与状态（待开始 → 运行中）
-			update := bson.M{
-				"$set": bson.M{
-					"progress": progress,
-					"status":   nextStatus,
-				},
+			set := bson.M{
+				"progress": progress,
+				"status":   nextStatus,
 			}
+			// 首次进入运行态时落一次 startedAt：节点队列的「还要等多久」靠它估。
+			// 这个字段以前只有模型定义、没有任何写入方 —— 于是 RecentTaskDurationsMinutes
+			// 的过滤条件（startedAt != ""）永远命中 0 条，ETA 一直是「未知」。
+			if nextStatus == constants.TaskStatusRunning && task.Status != constants.TaskStatusRunning && task.StartedAt == "" {
+				set["startedAt"] = helper.GetNowTimeString()
+			}
+			update := bson.M{"$set": set}
 			if err := s.taskRepo.UpdateOne(ctx, bson.M{"_id": task.ID}, update); err != nil {
 				return fmt.Errorf("failed to update task progress: %w", err)
 			}

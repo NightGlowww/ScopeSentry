@@ -602,11 +602,15 @@ func (r *repository) RecentTaskDurationsMinutes(ctx context.Context, limit int64
 	if limit <= 0 || limit > 50 {
 		limit = 10
 	}
+	// 只看已完成的；时间是「开始/结束」两个字符串字段。
+	// startedAt 是 2026-11-29 才补上的写入（此前只有模型定义、没人写），
+	// 所以历史任务只能退回 creatTime：那段耗时包含排队等待，属于上限估计。
+	// 上限比「未知」有用：队列里 6 个任务要不要再加一个，靠它判断。
 	cur, err := r.db.Collection("task").Find(ctx,
-		bson.M{"status": 3, "startedAt": bson.M{"$ne": ""}, "endTime": bson.M{"$ne": ""}},
+		bson.M{"status": 3, "endTime": bson.M{"$ne": ""}},
 		options.Find().SetSort(bson.D{{Key: "endTime", Value: -1}}).
 			SetLimit(limit).
-			SetProjection(bson.M{"startedAt": 1, "endTime": 1}))
+			SetProjection(bson.M{"startedAt": 1, "creatTime": 1, "endTime": 1}))
 	if err != nil {
 		return nil
 	}
@@ -616,12 +620,17 @@ func (r *repository) RecentTaskDurationsMinutes(ctx context.Context, limit int64
 	for cur.Next(ctx) {
 		var row struct {
 			StartedAt string `bson:"startedAt"`
+			CreatTime string `bson:"creatTime"`
 			EndTime   string `bson:"endTime"`
 		}
 		if cur.Decode(&row) != nil {
 			continue
 		}
-		start, err1 := time.ParseInLocation(layout, row.StartedAt, time.Local)
+		startRaw := row.StartedAt
+		if startRaw == "" {
+			startRaw = row.CreatTime
+		}
+		start, err1 := time.ParseInLocation(layout, startRaw, time.Local)
 		end, err2 := time.ParseInLocation(layout, row.EndTime, time.Local)
 		if err1 != nil || err2 != nil || !end.After(start) {
 			continue
