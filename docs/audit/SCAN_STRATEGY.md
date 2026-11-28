@@ -92,3 +92,30 @@ nuclei 改成模板可选之后，还需要一个「这条任务只要快」的�
 
 1. 给 nuclei 参数加时间上限（节点侧 wrapper 支持哪些参数要先确认，当前 help 里没有 `et`）。
 2. 既然 nuclei 默认已关，直接把「需要漏洞面」的目标挑出来单独跑，避免它挂在主流程里。
+
+## 第四条巡检：节点活着但模块卡住（2026-11-29 追加）
+
+`watchdog` 原有三条判定都漏掉同一类现场：**节点心跳正常、`currentTask` 指着它、但长时间没有进度写入**。
+
+- `tasks_stalled`：要求「没有任何节点在跑」
+- `phantom_running`：要求「既非 currentTask 也不在队列」
+- `node_zombie`：要求心跳停更
+
+实测的那条任务从 11-24 跑到 11-29，停在 85%、`currentModule=VulnerabilityScan`、最后进度写入在当天 00:26；
+节点一直活着，于是队列被它堵了 5 天。
+
+新增 `stalled_running`：对 `node:*:currentTask` 指向的任务查最近一次进度写入，超过
+`WATCHDOG_STALLED_AFTER_MIN`（默认 60 分钟）即判失败：`failCode=stalledNoProgress`，
+`failReason` 写明节点名、已卡时长与「重启该节点释放队列后 retest」。
+
+**不自动重启节点**：节点还卡在模块里，重启是不可逆操作（in-flight 的产出会丢），
+交给人或外部重启策略。要手动释放：
+
+    curl -X POST $BASE/api/node/restart -H 'Content-Type: application/json' \
+      -H "Authorization: Bearer $TOKEN" -d '{"name":"node-jp-01"}'
+
+判失败之后不会再被「复活」：进度轮询只处理 status 0/1，失败任务不在其中。
+
+验证方式（不依赖等 60 分钟）：集成测试 `TestWatchdogFailsStalledRunningTask` 造出完整现场
+（status=1 任务 + `currentTask` + 24 小时前的进度时间戳 + 窗口设成 1 分钟），跑一轮 `watchdog.Check()`，
+断言任务落库为 status=4 / `stalledNoProgress` / 原因里含节点名与重启建议。
