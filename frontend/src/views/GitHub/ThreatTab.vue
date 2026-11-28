@@ -228,10 +228,15 @@ onMounted(async () => {
           <ElButton type="primary" @click="addTarget(item.kind)">{{ t('btnAdd') }}</ElButton>
         </div>
         <div class="target-list">
+          <!-- disable-transitions 不是装饰：这些标签挂载时所在的 tab 是 display:none，
+               进场过渡的 rAF 在隐藏面板里不会跑，el-zoom-in-center-enter-from 会永久留在
+               元素上（scaleX(0) + opacity 0）—— 结果就是「已有目标一个都看不见，还点不到 ×」
+               （2026-11-29 实测：切到威胁情报页，10 个标签全是 0 宽不可见）。 -->
           <ElTag
             v-for="tag in targets[item.kind]"
             :key="tag"
             closable
+            disable-transitions
             class="target-tag"
             @close="removeTarget(item.kind, tag)"
           >

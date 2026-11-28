@@ -55,7 +55,8 @@ const columns = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('colState'),
-    width: 100,
+    // 100px 实测「Completed」被裁（need 117 / got 98）；标签内边距比文案宽得多
+    width: 124,
     formatter: (_r, __: TableColumn, v: number) => (
       <ElTag type={(stateMap[v]?.type as any) || 'info'} effect="light">
         {stateMap[v]?.text || v}

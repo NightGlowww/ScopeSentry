@@ -11,6 +11,9 @@
 //               不能只看 top 是否相等：同一行里按钮/输入框高度不同，top 天然不一致（会假阳性）
 //   zero-btn    可点击元素被压成 0 尺寸（span/width 组合写错时的典型症状）
 //   stuck-mask  卡在离场过渡里的 el-loading 遮罩（opacity:0 但仍吃点击 → 整页点不动）
+//   invisible   有文字却看不见的控件：卡在进场过渡第一帧（scaleX(0)/opacity:0），或 opacity 被压成 0。
+//               2026-11-29 实测：威胁情报页的目标标签挂在隐藏 tab 里挂载，rAF 不跑 → 过渡类永久留在元素上，
+//               10 个标签全部 0 宽不可见，用户「一个已加的目标都看不到、也点不到 ×」。
 //
 // 踩过的坑（2026-11-28）：任务页筛选栏曾被挤成两行，改了三种写法都没生效 ——
 //   span 无效（CSS 已把 .el-col 覆盖成 flex:0 0 auto）、scoped 类被同权重规则压住、
@@ -103,6 +106,25 @@
     const r = b.getBoundingClientRect();
     if (r.width < 8 || r.height < 8) {
       issues.push({ kind: 'zero-btn', text: (b.innerText || '').trim().slice(0, 16), w: Math.round(r.width), h: Math.round(r.height) });
+    }
+  }
+  // 有文字却看不见：卡在进场过渡第一帧（scaleX(0)/opacity:0）或被 opacity 压掉。
+  // 只看 offsetParent 非空（真在布局里）的元素，避免把隐藏 tab 里的内容当问题报。
+  for (const el of document.querySelectorAll('.el-tag, .el-button, .el-alert, .hint, .target-tag')) {
+    if (!el.offsetParent) continue;
+    const text = (el.innerText || '').trim();
+    if (!text) continue;
+    const s = getComputedStyle(el);
+    const m = s.transform && s.transform !== 'none' ? s.transform.match(/matrix\(([^,]+),/) : null;
+    const scaleX = m ? parseFloat(m[1]) : 1;
+    const invisible = s.opacity === '0' || scaleX < 0.01;
+    if (invisible) {
+      issues.push({
+        kind: 'invisible',
+        text: text.slice(0, 16),
+        opacity: s.opacity,
+        scaleX: Math.round(scaleX * 100) / 100
+      });
     }
   }
   return JSON.stringify({ url: location.hash, total: issues.length, issues: issues.slice(0, 15) });
