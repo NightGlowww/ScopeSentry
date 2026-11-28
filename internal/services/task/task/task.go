@@ -218,24 +218,29 @@ func (s *service) List(ctx *gin.Context, search string, pageIndex, pageSize int,
 		// 工具失败数对所有任务都填：它是任务「结束后」才写回的，
 		// 只在运行中填等于永远看不到（2026-11-20 实测坑）。
 		tasks[i].CmdFail = s.taskRepo.TaskCmdFail(ctx, tasks[i].ID.Hex())
-		if tasks[i].Status != constants.TaskStatusRunning {
+
+		st := tasks[i].Status
+		// 排队信息（队列位次 / 是否在队列里）对「待开始」同样有意义：
+		// 节点一次只跑一个任务，待开始的任务可能已经在队列里排了几十小时，
+		// 只显示「待开始 0%」会让人分不清是排队还是卡死（2026-11-29）。
+		if st != constants.TaskStatusRunning && st != constants.TaskStatusPending {
 			continue
 		}
 		id := tasks[i].ID.Hex()
+		if pos, ok := queuePositions[id]; ok {
+			tasks[i].QueuePos = pos
+		}
+		if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
+			tasks[i].Queued = true
+		}
+		// 「正在做什么」只有运行中的任务才有
+		if st != constants.TaskStatusRunning {
+			continue
+		}
 		mod, tgt, since := s.taskRepo.CurrentActivity(ctx, id)
 		tasks[i].CurrentModule = mod
 		tasks[i].CurrentTarget = tgt
 		tasks[i].CurrentSince = since
-		// 没有任何活动但还在队列里 = 排队中（节点一次只跑一个任务）。
-		// 这类任务此前一直显示「运行中 0%」，让人误以为卡死。
-		if pos, ok := queuePositions[tasks[i].ID.Hex()]; ok {
-			tasks[i].QueuePos = pos
-		}
-		if mod == "" {
-			if queued, err := s.taskRepo.HasQueuedTask(ctx, id); err == nil && queued {
-				tasks[i].Queued = true
-			}
-		}
 	}
 
 	return tasks, total, nil
