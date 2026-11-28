@@ -69,3 +69,19 @@ curl -s -X POST $BASE/api/system/storage/slim -H "Authorization: Bearer $TOK" \
 - **写入侧封顶**：在扫描端入库前截断（或只存前 N KB + 原文长度），否则跑完又会慢慢长回来；
 - **按年龄淘汰**：文档没有时间字段，只能用 `_id` 的 ObjectId 时间戳做「保留最近 N 天」，
   需要先确认「老命中的响应体有没有留存价值」。
+## 读侧同步（2026-11-28 已做）
+
+瘦身会让「原始长度」与「库里实际保留的长度」分离，读侧必须如实反映，否则用户看到 64KB 会以为响应体本来就这么短。
+
+- `FindBodyMetaByMD5` 读 `bodyLen` / `bodyTruncated`；
+- `GET /api/assets/sensitive/body` 现在返回三个字段：`totalBytes`（原始字节数，来自 `bodyLen`）、
+  `truncated`（返回内容少于原始）、`storedTruncated`（库里存的本身就不完整）；
+- 前端「敏感信息」弹窗与「WIH 详情」分别提示：
+  `asset.bodyTruncated`（正文较大，仅显示前 2MB）与 `asset.bodySlimmed`（数据库只保留了正文的一部分）。
+
+实测往返（同一条 md5=4f89c45312eecf70 的文档）：
+
+| 状态 | 返回 body | totalBytes | truncated | storedTruncated |
+| --- | --- | --- | --- | --- |
+| 瘦身后 | 64,296 字符（65,536 字节） | 89,059 | true | true |
+| 还原后 | 87,575 字符 | 89,059 | false | false |
