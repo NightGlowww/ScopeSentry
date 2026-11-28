@@ -139,7 +139,7 @@
 | M7 | 任务同步到项目 | `POST /api/task/sync` | 扫描产出无法归档到项目，`bindProject` 只在任务完成时生效，中途不能补绑 |
 | M8 | 目标级暂停/恢复 | `POST /api/task/target/{pause,resume}` | 大批量目标失控时无法只停某个目标（只能整任务停） |
 | M9 | 计划任务 CRUD | `/api/scheduled/{add,detail,update,delete}` + `/pagemonit/*` | **部分已补（2026-11-28）**：新增 `list_scheduled_tasks` / `get_scheduled_task` / `set_scheduled_task_state`，且 `create_scan_task(scheduledTasks=true)` 现在真的走 `CreateScheduledTask`（§5.5 已修）。仍缺：改周期参数、删除计划任务（删除可复用 `delete_task`？两者同一集合，但语义不同，未合） |
-| M10 | 备份只读面 | `GET /api/backup/{list,status}` | 运维 Agent 无法回答「最近备份是否成功」 |
+| M10 | 备份只读面 | `GET /api/backup/{list,status}` | **已补（2026-11-28）**：`list_backups`（scope `system:read`）返回文件清单 + 当前任务状态；创建/恢复/删除仍不给 MCP 入口 |
 | M11 | GitHub 泄露/威胁情报只读 | `/api/github/result/{list,overview,stats}`、`/api/github/threat/{cve_history,token_status}` | 情报面完全黑盒（26 条路由 0 覆盖） |
 | M12 | 系统/看板趋势 + 审计日志 | `GET /api/system/version`、`POST /api/dashboard/{trend,logs}`、`GET /api/dashboard/sysinfo`、`POST /api/audit/list` | Agent 无法自证「我改了什么/系统是否健康」 |
 

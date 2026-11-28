@@ -162,6 +162,8 @@ def main():
         ('list_asset_scopes', {'pageIndex': 1, 'pageSize': 2}),
         ('list_assets', {'asset_type': 'asset', 'pageIndex': 1, 'pageSize': 2}),
         ('list_audit_logs', {'pageIndex': 1, 'pageSize': 2}),
+        # 备份只读面：只列文件与状态，创建/恢复/删除不给 MCP 入口
+        ('list_backups', {}),
         ('list_dictionaries', {'kind': 'dir', 'pageIndex': 1, 'pageSize': 2}),
         ('list_export_records', {}),
         ('list_fingerprints', {'pageIndex': 1, 'pageSize': 2}),

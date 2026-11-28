@@ -35,6 +35,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/url"
 	"github.com/Autumn-27/ScopeSentry/internal/services/assets/vulnerability"
 	wihsvc "github.com/Autumn-27/ScopeSentry/internal/services/assets/wih"
+	"github.com/Autumn-27/ScopeSentry/internal/services/backup"
 	"github.com/Autumn-27/ScopeSentry/internal/services/dashboard"
 	"github.com/Autumn-27/ScopeSentry/internal/services/dictionary"
 	"github.com/Autumn-27/ScopeSentry/internal/services/export"
@@ -92,6 +93,8 @@ type deps struct {
 	policyService        *policy.Service
 	sensitiveRuleService sensitive_rule.Service
 	exportService        export.Service
+	// 备份只读面：Agent 至少要能回答「最近一次备份成没成」
+	backupService backup.Service
 	// 资产组 / 地契（asset_group + asset_scope，ARL-Next 资产模型）
 	assetGroupService assetgroup.Service
 	// ICP 主体任务（company → domain → asset 链路的入口）
@@ -211,6 +214,7 @@ var d = &deps{
 	policyService:        policy.NewService(),
 	sensitiveRuleService: sensitive_rule.NewService(),
 	exportService:        export.NewService(),
+	backupService:        backup.NewService(),
 	assetGroupService:    assetgroup.NewService(),
 	// icp 服务是进程内单例（与 HTTP handler 共用），构造只建仓库句柄，不碰库
 	icpService:        icp.DefaultService(),
@@ -281,6 +285,13 @@ func registerTools(server *mcp.Server, allowedTools map[string]bool) {
 		Name:        "get_scheduled_task",
 		Description: "根据任务 ID 获取计划任务详情（目标、忽略、节点、周期参数、模板、绑定项目）",
 	}, getScheduledTask)
+
+	// 备份只读面：运维 Agent 要能回答「最近一次备份成没成」，但备份的创建/恢复/删除
+	// 是不可逆动作，MCP 不给写入口（UI 里 restore 还要 confirm:"RESTORE"）。
+	addTool(server, allowedTools, &names, &mcp.Tool{
+		Name:        "list_backups",
+		Description: "列出数据库备份文件（名称、大小、生成时间、SHA256、备注）与当前备份/恢复任务状态",
+	}, listBackups)
 
 	addTool(server, allowedTools, &names, &mcp.Tool{
 		Name:        "set_scheduled_task_state",
@@ -872,6 +883,15 @@ func getScheduledTask(ctx context.Context, _ *mcp.CallToolRequest, input getSche
 		return errorResult("计划任务不存在", nil)
 	}
 	return jsonToolResult(task)
+}
+
+func listBackups(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+	list, err := d.backupService.List()
+	if err != nil {
+		return errorResult("获取备份列表失败", err)
+	}
+	status := d.backupService.Status()
+	return jsonToolResult(ginH{"list": list, "total": len(list), "status": status})
 }
 
 type setScheduledTaskStateInput struct {

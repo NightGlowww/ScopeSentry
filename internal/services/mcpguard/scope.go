@@ -37,6 +37,9 @@ const (
 	// 发起查询 + 落库 + 后台 goroutine 跑全流程」，与「给资产打标签」不在一个风险面；
 	// 只想给自动化开「资产写」的 key 不应该顺带获得对外查询能力。
 	ScopeICPWrite = "icp:write"
+	// ScopeSystemRead 运维只读面（备份清单/状态、系统信息）。备份名与大小不含密钥，
+	// 但「有没有备份、备份是否失败」属于运维事实，不该由 asset:read 顺带拿到。
+	ScopeSystemRead = "system:read"
 )
 
 // ToolScopes 工具名 -> 所需 scope 的唯一真相源。
@@ -53,6 +56,7 @@ var ToolScopes = map[string]string{
 	"list_tasks":           ScopeTaskRead,
 	"get_task":             ScopeTaskRead,
 	"list_scheduled_tasks": ScopeTaskRead,
+	"list_backups":         ScopeSystemRead,
 	"get_scheduled_task":   ScopeTaskRead,
 	// 开关只改 scheduledTasks，不新建任务；但启用即意味着「以后会自动扫」，按写权限管
 	"set_scheduled_task_state": ScopeTaskWrite,

@@ -49,14 +49,14 @@ SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bas
 
 ## MCP 工具矩阵（mcp_sweep.py）
 
-契约脚本管的是 REST 侧的横切口；MCP 有 74 个工具，逐个手工验不现实，所以单独一个脚本：
+契约脚本管的是 REST 侧的横切口；MCP 有 75 个工具，逐个手工验不现实，所以单独一个脚本：
 
 ```bash
 SS_BASE=http://<host>:8082 SS_TOKEN=<JWT> [MCP_KEY 或 SS_MCP_KEY=<ssk_...>] bash scripts/ci/verify_contract.sh
   python3 scripts/ci/mcp_sweep.py
 ```
 
-它做四件事（当前 42 条读 + 39 条守卫，74 个工具全覆盖）：
+它做四件事（当前 43 条读 + 39 条守卫，75 个工具全覆盖）：
 
 1. 用真实参数调**读类**工具，断言 `isError=false`（顺带看响应大小）；
 2. 用不存在的 id / 非法参数调**写类**工具，断言 `isError=true` —— 这条才是重点：
