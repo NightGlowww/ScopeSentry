@@ -217,8 +217,10 @@ def main():
         ('delete_port_dict_entries', {'ids': [NOPE], 'confirm': True}),
         ('delete_scan_policies', {'ids': [NOPE]}),
         ('delete_task', {'ids': [NOPE]}),
-        # 归属补录：更新 0 条必须报错（service 对不存在的 id 不报错，会被当成假成功）
-        ('assign_tasks_project', {'ids': [NOPE], 'projectId': ''}),
+        # 归属补录：空 ids 与非法 id 必须在入参/服务层被拒（合法但不存在的 id 返回 updated=0 + note，
+        # 不算失败——解除归属时「本来就是空」也会是 0，硬判错会变成误报）
+        ('assign_tasks_project', {'ids': [], 'projectId': ''}),
+        ('assign_tasks_project', {'ids': ['zzz'], 'projectId': ''}),
         ('pause_task_targets', {'taskId': NOPE, 'targets': ['x.invalid']}),
         ('resume_task_targets', {'taskId': NOPE, 'targets': ['x.invalid']}),
         ('export_task_workbook', {'taskId': NOPE, 'format': 'xlsx'}),

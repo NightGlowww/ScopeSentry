@@ -879,12 +879,17 @@ func assignTasksProject(ctx context.Context, _ *mcp.CallToolRequest, input assig
 	if err != nil {
 		return errorResult("更新任务归属失败", err)
 	}
-	// Service 对不存在的 id 不报错（更新 0 条）。对 MCP 调用方来说那是「假成功」：
-	// 以为归档了，其实一个任务都没动。这里按 0 条判失败。
+	// 只有真的改到文档时 updated > 0。0 有两种可能：id 不存在，或归属本来就是目标值
+	// （解除归属时尤其常见）——不判失败，但把话说清楚，避免「以为归档了其实没动」。
 	if updated == 0 {
-		return errorResult("没有任务被更新（id 不存在或已删除）", nil)
+		return jsonToolResult(ginH{
+			"updated":   0,
+			"requested": len(input.IDs),
+			"projectId": input.ProjectID,
+			"note":      "没有任务被更新：id 不存在/已删除，或归属本来就是目标值",
+		})
 	}
-	return jsonToolResult(ginH{"updated": updated, "projectId": input.ProjectID})
+	return jsonToolResult(ginH{"updated": updated, "requested": len(input.IDs), "projectId": input.ProjectID})
 }
 
 type taskTargetsInput struct {
