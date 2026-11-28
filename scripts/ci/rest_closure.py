@@ -131,6 +131,23 @@ def main():
     for m, p in unref_write[:15]:
         print('  %-6s %s' % (m, p))
 
+    # --budget N：未覆盖写操作条数不得超过 N。
+    # 这是防回归用的：接口改动能随手加一条没人验的写路由，
+    # 而「未覆盖 189 条」这种数字没人会盯着看。超了就 fail，逼着补用例或写进白名单。
+    budget = None
+    if '--budget' in sys.argv:
+        idx = sys.argv.index('--budget')
+        if idx + 1 < len(sys.argv):
+            budget = int(sys.argv[idx + 1])
+    if budget is not None:
+        covered_ui_ids = None
+        if len(unref_write) > budget:
+            print('CLOSURE_BUDGET=FAIL 未覆盖写操作 %d 条 > 预算 %d：%s' % (
+                len(unref_write), budget,
+                ', '.join('%s %s' % (m, p) for m, p in unref_write[:5])))
+            return 1
+        print('CLOSURE_BUDGET=PASS 未覆盖写操作 %d 条 ≤ 预算 %d' % (len(unref_write), budget))
+
     if '--write' in sys.argv:
         lines = ['# REST 接口引用索引', '',
                  '> 由 scripts/ci/rest_closure.py --write 生成，勿手改。',
@@ -162,4 +179,4 @@ def main():
         print('written %s' % OUT_MD.relative_to(ROOT))
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main() or 0)

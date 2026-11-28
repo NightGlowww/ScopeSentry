@@ -12,9 +12,9 @@
 | 维度 | 数量 |
 | --- | --- |
 | 路由总数 | 314 |
-| 被测试/契约脚本点名 | 203（65%） |
+| 被测试/契约脚本点名 | 204（65%） |
 | 读操作 点名/总数 | 79 / 115 |
-| 写操作 点名/总数 | 84 / 113 |
+| 写操作 点名/总数 | 85 / 113 |
 | 无法判读 点名/总数 | 40 / 86 |
 | UI 引用 | 302（96%） |
 | 写操作：测试与 UI 都没碰 | 0 |
@@ -24,7 +24,7 @@
 | 模块 | 未点名 | 总数 |
 | --- | --- |
 | assets | 26 | 81 |
-| task | 19 | 30 |
+| task | 18 | 30 |
 | plugin | 16 | 17 |
 | system | 9 | 10 |
 | node | 7 | 10 |
@@ -82,7 +82,6 @@
 | POST | `/api/task/scheduled/pagemonit/delete` |
 | POST | `/api/task/scheduled/pagemonit/update` |
 | POST | `/api/task/stop` |
-| POST | `/api/task/sync` |
 | POST | `/api/task/target/resume` |
 
 ## 写操作里测试与 UI 都没碰的（死路由候选）
