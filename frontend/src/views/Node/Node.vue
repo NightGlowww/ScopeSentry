@@ -68,13 +68,13 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'name',
     label: t('node.nodeName'),
-    minWidth: 160,
+    minWidth: 140,
     fixed: 'left'
   },
   {
     field: 'maxTaskNum',
     label: t('configuration.maxTaskNum'),
-    width: 110,
+    width: 92,
     formatter: (_: Recordable, __: TableColumn, cellValue: number) => {
       return h(
         ElTag,
@@ -88,7 +88,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'running',
     label: t('node.taskCount'),
-    minWidth: 230,
+    minWidth: 200,
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       const tag = h(ElTag, { round: true, effect: 'plain', hit: true }, () => cellValue)
       // 「在线 + 队列 6」看不出队列为什么不动：把此刻在跑的模块和「多久没产出」摆出来。
@@ -127,7 +127,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'finished',
     label: t('node.finished'),
-    width: 110,
+    width: 92,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       return h(
         ElTag,
@@ -143,7 +143,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'cpuNum',
     label: t('node.nodeUsageCpu'),
-    width: 100,
+    width: 84,
     formatter: (_: Recordable, __: TableColumn, cellValue: string) => {
       let numericValue = parseFloat(cellValue)
       numericValue = parseFloat(numericValue.toFixed(2))
@@ -161,7 +161,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'memNum',
     label: t('node.nodeUsageMemory'),
-    width: 130,
+    width: 124,
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
       const host = parseFloat(parseFloat(cellValue).toFixed(1))
       const ctr = Number(row.containerMem) || 0
@@ -214,7 +214,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'state',
     label: t('node.nodeStatus'),
-    width: 140,
+    width: 132,
     formatter: (row: Recordable, __: TableColumn, cellValue: string) => {
       const tag = h(
         ElTag,
@@ -243,7 +243,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'queueLen',
     label: t('node.queueLen'),
-    width: 110,
+    width: 96,
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 队列积压说明有任务在排队（节点一次只跑一个），>5 用警告色提示
       const v = cellValue || 0
@@ -261,7 +261,7 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'cmdFail',
     label: t('node.cmdFail'),
-    width: 110,
+    width: 92,
     formatter: (row: Recordable, __: TableColumn, cellValue: number) => {
       // 累计次数 + 最近 10 分钟增量：前者看历史，后者判断「刚跑这批可不可信」
       const v = cellValue || 0
@@ -285,15 +285,15 @@ const nodeColums = reactive<TableColumn[]>([
   {
     field: 'updateTime',
     label: t('node.updateTime'),
-    // 时间戳需要约 175px，小于这个值右侧会被截断
-    width: 180,
+    // 时间戳需要约 175px，小于这个值右侧会被截断（已靠 showOverflowTooltip 兜底）
+    width: 168,
     showOverflowTooltip: true
   },
   {
     field: 'action',
     label: t('tableDemo.action'),
-    /* 三个常用按钮 + 「更多」下拉 ≈ 250px */
-    width: 252,
+    /* 三个常用按钮 + 「更多」下拉 ≈ 240px */
+    width: 240,
     // 列数到 12 之后总宽超视口：Action 固定在右侧，重启/清空队列永远点得到，
     // 不用先横向滚动（2026-11-29 截图实测：不固定时整列被挤出可视区）。
     fixed: 'right',
