@@ -92,6 +92,11 @@ func InitializeGlobalScheduler() {
 		globalScheduler.RegisterHandler("poc_sync", func(params string, nextTime string) error {
 			return jobs.POCSync()
 		})
+		// 资产去重：配置页的「去重开关 + 周期」本来就该由它兑现
+		// （此前没有这个 handler，也没有任何地方注册定时，开关等于摆设）
+		globalScheduler.RegisterHandler("deduplication", func(params string, nextTime string) error {
+			return jobs.Deduplication()
+		})
 	})
 }
 

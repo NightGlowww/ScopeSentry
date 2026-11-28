@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/Autumn-27/ScopeSentry/internal/services/assetcollapse"
+	confSvc "github.com/Autumn-27/ScopeSentry/internal/services/configuration"
 	"github.com/Autumn-27/ScopeSentry/internal/services/intel/versionprobe"
 	"github.com/Autumn-27/ScopeSentry/internal/services/intelfeed"
 	"github.com/Autumn-27/ScopeSentry/internal/services/jev"
@@ -136,6 +137,16 @@ func main() {
 		defer cancel()
 		if err := schedulerSvc.NewService().EnsurePageMonitoringJob(ctx); err != nil {
 			logger.Warn("ensure page_monitoring job failed", zap.Error(err))
+		}
+	}()
+
+	// 资产去重定时任务自愈：配置里 flag=true 但 scheduled 里没有 deduplication job 时补注册。
+	// 以前完全没有这个 job，配置页的「去重开关 + 周期」不产生任何定时运行。
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := confSvc.NewService().EnsureDeduplicationJob(ctx); err != nil {
+			logger.Warn("ensure deduplication job failed", zap.Error(err))
 		}
 	}()
 

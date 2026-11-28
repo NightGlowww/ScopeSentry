@@ -8,12 +8,14 @@
 package configuration
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/Autumn-27/ScopeSentry/internal/config"
 	"github.com/Autumn-27/ScopeSentry/internal/database/mongodb"
 	"github.com/Autumn-27/ScopeSentry/internal/logger"
+	schedulerCore "github.com/Autumn-27/ScopeSentry/internal/scheduler"
 	assetCommon "github.com/Autumn-27/ScopeSentry/internal/services/assets/common"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
@@ -132,6 +134,63 @@ func (s *Service) GetDeduplicationConfig(ctx *gin.Context) (map[string]interface
 	return doc, nil
 }
 
+// dedupJobID 去重定时任务的固定 id（和配置文档同名，便于识别与幂等替换）
+const dedupJobID = "deduplication"
+
+// dedupCron 把「每 N 小时」翻译成 cron 表达式。
+// N<=0 视为配置无效 → 退回默认 3 小时；N>=24 视为每天一次（0 点）。
+// 分钟固定 0：去重是重活，别落在整分的其他任务堆里抢资源。
+func dedupCron(hours int) string {
+	if hours <= 0 {
+		hours = 3
+	}
+	if hours >= 24 {
+		return "0 0 * * *"
+	}
+	return fmt.Sprintf("0 */%d * * *", hours)
+}
+
+// EnsureDeduplicationJob 按配置幂等注册/移除去重定时任务。
+//
+// flag=true → 每 hour 小时跑一次；flag=false → 移除。启动期与每次保存都调，
+// 这样「去重开关 + 去重周期」才真的对应一个在跑的定时任务（以前完全没有）。
+func (s *Service) EnsureDeduplicationJob(ctx context.Context) error {
+	doc, err := s.repo.FindOne(ctx, collConfig, bson.M{"name": "deduplication"}, bson.M{"_id": 0})
+	if err != nil || doc == nil {
+		return nil
+	}
+	enabled, _ := doc["flag"].(bool)
+	hours := 3
+	if v, ok := doc["hour"].(int32); ok && v > 0 {
+		hours = int(v)
+	} else if v, ok := doc["hour"].(int64); ok && v > 0 {
+		hours = int(v)
+	} else if v, ok := doc["hour"].(int); ok && v > 0 {
+		hours = v
+	}
+	// 调度器里的 "interval" 其实是「每 N 天在 HH:MM 跑」，不是「每 N 小时」，
+	// 用它表达「每 3 小时」会被拼成 Every(0).Days() 直接报错。这里用 cron 表达间隔。
+	job := &schedulerCore.Job{
+		ID:        dedupJobID,
+		Name:      "deduplication",
+		Handler:   "deduplication",
+		CycleType: "cron",
+		Schedule:  dedupCron(hours),
+	}
+	sched := schedulerCore.GetGlobalScheduler()
+	if !enabled {
+		// 关闭时移除：留着空转的 job 会让「下次运行时间」一直往前走，看起来像还在跑
+		return sched.RemoveJob(dedupJobID)
+	}
+	if err := sched.RemoveJob(dedupJobID); err != nil {
+		return err
+	}
+	if err := sched.AddJob(job); err != nil {
+		return fmt.Errorf("register deduplication job: %w", err)
+	}
+	return nil
+}
+
 // SaveDeduplicationConfig 保存去重配置；如需要立即运行，透传到节点或调度器（此处仅保存与刷新）
 func (s *Service) SaveDeduplicationConfig(ctx *gin.Context, cfg models.DepConfig) error {
 	cfg.Name = "deduplication"
@@ -140,7 +199,11 @@ func (s *Service) SaveDeduplicationConfig(ctx *gin.Context, cfg models.DepConfig
 	if err := s.repo.Upsert(ctx.Request.Context(), collConfig, bson.M{"name": "deduplication"}, cfg); err != nil {
 		return err
 	}
-	// 这里按需可扩展调用内部调度器或消息下发；当前版本仅保存
+	// 保存即生效：开关/周期直接对应一个在跑的定时任务（以前只存不排，开关等于摆设）。
+	if err := s.EnsureDeduplicationJob(ctx.Request.Context()); err != nil {
+		// 注册失败不该让保存回滚：配置已落库，下次启动还会按配置重建
+		logger.Error("deduplication: register job failed: " + err.Error())
+	}
 	if runNow {
 		go func() {
 			err := s.dedupService.DoAssetDeduplication()
