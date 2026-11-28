@@ -51,6 +51,13 @@ else
   printf '  SKIP %-18s 需要 SS_BASE + SS_TOKEN\n' column_field
 fi
 
+# MCP 输出契约：读类工具「返回的东西和库里一致」——需要真实 key，没有就跳过
+if [ -n "${SS_MCP_KEY:-}" ]; then
+  gate mcp_output python3 scripts/ci/mcp_output_contract.py
+else
+  printf '  SKIP %-18s 需要 SS_BASE + SS_MCP_KEY\n' mcp_output
+fi
+
 printf '  SKIP %-18s 需要真实 Mongo/Redis：bash scripts/ci/integration.sh\n' integration
 
 if [ "$FAIL" = "0" ]; then echo 'VERIFY_ALL=PASS'; else echo 'VERIFY_ALL=FAIL'; fi

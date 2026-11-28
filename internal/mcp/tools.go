@@ -1596,7 +1596,40 @@ func listAssets(ctx context.Context, _ *mcp.CallToolRequest, input listAssetsInp
 		out["totalIsGroupCount"] = true
 		out["note"] = "按 IP 分页后按 IP×端口×服务展开，list 行数通常大于 pageSize；total 是 IP 数"
 	}
+	aliasAssetRowFields(out)
 	return jsonToolResult(out)
+}
+
+// aliasAssetRowFields 给资产行补上「滤镜键同名」的别名字段。
+//
+// 起因（2026-11-29 输出契约审计）：filter 的键和返回行的字段不是一套名字——
+//
+//	filter {"statuscode":["200"]} 命中 4935 条，但行里叫 status，没有 statuscode；
+//	search_assets 返回的行叫 host，list_assets 返回的行叫 domain。
+//
+// 对人是小别扭，对自动化是硬伤：拿到 total 却验证不了 rows 是否真的被过滤，
+// 也没法把两个工具的结果按同一个键合并。这里只做只读别名，不改原字段。
+func aliasAssetRowFields(out ginH) {
+	rows, ok := out["list"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, raw := range rows {
+		row, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if _, has := row["host"]; !has {
+			if v, ok := row["domain"]; ok {
+				row["host"] = v
+			}
+		}
+		if _, has := row["statuscode"]; !has {
+			if v, ok := row["status"]; ok {
+				row["statuscode"] = v
+			}
+		}
+	}
 }
 
 // mcpFilterValues 把 MCP 的 []string 过滤值原样转成 []interface{}。
