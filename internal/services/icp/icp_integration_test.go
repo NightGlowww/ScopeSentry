@@ -125,6 +125,31 @@ func waitState(t *testing.T, svc *icpsvc.Service, taskID string, want int) *mode
 	return nil
 }
 
+// waitStateAny 等到任务进入任意一个目标状态（自动跑可能以 done 或 paused 收尾）
+func waitStateAny(t *testing.T, svc *icpsvc.Service, taskID string, want ...int) *models.IcpTask {
+	t.Helper()
+	ctx := context.Background()
+	deadline := time.Now().Add(10 * time.Second)
+	var last *models.IcpTask
+	for time.Now().Before(deadline) {
+		task, err := svc.GetTask(ctx, taskID)
+		if err == nil {
+			last = task
+			for _, w := range want {
+				if task.State == w {
+					return task
+				}
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if last == nil {
+		t.Fatalf("任务 %s 一直读不到状态", taskID)
+	}
+	t.Fatalf("任务 %s 状态 = %d, want 之一 %v（lastError=%q）", taskID, last.State, want, last.LastError)
+	return nil
+}
+
 func createTask(t *testing.T, svc *icpsvc.Service, name, taskType string, queries ...string) *models.IcpTask {
 	t.Helper()
 	ctx := context.Background()
@@ -154,11 +179,10 @@ func TestIcpServiceRunDedupExport(t *testing.T) {
 		return fixedRecords(domain), nil
 	}}
 	svc := newService(provider)
+	// 新建即开跑（service.CreateTask 末尾会 Claim + launch）：直接从「等待完成」开始等。
+	// 这里原来先调了一次 Restart，行为改掉之后它会稳定命中 ErrTaskBusy —— 而这条用例
+	// 因为从来没人跑过，红着也没人知道。
 	task := createTask(t, svc, uniqueName(t), models.IcpTaskTypeDomain, "run.example.com")
-
-	if _, err := svc.Restart(ctx, task.ID.Hex()); err != nil {
-		t.Fatalf("restart: %v", err)
-	}
 	done := waitState(t, svc, task.ID.Hex(), models.IcpTaskStateDone)
 	if done.Stats.Total != 3 || done.Stats.Done != 3 || done.Stats.Found != 3 || done.Stats.Failed != 0 {
 		t.Fatalf("首次运行 stats = %+v, want total=3 done=3 found=3 failed=0", done.Stats)
@@ -241,10 +265,7 @@ func TestIcpServiceRetryPauseResume(t *testing.T) {
 	}}
 	svc := newService(provider)
 	task := createTask(t, svc, uniqueName(t), models.IcpTaskTypeDomain, "retry.example.com")
-
-	if _, err := svc.Restart(ctx, task.ID.Hex()); err != nil {
-		t.Fatalf("restart: %v", err)
-	}
+	// 同上：新建即开跑，429 重试耗尽后自己会变 paused
 	paused := waitState(t, svc, task.ID.Hex(), models.IcpTaskStatePaused)
 	if !strings.Contains(paused.LastError, "429") {
 		t.Fatalf("lastError = %q, want 包含 429", paused.LastError)
@@ -304,9 +325,6 @@ func TestIcpServiceSyncScope(t *testing.T) {
 	}}
 	svc := newService(provider)
 	task := createTask(t, svc, scopeName, models.IcpTaskTypeDomain, "sync.example.com")
-	if _, err := svc.Restart(ctx, task.ID.Hex()); err != nil {
-		t.Fatalf("restart: %v", err)
-	}
 	waitState(t, svc, task.ID.Hex(), models.IcpTaskStateDone)
 
 	summary, err := svc.Sync(ctx, task.ID.Hex(), "")
@@ -391,9 +409,16 @@ func TestIcpServiceBackfill(t *testing.T) {
 	}}
 	svc := newService(provider)
 	task := createTask(t, svc, uniqueName(t), models.IcpTaskTypeDomain, "a.example.com", "b.example.com")
+	// 新建即开跑：先让它跑完（a 成功、b 502 → 任务暂停），再清掉它写的结果。
+	// 不清的话，backfill 把 a.example.com 补成 甲公司/京ICP备…0003号-1 时会撞上自动跑留下的
+	// 同一条 (domain, company, icpNo) 唯一键，报 E11000 —— 这不是 backfill 的 bug。
+	waitStateAny(t, svc, task.ID.Hex(), models.IcpTaskStatePaused, models.IcpTaskStateDone)
 
 	// 先造两条已有但缺 company/icpNo 的结果
 	collection := mongodb.DB.Collection(icprepo.CollectionResult)
+	if _, err := collection.DeleteMany(ctx, bson.M{"taskId": task.ID.Hex()}); err != nil {
+		t.Fatalf("clean auto-run results: %v", err)
+	}
 	now := time.Now()
 	if _, err := collection.InsertMany(ctx, []interface{}{
 		bson.M{"taskId": task.ID.Hex(), "domain": "a.example.com", "company": "", "icpNo": "", "siteName": "", "type": "web", "source": "manual", "createdAt": now},
@@ -662,10 +687,7 @@ func TestIcpServiceConcurrentRestartRejected(t *testing.T) {
 	}}
 	svc := newService(provider)
 	task := createTask(t, svc, uniqueName(t), models.IcpTaskTypeDomain, "slow.example.com")
-
-	if _, err := svc.Restart(ctx, task.ID.Hex()); err != nil {
-		t.Fatalf("restart: %v", err)
-	}
+	// 新建即开跑，provider 卡在 gate 上时任务一定处于 running —— 不需要也不能再 Restart
 	select {
 	case <-entered:
 	case <-time.After(5 * time.Second):

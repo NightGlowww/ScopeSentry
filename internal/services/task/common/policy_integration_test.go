@@ -63,6 +63,14 @@ func seedWirePolicy(t *testing.T, ctx context.Context, name, templateID string, 
 	return id
 }
 
+// 策略消费（docs/audit/SCAN_POLICY.md §78-95 的优先级）：
+//
+//   - 模板：用户选的赢，策略模板只在任务没填模板时兜底；
+//   - 插件：某阶段里命中策略插件 → 只留命中的（保持模板原顺序）；整阶段 0 命中 → 清单不动 + 告警。
+//
+// 这个用例原来断言「策略模板覆盖任务模板」，与文档和 taskpolicy.ApplyToTask 的优先级相反。
+// 它一直没被发现，是因为 internal/services/task/common 的集成用例从来没被执行过
+// （integration.sh 只跑 internal/api/routes 和 internal/mcp）。
 func TestGetScanTemplateAppliesPolicy(t *testing.T) {
 	if mongodb.DB == nil {
 		t.Skip("mongo not initialized")
@@ -70,10 +78,10 @@ func TestGetScanTemplateAppliesPolicy(t *testing.T) {
 	ctx := context.Background()
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 
-	// 任务自选 tpl-a（两个 DirScan 插件）；策略指定 tpl-b 且只点名 dir-b2
+	// 任务自选 tpl-a（dir-a1/dir-a2）；策略指向别的模板 tpl-b，并只点名 dir-a1
 	tplA := seedWireTemplate(t, ctx, "wire-tpl-a-"+suffix, []string{"dir-a1", "dir-a2"})
 	tplB := seedWireTemplate(t, ctx, "wire-tpl-b-"+suffix, []string{"dir-b1", "dir-b2"})
-	policyID := seedWirePolicy(t, ctx, "wire-policy-"+suffix, tplB.Hex(), []string{"dir-b2"})
+	policyID := seedWirePolicy(t, ctx, "wire-policy-"+suffix, tplB.Hex(), []string{"dir-a1"})
 
 	svc := NewService()
 	task := &models.Task{
@@ -87,15 +95,45 @@ func TestGetScanTemplateAppliesPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetScanTemplate: %v", err)
 	}
-	// 策略模板覆盖任务模板 + 插件白名单收窄
+	// 模板用任务选的 tpl-a，不被策略的 tpl-b 顶掉
+	if got := tpl.DirScan; len(got) != 1 || got[0] != "dir-a1" {
+		t.Fatalf("DirScan = %v, want [dir-a1]（模板取任务的 tpl-a，插件按策略白名单收窄）", got)
+	}
+	if _, ok := tpl.Parameters.DirScan["dir-a2"]; ok {
+		t.Fatalf("dir-a2 应被策略白名单移出参数表: %v", tpl.Parameters.DirScan)
+	}
+	if _, ok := tpl.Parameters.DirScan["dir-a1"]; !ok {
+		t.Fatalf("dir-a1 的参数应保留: %v", tpl.Parameters.DirScan)
+	}
+}
+
+// 任务没填模板时，策略模板兜底：这时策略的插件白名单作用在策略模板上。
+func TestGetScanTemplateFallsBackToPolicyTemplate(t *testing.T) {
+	if mongodb.DB == nil {
+		t.Skip("mongo not initialized")
+	}
+	ctx := context.Background()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	tplB := seedWireTemplate(t, ctx, "wire-tpl-fb-"+suffix, []string{"dir-b1", "dir-b2"})
+	policyID := seedWirePolicy(t, ctx, "wire-policy-fb-"+suffix, tplB.Hex(), []string{"dir-b2"})
+
+	svc := NewService()
+	task := &models.Task{
+		PolicyID: policyID.Hex(),
+		Name:     "wire-task-fb-" + suffix,
+		Node:     []string{"node-x"},
+		Type:     "general",
+	}
+	tpl, err := svc.GetScanTemplate(ctx, task)
+	if err != nil {
+		t.Fatalf("GetScanTemplate: %v", err)
+	}
 	if got := tpl.DirScan; len(got) != 1 || got[0] != "dir-b2" {
-		t.Fatalf("DirScan = %v, want [dir-b2]", got)
+		t.Fatalf("DirScan = %v, want [dir-b2]（无任务模板时用策略模板 + 白名单）", got)
 	}
 	if _, ok := tpl.Parameters.DirScan["dir-b1"]; ok {
 		t.Fatalf("dir-b1 应被策略白名单移出参数表: %v", tpl.Parameters.DirScan)
-	}
-	if _, ok := tpl.Parameters.DirScan["dir-b2"]; !ok {
-		t.Fatalf("dir-b2 的参数应保留: %v", tpl.Parameters.DirScan)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/Autumn-27/ScopeSentry/internal/models"
 	dashboardrepo "github.com/Autumn-27/ScopeSentry/internal/repositories/dashboard"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // 趋势/统计要真连 Mongo 验：聚合管道、按天分组、project 过滤都是 Mongo 语义，
@@ -25,6 +26,26 @@ func dashboardTestLocation(t *testing.T) *time.Location {
 		t.Fatalf("load Asia/Shanghai: %v", err)
 	}
 	return loc
+}
+
+// seedProject 建一条真实项目记录并返回它的 ObjectID 十六进制串。
+//
+// 两个必须点：
+//  1. 项目必须真实存在 —— resolveProject 先按 ObjectID、再按名字解析，都没有就 404；
+//  2. 资产/任务里的 project 字段存的是**项目 ObjectID**，不是名字。用名字塞 fixture，
+//     查询按 ID 过滤时一条都命中不了，表现成「趋势全是 0」——那是 fixture 错，不是聚合错。
+func seedProject(t *testing.T, name string) string {
+	t.Helper()
+	coll := mongodb.DB.Collection("project")
+	t.Cleanup(func() {
+		_, _ = coll.DeleteMany(context.Background(), bson.M{"name": name})
+	})
+	res, err := coll.InsertOne(context.Background(), bson.M{"name": name, "tag": "it"})
+	if err != nil {
+		t.Fatalf("seed project %s: %v", name, err)
+	}
+	id, _ := res.InsertedID.(primitive.ObjectID)
+	return id.Hex()
 }
 
 func dayString(day time.Time, hour, minute int) string {
@@ -41,13 +62,16 @@ func TestTrendAggregationWithProject(t *testing.T) {
 	project := "proj-dashboard-trend-" + suffix
 	otherProject := "proj-dashboard-trend-other-" + suffix
 
+	projectID := seedProject(t, project)
+	otherProjectID := seedProject(t, otherProject)
+
 	assetColl := mongodb.DB.Collection("asset")
 	vulnColl := mongodb.DB.Collection("vulnerability")
 	taskColl := mongodb.DB.Collection("task")
 	t.Cleanup(func() {
 		_, _ = assetColl.DeleteMany(context.Background(), bson.M{"project": bson.M{"$in": bson.A{project, otherProject}}})
 		_, _ = vulnColl.DeleteMany(context.Background(), bson.M{"project": bson.M{"$in": bson.A{project, otherProject}}})
-		_, _ = taskColl.DeleteMany(context.Background(), bson.M{"project": project})
+		_, _ = taskColl.DeleteMany(context.Background(), bson.M{"project": projectID})
 	})
 
 	loc := dashboardTestLocation(t)
@@ -61,11 +85,11 @@ func TestTrendAggregationWithProject(t *testing.T) {
 
 	// 资产：今天 2、昨天 1、3 天前 1；另一个项目 1 条（必须被 project 过滤掉）
 	assets := []bson.M{
-		{"host": host("a1"), "port": "443", "project": project, "time": dayString(today, 9, 0)},
-		{"host": host("a2"), "port": "8443", "project": project, "time": dayString(today, 10, 30)},
-		{"host": host("a3"), "port": "80", "project": project, "time": dayString(yesterday, 11, 0)},
-		{"host": host("a4"), "port": "8080", "project": project, "time": dayString(threeDaysAgo, 12, 0)},
-		{"host": host("a5"), "port": "443", "project": otherProject, "time": dayString(today, 13, 0)},
+		{"host": host("a1"), "port": "443", "project": projectID, "time": dayString(today, 9, 0)},
+		{"host": host("a2"), "port": "8443", "project": projectID, "time": dayString(today, 10, 30)},
+		{"host": host("a3"), "port": "80", "project": projectID, "time": dayString(yesterday, 11, 0)},
+		{"host": host("a4"), "port": "8080", "project": projectID, "time": dayString(threeDaysAgo, 12, 0)},
+		{"host": host("a5"), "port": "443", "project": otherProjectID, "time": dayString(today, 13, 0)},
 	}
 	if _, err := assetColl.InsertMany(context.Background(), toInterfaces(assets)); err != nil {
 		t.Fatalf("seed assets: %v", err)
@@ -73,9 +97,9 @@ func TestTrendAggregationWithProject(t *testing.T) {
 
 	// 漏洞：今天 1、2 天前 2
 	vulns := []bson.M{
-		{"project": project, "time": dayString(today, 8, 0), "vulnname": "xss", "level": "high", "hash": project + "-v1"},
-		{"project": project, "time": dayString(twoDaysAgo, 9, 0), "vulnname": "sqli", "level": "critical", "hash": project + "-v2"},
-		{"project": project, "time": dayString(twoDaysAgo, 15, 0), "vulnname": "rce", "level": "critical", "hash": project + "-v3"},
+		{"project": projectID, "time": dayString(today, 8, 0), "vulnname": "xss", "level": "high", "hash": project + "-v1"},
+		{"project": projectID, "time": dayString(twoDaysAgo, 9, 0), "vulnname": "sqli", "level": "critical", "hash": project + "-v2"},
+		{"project": projectID, "time": dayString(twoDaysAgo, 15, 0), "vulnname": "rce", "level": "critical", "hash": project + "-v3"},
 	}
 	if _, err := vulnColl.InsertMany(context.Background(), toInterfaces(vulns)); err != nil {
 		t.Fatalf("seed vulnerabilities: %v", err)
@@ -83,9 +107,9 @@ func TestTrendAggregationWithProject(t *testing.T) {
 
 	// 任务：今天完成 1、昨天完成 1；运行中的任务不算「完成」
 	tasks := []bson.M{
-		{"name": "dash-task-1-" + suffix, "project": []string{project}, "status": 3, "endTime": dayString(today, 7, 10), "creatTime": dayString(threeDaysAgo, 7, 0)},
-		{"name": "dash-task-2-" + suffix, "project": []string{project}, "status": 3, "endTime": dayString(yesterday, 18, 20), "creatTime": dayString(twoDaysAgo, 18, 0)},
-		{"name": "dash-task-3-" + suffix, "project": []string{project}, "status": 1, "endTime": "", "creatTime": dayString(today, 6, 0)},
+		{"name": "dash-task-1-" + suffix, "project": []string{projectID}, "status": 3, "endTime": dayString(today, 7, 10), "creatTime": dayString(threeDaysAgo, 7, 0)},
+		{"name": "dash-task-2-" + suffix, "project": []string{projectID}, "status": 3, "endTime": dayString(yesterday, 18, 20), "creatTime": dayString(twoDaysAgo, 18, 0)},
+		{"name": "dash-task-3-" + suffix, "project": []string{projectID}, "status": 1, "endTime": "", "creatTime": dayString(today, 6, 0)},
 	}
 	if _, err := taskColl.InsertMany(context.Background(), toInterfaces(tasks)); err != nil {
 		t.Fatalf("seed tasks: %v", err)
@@ -162,39 +186,40 @@ func TestStatsCountsWithProject(t *testing.T) {
 
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 	project := "proj-dashboard-stats-" + suffix
+	projectID := seedProject(t, project)
 
 	now := time.Now().Format("2006-01-02 15:04:05")
 	colls := map[string][]bson.M{
 		"asset": {
-			{"host": "stats-" + suffix + "-1.example.com", "port": "443", "project": project, "time": now},
-			{"host": "stats-" + suffix + "-2.example.com", "port": "443", "project": project, "time": now},
+			{"host": "stats-" + suffix + "-1.example.com", "port": "443", "project": projectID, "time": now},
+			{"host": "stats-" + suffix + "-2.example.com", "port": "443", "project": projectID, "time": now},
 		},
 		"subdomain": {
-			{"host": "sub-" + suffix + ".example.com", "project": project, "time": now},
+			{"host": "sub-" + suffix + ".example.com", "project": projectID, "time": now},
 		},
 		"UrlScan": {
-			{"url": "https://stats-" + suffix + ".example.com/a", "project": project, "time": now},
-			{"url": "https://stats-" + suffix + ".example.com/b", "project": project, "time": now},
-			{"url": "https://stats-" + suffix + ".example.com/c", "project": project, "time": now},
+			{"url": "https://stats-" + suffix + ".example.com/a", "project": projectID, "time": now},
+			{"url": "https://stats-" + suffix + ".example.com/b", "project": projectID, "time": now},
+			{"url": "https://stats-" + suffix + ".example.com/c", "project": projectID, "time": now},
 		},
 		"vulnerability": {
-			{"project": project, "time": now, "vulnname": "xss", "hash": project + "-h1"},
+			{"project": projectID, "time": now, "vulnname": "xss", "hash": project + "-h1"},
 		},
 		"SensitiveResult": {
-			{"project": project, "time": now, "sid": "apikey", "md5": project + "-m1"},
-			{"project": project, "time": now, "sid": "password", "md5": project + "-m2"},
+			{"project": projectID, "time": now, "sid": "apikey", "md5": project + "-m1"},
+			{"project": projectID, "time": now, "sid": "password", "md5": project + "-m2"},
 		},
 		"task": {
-			{"name": "stats-task-1-" + suffix, "project": []string{project}, "status": 3, "endTime": now},
-			{"name": "stats-task-2-" + suffix, "project": []string{project}, "status": 1},
-			{"name": "stats-task-3-" + suffix, "project": []string{project}, "status": 1},
+			{"name": "stats-task-1-" + suffix, "project": []string{projectID}, "status": 3, "endTime": now},
+			{"name": "stats-task-2-" + suffix, "project": []string{projectID}, "status": 1},
+			{"name": "stats-task-3-" + suffix, "project": []string{projectID}, "status": 1},
 			{"name": "stats-task-other-" + suffix, "project": []string{"other-" + suffix}, "status": 3},
 		},
 	}
 
 	for name, docs := range colls {
 		coll := mongodb.DB.Collection(name)
-		t.Cleanup(func() { _, _ = coll.DeleteMany(context.Background(), bson.M{"project": project}) })
+		t.Cleanup(func() { _, _ = coll.DeleteMany(context.Background(), bson.M{"project": projectID}) })
 		if _, err := coll.InsertMany(context.Background(), toInterfaces(docs)); err != nil {
 			t.Fatalf("seed %s: %v", name, err)
 		}

@@ -412,3 +412,26 @@ if existing == nil { return ErrNotFound }  // 不存在（不是 error！）
 3. 过滤/搜索键：拿**真实行里的值**反查一次（`filter_matrix.py` 的做法），筛不出来就是键坏了，
    不要只看“接口没报错”。
 
+## 测试执行面：30+ 个集成测试包从来没被执行过（2026-11-29）
+
+`scripts/ci/integration.sh` 长期只跑 `./internal/api/routes`（后来加了 `./internal/mcp`），
+而仓库里带 `*_integration_test.go` 的包有 36 个。其余包（icp、task/common、dashboard、
+assets/*、repositories/* …）的用例写得再细，也从没在 CI 或本地跑过一遍。
+
+首次全量跑（`go test -tags integration ./internal/... -p 1`）当场红出三个包：
+
+| 包 | 现象 | 定性 |
+| --- | --- | --- |
+| `internal/services/icp` | 5 个用例在 `Restart` 处报 `icp task is running`；backfill 撞 E11000 | **用例过时**：`CreateTask` 改成「新建即开跑」后，用例还停在「先 Restart」，且 backfill fixture 没清掉自动跑写下的结果 |
+| `internal/services/task/common` | `DirScan = [dir-a1 dir-a2], want [dir-b2]` | **断言与文档相反**：`SCAN_POLICY.md` §78-95 明确「模板用户选的赢、策略只兜底」，用例却在断言策略模板覆盖 |
+| `internal/services/dashboard` | `project not found` / 计数全 0 | **fixture 缺项目**：`resolveProject` 要求项目存在，且资产里 `project` 存的是项目 ObjectID 而非名字 |
+
+三处都是用例侧的问题，产品行为没改。这恰恰说明「只写不跑」的风险：用例会随着产品演进
+悄悄失效，而 CI 永远绿。
+
+**现在**：`integration.sh` 跑全仓 `./internal/...`，必须 `-p 1`（不同包默认并行跑测试二进制，
+多个包同时初始化同一个库会互相踩 —— 实测并行时 `user_username_unique` 检查假失败）。
+全量通过用例数 **500**（此前脚本口径下是 67）。
+
+判读口径记一笔：`-p 1` 造成的现象是「单个包过、全量挂」或反过来，遇到这类抖动先怀疑并行，
+别急着改产品代码。
